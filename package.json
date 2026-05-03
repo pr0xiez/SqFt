@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "seed": "dotenv -e .env -- npx tsx prisma/seed.ts",
     "postinstall": "prisma generate",
@@ -14,6 +14,9 @@
     "lint:ci": "biome ci .",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
