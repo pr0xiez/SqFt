@@ -22,7 +22,13 @@ describe("logRequest", () => {
   it("writes a JSON line with type=request and all required fields", () => {
     const { lines } = captureOutput();
 
-    logRequest({ method: "GET", path: "/api/customers", status: 200, durationMs: 42, orgId: "org1" });
+    logRequest({
+      method: "GET",
+      path: "/api/customers",
+      status: 200,
+      durationMs: 42,
+      orgId: "org1",
+    });
 
     expect(lines).toHaveLength(1);
     const entry = JSON.parse(lines[0]);
@@ -39,7 +45,13 @@ describe("logRequest", () => {
   it("does not include PII fields", () => {
     const { lines } = captureOutput();
 
-    logRequest({ method: "POST", path: "/api/customers", status: 201, durationMs: 10, orgId: "org1" });
+    logRequest({
+      method: "POST",
+      path: "/api/customers",
+      status: 201,
+      durationMs: 10,
+      orgId: "org1",
+    });
 
     const entry = JSON.parse(lines[0]);
     expect(entry).not.toHaveProperty("name");
@@ -53,7 +65,12 @@ describe("logMutation", () => {
   it("writes a JSON line with type=mutation and derives resource from path", () => {
     const { lines } = captureOutput();
 
-    logMutation({ method: "POST", path: "/api/customers", status: 201, orgId: "org1" });
+    logMutation({
+      method: "POST",
+      path: "/api/customers",
+      status: 201,
+      orgId: "org1",
+    });
 
     expect(lines).toHaveLength(1);
     const entry = JSON.parse(lines[0]);
@@ -66,7 +83,12 @@ describe("logMutation", () => {
   it("extracts resource from dynamic route paths", () => {
     const { lines } = captureOutput();
 
-    logMutation({ method: "PATCH", path: "/api/estimates/42", status: 200, orgId: "org1" });
+    logMutation({
+      method: "PATCH",
+      path: "/api/estimates/42",
+      status: 200,
+      orgId: "org1",
+    });
 
     const entry = JSON.parse(lines[0]);
     expect(entry.resource).toBe("estimates");
@@ -77,7 +99,12 @@ describe("logError", () => {
   it("writes a JSON line with type=error", () => {
     const { lines } = captureOutput();
 
-    logError({ method: "PATCH", path: "/api/estimates/1", orgId: "org1", errorMessage: "DB failure" });
+    logError({
+      method: "PATCH",
+      path: "/api/estimates/1",
+      orgId: "org1",
+      errorMessage: "DB failure",
+    });
 
     expect(lines).toHaveLength(1);
     const entry = JSON.parse(lines[0]);

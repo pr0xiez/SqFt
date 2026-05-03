@@ -1,7 +1,7 @@
 const ENV = process.env.NODE_ENV ?? "development";
 
 function write(entry: Record<string, unknown>): void {
-  process.stdout.write(JSON.stringify(entry) + "\n");
+  process.stdout.write(`${JSON.stringify(entry)}\n`);
 }
 
 export function logRequest(ctx: {
@@ -21,7 +21,13 @@ export function logMutation(ctx: {
   orgId: string;
 }): void {
   const resource = ctx.path.split("/")[2] ?? "unknown";
-  write({ type: "mutation", ts: new Date().toISOString(), env: ENV, resource, ...ctx });
+  write({
+    type: "mutation",
+    ts: new Date().toISOString(),
+    env: ENV,
+    resource,
+    ...ctx,
+  });
 }
 
 export function logError(ctx: {

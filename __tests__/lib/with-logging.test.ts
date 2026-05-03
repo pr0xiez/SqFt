@@ -32,7 +32,10 @@ const mockLogError = vi.mocked(logError);
 function makeRequest(method = "GET", url = "http://localhost/api/customers") {
   const req = new Request(url, { method });
   // NextRequest adds nextUrl; replicate it for tests
-  Object.defineProperty(req, "nextUrl", { value: new URL(url), writable: false });
+  Object.defineProperty(req, "nextUrl", {
+    value: new URL(url),
+    writable: false,
+  });
   // biome-ignore lint/suspicious/noExplicitAny: test helper cast
   return req as any;
 }
@@ -44,30 +47,46 @@ beforeEach(() => {
 describe("withLogging", () => {
   it("calls logRequest after a successful GET", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    const handler = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    const handler = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }));
 
     await withLogging(handler)(makeRequest("GET"));
 
     expect(mockLogRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ method: "GET", path: "/api/customers", status: 200, orgId: "org1" })
+      expect.objectContaining({
+        method: "GET",
+        path: "/api/customers",
+        status: 200,
+        orgId: "org1",
+      })
     );
   });
 
   it("calls logMutation for a POST returning 201", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    const handler = vi.fn().mockResolvedValue(new Response(null, { status: 201 }));
+    const handler = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 201 }));
 
     await withLogging(handler)(makeRequest("POST"));
 
     expect(mockLogMutation).toHaveBeenCalledWith(
-      expect.objectContaining({ method: "POST", path: "/api/customers", status: 201, orgId: "org1" })
+      expect.objectContaining({
+        method: "POST",
+        path: "/api/customers",
+        status: 201,
+        orgId: "org1",
+      })
     );
     expect(mockLogRequest).toHaveBeenCalled();
   });
 
   it("does not call logMutation for GET requests", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    const handler = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    const handler = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }));
 
     await withLogging(handler)(makeRequest("GET"));
 
@@ -76,17 +95,23 @@ describe("withLogging", () => {
 
   it("does not call logMutation for a POST returning 400", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    const handler = vi.fn().mockResolvedValue(new Response(null, { status: 400 }));
+    const handler = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 400 }));
 
     await withLogging(handler)(makeRequest("POST"));
 
     expect(mockLogMutation).not.toHaveBeenCalled();
-    expect(mockLogRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 400 }));
+    expect(mockLogRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 400 })
+    );
   });
 
   it("logs orgId=unauthenticated when getOrgId throws", async () => {
     mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-    const handler = vi.fn().mockResolvedValue(new Response(null, { status: 401 }));
+    const handler = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 401 }));
 
     await withLogging(handler)(makeRequest("GET"));
 
@@ -100,7 +125,9 @@ describe("withLogging", () => {
     const boom = new Error("unexpected failure");
     const handler = vi.fn().mockRejectedValue(boom);
 
-    await expect(withLogging(handler)(makeRequest("GET"))).rejects.toThrow("unexpected failure");
+    await expect(withLogging(handler)(makeRequest("GET"))).rejects.toThrow(
+      "unexpected failure"
+    );
 
     expect(mockLogError).toHaveBeenCalledWith(
       expect.objectContaining({ errorMessage: "unexpected failure", err: boom })
@@ -109,7 +136,9 @@ describe("withLogging", () => {
 
   it("includes durationMs as a non-negative number", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    const handler = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    const handler = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }));
 
     await withLogging(handler)(makeRequest("GET"));
 
