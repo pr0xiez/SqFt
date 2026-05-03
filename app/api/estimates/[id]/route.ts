@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrgId } from "@/lib/tenant";
-import { z } from "zod";
 
 const lshapeSectionSchema = z.object({
   w: z.union([z.string(), z.number()]),
@@ -9,42 +9,47 @@ const lshapeSectionSchema = z.object({
 });
 
 const lshapeDeductSchema = z.object({
-  w:     z.union([z.string(), z.number()]),
-  l:     z.union([z.string(), z.number()]),
+  w: z.union([z.string(), z.number()]),
+  l: z.union([z.string(), z.number()]),
   label: z.string().optional(),
 });
 
 const estimateItemSchema = z.object({
-  id:         z.number().int(),
-  type:       z.enum(["room", "note"]),
-  sortOrder:  z.number().int().default(0),
-  name:       z.string().optional(),
-  shape:      z.enum(["rect", "tri", "lshape"]).optional(),
-  w:          z.number().optional(),
-  l:          z.number().optional(),
-  lshapeData: z.object({ sections: z.array(lshapeSectionSchema), deductions: z.array(lshapeDeductSchema) }).optional(),
-  note:       z.string().optional(),
-  text:       z.string().optional(),
+  id: z.number().int(),
+  type: z.enum(["room", "note"]),
+  sortOrder: z.number().int().default(0),
+  name: z.string().optional(),
+  shape: z.enum(["rect", "tri", "lshape"]).optional(),
+  w: z.number().optional(),
+  l: z.number().optional(),
+  lshapeData: z
+    .object({
+      sections: z.array(lshapeSectionSchema),
+      deductions: z.array(lshapeDeductSchema),
+    })
+    .optional(),
+  note: z.string().optional(),
+  text: z.string().optional(),
 });
 
 const lineItemSchema = z.object({
-  id:            z.number().int(),
-  name:          z.string(),
-  rate:          z.number(),
-  qtyMode:       z.enum(["manual", "linked"]).default("manual"),
-  qty:           z.number().optional(),
-  wastePct:      z.number().default(0),
-  unitLabel:     z.string().default("ft²"),
+  id: z.number().int(),
+  name: z.string(),
+  rate: z.number(),
+  qtyMode: z.enum(["manual", "linked"]).default("manual"),
+  qty: z.number().optional(),
+  wastePct: z.number().default(0),
+  unitLabel: z.string().default("ft²"),
   linkedRoomIds: z.array(z.number().int()).default([]),
-  sortOrder:     z.number().int().default(0),
+  sortOrder: z.number().int().default(0),
 });
 
 const updateSchema = z.object({
-  status:    z.enum(["quote", "scheduled", "in_progress", "completed"]).optional(),
-  taxRate:   z.number().min(0).max(1).optional(),
+  status: z.enum(["quote", "scheduled", "in_progress", "completed"]).optional(),
+  taxRate: z.number().min(0).max(1).optional(),
   markupPct: z.number().min(0).optional(),
-  depositPct:z.number().min(0).max(1).optional(),
-  items:     z.array(estimateItemSchema).optional(),
+  depositPct: z.number().min(0).max(1).optional(),
+  items: z.array(estimateItemSchema).optional(),
   lineItems: z.array(lineItemSchema).optional(),
 });
 
@@ -55,14 +60,15 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     const orgId = await getOrgId();
     const { id } = await params;
     const estimate = await prisma.estimate.findFirst({
-      where: { id: parseInt(id), orgId },
+      where: { id: parseInt(id, 10), orgId },
       include: {
         customer: true,
         items: { orderBy: { sortOrder: "asc" } },
         lineItems: { orderBy: { sortOrder: "asc" } },
       },
     });
-    if (!estimate) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!estimate)
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(estimate);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -73,18 +79,24 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   try {
     const orgId = await getOrgId();
     const { id } = await params;
-    const estimateId = parseInt(id);
+    const estimateId = parseInt(id, 10);
     const body = await req.json();
     const parsed = updateSchema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message },
+        { status: 400 }
+      );
     }
 
     const { items, lineItems, ...topLevel } = parsed.data;
 
     // Update top-level fields
-    await prisma.estimate.updateMany({ where: { id: estimateId, orgId }, data: topLevel });
+    await prisma.estimate.updateMany({
+      where: { id: estimateId, orgId },
+      data: topLevel,
+    });
 
     // Replace items if provided (delete-and-recreate for simplicity)
     if (items !== undefined) {
@@ -117,7 +129,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   try {
     const orgId = await getOrgId();
     const { id } = await params;
-    await prisma.estimate.deleteMany({ where: { id: parseInt(id), orgId } });
+    await prisma.estimate.deleteMany({
+      where: { id: parseInt(id, 10), orgId },
+    });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });

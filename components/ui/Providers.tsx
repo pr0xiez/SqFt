@@ -1,11 +1,11 @@
 "use client";
 
-import { QueryClient } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { type ReactNode, useState } from "react";
 import { ToastProvider } from "@/components/ui/Toast";
-import { useState, ReactNode } from "react";
 
 const CACHE_MAX_AGE = 1000 * 60 * 60 * 24; // 24 hours
 
@@ -33,9 +33,7 @@ export function Providers({ children }: { children: ReactNode }) {
       client={queryClient}
       persistOptions={{ persister, maxAge: CACHE_MAX_AGE }}
     >
-      <ToastProvider>
-        {children}
-      </ToastProvider>
+      <ToastProvider>{children}</ToastProvider>
       {process.env.NODE_ENV === "development" && (
         <ReactQueryDevtools initialIsOpen={false} />
       )}

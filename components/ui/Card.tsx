@@ -1,4 +1,4 @@
-import { HTMLAttributes } from "react";
+import type { HTMLAttributes } from "react";
 import { cn } from "@/lib/cn";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
@@ -26,9 +26,7 @@ export function Card({
     >
       {title && (
         <div className="flex items-baseline gap-2 mb-3">
-          <strong
-            className="font-[var(--font-display)] text-sm font-bold text-oak tracking-tight"
-          >
+          <strong className="font-[var(--font-display)] text-sm font-bold text-oak tracking-tight">
             {title}
           </strong>
         </div>

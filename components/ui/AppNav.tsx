@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 const NAV_TABS = [
-  { href: "/",           label: "Dashboard" },
-  { href: "/customers",  label: "Customers"  },
-  { href: "/estimates",  label: "Estimates"  },
-  { href: "/schedule",   label: "Schedule"   },
+  { href: "/", label: "Dashboard" },
+  { href: "/customers", label: "Customers" },
+  { href: "/estimates", label: "Estimates" },
+  { href: "/schedule", label: "Schedule" },
 ];
 
 export function AppNav() {
@@ -108,7 +108,7 @@ function NavIcon({ label }: { label: string }) {
     Dashboard: "⊞",
     Customers: "◎",
     Estimates: "▤",
-    Schedule:  "▦",
+    Schedule: "▦",
   };
   return (
     <span className="text-base leading-none" aria-hidden="true">

@@ -9,19 +9,19 @@
 export function parsef(v: string | number | undefined | null): number | null {
   if (v === undefined || v === null || v === "") return null;
   const n = parseFloat(String(v));
-  return isNaN(n) ? null : n;
+  return Number.isNaN(n) ? null : n;
 }
 
 /** Format a large number as a compact currency string (e.g. 4250 → "$4,250") */
 export function fmtBig(n: number): string {
   if (n === null || n === undefined) return "—";
-  return "$" + Math.round(n).toLocaleString("en-US");
+  return `$${Math.round(n).toLocaleString("en-US")}`;
 }
 
 /** Format a number as a currency string with cents (e.g. 42.5 → "$42.50") */
 export function fmtDollar(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
-  return "$" + n.toFixed(2);
+  return `$${n.toFixed(2)}`;
 }
 
 /** Deep copy an object via JSON serialization */
@@ -127,10 +127,7 @@ export function getEffectiveQty(
 }
 
 /** Calculate the subtotal for a single line item */
-export function liSubtotal(
-  li: LineItemCalc,
-  rooms: RoomItem[]
-): number | null {
+export function liSubtotal(li: LineItemCalc, rooms: RoomItem[]): number | null {
   const qty = getEffectiveQty(li, rooms);
   if (qty === null) return null;
   return qty * li.rate;

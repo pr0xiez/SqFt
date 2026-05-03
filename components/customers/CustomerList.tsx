@@ -1,15 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCustomers, useCreateCustomer, type CreateCustomerInput } from "@/lib/hooks/useCustomers";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { SourceBadge } from "@/components/ui/SourceBadge";
 import { SlidePanel } from "@/components/ui/SlidePanel";
+import { SourceBadge } from "@/components/ui/SourceBadge";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
+import {
+  type CreateCustomerInput,
+  useCreateCustomer,
+  useCustomers,
+} from "@/lib/hooks/useCustomers";
 
-const SOURCES = ["all", "phone", "online", "referral", "walkin", "website"] as const;
+const SOURCES = [
+  "all",
+  "phone",
+  "online",
+  "referral",
+  "walkin",
+  "website",
+] as const;
 
 export function CustomerListView() {
   const router = useRouter();
@@ -21,19 +32,30 @@ export function CustomerListView() {
   const [panelOpen, setPanelOpen] = useState(false);
 
   const [form, setForm] = useState<CreateCustomerInput>({
-    name: "", phone: "", email: "", address: "", source: "phone", notes: "",
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    source: "phone",
+    notes: "",
   });
 
-  const filtered = filter === "all"
-    ? customers
-    : customers.filter((c) => c.source === filter);
+  const filtered =
+    filter === "all" ? customers : customers.filter((c) => c.source === filter);
 
   async function handleSave() {
     if (!form.name.trim()) return;
     try {
       const created = await createCustomer.mutateAsync(form);
       setPanelOpen(false);
-      setForm({ name: "", phone: "", email: "", address: "", source: "phone", notes: "" });
+      setForm({
+        name: "",
+        phone: "",
+        email: "",
+        address: "",
+        source: "phone",
+        notes: "",
+      });
       showToast(`Customer "${created.name}" added.`);
     } catch {
       showToast("Failed to create customer. Please try again.");
@@ -116,7 +138,8 @@ export function CustomerListView() {
                 <div className="flex items-center gap-3 mt-1.5 md:hidden">
                   <SourceBadge source={c.source} />
                   <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
-                    {c._count?.estimates ?? 0} estimate{(c._count?.estimates ?? 0) !== 1 ? "s" : ""}
+                    {c._count?.estimates ?? 0} estimate
+                    {(c._count?.estimates ?? 0) !== 1 ? "s" : ""}
                   </span>
                 </div>
               </div>
@@ -156,7 +179,9 @@ export function CustomerListView() {
               Lead source
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {(["phone", "online", "referral", "walkin", "website"] as const).map((src) => (
+              {(
+                ["phone", "online", "referral", "walkin", "website"] as const
+              ).map((src) => (
                 <button
                   key={src}
                   onClick={() => setForm((f) => ({ ...f, source: src }))}
@@ -174,10 +199,30 @@ export function CustomerListView() {
           </div>
 
           {[
-            { field: "name" as const, label: "Full name *", type: "text", required: true },
-            { field: "phone" as const, label: "Phone", type: "tel", required: false },
-            { field: "email" as const, label: "Email", type: "email", required: false },
-            { field: "address" as const, label: "Address", type: "text", required: false },
+            {
+              field: "name" as const,
+              label: "Full name *",
+              type: "text",
+              required: true,
+            },
+            {
+              field: "phone" as const,
+              label: "Phone",
+              type: "tel",
+              required: false,
+            },
+            {
+              field: "email" as const,
+              label: "Email",
+              type: "email",
+              required: false,
+            },
+            {
+              field: "address" as const,
+              label: "Address",
+              type: "text",
+              required: false,
+            },
           ].map(({ field, label, type, required }) => (
             <div key={field} className="flex flex-col gap-1">
               <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
@@ -186,7 +231,9 @@ export function CustomerListView() {
               <input
                 type={type}
                 value={(form[field] as string) ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, [field]: e.target.value }))
+                }
                 required={required}
                 className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
               />
@@ -200,7 +247,9 @@ export function CustomerListView() {
             <textarea
               rows={3}
               value={form.notes ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, notes: e.target.value }))
+              }
               className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil resize-none"
             />
           </div>
@@ -214,7 +263,10 @@ export function CustomerListView() {
             >
               {createCustomer.isPending ? "Saving…" : "Save Customer"}
             </Button>
-            <Button onClick={() => setPanelOpen(false)} className="flex-1 justify-center">
+            <Button
+              onClick={() => setPanelOpen(false)}
+              className="flex-1 justify-center"
+            >
               Cancel
             </Button>
           </div>

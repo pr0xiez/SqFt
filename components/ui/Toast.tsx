@@ -44,7 +44,7 @@ export function Toast({ message, duration = 3200, onDismiss }: ToastProps) {
 
 // ── Toast Provider / Hook ─────────────────────────────────────────────────
 
-import { createContext, useContext, useCallback, ReactNode } from "react";
+import { createContext, type ReactNode, useCallback, useContext } from "react";
 
 interface ToastContextValue {
   showToast: (message: string, duration?: number) => void;
@@ -62,10 +62,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const counter = { current: 0 };
 
-  const showToast = useCallback((message: string, duration?: number) => {
-    const id = ++counter.current;
-    setToasts((prev) => [...prev, { id, message, duration }]);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const showToast = useCallback(
+    (message: string, duration?: number) => {
+      const id = ++counter.current;
+      setToasts((prev) => [...prev, { id, message, duration }]);
+    },
+    [counter]
+  ); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dismiss = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));

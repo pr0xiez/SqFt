@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import type { Estimate } from "@/lib/hooks/useEstimates";
 
 // Dynamically import Chart.js to avoid SSR issues
-let Chart: typeof import("chart.js").Chart | null = null;
+let _Chart: typeof import("chart.js").Chart | null = null;
 
 interface Props {
   estimates: Estimate[];
@@ -21,7 +21,7 @@ export function RevenueChart({ estimates }: Props) {
       // Dynamic import to avoid SSR
       const { Chart: ChartJS, registerables } = await import("chart.js");
       ChartJS.register(...registerables);
-      Chart = ChartJS;
+      _Chart = ChartJS;
 
       // Destroy existing chart
       if (chartRef.current) {
@@ -35,7 +35,10 @@ export function RevenueChart({ estimates }: Props) {
       for (let i = 5; i >= 0; i--) {
         const d = new Date();
         d.setMonth(d.getMonth() - i);
-        const label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+        const label = d.toLocaleDateString("en-US", {
+          month: "short",
+          year: "2-digit",
+        });
         months.push(label);
 
         // Placeholder: real calculation would use estimate totals

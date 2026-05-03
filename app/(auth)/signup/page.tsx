@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 export default function SignupPage() {
@@ -39,9 +39,7 @@ export default function SignupPage() {
     <div className="w-full max-w-sm">
       {/* Brand */}
       <div className="mb-8 text-center">
-        <h1
-          className="font-[var(--font-display)] text-4xl font-black italic text-oak leading-none"
-        >
+        <h1 className="font-[var(--font-display)] text-4xl font-black italic text-oak leading-none">
           Sq<em className="not-italic text-vermil">Ft</em>
         </h1>
         <p className="font-[var(--font-mono)] text-xs text-driftwood uppercase tracking-widest mt-1">
@@ -63,7 +61,10 @@ export default function SignupPage() {
           )}
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="name" className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider">
+            <label
+              htmlFor="name"
+              className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider"
+            >
               Your name
             </label>
             <input
@@ -78,7 +79,10 @@ export default function SignupPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="email" className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider">
+            <label
+              htmlFor="email"
+              className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider"
+            >
               Email
             </label>
             <input
@@ -93,7 +97,10 @@ export default function SignupPage() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor="password" className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider">
+            <label
+              htmlFor="password"
+              className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider"
+            >
               Password
             </label>
             <input

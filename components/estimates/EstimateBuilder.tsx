@@ -6,13 +6,12 @@
  * Full room canvas, L-shape logic, and linked qty are implemented in sub-components.
  */
 
-import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
-import { useToast } from "@/components/ui/Toast";
-import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
-import { RoomSection } from "@/components/estimates/RoomSection";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { QuoteSummary } from "@/components/estimates/QuoteSummary";
+import { RoomSection } from "@/components/estimates/RoomSection";
+import { useToast } from "@/components/ui/Toast";
+import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
 
 interface Props {
   estimateId: number;
@@ -54,7 +53,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
         {estimate.customer && (
           <>
             <button
-              onClick={() => router.push(`/customers/${estimate.customer!.id}`)}
+              onClick={() => router.push(`/customers/${estimate.customer?.id}`)}
               className="hover:text-oak transition-colors"
             >
               {estimate.customer.name}
@@ -76,34 +75,43 @@ export function EstimateBuilderView({ estimateId }: Props) {
       </div>
 
       {/* Room measurements */}
-      <RoomSection estimate={estimate} onSave={async (items) => {
-        try {
-          await updateEstimate.mutateAsync({ items });
-          showToast("Saved.");
-        } catch {
-          showToast("Save failed.");
-        }
-      }} />
+      <RoomSection
+        estimate={estimate}
+        onSave={async (items) => {
+          try {
+            await updateEstimate.mutateAsync({ items });
+            showToast("Saved.");
+          } catch {
+            showToast("Save failed.");
+          }
+        }}
+      />
 
       {/* Line items (bill of materials) */}
-      <LineItemSection estimate={estimate} onSave={async (lineItems) => {
-        try {
-          await updateEstimate.mutateAsync({ lineItems });
-          showToast("Saved.");
-        } catch {
-          showToast("Save failed.");
-        }
-      }} />
+      <LineItemSection
+        estimate={estimate}
+        onSave={async (lineItems) => {
+          try {
+            await updateEstimate.mutateAsync({ lineItems });
+            showToast("Saved.");
+          } catch {
+            showToast("Save failed.");
+          }
+        }}
+      />
 
       {/* Quote summary */}
-      <QuoteSummary estimate={estimate} onSave={async (data) => {
-        try {
-          await updateEstimate.mutateAsync(data);
-          showToast("Quote settings saved.");
-        } catch {
-          showToast("Save failed.");
-        }
-      }} />
+      <QuoteSummary
+        estimate={estimate}
+        onSave={async (data) => {
+          try {
+            await updateEstimate.mutateAsync(data);
+            showToast("Quote settings saved.");
+          } catch {
+            showToast("Save failed.");
+          }
+        }}
+      />
     </div>
   );
 }
