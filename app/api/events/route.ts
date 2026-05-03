@@ -23,7 +23,7 @@ export const GET = withLogging(async () => {
       where: { orgId },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
       include: {
-        customer: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, address: true } },
       },
     });
     return NextResponse.json(events);

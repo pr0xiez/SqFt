@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { Estimate } from "@/lib/hooks/useEstimates";
+import { computeEstimateTotal } from "@/lib/utils";
 
 let _Chart: typeof import("chart.js").Chart | null = null;
 
@@ -41,20 +42,41 @@ export function RevenueChart({ estimates }: Props) {
         const monthEstimates = estimates.filter(
           (e) => e.status === "completed" && e.date.slice(0, 7) === monthStr
         );
-        revenues.push(monthEstimates.length * 4500);
+        const rev = monthEstimates.reduce((sum, e) => {
+          const t = computeEstimateTotal(e);
+          if (!t) return sum;
+          return sum + parseInt(t.replace(/[$,]/g, ""), 10);
+        }, 0);
+        revenues.push(rev);
       }
 
+      const ctx = canvasRef.current.getContext("2d");
+      if (!ctx) return;
+
+      const accentColor =
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--accent")
+          .trim() || "#c0341a";
+
+      const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+      gradient.addColorStop(0, `${accentColor}44`);
+      gradient.addColorStop(1, `${accentColor}00`);
+
       chartRef.current = new ChartJS(canvasRef.current, {
-        type: "bar",
+        type: "line",
         data: {
           labels: months,
           datasets: [
             {
               label: "Revenue",
               data: revenues,
-              backgroundColor: "rgba(61,107,74,.7)",
-              borderColor: "#3d6b4a",
-              borderWidth: 1,
+              borderColor: accentColor,
+              backgroundColor: gradient,
+              fill: true,
+              tension: 0.35,
+              pointRadius: 3,
+              pointBackgroundColor: accentColor,
+              borderWidth: 2,
             },
           ],
         },
@@ -95,7 +117,7 @@ export function RevenueChart({ estimates }: Props) {
   }, [estimates]);
 
   return (
-    <div className="h-48">
+    <div className="h-[200px]">
       <canvas ref={canvasRef} />
     </div>
   );
