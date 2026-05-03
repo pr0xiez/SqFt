@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCustomer, useUpdateCustomer } from "@/lib/hooks/useCustomers";
-import { useCreateEstimate } from "@/lib/hooks/useEstimates";
-import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
 import { SourceBadge } from "@/components/ui/SourceBadge";
+import { useToast } from "@/components/ui/Toast";
+import { useCustomer, useUpdateCustomer } from "@/lib/hooks/useCustomers";
+import { useCreateEstimate } from "@/lib/hooks/useEstimates";
 
 interface Props {
   customerId: number;
@@ -75,7 +75,11 @@ export function CustomerDetailView({ customerId }: Props) {
             {customer.name}
           </h1>
         </div>
-        <Button variant="primary" onClick={handleNewEstimate} disabled={createEstimate.isPending}>
+        <Button
+          variant="primary"
+          onClick={handleNewEstimate}
+          disabled={createEstimate.isPending}
+        >
           + New Estimate
         </Button>
       </div>
@@ -94,7 +98,9 @@ export function CustomerDetailView({ customerId }: Props) {
             </label>
             <input
               type={type}
-              defaultValue={(customer as unknown as Record<string, string>)[field] ?? ""}
+              defaultValue={
+                (customer as unknown as Record<string, string>)[field] ?? ""
+              }
               onBlur={(e) => handleField(field, e.target.value)}
               className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
             />

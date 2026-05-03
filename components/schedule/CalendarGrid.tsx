@@ -1,26 +1,32 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useEvents, useCreateEvent, useDeleteEvent, type CalEvent, type CreateEventInput } from "@/lib/hooks/useEvents";
-import { useCustomers } from "@/lib/hooks/useCustomers";
-import { useToast } from "@/components/ui/Toast";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SlidePanel } from "@/components/ui/SlidePanel";
+import { useToast } from "@/components/ui/Toast";
+import { cn } from "@/lib/cn";
+import { useCustomers } from "@/lib/hooks/useCustomers";
+import {
+  type CalEvent,
+  type CreateEventInput,
+  useCreateEvent,
+  useDeleteEvent,
+  useEvents,
+} from "@/lib/hooks/useEvents";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import {
-  getWeekStart,
   addDays,
   dateStr,
   fmtDayHead,
+  getWeekStart,
   timeToMinutes,
   todayStr,
 } from "@/lib/utils";
-import { cn } from "@/lib/cn";
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7am–6pm
 
 const EVENT_COLORS: Record<string, string> = {
-  job:   "bg-sage/20 border-sage text-sage",
+  job: "bg-sage/20 border-sage text-sage",
   visit: "bg-gold/20 border-gold text-gold",
   other: "bg-driftwood/20 border-driftwood text-driftwood",
 };
@@ -76,20 +82,33 @@ export function ScheduleView() {
         <div>
           <p className="font-[var(--font-label)] text-[11px] italic text-vermil mb-1">
             Week of{" "}
-            {weekStart.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            {weekStart.toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
           </p>
           <h1 className="font-[var(--font-display)] text-[36px] font-black text-oak leading-none tracking-tight">
             Schedule
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" onClick={() => setWeekStart(getWeekStart(new Date()))}>
+          <Button
+            size="sm"
+            onClick={() => setWeekStart(getWeekStart(new Date()))}
+          >
             Today
           </Button>
-          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, -daysToShow))}>
+          <Button
+            size="sm"
+            onClick={() => setWeekStart((d) => addDays(d, -daysToShow))}
+          >
             ←
           </Button>
-          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, daysToShow))}>
+          <Button
+            size="sm"
+            onClick={() => setWeekStart((d) => addDays(d, daysToShow))}
+          >
             →
           </Button>
         </div>
@@ -251,7 +270,16 @@ function EventFormPanel({
     if (!title.trim()) return;
     setSaving(true);
     try {
-      await onSave({ type, title, date, startTime, endTime, customerId, crew, notes });
+      await onSave({
+        type,
+        title,
+        date,
+        startTime,
+        endTime,
+        customerId,
+        crew,
+        notes,
+      });
     } finally {
       setSaving(false);
     }
@@ -303,51 +331,101 @@ function EventFormPanel({
         {/* Date & Times */}
         <div className="grid grid-cols-3 gap-2">
           <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil" />
+            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+              Date
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil"
+            />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">Start</label>
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil" />
+            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+              Start
+            </label>
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil"
+            />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">End</label>
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil" />
+            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+              End
+            </label>
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil"
+            />
           </div>
         </div>
 
         {/* Customer */}
         <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">Customer</label>
+          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+            Customer
+          </label>
           <select
             value={customerId ?? ""}
-            onChange={(e) => setCustomerId(e.target.value ? parseInt(e.target.value) : undefined)}
+            onChange={(e) =>
+              setCustomerId(
+                e.target.value ? parseInt(e.target.value, 10) : undefined
+              )
+            }
             className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
           >
             <option value="">— None —</option>
             {customers.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
 
         {/* Crew */}
         <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">Crew</label>
-          <input type="text" value={crew} onChange={(e) => setCrew(e.target.value)} className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil" />
+          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+            Crew
+          </label>
+          <input
+            type="text"
+            value={crew}
+            onChange={(e) => setCrew(e.target.value)}
+            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+          />
         </div>
 
         {/* Notes */}
         <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">Notes</label>
-          <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil resize-none" />
+          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+            Notes
+          </label>
+          <textarea
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil resize-none"
+          />
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button variant="primary" onClick={handleSave} disabled={!title.trim() || saving} className="flex-1 justify-center">
+          <Button
+            variant="primary"
+            onClick={handleSave}
+            disabled={!title.trim() || saving}
+            className="flex-1 justify-center"
+          >
             {saving ? "Saving…" : ev ? "Update" : "Create Event"}
           </Button>
-          <Button onClick={onClose} className="flex-1 justify-center">Cancel</Button>
+          <Button onClick={onClose} className="flex-1 justify-center">
+            Cancel
+          </Button>
         </div>
 
         {ev && (

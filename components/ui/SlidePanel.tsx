@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { cn } from "@/lib/cn";
 
 interface SlidePanelProps {
@@ -31,7 +31,9 @@ export function SlidePanel({
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [open]);
 
   const isRight = side === "right";
@@ -62,13 +64,14 @@ export function SlidePanel({
           "bottom-0 left-0 right-0 max-h-[85vh] rounded-t-xl border-b-0",
           "shadow-[0_-4px_24px_rgba(61,50,40,.2)]",
           // Desktop right panel overrides
-          isRight && "md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-auto md:rounded-none md:border-b-[1.5px] md:shadow-[-4px_0_24px_rgba(61,50,40,.2)]",
+          isRight &&
+            "md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-auto md:rounded-none md:border-b-[1.5px] md:shadow-[-4px_0_24px_rgba(61,50,40,.2)]",
           // Closed: mobile always translates Y
           !open && "translate-y-full",
           // Closed: desktop right panel translates X
           isRight && !open && "md:translate-y-0 md:translate-x-full",
           // Closed: desktop bottom panel translates Y
-          !isRight && !open && "md:translate-y-full",
+          !isRight && !open && "md:translate-y-full"
         )}
         style={isRight ? { maxWidth: width } : undefined}
       >
@@ -94,9 +97,7 @@ export function SlidePanel({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">
-          {children}
-        </div>
+        <div className="flex-1 overflow-y-auto p-5">{children}</div>
       </div>
     </>
   );

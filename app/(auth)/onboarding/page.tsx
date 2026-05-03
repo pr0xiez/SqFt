@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 export default function OnboardingPage() {

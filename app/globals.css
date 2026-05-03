@@ -5,30 +5,30 @@
 
 :root {
   /* Neutral warm palette */
-  --linen:     #f5f0e8;
-  --linen-d:   #ede7d9;
-  --linen-dd:  #e0d8c8;
-  --manila:    #d4c9b0;
-  --sand:      #c2b49a;
+  --linen: #f5f0e8;
+  --linen-d: #ede7d9;
+  --linen-dd: #e0d8c8;
+  --manila: #d4c9b0;
+  --sand: #c2b49a;
   --driftwood: #8c7d68;
-  --oak:       #3d3228;
-  --oak-l:     #5a4a38;
-  --rule:      rgba(61, 50, 40, 0.09);
-  --cream:     #faf7f0;
+  --oak: #3d3228;
+  --oak-l: #5a4a38;
+  --rule: rgba(61, 50, 40, 0.09);
+  --cream: #faf7f0;
 
   /* Accent colors */
-  --vermil:   #c0341a;
+  --vermil: #c0341a;
   --vermil-l: #e04828;
   --vermil-d: #8a2010;
-  --sage:     #4a6650;
-  --sage-l:   #5f8568;
-  --gold:     #9a7a20;
-  --gold-l:   #c4a030;
+  --sage: #4a6650;
+  --sage-l: #5f8568;
+  --gold: #9a7a20;
+  --gold-l: #c4a030;
 
   /* Typography aliases */
-  --font-display: 'Playfair Display Variable', serif;
-  --font-mono:    'Azeret Mono Variable', monospace;
-  --font-label:   'Fraunces Variable', serif;
+  --font-display: "Playfair Display Variable", serif;
+  --font-mono: "Azeret Mono Variable", monospace;
+  --font-label: "Fraunces Variable", serif;
 }
 
 /* ── TAILWIND v4 THEME EXTENSION ─────────────────────────────────────────── */
@@ -60,7 +60,9 @@
 
 /* ── BASE RESET & BODY ───────────────────────────────────────────────────── */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -89,28 +91,58 @@ body {
 /* ── ANIMATIONS ──────────────────────────────────────────────────────────── */
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(40px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes stampIn {
-  from { opacity: 0; transform: scale(0.88) rotate(-3deg); }
-  to   { opacity: 1; transform: scale(1) rotate(-2deg); }
+  from {
+    opacity: 0;
+    transform: scale(0.88) rotate(-3deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-2deg);
+  }
 }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(6px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ── SHARED UTILITIES ────────────────────────────────────────────────────── */
@@ -123,7 +155,7 @@ body {
 
 /* Card corner decoration */
 .card-corner::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   right: 0;

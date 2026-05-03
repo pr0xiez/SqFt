@@ -1,5 +1,5 @@
-import { PrismaClient } from "@/app/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/app/generated/prisma/client";
 
 // Prisma v7 uses driver adapters instead of a URL in PrismaClient constructor.
 // The DATABASE_URL is passed to the PrismaPg adapter.

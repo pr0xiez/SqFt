@@ -2,16 +2,11 @@ import { cn } from "@/lib/cn";
 import { sourceName } from "@/lib/utils";
 
 const sourceStyles: Record<string, string> = {
-  phone:
-    "text-sage border-sage/40 bg-sage/7",
-  online:
-    "text-gold border-gold/40 bg-gold/7",
-  referral:
-    "text-vermil border-vermil/40 bg-vermil/7",
-  walkin:
-    "text-driftwood border-driftwood/40 bg-driftwood/7",
-  website:
-    "text-oak border-oak/30 bg-oak/5",
+  phone: "text-sage border-sage/40 bg-sage/7",
+  online: "text-gold border-gold/40 bg-gold/7",
+  referral: "text-vermil border-vermil/40 bg-vermil/7",
+  walkin: "text-driftwood border-driftwood/40 bg-driftwood/7",
+  website: "text-oak border-oak/30 bg-oak/5",
 };
 
 interface SourceBadgeProps {

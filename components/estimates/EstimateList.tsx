@@ -1,15 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/cn";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { estTotalArea } from "@/lib/utils";
-import { cn } from "@/lib/cn";
 
 const STATUS_STYLES: Record<string, string> = {
-  quote:       "text-gold border-gold/40 bg-gold/7",
-  scheduled:   "text-sage border-sage/40 bg-sage/7",
+  quote: "text-gold border-gold/40 bg-gold/7",
+  scheduled: "text-sage border-sage/40 bg-sage/7",
   in_progress: "text-vermil border-vermil/40 bg-vermil/7",
-  completed:   "text-oak border-oak/30 bg-oak/5",
+  completed: "text-oak border-oak/30 bg-oak/5",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -45,7 +45,9 @@ export function EstimateListView() {
       </div>
 
       {isLoading ? (
-        <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-4">Loading…</p>
+        <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-4">
+          Loading…
+        </p>
       ) : estimates.length === 0 ? (
         <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-4">
           No estimates yet. Create one from a customer record.
@@ -59,7 +61,8 @@ export function EstimateListView() {
               day: "numeric",
               year: "2-digit",
             });
-            const statusStyle = STATUS_STYLES[est.status] ?? STATUS_STYLES.quote;
+            const statusStyle =
+              STATUS_STYLES[est.status] ?? STATUS_STYLES.quote;
             const statusLabel = STATUS_LABELS[est.status] ?? est.status;
 
             return (

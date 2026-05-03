@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface CalEvent {
   id: number;
@@ -9,9 +9,9 @@ export interface CalEvent {
   title: string;
   customerId?: number | null;
   estimateId?: number | null;
-  date: string;       // ISO date string
-  startTime: string;  // "08:00"
-  endTime: string;    // "17:00"
+  date: string; // ISO date string
+  startTime: string; // "08:00"
+  endTime: string; // "17:00"
   crew?: string | null;
   notes?: string | null;
   createdAt: string;

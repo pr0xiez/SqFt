@@ -1,5 +1,5 @@
-import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
 export default auth((req) => {
   const isAuth = !!req.auth;
@@ -18,7 +18,11 @@ export default auth((req) => {
   }
 
   // Redirect authenticated users away from auth pages
-  if (isAuth && isAuthRoute && !req.nextUrl.pathname.startsWith("/onboarding")) {
+  if (
+    isAuth &&
+    isAuthRoute &&
+    !req.nextUrl.pathname.startsWith("/onboarding")
+  ) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
@@ -26,5 +30,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|fonts|manifest.json).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icons|fonts|manifest.json).*)",
+  ],
 };

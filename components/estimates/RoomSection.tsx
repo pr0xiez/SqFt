@@ -5,13 +5,13 @@
  * Ports the room CRUD from flooring-prototype-v0_8.html.
  */
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
+import { RoomCanvas } from "@/components/estimates/RoomCanvas";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
 import type { Estimate } from "@/lib/hooks/useEstimates";
 import type { RoomItem } from "@/lib/utils";
-import { roomSqft, deepCopy } from "@/lib/utils";
-import { Button } from "@/components/ui/Button";
-import { RoomCanvas } from "@/components/estimates/RoomCanvas";
-import { cn } from "@/lib/cn";
+import { roomSqft } from "@/lib/utils";
 
 interface Props {
   estimate: Estimate;
@@ -19,20 +19,25 @@ interface Props {
 }
 
 let _nextId = Date.now(); // client-side temporary ID counter
-function tempId() { return ++_nextId; }
+function tempId() {
+  return ++_nextId;
+}
 
 export function RoomSection({ estimate, onSave }: Props) {
   const [items, setItems] = useState<RoomItem[]>(estimate.items ?? []);
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
 
-  const save = useCallback(async (newItems: RoomItem[]) => {
-    setSaving(true);
-    try {
-      await onSave(newItems);
-    } finally {
-      setSaving(false);
-    }
-  }, [onSave]);
+  const save = useCallback(
+    async (newItems: RoomItem[]) => {
+      setSaving(true);
+      try {
+        await onSave(newItems);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [onSave]
+  );
 
   function addRoom() {
     const newItems: RoomItem[] = [
@@ -85,8 +90,12 @@ export function RoomSection({ estimate, onSave }: Props) {
           Rooms & Measurements
         </h2>
         <div className="flex gap-2">
-          <Button size="sm" onClick={addRoom}>+ Room</Button>
-          <Button size="sm" variant="ghost" onClick={addNote}>+ Note</Button>
+          <Button size="sm" onClick={addRoom}>
+            + Room
+          </Button>
+          <Button size="sm" variant="ghost" onClick={addNote}>
+            + Note
+          </Button>
         </div>
       </div>
 
@@ -183,7 +192,11 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
                 : "bg-linen border-sand text-driftwood hover:border-oak"
             )}
           >
-            {shape === "rect" ? "Rectangle" : shape === "tri" ? "Triangle" : "L-Shape"}
+            {shape === "rect"
+              ? "Rectangle"
+              : shape === "tri"
+                ? "Triangle"
+                : "L-Shape"}
           </button>
         ))}
       </div>
@@ -197,7 +210,9 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
             onChange={(v) => onUpdate({ w: parseFloat(v) || undefined })}
             onBlur={onBlur}
           />
-          <span className="text-driftwood font-[var(--font-mono)] text-sm">×</span>
+          <span className="text-driftwood font-[var(--font-mono)] text-sm">
+            ×
+          </span>
           <DimInput
             label={item.shape === "tri" ? "Height" : "Length"}
             value={item.l ?? ""}
@@ -205,7 +220,9 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
             onBlur={onBlur}
           />
           {item.shape === "tri" && (
-            <span className="font-[var(--font-mono)] text-[10px] text-driftwood">÷ 2</span>
+            <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+              ÷ 2
+            </span>
           )}
         </div>
       )}
@@ -216,9 +233,7 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
       )}
 
       {/* Canvas diagram */}
-      {area > 0 && item.shape !== "lshape" && (
-        <RoomCanvas room={item} />
-      )}
+      {area > 0 && item.shape !== "lshape" && <RoomCanvas room={item} />}
 
       {/* Note */}
       <input
@@ -272,7 +287,13 @@ function LShapeEditor({
   onUpdate: (patch: Partial<RoomItem>) => void;
   onBlur: () => void;
 }) {
-  const data = item.lshapeData ?? { sections: [{ w: "", l: "" }, { w: "", l: "" }], deductions: [] };
+  const data = item.lshapeData ?? {
+    sections: [
+      { w: "", l: "" },
+      { w: "", l: "" },
+    ],
+    deductions: [],
+  };
 
   function updateSection(idx: number, field: "w" | "l", val: string) {
     const sections = data.sections.map((s, i) =>
@@ -282,7 +303,9 @@ function LShapeEditor({
   }
 
   function addSection() {
-    onUpdate({ lshapeData: { ...data, sections: [...data.sections, { w: "", l: "" }] } });
+    onUpdate({
+      lshapeData: { ...data, sections: [...data.sections, { w: "", l: "" }] },
+    });
   }
 
   return (
@@ -292,9 +315,19 @@ function LShapeEditor({
           <span className="font-[var(--font-mono)] text-[10px] text-driftwood w-16">
             Section {idx + 1}
           </span>
-          <DimInput label="W" value={sec.w} onChange={(v) => updateSection(idx, "w", v)} onBlur={onBlur} />
+          <DimInput
+            label="W"
+            value={sec.w}
+            onChange={(v) => updateSection(idx, "w", v)}
+            onBlur={onBlur}
+          />
           <span className="text-driftwood">×</span>
-          <DimInput label="L" value={sec.l} onChange={(v) => updateSection(idx, "l", v)} onBlur={onBlur} />
+          <DimInput
+            label="L"
+            value={sec.l}
+            onChange={(v) => updateSection(idx, "l", v)}
+            onBlur={onBlur}
+          />
         </div>
       ))}
       <button

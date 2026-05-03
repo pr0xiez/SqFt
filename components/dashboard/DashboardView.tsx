@@ -1,17 +1,17 @@
 "use client";
 
+import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { Card } from "@/components/ui/Card";
+import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useEvents } from "@/lib/hooks/useEvents";
-import { useCustomers } from "@/lib/hooks/useCustomers";
-import { getGreeting, fmtBig, todayStr } from "@/lib/utils";
-import { Card } from "@/components/ui/Card";
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { getGreeting, todayStr } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
-  quote:       "text-gold",
-  scheduled:   "text-sage",
+  quote: "text-gold",
+  scheduled: "text-sage",
   in_progress: "text-vermil",
-  completed:   "text-oak",
+  completed: "text-oak",
 };
 
 export function DashboardView() {
@@ -33,9 +33,7 @@ export function DashboardView() {
         <p className="font-[var(--font-label)] text-[11px] italic text-vermil mb-1">
           {getGreeting()} —
         </p>
-        <h1
-          className="font-[var(--font-display)] text-[44px] font-black text-oak leading-[.9] tracking-tight"
-        >
+        <h1 className="font-[var(--font-display)] text-[44px] font-black text-oak leading-[.9] tracking-tight">
           Dashboard
         </h1>
       </div>
@@ -45,9 +43,13 @@ export function DashboardView() {
         {[
           { label: "Customers", value: customers.length, color: "" },
           { label: "Open Quotes", value: quotes.length, color: "text-gold" },
-          { label: "In Progress", value: inProgress.length, color: "text-vermil" },
+          {
+            label: "In Progress",
+            value: inProgress.length,
+            color: "text-vermil",
+          },
           { label: "Completed", value: completed.length, color: "text-sage" },
-        ].map((m, i) => (
+        ].map((m, _i) => (
           <div
             key={m.label}
             className="bg-cream px-[18px] py-[20px] border-r border-oak last:border-r-0 relative"
@@ -104,36 +106,40 @@ export function DashboardView() {
 
       {/* Pipeline */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {(["quote", "scheduled", "in_progress", "completed"] as const).map((status) => {
-          const statusEstimates = estimates.filter((e) => e.status === status);
-          const label = {
-            quote: "Quote",
-            scheduled: "Scheduled",
-            in_progress: "In Progress",
-            completed: "Completed",
-          }[status];
+        {(["quote", "scheduled", "in_progress", "completed"] as const).map(
+          (status) => {
+            const statusEstimates = estimates.filter(
+              (e) => e.status === status
+            );
+            const label = {
+              quote: "Quote",
+              scheduled: "Scheduled",
+              in_progress: "In Progress",
+              completed: "Completed",
+            }[status];
 
-          return (
-            <div key={status} className="flex flex-col gap-2">
-              <div
-                className={`font-[var(--font-mono)] text-[10px] uppercase tracking-widest px-3 py-1.5 border border-current ${STATUS_COLORS[status]}`}
-              >
-                {label}{" "}
-                <span className="opacity-60">({statusEstimates.length})</span>
-              </div>
-              {statusEstimates.slice(0, 5).map((est) => (
+            return (
+              <div key={status} className="flex flex-col gap-2">
                 <div
-                  key={est.id}
-                  className="bg-linen border border-linen-dd p-[7px_9px] text-sm"
+                  className={`font-[var(--font-mono)] text-[10px] uppercase tracking-widest px-3 py-1.5 border border-current ${STATUS_COLORS[status]}`}
                 >
-                  <div className="font-[var(--font-display)] text-xs font-bold text-oak truncate">
-                    {est.customer?.name ?? `#${est.id}`}
-                  </div>
+                  {label}{" "}
+                  <span className="opacity-60">({statusEstimates.length})</span>
                 </div>
-              ))}
-            </div>
-          );
-        })}
+                {statusEstimates.slice(0, 5).map((est) => (
+                  <div
+                    key={est.id}
+                    className="bg-linen border border-linen-dd p-[7px_9px] text-sm"
+                  >
+                    <div className="font-[var(--font-display)] text-xs font-bold text-oak truncate">
+                      {est.customer?.name ?? `#${est.id}`}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          }
+        )}
       </div>
     </div>
   );
