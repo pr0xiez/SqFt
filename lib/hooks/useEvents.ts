@@ -15,7 +15,7 @@ export interface CalEvent {
   crew?: string | null;
   notes?: string | null;
   createdAt: string;
-  customer?: { id: number; name: string } | null;
+  customer?: { id: number; name: string; address?: string | null } | null;
 }
 
 export interface CreateEventInput {
