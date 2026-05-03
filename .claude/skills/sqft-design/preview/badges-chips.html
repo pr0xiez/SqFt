@@ -1,0 +1,29 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.badge{display:inline-block;font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;letter-spacing:.04em;font-weight:500;border:1px solid currentColor}
+.chip{font-family:var(--mono);font-size:10px;padding:4px 10px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:4px;letter-spacing:.04em}
+.chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.gold{background:var(--gold);color:#fff;border-color:var(--gold)}
+.filter{font-family:var(--mono);font-size:11px;padding:6px 12px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:6px}
+.filter.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+</style></head>
+<body style="padding:18px 22px">
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+  <span class="badge" style="color:#3d6b4a">PHONE</span>
+  <span class="badge" style="color:#b07a1a">ONLINE</span>
+  <span class="badge" style="color:#c0341a">REFERRAL</span>
+  <span class="badge" style="color:#6b6b66">WALK-IN</span>
+  <span class="badge" style="color:#3a3a35">WEBSITE</span>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+  <button class="chip">Rectangle</button>
+  <button class="chip active">L-shape</button>
+  <button class="chip gold">+10% waste</button>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+  <button class="filter active">All</button>
+  <button class="filter">Phone</button>
+  <button class="filter">Online</button>
+  <button class="filter">Referral</button>
+</div>
+</body></html>

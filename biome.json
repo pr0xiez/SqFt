@@ -9,7 +9,8 @@
       "!**/public",
       "!**/prisma/migrations",
       "!**/docs",
-      "!**/*.css"
+      "!**/*.css",
+      "!.claude/*"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2 },
