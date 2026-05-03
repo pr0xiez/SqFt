@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import type { Estimate } from "@/lib/hooks/useEstimates";
 
-// Dynamically import Chart.js to avoid SSR issues
 let _Chart: typeof import("chart.js").Chart | null = null;
 
 interface Props {
@@ -18,17 +17,14 @@ export function RevenueChart({ estimates }: Props) {
     async function init() {
       if (!canvasRef.current) return;
 
-      // Dynamic import to avoid SSR
       const { Chart: ChartJS, registerables } = await import("chart.js");
       ChartJS.register(...registerables);
       _Chart = ChartJS;
 
-      // Destroy existing chart
       if (chartRef.current) {
         chartRef.current.destroy();
       }
 
-      // Build last-6-months revenue data from completed estimates
       const months: string[] = [];
       const revenues: number[] = [];
 
@@ -41,12 +37,11 @@ export function RevenueChart({ estimates }: Props) {
         });
         months.push(label);
 
-        // Placeholder: real calculation would use estimate totals
         const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         const monthEstimates = estimates.filter(
           (e) => e.status === "completed" && e.date.slice(0, 7) === monthStr
         );
-        revenues.push(monthEstimates.length * 4500); // placeholder avg
+        revenues.push(monthEstimates.length * 4500);
       }
 
       chartRef.current = new ChartJS(canvasRef.current, {
@@ -57,9 +52,9 @@ export function RevenueChart({ estimates }: Props) {
             {
               label: "Revenue",
               data: revenues,
-              backgroundColor: "rgba(74,102,80,0.7)",
-              borderColor: "#4a6650",
-              borderWidth: 1.5,
+              backgroundColor: "rgba(61,107,74,.7)",
+              borderColor: "#3d6b4a",
+              borderWidth: 1,
             },
           ],
         },
@@ -73,15 +68,19 @@ export function RevenueChart({ estimates }: Props) {
               beginAtZero: true,
               ticks: {
                 callback: (v) => `$${Number(v).toLocaleString()}`,
-                font: { family: "'Azeret Mono', monospace", size: 10 },
+                font: { family: "'JetBrains Mono', monospace", size: 10 },
+                color: "#6b6b66",
               },
-              grid: { color: "rgba(61,50,40,.06)" },
+              grid: { color: "#e6e4dd" },
+              border: { color: "#e6e4dd" },
             },
             x: {
               ticks: {
-                font: { family: "'Azeret Mono', monospace", size: 10 },
+                font: { family: "'JetBrains Mono', monospace", size: 10 },
+                color: "#6b6b66",
               },
               grid: { display: false },
+              border: { color: "#e6e4dd" },
             },
           },
         },

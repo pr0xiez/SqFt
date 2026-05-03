@@ -8,10 +8,10 @@ import { useEvents } from "@/lib/hooks/useEvents";
 import { getGreeting, todayStr } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
-  quote: "text-gold",
-  scheduled: "text-sage",
-  in_progress: "text-vermil",
-  completed: "text-oak",
+  quote: "text-[var(--gold)]",
+  scheduled: "text-[var(--sage)]",
+  in_progress: "text-[var(--accent)]",
+  completed: "text-[var(--ink-2)]",
 };
 
 export function DashboardView() {
@@ -20,7 +20,6 @@ export function DashboardView() {
   const { data: customers = [] } = useCustomers();
   const today = todayStr();
 
-  // KPI calculations
   const completed = estimates.filter((e) => e.status === "completed");
   const inProgress = estimates.filter((e) => e.status === "in_progress");
   const quotes = estimates.filter((e) => e.status === "quote");
@@ -28,72 +27,76 @@ export function DashboardView() {
 
   return (
     <div className="space-y-6">
-      {/* Topbar */}
-      <div className="pb-[14px] border-b-2 border-oak">
-        <p className="font-[var(--font-label)] text-[11px] italic text-vermil mb-1">
-          {getGreeting()} —
-        </p>
-        <h1 className="font-[var(--font-display)] text-[44px] font-black text-oak leading-[.9] tracking-tight">
+      {/* Page header */}
+      <div className="pb-4 border-b border-[var(--line)]">
+        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
+          {getGreeting()}
+        </div>
+        <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
           Dashboard
         </h1>
       </div>
 
-      {/* Metrics grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 border-[1.5px] border-oak bg-oak shadow-[4px_4px_0_var(--oak-l)] overflow-hidden">
+      {/* Metrics strip */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[var(--line)] border border-[var(--line)] rounded-lg overflow-hidden">
         {[
           { label: "Customers", value: customers.length, color: "" },
-          { label: "Open Quotes", value: quotes.length, color: "text-gold" },
           {
-            label: "In Progress",
-            value: inProgress.length,
-            color: "text-vermil",
+            label: "Open quotes",
+            value: quotes.length,
+            color: "text-[var(--gold)]",
           },
-          { label: "Completed", value: completed.length, color: "text-sage" },
-        ].map((m, _i) => (
-          <div
-            key={m.label}
-            className="bg-cream px-[18px] py-[20px] border-r border-oak last:border-r-0 relative"
-          >
+          {
+            label: "In progress",
+            value: inProgress.length,
+            color: "text-[var(--accent)]",
+          },
+          {
+            label: "Completed",
+            value: completed.length,
+            color: "text-[var(--sage)]",
+          },
+        ].map((m) => (
+          <div key={m.label} className="bg-[var(--surface)] px-5 py-5">
+            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-2.5">
+              {m.label}
+            </div>
             <div
-              className={`font-[var(--font-display)] text-[30px] font-black leading-none tracking-tight ${m.color || "text-oak"}`}
+              className={`font-[var(--font-display)] text-[28px] font-[700] leading-none tracking-[-0.025em] ${m.color || "text-[var(--ink)]"}`}
             >
               {m.value}
-            </div>
-            <div className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood mt-1">
-              {m.label}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Two column layout */}
-      <div className="grid md:grid-cols-[1fr_280px] gap-5">
-        {/* Revenue chart */}
-        <Card title="Revenue — Last 6 Months">
+      {/* Two column: chart + today */}
+      <div className="grid md:grid-cols-[1fr_280px] gap-4">
+        <Card title="Revenue" sub="Last 6 months">
           <RevenueChart estimates={estimates} />
         </Card>
 
-        {/* Today's schedule */}
-        <Card title="Today's Schedule">
+        <Card title="Today's schedule">
           {todayEvents.length === 0 ? (
-            <p className="font-[var(--font-mono)] text-xs text-driftwood italic">
+            <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
               Nothing scheduled for today.
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-0 divide-y divide-[var(--line)]">
               {todayEvents.map((ev) => (
                 <div
                   key={ev.id}
-                  className="flex gap-3 p-[10px_12px_10px_14px] bg-linen border border-linen-dd shadow-[2px_2px_0_var(--linen-dd)]"
+                  className="flex gap-3 py-2.5 first:pt-0 last:pb-0 cursor-pointer transition-[padding] duration-[150ms] hover:pl-1.5"
                   style={{
-                    borderLeft: `3px solid var(--${ev.type === "job" ? "sage" : ev.type === "visit" ? "gold" : "driftwood"})`,
+                    borderLeft: `3px solid var(--${ev.type === "job" ? "sage" : ev.type === "visit" ? "gold" : "muted"})`,
+                    paddingLeft: "10px",
                   }}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-[var(--font-display)] text-[13px] font-bold text-oak leading-tight truncate">
+                    <div className="font-[var(--font-display)] text-[13px] font-[600] text-[var(--ink)] leading-tight truncate tracking-[-0.01em]">
                       {ev.title}
                     </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-driftwood mt-0.5">
+                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
                       {ev.startTime} – {ev.endTime}
                     </div>
                   </div>
@@ -114,14 +117,14 @@ export function DashboardView() {
             const label = {
               quote: "Quote",
               scheduled: "Scheduled",
-              in_progress: "In Progress",
+              in_progress: "In progress",
               completed: "Completed",
             }[status];
 
             return (
               <div key={status} className="flex flex-col gap-2">
                 <div
-                  className={`font-[var(--font-mono)] text-[10px] uppercase tracking-widest px-3 py-1.5 border border-current ${STATUS_COLORS[status]}`}
+                  className={`font-[var(--font-mono)] text-[9px] uppercase tracking-[.08em] pb-1.5 border-b border-[var(--line)] ${STATUS_COLORS[status]}`}
                 >
                   {label}{" "}
                   <span className="opacity-60">({statusEstimates.length})</span>
@@ -129,9 +132,9 @@ export function DashboardView() {
                 {statusEstimates.slice(0, 5).map((est) => (
                   <div
                     key={est.id}
-                    className="bg-linen border border-linen-dd p-[7px_9px] text-sm"
+                    className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[6px] px-2.5 py-2 cursor-pointer transition-[transform,border-color] duration-[150ms] hover:border-[var(--ink-2)] hover:-translate-y-px"
                   >
-                    <div className="font-[var(--font-display)] text-xs font-bold text-oak truncate">
+                    <div className="font-[var(--font-display)] text-[13px] font-[600] text-[var(--ink)] truncate tracking-[-0.01em]">
                       {est.customer?.name ?? `#${est.id}`}
                     </div>
                   </div>

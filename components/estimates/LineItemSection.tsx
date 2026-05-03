@@ -70,19 +70,17 @@ export function LineItemSection({ estimate, onSave }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="font-[var(--font-display)] text-lg font-bold text-oak">
-          Materials & Labor
+        <h2 className="font-[var(--font-display)] text-[15px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
+          Materials & labor
         </h2>
         <Button size="sm" onClick={addItem}>
-          + Add Item
+          + Add item
         </Button>
       </div>
 
-      {/* Column headers (desktop) */}
       {items.length > 0 && (
-        <div className="hidden md:grid grid-cols-[2fr_80px_80px_80px_100px_32px] gap-2 px-3 font-[var(--font-mono)] text-[9px] uppercase tracking-widest text-driftwood">
+        <div className="hidden md:grid grid-cols-[2fr_80px_80px_80px_100px_32px] gap-2 px-3 bg-[var(--surface-2)] border-b border-[var(--line)] py-1.5 font-[var(--font-mono)] text-[9px] uppercase tracking-[.06em] text-[var(--muted)]">
           <span>Description</span>
           <span>Qty</span>
           <span>Rate</span>
@@ -92,7 +90,6 @@ export function LineItemSection({ estimate, onSave }: Props) {
         </div>
       )}
 
-      {/* Line items */}
       {items.map((li) => {
         const effectiveQty = getEffectiveQty(li, rooms);
         const subtotal = liSubtotal(li, rooms);
@@ -100,41 +97,43 @@ export function LineItemSection({ estimate, onSave }: Props) {
         return (
           <div
             key={li.id}
-            className="bg-cream border-[1.5px] border-oak shadow-[2px_2px_0_var(--manila)] p-3 space-y-2"
+            className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-3 space-y-2"
           >
             <div className="grid grid-cols-1 md:grid-cols-[2fr_80px_80px_80px_100px_32px] gap-2 items-end">
-              {/* Description */}
               <input
                 type="text"
                 value={li.name}
                 onChange={(e) => updateItem(li.id, { name: e.target.value })}
                 onBlur={() => save(items)}
                 placeholder="Item description"
-                className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil"
+                className="border border-[var(--line)] bg-[var(--surface)] px-2 py-1.5 rounded-[6px] font-[var(--font-mono)] text-[12px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
               />
 
-              {/* Qty / Linked */}
               <div className="flex flex-col gap-0.5">
                 <div className="flex gap-1">
                   <button
+                    type="button"
                     onClick={() => updateItem(li.id, { qtyMode: "manual" })}
                     className={cn(
-                      "text-[9px] px-1.5 py-0.5 border font-[var(--font-mono)] uppercase",
+                      "text-[9px] px-1.5 py-0.5 border rounded-[4px] font-[var(--font-mono)]",
+                      "transition-[background,border-color,color] duration-[150ms]",
                       li.qtyMode === "manual"
-                        ? "bg-oak border-oak text-linen"
-                        : "bg-linen border-sand text-driftwood"
+                        ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
+                        : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)]"
                     )}
                   >
                     M
                   </button>
                   {rooms.length > 0 && (
                     <button
+                      type="button"
                       onClick={() => updateItem(li.id, { qtyMode: "linked" })}
                       className={cn(
-                        "text-[9px] px-1.5 py-0.5 border font-[var(--font-mono)] uppercase",
+                        "text-[9px] px-1.5 py-0.5 border rounded-[4px] font-[var(--font-mono)]",
+                        "transition-[background,border-color,color] duration-[150ms]",
                         li.qtyMode === "linked"
-                          ? "bg-oak border-oak text-linen"
-                          : "bg-linen border-sand text-driftwood"
+                          ? "bg-[var(--sage)] border-[var(--sage)] text-white"
+                          : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)]"
                       )}
                     >
                       ↗
@@ -152,10 +151,10 @@ export function LineItemSection({ estimate, onSave }: Props) {
                     }
                     onBlur={() => save(items)}
                     placeholder="0"
-                    className="w-full border-[1.5px] border-oak bg-linen px-2 py-1 font-[var(--font-mono)] text-xs text-oak text-right focus:outline-none focus:border-vermil"
+                    className="w-full border border-[var(--line)] bg-[var(--surface)] px-2 py-1 rounded-[6px] font-[var(--font-mono)] text-[12px] text-[var(--ink)] text-right focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
                   />
                 ) : (
-                  <div className="font-[var(--font-mono)] text-xs text-driftwood px-2 py-1 border border-linen-dd text-right">
+                  <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] px-2 py-1 border border-[var(--line)] rounded-[6px] text-right">
                     {effectiveQty !== null
                       ? Math.round(effectiveQty * 10) / 10
                       : "—"}
@@ -163,7 +162,6 @@ export function LineItemSection({ estimate, onSave }: Props) {
                 )}
               </div>
 
-              {/* Rate */}
               <input
                 type="number"
                 min="0"
@@ -174,10 +172,9 @@ export function LineItemSection({ estimate, onSave }: Props) {
                 }
                 onBlur={() => save(items)}
                 placeholder="0.00"
-                className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak text-right focus:outline-none focus:border-vermil"
+                className="border border-[var(--line)] bg-[var(--surface)] px-2 py-1.5 rounded-[6px] font-[var(--font-mono)] text-[12px] text-[var(--ink)] text-right focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
               />
 
-              {/* Waste % */}
               <input
                 type="number"
                 min="0"
@@ -189,33 +186,32 @@ export function LineItemSection({ estimate, onSave }: Props) {
                 }
                 onBlur={() => save(items)}
                 placeholder="0"
-                className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak text-right focus:outline-none focus:border-vermil"
+                className="border border-[var(--line)] bg-[var(--surface)] px-2 py-1.5 rounded-[6px] font-[var(--font-mono)] text-[12px] text-[var(--ink)] text-right focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
               />
 
-              {/* Subtotal */}
-              <div className="font-[var(--font-mono)] text-xs text-oak text-right py-1.5 px-2">
+              <div className="font-[var(--font-mono)] text-[12px] text-[var(--ink-2)] text-right py-1.5 px-2">
                 {subtotal !== null ? fmtDollar(subtotal) : "—"}
               </div>
 
-              {/* Remove */}
               <button
+                type="button"
                 onClick={() => removeItem(li.id)}
-                className="text-driftwood hover:text-vermil text-sm leading-none justify-self-center"
+                className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none justify-self-center transition-colors"
                 aria-label="Remove line item"
               >
                 ✕
               </button>
             </div>
 
-            {/* Room link selector */}
             {li.qtyMode === "linked" && rooms.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1 border-t border-linen-dd">
-                <span className="font-[var(--font-mono)] text-[9px] uppercase tracking-widest text-driftwood self-center">
+              <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--line)]">
+                <span className="font-[var(--font-mono)] text-[9px] uppercase tracking-[.06em] text-[var(--muted)] self-center">
                   Rooms:
                 </span>
                 {rooms.map((r) => (
                   <button
                     key={r.id}
+                    type="button"
                     onClick={() => {
                       const linked = li.linkedRoomIds.includes(r.id)
                         ? li.linkedRoomIds.filter((rid) => rid !== r.id)
@@ -223,10 +219,11 @@ export function LineItemSection({ estimate, onSave }: Props) {
                       updateItem(li.id, { linkedRoomIds: linked });
                     }}
                     className={cn(
-                      "px-2 py-0.5 font-[var(--font-mono)] text-[9px] uppercase tracking-wider border",
+                      "px-2 py-0.5 font-[var(--font-mono)] text-[9px] tracking-[.02em] border rounded-[4px]",
+                      "transition-[background,border-color,color] duration-[150ms]",
                       li.linkedRoomIds.includes(r.id)
-                        ? "bg-sage border-sage text-cream"
-                        : "bg-linen border-sand text-driftwood hover:border-oak"
+                        ? "bg-[var(--sage)] border-[var(--sage)] text-white"
+                        : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)]"
                     )}
                   >
                     {r.name ?? `Room ${r.id}`}
@@ -238,12 +235,11 @@ export function LineItemSection({ estimate, onSave }: Props) {
         );
       })}
 
-      {/* Total */}
       {items.length > 0 && (
-        <div className="flex justify-end pt-2 border-t-2 border-oak">
-          <span className="font-[var(--font-mono)] text-sm text-oak">
+        <div className="flex justify-end pt-2 border-t border-[var(--line)]">
+          <span className="font-[var(--font-mono)] text-[12px] text-[var(--muted)]">
             Materials total:{" "}
-            <strong className="font-[var(--font-display)] text-base">
+            <strong className="font-[var(--font-display)] text-[14px] text-[var(--ink)] tracking-[-0.01em]">
               {fmtDollar(materialsTotal)}
             </strong>
           </span>

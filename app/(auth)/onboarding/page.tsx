@@ -34,26 +34,27 @@ export default function OnboardingPage() {
 
   return (
     <div className="w-full max-w-sm">
+      {/* Brand */}
       <div className="mb-8 text-center">
-        <h1 className="font-[var(--font-display)] text-4xl font-black italic text-oak leading-none">
-          Sq<em className="not-italic text-vermil">Ft</em>
-        </h1>
-        <p className="font-[var(--font-mono)] text-xs text-driftwood uppercase tracking-widest mt-1">
+        <div className="font-[var(--font-display)] text-[40px] font-[800] text-[var(--ink)] leading-none tracking-[-0.025em]">
+          <em className="not-italic text-[var(--accent)]">Sq</em>Ft
+        </div>
+        <p className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mt-2">
           Getting started
         </p>
       </div>
 
-      <div className="bg-cream border-[1.5px] border-oak shadow-[4px_4px_0_var(--manila)] p-8">
-        <h2 className="font-[var(--font-display)] text-xl font-bold text-oak mb-2">
+      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-8 shadow-[var(--shadow-md)]">
+        <h2 className="font-[var(--font-display)] text-[22px] font-[600] text-[var(--ink)] tracking-[-0.025em] mb-1.5">
           Name your company
         </h2>
-        <p className="font-[var(--font-mono)] text-xs text-driftwood mb-6">
+        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mb-6">
           This appears on estimates and your dashboard.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
-            <p className="text-vermil font-[var(--font-mono)] text-xs border border-vermil/30 bg-vermil/5 px-3 py-2">
+            <p className="text-[var(--accent)] font-[var(--font-mono)] text-[11px] border border-[var(--accent)]/30 bg-[var(--accent)]/5 px-3 py-2 rounded-[6px] animate-[slideDown_0.2s_ease-out]">
               {error}
             </p>
           )}
@@ -61,7 +62,7 @@ export default function OnboardingPage() {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="company"
-              className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider"
+              className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]"
             >
               Company name
             </label>
@@ -73,7 +74,7 @@ export default function OnboardingPage() {
               placeholder="e.g. Johnson Flooring Co."
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
-              className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+              className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms] w-full"
             />
           </div>
 

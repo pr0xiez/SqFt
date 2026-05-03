@@ -30,41 +30,42 @@ export default function SignupPage() {
     if (!res.ok) {
       setError(data.error ?? "Signup failed. Please try again.");
     } else {
-      // Redirect to onboarding to set up org name
       router.push("/onboarding");
     }
   }
+
+  const inputClass =
+    "border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms] w-full";
+  const labelClass =
+    "font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]";
 
   return (
     <div className="w-full max-w-sm">
       {/* Brand */}
       <div className="mb-8 text-center">
-        <h1 className="font-[var(--font-display)] text-4xl font-black italic text-oak leading-none">
-          Sq<em className="not-italic text-vermil">Ft</em>
-        </h1>
-        <p className="font-[var(--font-mono)] text-xs text-driftwood uppercase tracking-widest mt-1">
+        <div className="font-[var(--font-display)] text-[40px] font-[800] text-[var(--ink)] leading-none tracking-[-0.025em]">
+          <em className="not-italic text-[var(--accent)]">Sq</em>Ft
+        </div>
+        <p className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mt-2">
           Estimate Book
         </p>
       </div>
 
       {/* Card */}
-      <div className="bg-cream border-[1.5px] border-oak shadow-[4px_4px_0_var(--manila)] p-8">
-        <h2 className="font-[var(--font-display)] text-xl font-bold text-oak mb-6">
+      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-8 shadow-[var(--shadow-md)]">
+        <h2 className="font-[var(--font-display)] text-[22px] font-[600] text-[var(--ink)] tracking-[-0.025em] mb-6">
           Create account
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
-            <p className="text-vermil font-[var(--font-mono)] text-xs border border-vermil/30 bg-vermil/5 px-3 py-2">
+            <p className="text-[var(--accent)] font-[var(--font-mono)] text-[11px] border border-[var(--accent)]/30 bg-[var(--accent)]/5 px-3 py-2 rounded-[6px] animate-[slideDown_0.2s_ease-out]">
               {error}
             </p>
           )}
 
           <div className="flex flex-col gap-1">
-            <label
-              htmlFor="name"
-              className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider"
-            >
+            <label htmlFor="name" className={labelClass}>
               Your name
             </label>
             <input
@@ -74,15 +75,12 @@ export default function SignupPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+              className={inputClass}
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label
-              htmlFor="email"
-              className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider"
-            >
+            <label htmlFor="email" className={labelClass}>
               Email
             </label>
             <input
@@ -92,15 +90,12 @@ export default function SignupPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+              className={inputClass}
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label
-              htmlFor="password"
-              className="font-[var(--font-mono)] text-xs text-oak uppercase tracking-wider"
-            >
+            <label htmlFor="password" className={labelClass}>
               Password
             </label>
             <input
@@ -111,9 +106,9 @@ export default function SignupPage() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+              className={inputClass}
             />
-            <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+            <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
               Minimum 8 characters
             </span>
           </div>
@@ -128,9 +123,9 @@ export default function SignupPage() {
           </Button>
         </form>
 
-        <p className="mt-4 font-[var(--font-mono)] text-xs text-driftwood text-center">
+        <p className="mt-5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] text-center">
           Already have an account?{" "}
-          <Link href="/login" className="text-vermil hover:underline">
+          <Link href="/login" className="text-[var(--accent)] hover:underline">
             Sign in
           </Link>
         </p>

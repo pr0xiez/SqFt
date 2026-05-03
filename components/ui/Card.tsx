@@ -3,32 +3,31 @@ import { cn } from "@/lib/cn";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
-  cornerDecoration?: boolean;
+  sub?: string;
 }
 
-export function Card({
-  className,
-  title,
-  cornerDecoration = true,
-  children,
-  ...props
-}: CardProps) {
+export function Card({ className, title, sub, children, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "relative bg-cream border-[1.5px] border-oak",
-        "shadow-[3px_3px_0_var(--manila)]",
-        "p-[18px_20px]",
-        cornerDecoration && "card-corner",
+        "bg-[var(--surface)] border border-[var(--line)] rounded-lg",
+        "p-5",
         className
       )}
       {...props}
     >
-      {title && (
-        <div className="flex items-baseline gap-2 mb-3">
-          <strong className="font-[var(--font-display)] text-sm font-bold text-oak tracking-tight">
-            {title}
-          </strong>
+      {(title || sub) && (
+        <div className="flex items-baseline justify-between gap-2.5 mb-3.5">
+          {title && (
+            <strong className="font-[var(--font-display)] text-[14px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
+              {title}
+            </strong>
+          )}
+          {sub && (
+            <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+              {sub}
+            </span>
+          )}
         </div>
       )}
       {children}
