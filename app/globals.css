@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "@fontsource-variable/playfair-display/wght.css";
+@import "@fontsource-variable/playfair-display/wght-italic.css";
+@import "@fontsource-variable/azeret-mono/wght.css";
+@import "@fontsource-variable/fraunces/wght.css";
+@import "@fontsource-variable/fraunces/wght-italic.css";
 
 /* ── DESIGN TOKENS ────────────────────────────────────────────────────────── */
 /* Exact values from flooring-prototype-v0_8.html                             */
@@ -26,9 +31,9 @@
   --gold-l:   #c4a030;
 
   /* Typography aliases */
-  --font-display: 'Playfair Display', serif;
-  --font-mono:    'Azeret Mono', monospace;
-  --font-label:   'Fraunces', serif;
+  --font-display: 'Playfair Display Variable', serif;
+  --font-mono:    'Azeret Mono Variable', monospace;
+  --font-label:   'Fraunces Variable', serif;
 }
 
 /* ── TAILWIND v4 THEME EXTENSION ─────────────────────────────────────────── */
