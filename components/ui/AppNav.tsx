@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/cn";
 
 const NAV_TABS = [
@@ -14,21 +14,6 @@ const NAV_TABS = [
 
 export function AppNav() {
   const pathname = usePathname();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    const initial = saved === "dark" ? "dark" : "light";
-    setTheme(initial);
-    document.documentElement.dataset.theme = initial === "dark" ? "dark" : "";
-  }, []);
-
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.dataset.theme = next === "dark" ? "dark" : "";
-    localStorage.setItem("theme", next);
-  }
 
   return (
     <>
@@ -81,22 +66,7 @@ export function AppNav() {
 
         {/* Right: theme toggle + avatar */}
         <div className="ml-auto flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className={cn(
-              "font-[var(--font-mono)] text-[11px] tracking-[.02em]",
-              "border border-[var(--line)] bg-transparent cursor-pointer",
-              "px-[10px] py-[6px] rounded-[6px] text-[var(--muted)]",
-              "transition-[border-color,color] duration-[150ms]",
-              "hover:border-[var(--ink-2)] hover:text-[var(--ink)]",
-              "flex items-center gap-1.5"
-            )}
-            title="Toggle theme"
-          >
-            <span>{theme === "dark" ? "☀" : "☾"}</span>
-            <span>{theme === "dark" ? "Light" : "Dark"}</span>
-          </button>
+          <ThemeToggle />
           <div
             className={cn(
               "w-[30px] h-[30px] rounded-full",

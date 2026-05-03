@@ -133,6 +133,26 @@ export function liSubtotal(li: LineItemCalc, rooms: RoomItem[]): number | null {
   return qty * li.rate;
 }
 
+/** Compute the total for an estimate from its line items. Returns null when no line items exist. */
+export function computeEstimateTotal(est: {
+  lineItems?: LineItemCalc[];
+  items?: RoomItem[];
+  markupPct: number;
+  taxRate: number;
+}): string | null {
+  if (!est.lineItems?.length) return null;
+  const rooms = (est.items ?? []).filter(
+    (i): i is RoomItem => i.type === "room"
+  );
+  const subtotal = est.lineItems.reduce(
+    (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
+    0
+  );
+  const beforeTax = subtotal * (1 + est.markupPct / 100);
+  const total = beforeTax * (1 + est.taxRate);
+  return fmtBig(total);
+}
+
 // ── Date helpers ──────────────────────────────────────────────────────────
 
 /** Get today's date as YYYY-MM-DD string */

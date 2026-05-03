@@ -17,18 +17,25 @@ import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import {
   addDays,
   dateStr,
-  fmtDayHead,
   getWeekStart,
   timeToMinutes,
   todayStr,
 } from "@/lib/utils";
 
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7am–6pm
+const BODY_HEIGHT = 680;
+const START_HOUR = 7;
+const END_HOUR = 19;
+const TOTAL_MINUTES = (END_HOUR - START_HOUR) * 60;
+const PX_PER_MIN = BODY_HEIGHT / TOTAL_MINUTES;
+const HOURS = Array.from(
+  { length: END_HOUR - START_HOUR },
+  (_, i) => i + START_HOUR
+);
 
 const EVENT_COLORS: Record<string, string> = {
-  job: "bg-[var(--sage)]/15   border-[var(--sage)]   text-[var(--sage)]",
-  visit: "bg-[var(--gold)]/15   border-[var(--gold)]   text-[var(--gold)]",
-  other: "bg-[var(--muted)]/10  border-[var(--muted)]  text-[var(--muted)]",
+  job: "bg-[var(--accent)] text-white",
+  visit: "bg-[var(--gold)] text-white",
+  other: "bg-[var(--sage)] text-white",
 };
 
 export function ScheduleView() {
@@ -92,7 +99,7 @@ export function ScheduleView() {
             Schedule
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button
             size="sm"
             onClick={() => setWeekStart(getWeekStart(new Date()))}
@@ -111,6 +118,13 @@ export function ScheduleView() {
           >
             →
           </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => openNewEvent(today)}
+          >
+            + Add Event
+          </Button>
         </div>
       </div>
 
@@ -119,88 +133,139 @@ export function ScheduleView() {
         <div className={cn(isMobile ? "" : "min-w-[600px]")}>
           {/* Day headers */}
           <div
-            className="grid border border-[var(--line)] bg-[var(--surface-2)]"
-            style={{ gridTemplateColumns: `56px repeat(${daysToShow}, 1fr)` }}
+            className="grid border border-b-0 border-[var(--line)] bg-[var(--surface-2)]"
+            style={{ gridTemplateColumns: `52px repeat(${daysToShow}, 1fr)` }}
           >
             <div className="border-r border-[var(--line)]" />
             {days.map((d) => {
               const ds = dateStr(d);
+              const isToday = ds === today;
               return (
                 <div
                   key={ds}
-                  className={cn(
-                    "px-2 py-1.5 border-r border-[var(--line)] last:border-r-0 text-center cursor-pointer transition-colors hover:bg-[var(--surface)]",
-                    ds === today && "bg-[var(--accent)]/8"
-                  )}
+                  className="px-2 py-2 border-r last:border-r-0 border-[var(--line)] text-center cursor-pointer hover:bg-[var(--surface)] transition-colors"
                   onClick={() => openNewEvent(ds)}
                 >
-                  <span
+                  <div className="font-[var(--font-mono)] text-[9px] uppercase tracking-[.04em] text-[var(--ink-2)]">
+                    {d.toLocaleDateString("en-US", { weekday: "short" })}
+                  </div>
+                  <div
                     className={cn(
-                      "font-[var(--font-mono)] text-[11px] uppercase tracking-[.04em]",
-                      ds === today
-                        ? "text-[var(--accent)] font-[600]"
-                        : "text-[var(--ink-2)]"
+                      "font-[var(--font-display)] text-[18px] font-[600] leading-tight",
+                      isToday ? "text-[var(--accent)]" : "text-[var(--ink)]"
                     )}
                   >
-                    {fmtDayHead(d)}
-                  </span>
+                    {d.getDate()}
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Time rows */}
-          {HOURS.map((hour) => (
+          {/* Scrollable body */}
+          <div
+            className="flex border border-[var(--line)]"
+            style={{ height: BODY_HEIGHT, overflowY: "auto" }}
+          >
+            {/* Time gutter */}
             <div
-              key={hour}
-              className="grid border-x border-b border-[var(--line)]"
-              style={{ gridTemplateColumns: `56px repeat(${daysToShow}, 1fr)` }}
+              className="relative shrink-0 border-r border-[var(--line)]"
+              style={{ width: 52 }}
             >
-              <div className="border-r border-[var(--line)] px-2 py-1 flex items-start">
-                <span className="font-[var(--font-mono)] text-[9px] text-[var(--muted)]">
-                  {hour % 12 === 0 ? 12 : hour % 12}
-                  {hour < 12 ? "a" : "p"}
-                </span>
-              </div>
+              {HOURS.map((hour) => (
+                <div
+                  key={hour}
+                  className="absolute left-0 right-0 flex justify-end pr-1.5"
+                  style={{ top: (hour - START_HOUR) * 60 * PX_PER_MIN }}
+                >
+                  <span className="font-[var(--font-mono)] text-[9px] text-[var(--muted)] -translate-y-1/2">
+                    {hour % 12 === 0 ? 12 : hour % 12}
+                    {hour < 12 ? "a" : "p"}
+                  </span>
+                </div>
+              ))}
+            </div>
 
+            {/* Day columns */}
+            <div
+              className="grid flex-1"
+              style={{ gridTemplateColumns: `repeat(${daysToShow}, 1fr)` }}
+            >
               {days.map((d) => {
                 const ds = dateStr(d);
-                const cellEvents = (eventsByDate[ds] ?? []).filter((ev) => {
-                  const start = timeToMinutes(ev.startTime);
-                  return start >= hour * 60 && start < (hour + 1) * 60;
-                });
-
+                const dayEvents = eventsByDate[ds] ?? [];
                 return (
                   <div
                     key={ds}
-                    className="border-r border-[var(--line)] last:border-r-0 min-h-[44px] p-0.5 cursor-pointer hover:bg-[var(--surface-2)] transition-colors"
+                    className="relative border-r last:border-r-0 border-[var(--line)] cursor-pointer"
+                    style={{ minHeight: BODY_HEIGHT }}
                     onClick={() => openNewEvent(ds)}
                   >
-                    {cellEvents.map((ev) => (
-                      <button
-                        key={ev.id}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditEvent(ev);
-                        }}
-                        className={cn(
-                          "w-full text-left px-1.5 py-1 border-l-2 mb-0.5 rounded-[3px]",
-                          "font-[var(--font-mono)] text-[9px] leading-tight",
-                          EVENT_COLORS[ev.type] ?? EVENT_COLORS.other
-                        )}
-                      >
-                        <div className="font-[500] truncate">{ev.title}</div>
-                        <div className="opacity-70">
-                          {ev.startTime}–{ev.endTime}
-                        </div>
-                      </button>
+                    {/* Hour lines */}
+                    {HOURS.map((hour) => (
+                      <div
+                        key={hour}
+                        className="absolute left-0 right-0 border-t border-[var(--line)]"
+                        style={{ top: (hour - START_HOUR) * 60 * PX_PER_MIN }}
+                      />
                     ))}
+                    {/* Half-hour lines */}
+                    {HOURS.map((hour) => (
+                      <div
+                        key={`${hour}-half`}
+                        className="absolute left-0 right-0 border-t border-dashed border-[var(--line)] opacity-50"
+                        style={{
+                          top: ((hour - START_HOUR) * 60 + 30) * PX_PER_MIN,
+                        }}
+                      />
+                    ))}
+                    {/* Events */}
+                    {dayEvents.map((ev) => {
+                      const startMin =
+                        timeToMinutes(ev.startTime) - START_HOUR * 60;
+                      const endMin =
+                        timeToMinutes(ev.endTime) - START_HOUR * 60;
+                      const top = startMin * PX_PER_MIN;
+                      const height = Math.max(
+                        (endMin - startMin) * PX_PER_MIN,
+                        20
+                      );
+                      return (
+                        <button
+                          key={ev.id}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditEvent(ev);
+                          }}
+                          style={{
+                            position: "absolute",
+                            top,
+                            height,
+                            left: 2,
+                            right: 2,
+                          }}
+                          className={cn(
+                            "rounded-[3px] px-1.5 py-1 text-left overflow-hidden",
+                            EVENT_COLORS[ev.type] ?? EVENT_COLORS.other
+                          )}
+                        >
+                          <div className="font-[var(--font-mono)] text-[9px] font-[500] truncate leading-tight">
+                            {ev.title}
+                          </div>
+                          {height > 30 && (
+                            <div className="font-[var(--font-mono)] text-[8px] opacity-80">
+                              {ev.startTime}–{ev.endTime}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })}
             </div>
-          ))}
+          </div>
         </div>
       </div>
 

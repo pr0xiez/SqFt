@@ -1,11 +1,16 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useState } from "react";
+import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useEvents } from "@/lib/hooks/useEvents";
-import { getGreeting, todayStr } from "@/lib/utils";
+import { computeEstimateTotal, getGreeting, todayStr } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
   quote: "text-[var(--gold)]",
@@ -15,10 +20,15 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function DashboardView() {
+  const router = useRouter();
+  const { data: session } = useSession();
   const { data: estimates = [] } = useEstimates();
   const { data: events = [] } = useEvents();
   const { data: customers = [] } = useCustomers();
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+
   const today = todayStr();
+  const firstName = session?.user?.name?.split(" ")[0] ?? "there";
 
   const completed = estimates.filter((e) => e.status === "completed");
   const inProgress = estimates.filter((e) => e.status === "in_progress");
@@ -28,13 +38,32 @@ export function DashboardView() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="pb-4 border-b border-[var(--line)]">
-        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-          {getGreeting()}
+      <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
+        <div>
+          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </div>
+          <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
+            {getGreeting()},{" "}
+            <span className="font-[400] text-[var(--ink-2)]">{firstName}</span>
+          </h1>
+          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-1">
+            {inProgress.length} active · {quotes.length} quotes pending
+          </div>
         </div>
-        <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
-          Dashboard
-        </h1>
+        <div className="flex gap-2 shrink-0">
+          <Button onClick={() => setNewCustomerOpen(true)}>
+            + New Customer
+          </Button>
+          <Button variant="primary" onClick={() => router.push("/customers")}>
+            + New Estimate
+          </Button>
+        </div>
       </div>
 
       {/* Metrics strip */}
@@ -82,24 +111,34 @@ export function DashboardView() {
               Nothing scheduled for today.
             </p>
           ) : (
-            <div className="space-y-0 divide-y divide-[var(--line)]">
+            <div className="divide-y divide-[var(--line)]">
               {todayEvents.map((ev) => (
                 <div
                   key={ev.id}
-                  className="flex gap-3 py-2.5 first:pt-0 last:pb-0 cursor-pointer transition-[padding] duration-[150ms] hover:pl-1.5"
-                  style={{
-                    borderLeft: `3px solid var(--${ev.type === "job" ? "sage" : ev.type === "visit" ? "gold" : "muted"})`,
-                    paddingLeft: "10px",
-                  }}
+                  className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                 >
+                  <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] min-w-[50px] shrink-0">
+                    {ev.startTime}
+                  </span>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{
+                      background: `var(--${ev.type === "job" ? "sage" : ev.type === "visit" ? "gold" : "muted"})`,
+                    }}
+                  />
                   <div className="flex-1 min-w-0">
                     <div className="font-[var(--font-display)] text-[13px] font-[600] text-[var(--ink)] leading-tight truncate tracking-[-0.01em]">
                       {ev.title}
                     </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
-                      {ev.startTime} – {ev.endTime}
-                    </div>
+                    {ev.crew && (
+                      <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                        {ev.crew}
+                      </div>
+                    )}
                   </div>
+                  <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] shrink-0">
+                    {ev.type}
+                  </span>
                 </div>
               ))}
             </div>
@@ -129,21 +168,40 @@ export function DashboardView() {
                   {label}{" "}
                   <span className="opacity-60">({statusEstimates.length})</span>
                 </div>
-                {statusEstimates.slice(0, 5).map((est) => (
-                  <div
-                    key={est.id}
-                    className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[6px] px-2.5 py-2 cursor-pointer transition-[transform,border-color] duration-[150ms] hover:border-[var(--ink-2)] hover:-translate-y-px"
-                  >
-                    <div className="font-[var(--font-display)] text-[13px] font-[600] text-[var(--ink)] truncate tracking-[-0.01em]">
-                      {est.customer?.name ?? `#${est.id}`}
+                {statusEstimates.slice(0, 5).map((est) => {
+                  const total = computeEstimateTotal(est);
+                  return (
+                    <div
+                      key={est.id}
+                      className="bg-[var(--surface-2)] border border-[var(--line)] rounded-[6px] px-2.5 py-2 cursor-pointer transition-[transform,border-color] duration-[150ms] hover:border-[var(--ink-2)] hover:-translate-y-px"
+                    >
+                      <div className="font-[var(--font-display)] text-[13px] font-[600] text-[var(--ink)] truncate tracking-[-0.01em]">
+                        {est.customer?.name ?? `#${est.id}`}
+                      </div>
+                      <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                        {new Date(est.date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </div>
+                      {total && (
+                        <div className="font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink)] mt-0.5">
+                          {total}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           }
         )}
       </div>
+
+      <NewCustomerPanel
+        open={newCustomerOpen}
+        onClose={() => setNewCustomerOpen(false)}
+      />
     </div>
   );
 }

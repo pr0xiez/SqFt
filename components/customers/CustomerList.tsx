@@ -2,16 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { Button } from "@/components/ui/Button";
-import { SlidePanel } from "@/components/ui/SlidePanel";
 import { SourceBadge } from "@/components/ui/SourceBadge";
-import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
-import {
-  type CreateCustomerInput,
-  useCreateCustomer,
-  useCustomers,
-} from "@/lib/hooks/useCustomers";
+import { useCustomers } from "@/lib/hooks/useCustomers";
 
 const SOURCES = [
   "all",
@@ -25,42 +20,12 @@ const SOURCES = [
 export function CustomerListView() {
   const router = useRouter();
   const { data: customers = [], isLoading } = useCustomers();
-  const createCustomer = useCreateCustomer();
-  const { showToast } = useToast();
 
   const [filter, setFilter] = useState<string>("all");
   const [panelOpen, setPanelOpen] = useState(false);
 
-  const [form, setForm] = useState<CreateCustomerInput>({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    source: "phone",
-    notes: "",
-  });
-
   const filtered =
     filter === "all" ? customers : customers.filter((c) => c.source === filter);
-
-  async function handleSave() {
-    if (!form.name.trim()) return;
-    try {
-      const created = await createCustomer.mutateAsync(form);
-      setPanelOpen(false);
-      setForm({
-        name: "",
-        phone: "",
-        email: "",
-        address: "",
-        source: "phone",
-        notes: "",
-      });
-      showToast(`Customer "${created.name}" added.`);
-    } catch {
-      showToast("Failed to create customer. Please try again.");
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -73,6 +38,9 @@ export function CustomerListView() {
           <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
             Customers
           </h1>
+          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-1">
+            {customers.length} customers
+          </div>
         </div>
         <Button variant="primary" onClick={() => setPanelOpen(true)}>
           + New customer
@@ -164,114 +132,7 @@ export function CustomerListView() {
         </div>
       )}
 
-      {/* New Customer Panel */}
-      <SlidePanel
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        title="New customer"
-      >
-        <div className="space-y-4">
-          {/* Source tabs */}
-          <div>
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)] block mb-2">
-              Lead source
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {(
-                ["phone", "online", "referral", "walkin", "website"] as const
-              ).map((src) => (
-                <button
-                  key={src}
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, source: src }))}
-                  className={cn(
-                    "min-h-[36px] px-3 font-[var(--font-mono)] text-[10px] tracking-[.02em]",
-                    "border rounded-[6px] transition-[background,border-color,color] duration-[150ms]",
-                    form.source === src
-                      ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
-                      : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)]"
-                  )}
-                >
-                  {src}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {[
-            {
-              field: "name" as const,
-              label: "Full name *",
-              type: "text",
-              required: true,
-            },
-            {
-              field: "phone" as const,
-              label: "Phone",
-              type: "tel",
-              required: false,
-            },
-            {
-              field: "email" as const,
-              label: "Email",
-              type: "email",
-              required: false,
-            },
-            {
-              field: "address" as const,
-              label: "Address",
-              type: "text",
-              required: false,
-            },
-          ].map(({ field, label, type, required }) => (
-            <div key={field} className="flex flex-col gap-1">
-              <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
-                {label}
-              </label>
-              <input
-                type={type}
-                value={(form[field] as string) ?? ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, [field]: e.target.value }))
-                }
-                required={required}
-                className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
-              />
-            </div>
-          ))}
-
-          <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
-              Notes
-            </label>
-            <textarea
-              rows={3}
-              value={form.notes ?? ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, notes: e.target.value }))
-              }
-              className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms] resize-none"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="primary"
-              onClick={handleSave}
-              disabled={!form.name.trim() || createCustomer.isPending}
-              className="flex-1 justify-center"
-            >
-              {createCustomer.isPending ? "Saving…" : "Save customer"}
-            </Button>
-            <Button
-              onClick={() => setPanelOpen(false)}
-              className="flex-1 justify-center"
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </SlidePanel>
+      <NewCustomerPanel open={panelOpen} onClose={() => setPanelOpen(false)} />
     </div>
   );
 }

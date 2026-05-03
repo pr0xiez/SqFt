@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { estTotalArea } from "@/lib/utils";
@@ -29,13 +30,21 @@ export function EstimateListView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="pb-4 border-b border-[var(--line)]">
-        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-          All jobs
+      <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
+        <div>
+          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
+            All jobs
+          </div>
+          <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
+            Estimates
+          </h1>
+          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-1">
+            {estimates.length} estimates
+          </div>
         </div>
-        <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
-          Estimates
-        </h1>
+        <Button variant="primary" onClick={() => router.push("/customers")}>
+          + New Estimate
+        </Button>
       </div>
 
       {/* Column headers — desktop only */}
