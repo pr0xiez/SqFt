@@ -6,16 +6,19 @@ import { useEstimates } from "@/lib/hooks/useEstimates";
 import { estTotalArea } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
-  quote: "text-gold border-gold/40 bg-gold/7",
-  scheduled: "text-sage border-sage/40 bg-sage/7",
-  in_progress: "text-vermil border-vermil/40 bg-vermil/7",
-  completed: "text-oak border-oak/30 bg-oak/5",
+  quote: "text-[var(--gold)]   border-[var(--gold)]/40   bg-[var(--gold)]/7",
+  scheduled:
+    "text-[var(--sage)]   border-[var(--sage)]/40   bg-[var(--sage)]/7",
+  in_progress:
+    "text-[var(--accent)] border-[var(--accent)]/40 bg-[var(--accent)]/7",
+  completed:
+    "text-[var(--ink-2)]  border-[var(--ink-2)]/30  bg-[var(--ink-2)]/5",
 };
 
 const STATUS_LABELS: Record<string, string> = {
   quote: "Quote",
   scheduled: "Scheduled",
-  in_progress: "In Progress",
+  in_progress: "In progress",
   completed: "Completed",
 };
 
@@ -26,17 +29,17 @@ export function EstimateListView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="pb-3 border-b-2 border-oak">
-        <p className="font-[var(--font-label)] text-[11px] italic text-vermil mb-1">
+      <div className="pb-4 border-b border-[var(--line)]">
+        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
           All jobs
-        </p>
-        <h1 className="font-[var(--font-display)] text-[36px] font-black text-oak leading-none tracking-tight">
+        </div>
+        <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
           Estimates
         </h1>
       </div>
 
       {/* Column headers — desktop only */}
-      <div className="hidden md:grid grid-cols-[80px_2fr_1fr_100px_100px] gap-3 px-4 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood border-b border-linen-dd">
+      <div className="hidden md:grid grid-cols-[80px_2fr_1fr_100px_100px] gap-3 px-4 py-2 bg-[var(--surface-2)] border-b border-[var(--line)] font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
         <span>#</span>
         <span>Customer</span>
         <span>Date</span>
@@ -45,15 +48,15 @@ export function EstimateListView() {
       </div>
 
       {isLoading ? (
-        <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-4">
+        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
           Loading…
         </p>
       ) : estimates.length === 0 ? (
-        <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-4">
+        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
           No estimates yet. Create one from a customer record.
         </p>
       ) : (
-        <div className="divide-y divide-linen-dd">
+        <div className="divide-y divide-[var(--line)]">
           {estimates.map((est) => {
             const area = est.items ? estTotalArea(est.items) : 0;
             const dateLabel = new Date(est.date).toLocaleDateString("en-US", {
@@ -68,30 +71,28 @@ export function EstimateListView() {
             return (
               <button
                 key={est.id}
+                type="button"
                 onClick={() => router.push(`/estimates/${est.id}`)}
-                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_2fr_1fr_100px_100px] gap-x-3 gap-y-0 px-4 py-3 bg-cream hover:bg-linen transition-colors cursor-pointer"
+                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_2fr_1fr_100px_100px] gap-x-3 gap-y-0 px-4 py-3 bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
               >
-                {/* ID — desktop only (inline on mobile below) */}
-                <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block self-center">
+                <span className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] hidden md:block self-center">
                   #{est.id}
                 </span>
 
-                {/* Customer name + address (always visible) + mobile secondary row */}
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <span className="font-[var(--font-mono)] text-[10px] text-driftwood md:hidden">
+                      <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] md:hidden">
                         #{est.id} ·{" "}
                       </span>
-                      <span className="font-[var(--font-display)] text-sm font-bold text-oak">
+                      <span className="font-[var(--font-display)] text-[14px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
                         {est.customer?.name ?? "—"}
                       </span>
                     </div>
-                    {/* Mobile-only status badge */}
                     <span
                       className={cn(
-                        "md:hidden shrink-0 inline-block border px-2 py-0.5",
-                        "font-[var(--font-mono)] text-[10px] uppercase tracking-wider",
+                        "md:hidden shrink-0 inline-block border px-2 py-0.5 rounded-[4px]",
+                        "font-[var(--font-mono)] text-[9px] uppercase tracking-[.04em]",
                         statusStyle
                       )}
                     >
@@ -99,39 +100,38 @@ export function EstimateListView() {
                     </span>
                   </div>
                   {est.customer?.address && (
-                    <span className="block font-[var(--font-mono)] text-[11px] text-driftwood truncate">
+                    <span className="block font-[var(--font-mono)] text-[11px] text-[var(--muted)] truncate mt-0.5">
                       {est.customer.address}
                     </span>
                   )}
-                  {/* Mobile-only: date + area */}
                   <div className="flex items-center gap-3 mt-1 md:hidden">
-                    <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+                    <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
                       {dateLabel}
                     </span>
                     {area > 0 && (
-                      <span className="font-[var(--font-mono)] text-[10px] text-oak">
-                        {Math.round(area)} ft²
+                      <span className="font-[var(--font-mono)] text-[10px] text-[var(--ink-2)]">
+                        {Math.round(area)} sf
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Desktop-only columns */}
-                <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block self-center">
+                <span className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] hidden md:block self-center">
                   {dateLabel}
                 </span>
                 <span className="hidden md:flex items-center">
                   <span
                     className={cn(
-                      "inline-block border px-2 py-0.5 font-[var(--font-mono)] text-[10px] uppercase tracking-wider",
+                      "inline-block border px-2 py-0.5 rounded-[4px]",
+                      "font-[var(--font-mono)] text-[9px] uppercase tracking-[.04em]",
                       statusStyle
                     )}
                   >
                     {statusLabel}
                   </span>
                 </span>
-                <span className="font-[var(--font-mono)] text-xs text-right text-oak hidden md:block self-center">
-                  {area > 0 ? `${Math.round(area)} ft²` : "—"}
+                <span className="font-[var(--font-mono)] text-[12px] text-right text-[var(--ink-2)] hidden md:block self-center">
+                  {area > 0 ? `${Math.round(area)} sf` : "—"}
                 </span>
               </button>
             );

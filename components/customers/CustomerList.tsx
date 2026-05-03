@@ -65,17 +65,17 @@ export function CustomerListView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-end justify-between pb-3 border-b-2 border-oak">
+      <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
         <div>
-          <p className="font-[var(--font-label)] text-[11px] italic text-vermil mb-1">
+          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
             All clients
-          </p>
-          <h1 className="font-[var(--font-display)] text-[36px] font-black text-oak leading-none tracking-tight">
+          </div>
+          <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
             Customers
           </h1>
         </div>
         <Button variant="primary" onClick={() => setPanelOpen(true)}>
-          + New Customer
+          + New customer
         </Button>
       </div>
 
@@ -84,13 +84,14 @@ export function CustomerListView() {
         {SOURCES.map((src) => (
           <button
             key={src}
+            type="button"
             onClick={() => setFilter(src)}
             className={cn(
-              "min-h-[44px] px-[18px] font-[var(--font-mono)] text-[11px] uppercase tracking-wider border",
-              "transition-all duration-100 shadow-[2px_2px_0_var(--linen-dd)]",
+              "min-h-[36px] px-4 font-[var(--font-mono)] text-[11px] tracking-[.02em]",
+              "border rounded-[6px] transition-[background,border-color,color] duration-[150ms]",
               filter === src
-                ? "bg-oak border-oak text-linen"
-                : "bg-linen border-sand text-driftwood hover:border-oak hover:text-oak"
+                ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
+                : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
             )}
           >
             {src === "all" ? "All" : src}
@@ -99,7 +100,7 @@ export function CustomerListView() {
       </div>
 
       {/* Table header — desktop only */}
-      <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_80px] gap-3 px-4 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood border-b border-linen-dd">
+      <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_80px] gap-3 px-4 py-2 bg-[var(--surface-2)] border-b border-[var(--line)] font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
         <span>Name</span>
         <span>Phone</span>
         <span>Source</span>
@@ -109,56 +110,53 @@ export function CustomerListView() {
 
       {/* Rows */}
       {isLoading ? (
-        <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-4">
+        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
           Loading…
         </p>
       ) : filtered.length === 0 ? (
-        <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-4">
+        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
           No customers yet. Add your first one →
         </p>
       ) : (
-        <div className="divide-y divide-linen-dd">
+        <div className="divide-y divide-[var(--line)]">
           {filtered.map((c) => (
             <button
               key={c.id}
+              type="button"
               onClick={() => router.push(`/customers/${c.id}`)}
-              className="w-full text-left grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_80px] gap-x-3 gap-y-0 px-4 py-3 bg-cream hover:bg-linen transition-colors cursor-pointer"
+              className="w-full text-left grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_80px] gap-x-3 gap-y-0 px-4 py-3 bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
             >
-              {/* Name + address (always visible) + mobile secondary row */}
               <div>
-                <span className="font-[var(--font-display)] text-sm font-bold text-oak">
+                <span className="font-[var(--font-display)] text-[14px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
                   {c.name}
                 </span>
                 {c.address && (
-                  <span className="block font-[var(--font-mono)] text-[11px] text-driftwood truncate">
+                  <span className="block font-[var(--font-mono)] text-[11px] text-[var(--muted)] truncate mt-0.5">
                     {c.address}
                   </span>
                 )}
-                {/* Mobile-only: source + estimate count */}
                 <div className="flex items-center gap-3 mt-1.5 md:hidden">
                   <SourceBadge source={c.source} />
-                  <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+                  <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
                     {c._count?.estimates ?? 0} estimate
                     {(c._count?.estimates ?? 0) !== 1 ? "s" : ""}
                   </span>
                 </div>
               </div>
-
-              {/* Desktop-only columns */}
-              <span className="font-[var(--font-mono)] text-xs text-oak hidden md:block self-center">
+              <span className="font-[var(--font-mono)] text-[12px] text-[var(--ink-2)] hidden md:block self-center">
                 {c.phone ?? "—"}
               </span>
               <span className="hidden md:flex items-center">
                 <SourceBadge source={c.source} />
               </span>
-              <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block self-center">
+              <span className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] hidden md:block self-center">
                 {new Date(c.createdAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                   year: "2-digit",
                 })}
               </span>
-              <span className="font-[var(--font-mono)] text-xs text-right text-oak hidden md:block self-center">
+              <span className="font-[var(--font-mono)] text-[12px] text-right text-[var(--ink-2)] hidden md:block self-center">
                 {c._count?.estimates ?? 0}
               </span>
             </button>
@@ -170,12 +168,12 @@ export function CustomerListView() {
       <SlidePanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
-        title="New Customer"
+        title="New customer"
       >
         <div className="space-y-4">
           {/* Source tabs */}
           <div>
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood block mb-2">
+            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)] block mb-2">
               Lead source
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -184,12 +182,14 @@ export function CustomerListView() {
               ).map((src) => (
                 <button
                   key={src}
+                  type="button"
                   onClick={() => setForm((f) => ({ ...f, source: src }))}
                   className={cn(
-                    "min-h-[44px] px-3 font-[var(--font-mono)] text-[10px] uppercase tracking-wider border text-xs",
+                    "min-h-[36px] px-3 font-[var(--font-mono)] text-[10px] tracking-[.02em]",
+                    "border rounded-[6px] transition-[background,border-color,color] duration-[150ms]",
                     form.source === src
-                      ? "bg-oak border-oak text-linen"
-                      : "bg-linen border-sand text-driftwood hover:border-oak"
+                      ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
+                      : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)]"
                   )}
                 >
                   {src}
@@ -225,7 +225,7 @@ export function CustomerListView() {
             },
           ].map(({ field, label, type, required }) => (
             <div key={field} className="flex flex-col gap-1">
-              <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+              <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
                 {label}
               </label>
               <input
@@ -235,13 +235,13 @@ export function CustomerListView() {
                   setForm((f) => ({ ...f, [field]: e.target.value }))
                 }
                 required={required}
-                className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+                className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
               />
             </div>
           ))}
 
           <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
+            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
               Notes
             </label>
             <textarea
@@ -250,7 +250,7 @@ export function CustomerListView() {
               onChange={(e) =>
                 setForm((f) => ({ ...f, notes: e.target.value }))
               }
-              className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil resize-none"
+              className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms] resize-none"
             />
           </div>
 
@@ -261,7 +261,7 @@ export function CustomerListView() {
               disabled={!form.name.trim() || createCustomer.isPending}
               className="flex-1 justify-center"
             >
-              {createCustomer.isPending ? "Saving…" : "Save Customer"}
+              {createCustomer.isPending ? "Saving…" : "Save customer"}
             </Button>
             <Button
               onClick={() => setPanelOpen(false)}

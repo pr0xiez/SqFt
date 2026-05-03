@@ -26,9 +26,9 @@ import {
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 7); // 7am–6pm
 
 const EVENT_COLORS: Record<string, string> = {
-  job: "bg-sage/20 border-sage text-sage",
-  visit: "bg-gold/20 border-gold text-gold",
-  other: "bg-driftwood/20 border-driftwood text-driftwood",
+  job: "bg-[var(--sage)]/15   border-[var(--sage)]   text-[var(--sage)]",
+  visit: "bg-[var(--gold)]/15   border-[var(--gold)]   text-[var(--gold)]",
+  other: "bg-[var(--muted)]/10  border-[var(--muted)]  text-[var(--muted)]",
 };
 
 export function ScheduleView() {
@@ -67,28 +67,28 @@ export function ScheduleView() {
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalEvent[]> = {};
-    events.forEach((ev) => {
+    for (const ev of events) {
       const d = ev.date.slice(0, 10);
       if (!map[d]) map[d] = [];
       map[d].push(ev);
-    });
+    }
     return map;
   }, [events]);
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-end justify-between pb-3 border-b-2 border-oak">
+      <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
         <div>
-          <p className="font-[var(--font-label)] text-[11px] italic text-vermil mb-1">
+          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
             Week of{" "}
             {weekStart.toLocaleDateString("en-US", {
               month: "long",
               day: "numeric",
               year: "numeric",
             })}
-          </p>
-          <h1 className="font-[var(--font-display)] text-[36px] font-black text-oak leading-none tracking-tight">
+          </div>
+          <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
             Schedule
           </h1>
         </div>
@@ -119,25 +119,27 @@ export function ScheduleView() {
         <div className={cn(isMobile ? "" : "min-w-[600px]")}>
           {/* Day headers */}
           <div
-            className="grid border-[1.5px] border-oak"
+            className="grid border border-[var(--line)] bg-[var(--surface-2)]"
             style={{ gridTemplateColumns: `56px repeat(${daysToShow}, 1fr)` }}
           >
-            <div className="border-r border-oak" />
+            <div className="border-r border-[var(--line)]" />
             {days.map((d) => {
               const ds = dateStr(d);
               return (
                 <div
                   key={ds}
                   className={cn(
-                    "px-2 py-1.5 border-r border-oak last:border-r-0 text-center cursor-pointer hover:bg-linen transition-colors",
-                    ds === today && "bg-vermil/10"
+                    "px-2 py-1.5 border-r border-[var(--line)] last:border-r-0 text-center cursor-pointer transition-colors hover:bg-[var(--surface)]",
+                    ds === today && "bg-[var(--accent)]/8"
                   )}
                   onClick={() => openNewEvent(ds)}
                 >
                   <span
                     className={cn(
-                      "font-[var(--font-mono)] text-[11px] uppercase tracking-wider",
-                      ds === today ? "text-vermil font-bold" : "text-oak"
+                      "font-[var(--font-mono)] text-[11px] uppercase tracking-[.04em]",
+                      ds === today
+                        ? "text-[var(--accent)] font-[600]"
+                        : "text-[var(--ink-2)]"
                     )}
                   >
                     {fmtDayHead(d)}
@@ -151,18 +153,16 @@ export function ScheduleView() {
           {HOURS.map((hour) => (
             <div
               key={hour}
-              className="grid border-x border-b border-oak"
+              className="grid border-x border-b border-[var(--line)]"
               style={{ gridTemplateColumns: `56px repeat(${daysToShow}, 1fr)` }}
             >
-              {/* Time label */}
-              <div className="border-r border-oak px-2 py-1 flex items-start">
-                <span className="font-[var(--font-mono)] text-[9px] text-driftwood">
+              <div className="border-r border-[var(--line)] px-2 py-1 flex items-start">
+                <span className="font-[var(--font-mono)] text-[9px] text-[var(--muted)]">
                   {hour % 12 === 0 ? 12 : hour % 12}
                   {hour < 12 ? "a" : "p"}
                 </span>
               </div>
 
-              {/* Day cells */}
               {days.map((d) => {
                 const ds = dateStr(d);
                 const cellEvents = (eventsByDate[ds] ?? []).filter((ev) => {
@@ -173,23 +173,24 @@ export function ScheduleView() {
                 return (
                   <div
                     key={ds}
-                    className="border-r border-oak last:border-r-0 min-h-[44px] p-0.5 cursor-pointer hover:bg-linen/50 transition-colors"
+                    className="border-r border-[var(--line)] last:border-r-0 min-h-[44px] p-0.5 cursor-pointer hover:bg-[var(--surface-2)] transition-colors"
                     onClick={() => openNewEvent(ds)}
                   >
                     {cellEvents.map((ev) => (
                       <button
                         key={ev.id}
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           openEditEvent(ev);
                         }}
                         className={cn(
-                          "w-full text-left px-1.5 py-1 border-l-2 mb-0.5",
+                          "w-full text-left px-1.5 py-1 border-l-2 mb-0.5 rounded-[3px]",
                           "font-[var(--font-mono)] text-[9px] leading-tight",
                           EVENT_COLORS[ev.type] ?? EVENT_COLORS.other
                         )}
                       >
-                        <div className="font-medium truncate">{ev.title}</div>
+                        <div className="font-[500] truncate">{ev.title}</div>
                         <div className="opacity-70">
                           {ev.startTime}–{ev.endTime}
                         </div>
@@ -203,7 +204,6 @@ export function ScheduleView() {
         </div>
       </div>
 
-      {/* Event panel */}
       <EventFormPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
@@ -232,8 +232,6 @@ export function ScheduleView() {
     </div>
   );
 }
-
-// ── Event form panel ──────────────────────────────────────────────────────
 
 interface EventFormPanelProps {
   open: boolean;
@@ -285,28 +283,33 @@ function EventFormPanel({
     }
   }
 
+  const inputClass =
+    "border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]";
+  const labelClass =
+    "font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]";
+
   return (
     <SlidePanel
       open={open}
       onClose={onClose}
-      title={ev ? "Edit Event" : "New Event"}
+      title={ev ? "Edit event" : "New event"}
     >
       <div className="space-y-4">
         {/* Type */}
         <div>
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood block mb-2">
-            Type
-          </label>
+          <label className={`${labelClass} block mb-2`}>Type</label>
           <div className="flex gap-1.5">
             {(["job", "visit", "other"] as const).map((t) => (
               <button
                 key={t}
+                type="button"
                 onClick={() => setType(t)}
                 className={cn(
-                  "flex-1 min-h-[44px] px-3 font-[var(--font-mono)] text-[10px] uppercase tracking-wider border",
+                  "flex-1 min-h-[36px] px-3 font-[var(--font-mono)] text-[10px] tracking-[.02em]",
+                  "border rounded-[6px] transition-[background,border-color,color] duration-[150ms]",
                   type === t
-                    ? "bg-oak border-oak text-linen"
-                    : "bg-linen border-sand text-driftwood hover:border-oak"
+                    ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
+                    : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)]"
                 )}
               >
                 {t}
@@ -315,61 +318,48 @@ function EventFormPanel({
           </div>
         </div>
 
-        {/* Title */}
         <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-            Title *
-          </label>
+          <label className={labelClass}>Title *</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+            className={inputClass}
           />
         </div>
 
-        {/* Date & Times */}
         <div className="grid grid-cols-3 gap-2">
           <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-              Date
-            </label>
+            <label className={labelClass}>Date</label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil"
+              className={inputClass}
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-              Start
-            </label>
+            <label className={labelClass}>Start</label>
             <input
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil"
+              className={inputClass}
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-              End
-            </label>
+            <label className={labelClass}>End</label>
             <input
               type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak focus:outline-none focus:border-vermil"
+              className={inputClass}
             />
           </div>
         </div>
 
-        {/* Customer */}
         <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-            Customer
-          </label>
+          <label className={labelClass}>Customer</label>
           <select
             value={customerId ?? ""}
             onChange={(e) =>
@@ -377,7 +367,7 @@ function EventFormPanel({
                 e.target.value ? parseInt(e.target.value, 10) : undefined
               )
             }
-            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+            className={inputClass}
           >
             <option value="">— None —</option>
             {customers.map((c) => (
@@ -388,29 +378,23 @@ function EventFormPanel({
           </select>
         </div>
 
-        {/* Crew */}
         <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-            Crew
-          </label>
+          <label className={labelClass}>Crew</label>
           <input
             type="text"
             value={crew}
             onChange={(e) => setCrew(e.target.value)}
-            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
+            className={inputClass}
           />
         </div>
 
-        {/* Notes */}
         <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-            Notes
-          </label>
+          <label className={labelClass}>Notes</label>
           <textarea
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil resize-none"
+            className={`${inputClass} resize-none`}
           />
         </div>
 
@@ -421,7 +405,7 @@ function EventFormPanel({
             disabled={!title.trim() || saving}
             className="flex-1 justify-center"
           >
-            {saving ? "Saving…" : ev ? "Update" : "Create Event"}
+            {saving ? "Saving…" : ev ? "Update" : "Create event"}
           </Button>
           <Button onClick={onClose} className="flex-1 justify-center">
             Cancel
@@ -430,8 +414,9 @@ function EventFormPanel({
 
         {ev && (
           <button
+            type="button"
             onClick={() => onDelete(ev.id)}
-            className="w-full min-h-[44px] font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-vermil hover:bg-vermil/5 border border-vermil/30 transition-colors"
+            className="w-full min-h-[36px] font-[var(--font-mono)] text-[10px] tracking-[.02em] text-[var(--accent)] hover:bg-[var(--accent)]/5 border border-[var(--accent)]/30 rounded-[6px] transition-colors"
           >
             Delete event
           </button>

@@ -1,10 +1,5 @@
 "use client";
 
-/**
- * RoomSection — renders room measurements and notes for an estimate.
- * Ports the room CRUD from flooring-prototype-v0_8.html.
- */
-
 import { useCallback, useState } from "react";
 import { RoomCanvas } from "@/components/estimates/RoomCanvas";
 import { Button } from "@/components/ui/Button";
@@ -18,7 +13,7 @@ interface Props {
   onSave: (items: RoomItem[]) => Promise<void>;
 }
 
-let _nextId = Date.now(); // client-side temporary ID counter
+let _nextId = Date.now();
 function tempId() {
   return ++_nextId;
 }
@@ -45,7 +40,7 @@ export function RoomSection({ estimate, onSave }: Props) {
       {
         id: tempId(),
         type: "room",
-        name: "New Room",
+        name: "New room",
         shape: "rect",
         w: null,
         l: null,
@@ -84,10 +79,9 @@ export function RoomSection({ estimate, onSave }: Props) {
 
   return (
     <div className="space-y-3">
-      {/* Section header */}
       <div className="flex items-center justify-between">
-        <h2 className="font-[var(--font-display)] text-lg font-bold text-oak">
-          Rooms & Measurements
+        <h2 className="font-[var(--font-display)] text-[15px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
+          Rooms & measurements
         </h2>
         <div className="flex gap-2">
           <Button size="sm" onClick={addRoom}>
@@ -100,12 +94,11 @@ export function RoomSection({ estimate, onSave }: Props) {
       </div>
 
       {items.length === 0 && (
-        <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-2">
+        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-2">
           No rooms yet. Add a room to start measuring.
         </p>
       )}
 
-      {/* Room list */}
       <div className="space-y-3">
         {items.map((item) =>
           item.type === "note" ? (
@@ -128,13 +121,12 @@ export function RoomSection({ estimate, onSave }: Props) {
         )}
       </div>
 
-      {/* Total area */}
       {rooms.length > 0 && (
-        <div className="flex justify-end pt-2 border-t border-linen-dd">
-          <span className="font-[var(--font-mono)] text-xs text-driftwood">
+        <div className="flex justify-end pt-2 border-t border-[var(--line)]">
+          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Total area:{" "}
-            <strong className="text-oak">
-              {Math.round(rooms.reduce((s, r) => s + roomSqft(r), 0))} ft²
+            <strong className="text-[var(--ink)]">
+              {Math.round(rooms.reduce((s, r) => s + roomSqft(r), 0))} sf
             </strong>
           </span>
         </div>
@@ -142,8 +134,6 @@ export function RoomSection({ estimate, onSave }: Props) {
     </div>
   );
 }
-
-// ── Sub-components ────────────────────────────────────────────────────────
 
 interface RoomItemCardProps {
   item: RoomItem;
@@ -156,8 +146,7 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
   const area = roomSqft(item);
 
   return (
-    <div className="bg-cream border-[1.5px] border-oak shadow-[2px_2px_0_var(--manila)] p-4 space-y-3">
-      {/* Room header */}
+    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-4 space-y-3">
       <div className="flex items-center gap-3">
         <input
           type="text"
@@ -165,43 +154,44 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
           onChange={(e) => onUpdate({ name: e.target.value })}
           onBlur={onBlur}
           placeholder="Room name"
-          className="flex-1 font-[var(--font-display)] font-bold text-sm text-oak bg-transparent border-b border-linen-dd focus:outline-none focus:border-oak pb-0.5"
+          className="flex-1 font-[var(--font-display)] font-[600] text-[14px] text-[var(--ink)] bg-transparent border-b border-transparent focus:outline-none focus:border-[var(--ink-2)] pb-0.5 transition-[border-color] duration-[150ms] tracking-[-0.01em]"
         />
-        <span className="font-[var(--font-mono)] text-xs text-driftwood shrink-0">
-          {area > 0 ? `${Math.round(area * 10) / 10} ft²` : "—"}
+        <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] shrink-0">
+          {area > 0 ? `${Math.round(area * 10) / 10} sf` : "—"}
         </span>
         <button
+          type="button"
           onClick={onRemove}
-          className="text-driftwood hover:text-vermil transition-colors text-sm leading-none ml-1"
+          className="text-[var(--muted)] hover:text-[var(--accent)] transition-colors text-sm leading-none ml-1"
           aria-label="Remove room"
         >
           ✕
         </button>
       </div>
 
-      {/* Shape selector */}
       <div className="flex gap-1.5">
         {(["rect", "tri", "lshape"] as const).map((shape) => (
           <button
             key={shape}
+            type="button"
             onClick={() => onUpdate({ shape })}
             className={cn(
-              "px-3 py-1 font-[var(--font-mono)] text-[10px] uppercase tracking-wider border",
+              "px-3 py-1 font-[var(--font-mono)] text-[10px] tracking-[.02em] border rounded-[4px]",
+              "transition-[background,border-color,color] duration-[150ms]",
               item.shape === shape
-                ? "bg-oak border-oak text-linen"
-                : "bg-linen border-sand text-driftwood hover:border-oak"
+                ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
+                : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)]"
             )}
           >
             {shape === "rect"
               ? "Rectangle"
               : shape === "tri"
                 ? "Triangle"
-                : "L-Shape"}
+                : "L-shape"}
           </button>
         ))}
       </div>
 
-      {/* Dimensions */}
       {item.shape !== "lshape" && (
         <div className="flex items-center gap-2">
           <DimInput
@@ -210,7 +200,7 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
             onChange={(v) => onUpdate({ w: parseFloat(v) || undefined })}
             onBlur={onBlur}
           />
-          <span className="text-driftwood font-[var(--font-mono)] text-sm">
+          <span className="text-[var(--muted)] font-[var(--font-mono)] text-sm">
             ×
           </span>
           <DimInput
@@ -220,29 +210,26 @@ function RoomItemCard({ item, onUpdate, onRemove, onBlur }: RoomItemCardProps) {
             onBlur={onBlur}
           />
           {item.shape === "tri" && (
-            <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+            <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
               ÷ 2
             </span>
           )}
         </div>
       )}
 
-      {/* L-shape canvas preview */}
       {item.shape === "lshape" && (
         <LShapeEditor item={item} onUpdate={onUpdate} onBlur={onBlur} />
       )}
 
-      {/* Canvas diagram */}
       {area > 0 && item.shape !== "lshape" && <RoomCanvas room={item} />}
 
-      {/* Note */}
       <input
         type="text"
         value={item.note ?? ""}
         onChange={(e) => onUpdate({ note: e.target.value })}
         onBlur={onBlur}
         placeholder="Field note (optional)"
-        className="w-full font-[var(--font-mono)] text-xs text-driftwood bg-transparent border-b border-linen-dd focus:outline-none focus:border-oak pb-0.5 italic placeholder:text-manila"
+        className="w-full font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border-b border-[var(--line)] focus:outline-none focus:border-[var(--ink-2)] pb-0.5 italic placeholder:text-[var(--line-2)] transition-[border-color] duration-[150ms]"
       />
     </div>
   );
@@ -261,7 +248,7 @@ function DimInput({
 }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <label className="font-[var(--font-mono)] text-[9px] uppercase tracking-widest text-driftwood">
+      <label className="font-[var(--font-mono)] text-[9px] uppercase tracking-[.06em] text-[var(--muted)]">
         {label}
       </label>
       <input
@@ -272,7 +259,7 @@ function DimInput({
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
         placeholder="0"
-        className="w-20 border-[1.5px] border-oak bg-linen px-2 py-1 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil text-right"
+        className="w-20 border border-[var(--line)] bg-[var(--surface)] px-2 py-1 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--accent)] text-right focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
       />
     </div>
   );
@@ -311,8 +298,9 @@ function LShapeEditor({
   return (
     <div className="space-y-2">
       {data.sections.map((sec, idx) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: stable order
         <div key={idx} className="flex items-center gap-2">
-          <span className="font-[var(--font-mono)] text-[10px] text-driftwood w-16">
+          <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] w-16">
             Section {idx + 1}
           </span>
           <DimInput
@@ -321,7 +309,7 @@ function LShapeEditor({
             onChange={(v) => updateSection(idx, "w", v)}
             onBlur={onBlur}
           />
-          <span className="text-driftwood">×</span>
+          <span className="text-[var(--muted)]">×</span>
           <DimInput
             label="L"
             value={sec.l}
@@ -331,8 +319,9 @@ function LShapeEditor({
         </div>
       ))}
       <button
+        type="button"
         onClick={addSection}
-        className="font-[var(--font-mono)] text-[10px] text-driftwood hover:text-oak border border-dashed border-sand hover:border-oak px-3 py-1 transition-colors"
+        className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] hover:text-[var(--ink)] border border-dashed border-[var(--line-2)] hover:border-[var(--ink-2)] px-3 py-1 rounded-[4px] transition-[border-color,color] duration-[150ms]"
       >
         + Add section
       </button>
@@ -349,18 +338,19 @@ interface NoteItemProps {
 
 function NoteItem({ item, onUpdate, onRemove, onBlur }: NoteItemProps) {
   return (
-    <div className="flex items-start gap-2 px-4 py-2 bg-linen border border-linen-dd border-l-[3px] border-l-gold">
+    <div className="flex items-start gap-2 px-4 py-2 bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--gold)] rounded-lg">
       <textarea
         rows={2}
         value={item.text ?? ""}
         onChange={(e) => onUpdate(e.target.value)}
         onBlur={onBlur}
         placeholder="Field note…"
-        className="flex-1 font-[var(--font-mono)] text-xs text-oak bg-transparent focus:outline-none resize-none italic"
+        className="flex-1 font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-transparent focus:outline-none resize-none italic"
       />
       <button
+        type="button"
         onClick={onRemove}
-        className="text-driftwood hover:text-vermil text-sm leading-none mt-0.5 shrink-0"
+        className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none mt-0.5 shrink-0"
         aria-label="Remove note"
       >
         ✕

@@ -44,115 +44,93 @@ export function QuoteSummary({ estimate, onSave }: Props) {
   }
 
   return (
-    <div className="bg-cream border-[1.5px] border-oak shadow-[3px_3px_0_var(--manila)] p-5 space-y-4">
-      <h2 className="font-[var(--font-display)] text-lg font-bold text-oak">
-        Quote Summary
+    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5 space-y-4">
+      <h2 className="font-[var(--font-display)] text-[15px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
+        Quote summary
       </h2>
 
       <div className="grid md:grid-cols-3 gap-4">
-        {/* Tax rate */}
-        <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-            Tax rate (%)
-          </label>
-          <input
-            type="number"
-            min="0"
-            max="30"
-            step="0.1"
-            value={taxRate * 100}
-            onChange={(e) => setTaxRate(parseFloat(e.target.value) / 100 || 0)}
-            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
-          />
-        </div>
-
-        {/* Markup */}
-        <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-            Markup (%)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={markupPct}
-            onChange={(e) => setMarkupPct(parseFloat(e.target.value) || 0)}
-            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
-          />
-        </div>
-
-        {/* Deposit */}
-        <div className="flex flex-col gap-1">
-          <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood">
-            Deposit (%)
-          </label>
-          <input
-            type="number"
-            min="0"
-            max="100"
-            step="5"
-            value={depositPct * 100}
-            onChange={(e) =>
-              setDepositPct(parseFloat(e.target.value) / 100 || 0)
-            }
-            className="border-[1.5px] border-oak bg-linen px-3 py-2 font-[var(--font-mono)] text-sm text-oak focus:outline-none focus:border-vermil"
-          />
-        </div>
+        {[
+          {
+            label: "Tax rate (%)",
+            value: taxRate * 100,
+            onChange: (v: number) => setTaxRate(v / 100),
+          },
+          {
+            label: "Markup (%)",
+            value: markupPct,
+            onChange: (v: number) => setMarkupPct(v),
+          },
+          {
+            label: "Deposit (%)",
+            value: depositPct * 100,
+            onChange: (v: number) => setDepositPct(v / 100),
+          },
+        ].map(({ label, value, onChange }) => (
+          <div key={label} className="flex flex-col gap-1">
+            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
+              {label}
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.1"
+              value={value}
+              onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+              className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
+            />
+          </div>
+        ))}
       </div>
 
       {/* Totals */}
-      <div className="border-t-2 border-oak pt-4 space-y-2">
+      <div className="border-t border-[var(--line)] pt-4 space-y-2">
         {[
-          { label: "Subtotal", value: subtotal, style: "" },
-          { label: `Markup (${markupPct}%)`, value: markup, style: "" },
-          {
-            label: `Tax (${(taxRate * 100).toFixed(1)}%)`,
-            value: tax,
-            style: "",
-          },
-        ].map(({ label, value, style }) => (
+          { label: "Subtotal", value: subtotal },
+          { label: `Markup (${markupPct}%)`, value: markup },
+          { label: `Tax (${(taxRate * 100).toFixed(1)}%)`, value: tax },
+        ].map(({ label, value }) => (
           <div key={label} className="flex justify-between items-baseline">
-            <span className="font-[var(--font-mono)] text-xs text-driftwood">
+            <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
               {label}
             </span>
-            <span
-              className={`font-[var(--font-mono)] text-xs text-oak ${style}`}
-            >
+            <span className="font-[var(--font-mono)] text-[12px] text-[var(--ink-2)]">
               {fmtDollar(value)}
             </span>
           </div>
         ))}
 
-        <div className="flex justify-between items-baseline pt-2 border-t-2 border-oak">
-          <span className="font-[var(--font-display)] text-base font-bold text-oak">
+        <div className="flex justify-between items-baseline pt-2 border-t border-[var(--line)]">
+          <span className="font-[var(--font-display)] text-[15px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
             Total
           </span>
-          <span className="font-[var(--font-display)] text-xl font-black text-oak">
+          <span className="font-[var(--font-display)] text-[28px] font-[700] text-[var(--ink)] tracking-[-0.025em] leading-none">
             {fmtDollar(total)}
           </span>
         </div>
 
         <div className="flex justify-between items-baseline">
-          <span className="font-[var(--font-mono)] text-xs text-driftwood">
+          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Deposit ({(depositPct * 100).toFixed(0)}%)
           </span>
-          <span className="font-[var(--font-mono)] text-sm font-medium text-sage">
+          <span className="font-[var(--font-mono)] text-[13px] font-[500] text-[var(--sage)]">
             {fmtDollar(deposit)}
           </span>
         </div>
 
         <div className="flex justify-between items-baseline pt-1">
-          <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+          <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
             Margin
           </span>
-          <span className="font-[var(--font-mono)] text-[10px] text-oak">
+          <span className="font-[var(--font-mono)] text-[10px] text-[var(--ink-2)]">
             {margin.toFixed(1)}%
           </span>
         </div>
       </div>
 
       <Button variant="sage" onClick={handleSave} disabled={saving} size="sm">
-        {saving ? "Saving…" : "Save Quote Settings"}
+        {saving ? "Saving…" : "Save quote settings"}
       </Button>
     </div>
   );

@@ -24,15 +24,15 @@ export function Toast({ message, duration = 3200, onDismiss }: ToastProps) {
     <div
       className={cn(
         "fixed bottom-6 left-1/2 -translate-x-1/2 z-[500]",
-        "bg-oak text-linen px-5 py-3",
-        "border-[1.5px] border-driftwood",
-        "shadow-[3px_3px_0_rgba(61,50,40,.5)]",
-        "font-[var(--font-mono)] text-sm tracking-wide",
+        "bg-[var(--ink)] text-[var(--bg)] px-5 py-3 rounded-lg",
+        "border border-[var(--ink-2)]",
+        "shadow-[var(--shadow-md)]",
+        "font-[var(--font-mono)] text-[12px] tracking-[.02em]",
         "transition-all duration-300",
         visible
           ? "opacity-100 translate-y-0"
           : "opacity-0 translate-y-3 pointer-events-none",
-        "animate-[toastIn_0.3s_ease-out]"
+        "animate-[slideUp_0.3s_ease-out]"
       )}
       role="status"
       aria-live="polite"

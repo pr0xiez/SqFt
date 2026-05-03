@@ -1,61 +1,95 @@
 @import "tailwindcss";
 
-/* ── DESIGN TOKENS ────────────────────────────────────────────────────────── */
-/* Exact values from flooring-prototype-v0_8.html                             */
+/* ── DESIGN TOKENS — Quiet Modern ────────────────────────────────────────── */
 
 :root {
-  /* Neutral warm palette */
-  --linen: #f5f0e8;
-  --linen-d: #ede7d9;
-  --linen-dd: #e0d8c8;
-  --manila: #d4c9b0;
-  --sand: #c2b49a;
-  --driftwood: #8c7d68;
-  --oak: #3d3228;
-  --oak-l: #5a4a38;
-  --rule: rgba(61, 50, 40, 0.09);
-  --cream: #faf7f0;
+  /* Surfaces */
+  --bg:        #fafaf7;
+  --surface:   #ffffff;
+  --surface-2: #f4f3ed;
 
-  /* Accent colors */
-  --vermil: #c0341a;
-  --vermil-l: #e04828;
-  --vermil-d: #8a2010;
-  --sage: #4a6650;
-  --sage-l: #5f8568;
-  --gold: #9a7a20;
-  --gold-l: #c4a030;
+  /* Ink */
+  --ink:   #1a1a17;
+  --ink-2: #3a3a35;
+  --muted: #6b6b66;
 
-  /* Typography aliases */
-  --font-display: "Playfair Display Variable", serif;
-  --font-mono: "Azeret Mono Variable", monospace;
-  --font-label: "Fraunces Variable", serif;
+  /* Lines */
+  --line:   #e6e4dd;
+  --line-2: #d8d6cd;
+
+  /* Accent — vermilion */
+  --accent:   #c0341a;
+  --accent-l: #e04828;
+  --accent-d: #8a2010;
+
+  /* Semantic */
+  --sage:   #3d6b4a;
+  --sage-l: #588a66;
+  --gold:   #b07a1a;
+  --gold-l: #d4982a;
+
+  /* Elevation */
+  --shadow:    0 1px 2px rgba(20,18,12,.04), 0 4px 14px rgba(20,18,12,.04);
+  --shadow-md: 0 4px 12px rgba(20,18,12,.08), 0 12px 40px rgba(20,18,12,.08);
+
+  /* Radii */
+  --r-sm: 4px;
+  --r:    6px;
+  --r-lg: 8px;
+
+  /* Typography — injected by next/font/google as CSS vars */
+  /* --font-display and --font-mono are set on <html> by layout.tsx */
+}
+
+/* ── DARK MODE ────────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  --bg:        #0f0f0d;
+  --surface:   #181815;
+  --surface-2: #222220;
+
+  --ink:   #f0eee5;
+  --ink-2: #c9c6bc;
+  --muted: #888579;
+
+  --line:   #2a2a26;
+  --line-2: #363632;
+
+  --accent:   #ff6a44;
+  --accent-l: #ff8665;
+  --accent-d: #d44e2c;
+
+  --sage:   #7fbf90;
+  --sage-l: #9bd4ab;
+  --gold:   #e0b04a;
+  --gold-l: #f0c25a;
+
+  --shadow:    0 1px 2px rgba(0,0,0,.3),  0 4px 14px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.5);
 }
 
 /* ── TAILWIND v4 THEME EXTENSION ─────────────────────────────────────────── */
 
 @theme inline {
-  /* Colors */
-  --color-linen:     var(--linen);
-  --color-linen-d:   var(--linen-d);
-  --color-linen-dd:  var(--linen-dd);
-  --color-manila:    var(--manila);
-  --color-sand:      var(--sand);
-  --color-driftwood: var(--driftwood);
-  --color-oak:       var(--oak);
-  --color-oak-l:     var(--oak-l);
-  --color-cream:     var(--cream);
-  --color-vermil:    var(--vermil);
-  --color-vermil-l:  var(--vermil-l);
-  --color-vermil-d:  var(--vermil-d);
+  --color-bg:        var(--bg);
+  --color-surface:   var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink:       var(--ink);
+  --color-ink-2:     var(--ink-2);
+  --color-muted:     var(--muted);
+  --color-line:      var(--line);
+  --color-line-2:    var(--line-2);
+  --color-accent:    var(--accent);
+  --color-accent-l:  var(--accent-l);
+  --color-accent-d:  var(--accent-d);
   --color-sage:      var(--sage);
   --color-sage-l:    var(--sage-l);
   --color-gold:      var(--gold);
   --color-gold-l:    var(--gold-l);
 
-  /* Typography */
+  /* font-[var(--font-display)] / font-[var(--font-mono)] work via these */
   --font-display: var(--font-display);
   --font-mono:    var(--font-mono);
-  --font-label:   var(--font-label);
 }
 
 /* ── BASE RESET & BODY ───────────────────────────────────────────────────── */
@@ -73,98 +107,45 @@ html {
 }
 
 body {
-  font-family: var(--font-mono);
-  background-color: var(--linen-d);
-  color: var(--oak);
+  font-family: var(--font-display, 'Inter Tight', system-ui, sans-serif);
+  background: var(--bg);
+  color: var(--ink);
   min-height: 100vh;
-  /* Horizontal rule texture from prototype */
-  background-image: repeating-linear-gradient(
-    transparent,
-    transparent 27px,
-    var(--rule) 27px,
-    var(--rule) 28px
-  );
-  background-attachment: fixed;
-  background-size: 100% 28px;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s, color 0.25s;
 }
 
 /* ── ANIMATIONS ──────────────────────────────────────────────────────────── */
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes fade {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes stampIn {
-  from {
-    opacity: 0;
-    transform: scale(0.88) rotate(-3deg);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) rotate(-2deg);
-  }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes toastIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── SHARED UTILITIES ────────────────────────────────────────────────────── */
 
 .divider {
   border: none;
-  border-top: 1px solid var(--linen-dd);
+  border-top: 1px solid var(--line);
   margin: 12px 0;
 }
 
-/* Card corner decoration */
-.card-corner::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 20px;
-  height: 20px;
-  background: linear-gradient(225deg, var(--linen-d) 50%, transparent 50%);
-}
-
-/* ── MOBILE BOTTOM NAV ───────────────────────────────────────────────────── */
+/* ── MOBILE BOTTOM NAV BODY PADDING ─────────────────────────────────────── */
 
 @media (max-width: 767px) {
   body {

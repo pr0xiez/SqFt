@@ -1,11 +1,5 @@
 "use client";
 
-/**
- * EstimateBuilder — Phase 5 (complex screen, full implementation pending)
- * This is a working stub that renders the estimate and allows saving.
- * Full room canvas, L-shape logic, and linked qty are implemented in sub-components.
- */
-
 import { useRouter } from "next/navigation";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { QuoteSummary } from "@/components/estimates/QuoteSummary";
@@ -25,7 +19,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
 
   if (isLoading) {
     return (
-      <p className="font-[var(--font-mono)] text-xs text-driftwood italic py-8">
+      <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-8">
         Loading estimate…
       </p>
     );
@@ -33,7 +27,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
 
   if (!estimate) {
     return (
-      <p className="font-[var(--font-mono)] text-xs text-vermil py-8">
+      <p className="font-[var(--font-mono)] text-[11px] text-[var(--accent)] py-8">
         Estimate not found.
       </p>
     );
@@ -42,10 +36,11 @@ export function EstimateBuilderView({ estimateId }: Props) {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 font-[var(--font-mono)] text-[11px] text-driftwood">
+      <div className="flex items-center gap-2 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
         <button
+          type="button"
           onClick={() => router.push("/estimates")}
-          className="hover:text-oak transition-colors"
+          className="hover:text-[var(--ink)] transition-colors"
         >
           Estimates
         </button>
@@ -53,28 +48,28 @@ export function EstimateBuilderView({ estimateId }: Props) {
         {estimate.customer && (
           <>
             <button
+              type="button"
               onClick={() => router.push(`/customers/${estimate.customer?.id}`)}
-              className="hover:text-oak transition-colors"
+              className="hover:text-[var(--ink)] transition-colors"
             >
               {estimate.customer.name}
             </button>
             <span>/</span>
           </>
         )}
-        <span className="text-oak">#{estimate.id}</span>
+        <span className="text-[var(--ink)]">#{estimate.id}</span>
       </div>
 
       {/* Header */}
-      <div className="pb-3 border-b-2 border-oak">
-        <p className="font-[var(--font-label)] text-[11px] italic text-vermil mb-1">
+      <div className="pb-4 border-b border-[var(--line)]">
+        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
           {estimate.customer?.name}
-        </p>
-        <h1 className="font-[var(--font-display)] text-[32px] font-black text-oak leading-none tracking-tight">
+        </div>
+        <h1 className="font-[var(--font-display)] text-[32px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
           Estimate #{estimate.id}
         </h1>
       </div>
 
-      {/* Room measurements */}
       <RoomSection
         estimate={estimate}
         onSave={async (items) => {
@@ -87,7 +82,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
         }}
       />
 
-      {/* Line items (bill of materials) */}
       <LineItemSection
         estimate={estimate}
         onSave={async (lineItems) => {
@@ -100,7 +94,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
         }}
       />
 
-      {/* Quote summary */}
       <QuoteSummary
         estimate={estimate}
         onSave={async (data) => {

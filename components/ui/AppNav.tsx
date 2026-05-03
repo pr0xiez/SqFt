@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
 const NAV_TABS = [
@@ -13,30 +14,41 @@ const NAV_TABS = [
 
 export function AppNav() {
   const pathname = usePathname();
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    const initial = saved === "dark" ? "dark" : "light";
+    setTheme(initial);
+    document.documentElement.dataset.theme = initial === "dark" ? "dark" : "";
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.dataset.theme = next === "dark" ? "dark" : "";
+    localStorage.setItem("theme", next);
+  }
 
   return (
     <>
       {/* ── Desktop / Tablet Top Nav ── */}
       <nav
         className={cn(
-          "hidden md:flex items-center h-[54px] px-8 sticky top-0 z-[200]",
-          "bg-oak border-t-4 border-vermil shadow-[0_2px_16px_rgba(61,50,40,.4)]"
+          "hidden md:flex items-center h-[60px] px-7 sticky top-0 z-[200]",
+          "bg-[var(--surface)] border-b border-[var(--line)]",
+          "transition-[background,border-color] duration-[250ms]"
         )}
         aria-label="Main navigation"
       >
         {/* Brand */}
-        <span
-          className={cn(
-            "font-[var(--font-display)] text-[21px] font-black italic text-linen",
-            "mr-10 select-none leading-none tracking-tight"
-          )}
-        >
-          Sq<em className="not-italic text-vermil-l">Ft</em>
+        <span className="font-[var(--font-display)] text-[18px] font-[800] text-[var(--ink)] mr-9 select-none leading-none tracking-tight">
+          <em className="not-italic text-[var(--accent)]">Sq</em>Ft
           <span
             className={cn(
-              "ml-2 font-[var(--font-mono)] font-normal text-[10px] not-italic",
-              "text-driftwood border border-oak-l px-[10px] py-[3px] uppercase tracking-wide",
-              "align-middle"
+              "ml-2 font-[var(--font-mono)] font-normal text-[10px]",
+              "text-[var(--muted)] border border-[var(--line)] px-[10px] py-[3px]",
+              "rounded-[4px] uppercase tracking-[.06em] align-middle"
             )}
           >
             v0.9
@@ -44,7 +56,7 @@ export function AppNav() {
         </span>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 h-full">
+        <div className="flex items-center gap-0.5 h-full">
           {NAV_TABS.map(({ href, label }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -54,11 +66,11 @@ export function AppNav() {
                 href={href}
                 className={cn(
                   "relative h-full flex items-center px-4",
-                  "font-[var(--font-mono)] text-xs tracking-widest uppercase",
-                  "text-sand hover:text-linen transition-colors",
-                  "after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[3px]",
-                  "after:bg-vermil-l after:scale-x-0 after:transition-transform after:duration-200",
-                  active && "text-linen after:scale-x-100"
+                  "font-[var(--font-mono)] text-[11px] tracking-[.02em]",
+                  "transition-colors duration-[150ms]",
+                  active
+                    ? "text-[var(--ink)] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-[var(--accent)] after:rounded-t-[1px]"
+                    : "text-[var(--muted)] hover:text-[var(--ink)]"
                 )}
               >
                 {label}
@@ -66,53 +78,146 @@ export function AppNav() {
             );
           })}
         </div>
+
+        {/* Right: theme toggle + avatar */}
+        <div className="ml-auto flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={cn(
+              "font-[var(--font-mono)] text-[11px] tracking-[.02em]",
+              "border border-[var(--line)] bg-transparent cursor-pointer",
+              "px-[10px] py-[6px] rounded-[6px] text-[var(--muted)]",
+              "transition-[border-color,color] duration-[150ms]",
+              "hover:border-[var(--ink-2)] hover:text-[var(--ink)]",
+              "flex items-center gap-1.5"
+            )}
+            title="Toggle theme"
+          >
+            <span>{theme === "dark" ? "☀" : "☾"}</span>
+            <span>{theme === "dark" ? "Light" : "Dark"}</span>
+          </button>
+          <div
+            className={cn(
+              "w-[30px] h-[30px] rounded-full",
+              "bg-[var(--surface-2)] border border-[var(--line)]",
+              "flex items-center justify-center",
+              "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink-2)]",
+              "select-none"
+            )}
+          >
+            MJ
+          </div>
+        </div>
       </nav>
 
       {/* ── Mobile Bottom Nav ── */}
       <nav
         className={cn(
-          "md:hidden fixed bottom-0 left-0 right-0 z-[200] h-14",
-          "bg-oak border-t-2 border-vermil",
-          "flex items-center justify-around",
-          "safe-area-inset-bottom"
+          "md:hidden fixed bottom-0 left-0 right-0 z-[200]",
+          "bg-[var(--surface)] border-t border-[var(--line)]",
+          "transition-[background,border-color] duration-[250ms]",
+          "pb-[env(safe-area-inset-bottom,0px)]"
         )}
         aria-label="Main navigation"
       >
-        {NAV_TABS.map(({ href, label }) => {
-          const active =
-            href === "/" ? pathname === "/" : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex-1 flex flex-col items-center justify-center h-full gap-0.5",
-                "font-[var(--font-mono)] text-[9px] uppercase tracking-wide",
-                "min-h-[44px]",
-                active ? "text-linen" : "text-sand"
-              )}
-            >
-              <NavIcon label={label} />
-              <span>{label}</span>
-            </Link>
-          );
-        })}
+        <div className="grid grid-cols-4 gap-0.5 max-w-[520px] mx-auto px-1 py-1.5">
+          {NAV_TABS.map(({ href, label }) => {
+            const active =
+              href === "/" ? pathname === "/" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-[3px]",
+                  "py-[7px] px-1 min-h-[50px]",
+                  "font-[var(--font-mono)] text-[9.5px] tracking-[.04em]",
+                  "rounded-lg transition-colors duration-[150ms]",
+                  "relative",
+                  active
+                    ? "text-[var(--accent)] before:absolute before:top-[-6px] before:left-1/2 before:-translate-x-1/2 before:w-6 before:h-[2px] before:bg-[var(--accent)] before:rounded-b-[2px]"
+                    : "text-[var(--muted)]"
+                )}
+              >
+                <NavIcon label={label} active={active} />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </>
   );
 }
 
-function NavIcon({ label }: { label: string }) {
-  // Simple text icons — replace with SVG icons later
-  const icons: Record<string, string> = {
-    Dashboard: "⊞",
-    Customers: "◎",
-    Estimates: "▤",
-    Schedule: "▦",
+function NavIcon({ label, active }: { label: string; active: boolean }) {
+  const sw = active ? "2" : "1.7";
+  const icons: Record<string, React.ReactNode> = {
+    Dashboard: (
+      <svg
+        viewBox="0 0 24 24"
+        width={22}
+        height={22}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={sw}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 12L12 4l9 8" />
+        <path d="M5 10v10h5v-6h4v6h5V10" />
+      </svg>
+    ),
+    Customers: (
+      <svg
+        viewBox="0 0 24 24"
+        width={22}
+        height={22}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={sw}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" />
+      </svg>
+    ),
+    Estimates: (
+      <svg
+        viewBox="0 0 24 24"
+        width={22}
+        height={22}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={sw}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="5" y="3" width="14" height="18" rx="1.5" />
+        <path d="M9 8h6M9 12h6M9 16h4" />
+      </svg>
+    ),
+    Schedule: (
+      <svg
+        viewBox="0 0 24 24"
+        width={22}
+        height={22}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={sw}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="4" y="5" width="16" height="15" rx="1.5" />
+        <path d="M4 9h16M9 3v4M15 3v4" />
+      </svg>
+    ),
   };
-  return (
-    <span className="text-base leading-none" aria-hidden="true">
-      {icons[label] ?? "•"}
-    </span>
-  );
+  return <>{icons[label] ?? null}</>;
 }
