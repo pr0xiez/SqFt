@@ -39,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           "transition-all duration-100",
           "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
           // Minimum touch target
-          "min-h-[36px]",
+          "min-h-[44px]",
           variantStyles[variant],
           sizeStyles[size],
           className

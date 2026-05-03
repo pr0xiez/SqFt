@@ -35,7 +35,7 @@ export function EstimateListView() {
         </h1>
       </div>
 
-      {/* Column headers */}
+      {/* Column headers — desktop only */}
       <div className="hidden md:grid grid-cols-[80px_2fr_1fr_100px_100px] gap-3 px-4 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood border-b border-linen-dd">
         <span>#</span>
         <span>Customer</span>
@@ -54,43 +54,80 @@ export function EstimateListView() {
         <div className="divide-y divide-linen-dd">
           {estimates.map((est) => {
             const area = est.items ? estTotalArea(est.items) : 0;
+            const dateLabel = new Date(est.date).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "2-digit",
+            });
+            const statusStyle = STATUS_STYLES[est.status] ?? STATUS_STYLES.quote;
+            const statusLabel = STATUS_LABELS[est.status] ?? est.status;
+
             return (
               <button
                 key={est.id}
                 onClick={() => router.push(`/estimates/${est.id}`)}
-                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_2fr_1fr_100px_100px] gap-3 px-4 py-3 bg-cream hover:bg-linen transition-colors cursor-pointer"
+                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_2fr_1fr_100px_100px] gap-x-3 gap-y-0 px-4 py-3 bg-cream hover:bg-linen transition-colors cursor-pointer"
               >
-                <span className="font-[var(--font-mono)] text-xs text-driftwood">
+                {/* ID — desktop only (inline on mobile below) */}
+                <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block self-center">
                   #{est.id}
                 </span>
+
+                {/* Customer name + address (always visible) + mobile secondary row */}
                 <div>
-                  <span className="font-[var(--font-display)] text-sm font-bold text-oak">
-                    {est.customer?.name ?? "—"}
-                  </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="font-[var(--font-mono)] text-[10px] text-driftwood md:hidden">
+                        #{est.id} ·{" "}
+                      </span>
+                      <span className="font-[var(--font-display)] text-sm font-bold text-oak">
+                        {est.customer?.name ?? "—"}
+                      </span>
+                    </div>
+                    {/* Mobile-only status badge */}
+                    <span
+                      className={cn(
+                        "md:hidden shrink-0 inline-block border px-2 py-0.5",
+                        "font-[var(--font-mono)] text-[10px] uppercase tracking-wider",
+                        statusStyle
+                      )}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
                   {est.customer?.address && (
                     <span className="block font-[var(--font-mono)] text-[11px] text-driftwood truncate">
                       {est.customer.address}
                     </span>
                   )}
+                  {/* Mobile-only: date + area */}
+                  <div className="flex items-center gap-3 mt-1 md:hidden">
+                    <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+                      {dateLabel}
+                    </span>
+                    {area > 0 && (
+                      <span className="font-[var(--font-mono)] text-[10px] text-oak">
+                        {Math.round(area)} ft²
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block">
-                  {new Date(est.date).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "2-digit",
-                  })}
+
+                {/* Desktop-only columns */}
+                <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block self-center">
+                  {dateLabel}
                 </span>
-                <span className="hidden md:block">
+                <span className="hidden md:flex items-center">
                   <span
                     className={cn(
                       "inline-block border px-2 py-0.5 font-[var(--font-mono)] text-[10px] uppercase tracking-wider",
-                      STATUS_STYLES[est.status] ?? STATUS_STYLES.quote
+                      statusStyle
                     )}
                   >
-                    {STATUS_LABELS[est.status] ?? est.status}
+                    {statusLabel}
                   </span>
                 </span>
-                <span className="font-[var(--font-mono)] text-xs text-right text-oak hidden md:block">
+                <span className="font-[var(--font-mono)] text-xs text-right text-oak hidden md:block self-center">
                   {area > 0 ? `${Math.round(area)} ft²` : "—"}
                 </span>
               </button>

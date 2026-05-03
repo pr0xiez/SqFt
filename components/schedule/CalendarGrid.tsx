@@ -6,6 +6,7 @@ import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useToast } from "@/components/ui/Toast";
 import { Button } from "@/components/ui/Button";
 import { SlidePanel } from "@/components/ui/SlidePanel";
+import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import {
   getWeekStart,
   addDays,
@@ -26,10 +27,12 @@ const EVENT_COLORS: Record<string, string> = {
 
 export function ScheduleView() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
-  const [daysToShow] = useState(6); // responsive logic can reduce to 3
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr());
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
+
+  const isMobile = useIsMobile();
+  const daysToShow = isMobile ? 3 : 6;
 
   const { data: events = [] } = useEvents();
   const { data: customers = [] } = useCustomers();
@@ -56,7 +59,6 @@ export function ScheduleView() {
     setPanelOpen(true);
   }
 
-  // Group events by date
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalEvent[]> = {};
     events.forEach((ev) => {
@@ -84,10 +86,10 @@ export function ScheduleView() {
           <Button size="sm" onClick={() => setWeekStart(getWeekStart(new Date()))}>
             Today
           </Button>
-          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, -7))}>
+          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, -daysToShow))}>
             ←
           </Button>
-          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, 7))}>
+          <Button size="sm" onClick={() => setWeekStart((d) => addDays(d, daysToShow))}>
             →
           </Button>
         </div>
@@ -95,7 +97,7 @@ export function ScheduleView() {
 
       {/* Calendar grid */}
       <div className="overflow-x-auto">
-        <div className="min-w-[600px]">
+        <div className={cn(isMobile ? "" : "min-w-[600px]")}>
           {/* Day headers */}
           <div
             className="grid border-[1.5px] border-oak"
@@ -152,7 +154,7 @@ export function ScheduleView() {
                 return (
                   <div
                     key={ds}
-                    className="border-r border-oak last:border-r-0 min-h-[40px] p-0.5 cursor-pointer hover:bg-linen/50 transition-colors"
+                    className="border-r border-oak last:border-r-0 min-h-[44px] p-0.5 cursor-pointer hover:bg-linen/50 transition-colors"
                     onClick={() => openNewEvent(ds)}
                   >
                     {cellEvents.map((ev) => (
@@ -243,7 +245,6 @@ function EventFormPanel({
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Reset when panel opens
   const ev = editingEvent;
 
   async function handleSave() {
@@ -274,7 +275,7 @@ function EventFormPanel({
                 key={t}
                 onClick={() => setType(t)}
                 className={cn(
-                  "px-3 py-1.5 font-[var(--font-mono)] text-[10px] uppercase tracking-wider border",
+                  "flex-1 min-h-[44px] px-3 font-[var(--font-mono)] text-[10px] uppercase tracking-wider border",
                   type === t
                     ? "bg-oak border-oak text-linen"
                     : "bg-linen border-sand text-driftwood hover:border-oak"
@@ -352,7 +353,7 @@ function EventFormPanel({
         {ev && (
           <button
             onClick={() => onDelete(ev.id)}
-            className="w-full font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-vermil hover:bg-vermil/5 py-2 border border-vermil/30 transition-colors"
+            className="w-full min-h-[44px] font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-vermil hover:bg-vermil/5 border border-vermil/30 transition-colors"
           >
             Delete event
           </button>

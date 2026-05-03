@@ -20,7 +20,6 @@ export function SlidePanel({
   children,
   side = "right",
 }: SlidePanelProps) {
-  // Close on Escape
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -30,7 +29,6 @@ export function SlidePanel({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  // Prevent body scroll when open
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -50,34 +48,44 @@ export function SlidePanel({
         aria-hidden="true"
       />
 
-      {/* Panel */}
+      {/* Panel
+          Mobile (all breakpoints < md): bottom sheet — slides up from bottom, max-h 85vh, rounded top corners.
+          Desktop (md+) with side="right": right panel — full height, slides in from right. */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={cn(
           "fixed z-[400] bg-linen border-[1.5px] border-oak",
-          "shadow-[-4px_0_24px_rgba(61,50,40,.2)]",
           "flex flex-col transition-transform duration-300 ease-out",
-          isRight
-            ? "top-0 right-0 h-full"
-            : "bottom-0 left-0 right-0 max-h-[80vh] rounded-t-lg border-b-0",
-          // Desktop: use width prop; mobile: full-width
-          isRight && "w-full md:w-auto",
-          !open &&
-            (isRight ? "translate-x-full" : "translate-y-full")
+          // Mobile: bottom sheet
+          "bottom-0 left-0 right-0 max-h-[85vh] rounded-t-xl border-b-0",
+          "shadow-[0_-4px_24px_rgba(61,50,40,.2)]",
+          // Desktop right panel overrides
+          isRight && "md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-auto md:rounded-none md:border-b-[1.5px] md:shadow-[-4px_0_24px_rgba(61,50,40,.2)]",
+          // Closed: mobile always translates Y
+          !open && "translate-y-full",
+          // Closed: desktop right panel translates X
+          isRight && !open && "md:translate-y-0 md:translate-x-full",
+          // Closed: desktop bottom panel translates Y
+          !isRight && !open && "md:translate-y-full",
         )}
         style={isRight ? { maxWidth: width } : undefined}
       >
+        {/* Drag handle — mobile only */}
+        <div className="md:hidden flex justify-center pt-2 pb-1 shrink-0">
+          <div className="w-10 h-1 rounded-full bg-linen-dd" />
+        </div>
+
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-5 py-4 border-b-[1.5px] border-linen-dd shrink-0">
+          <div className="flex items-center justify-between px-5 py-3 border-b-[1.5px] border-linen-dd shrink-0">
             <h2 className="font-[var(--font-display)] font-bold text-base text-oak">
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-driftwood hover:text-oak transition-colors text-xl leading-none p-1 -mr-1"
+              className="text-driftwood hover:text-oak transition-colors text-xl leading-none -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label="Close panel"
             >
               ✕

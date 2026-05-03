@@ -20,7 +20,6 @@ export function CustomerListView() {
   const [filter, setFilter] = useState<string>("all");
   const [panelOpen, setPanelOpen] = useState(false);
 
-  // New customer form state
   const [form, setForm] = useState<CreateCustomerInput>({
     name: "", phone: "", email: "", address: "", source: "phone", notes: "",
   });
@@ -65,7 +64,7 @@ export function CustomerListView() {
             key={src}
             onClick={() => setFilter(src)}
             className={cn(
-              "px-[18px] py-2 font-[var(--font-mono)] text-[11px] uppercase tracking-wider border",
+              "min-h-[44px] px-[18px] font-[var(--font-mono)] text-[11px] uppercase tracking-wider border",
               "transition-all duration-100 shadow-[2px_2px_0_var(--linen-dd)]",
               filter === src
                 ? "bg-oak border-oak text-linen"
@@ -77,7 +76,7 @@ export function CustomerListView() {
         ))}
       </div>
 
-      {/* Table header */}
+      {/* Table header — desktop only */}
       <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_80px] gap-3 px-4 py-2 font-[var(--font-mono)] text-[10px] uppercase tracking-widest text-driftwood border-b border-linen-dd">
         <span>Name</span>
         <span>Phone</span>
@@ -101,8 +100,9 @@ export function CustomerListView() {
             <button
               key={c.id}
               onClick={() => router.push(`/customers/${c.id}`)}
-              className="w-full text-left grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_80px] gap-3 px-4 py-3 bg-cream hover:bg-linen transition-colors border-b border-transparent hover:border-linen-dd cursor-pointer"
+              className="w-full text-left grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_80px] gap-x-3 gap-y-0 px-4 py-3 bg-cream hover:bg-linen transition-colors cursor-pointer"
             >
+              {/* Name + address (always visible) + mobile secondary row */}
               <div>
                 <span className="font-[var(--font-display)] text-sm font-bold text-oak">
                   {c.name}
@@ -112,21 +112,30 @@ export function CustomerListView() {
                     {c.address}
                   </span>
                 )}
+                {/* Mobile-only: source + estimate count */}
+                <div className="flex items-center gap-3 mt-1.5 md:hidden">
+                  <SourceBadge source={c.source} />
+                  <span className="font-[var(--font-mono)] text-[10px] text-driftwood">
+                    {c._count?.estimates ?? 0} estimate{(c._count?.estimates ?? 0) !== 1 ? "s" : ""}
+                  </span>
+                </div>
               </div>
-              <span className="font-[var(--font-mono)] text-xs text-oak hidden md:block">
+
+              {/* Desktop-only columns */}
+              <span className="font-[var(--font-mono)] text-xs text-oak hidden md:block self-center">
                 {c.phone ?? "—"}
               </span>
-              <span className="hidden md:block">
+              <span className="hidden md:flex items-center">
                 <SourceBadge source={c.source} />
               </span>
-              <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block">
+              <span className="font-[var(--font-mono)] text-xs text-driftwood hidden md:block self-center">
                 {new Date(c.createdAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                   year: "2-digit",
                 })}
               </span>
-              <span className="font-[var(--font-mono)] text-xs text-right text-oak hidden md:block">
+              <span className="font-[var(--font-mono)] text-xs text-right text-oak hidden md:block self-center">
                 {c._count?.estimates ?? 0}
               </span>
             </button>
@@ -152,7 +161,7 @@ export function CustomerListView() {
                   key={src}
                   onClick={() => setForm((f) => ({ ...f, source: src }))}
                   className={cn(
-                    "px-3 py-1.5 font-[var(--font-mono)] text-[10px] uppercase tracking-wider border text-xs",
+                    "min-h-[44px] px-3 font-[var(--font-mono)] text-[10px] uppercase tracking-wider border text-xs",
                     form.source === src
                       ? "bg-oak border-oak text-linen"
                       : "bg-linen border-sand text-driftwood hover:border-oak"

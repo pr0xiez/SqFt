@@ -1,5 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "@fontsource-variable/playfair-display/wght.css";
+import "@fontsource-variable/playfair-display/wght-italic.css";
+import "@fontsource-variable/azeret-mono/wght.css";
+import "@fontsource-variable/fraunces/wght.css";
+import "@fontsource-variable/fraunces/wght-italic.css";
 
 export const metadata: Metadata = {
   title: "SqFt — Estimate Book",

@@ -51,7 +51,7 @@ async function main() {
     { name: "Martinez, L.",   phone: "(614) 555-0634", email: "lmartinez@gmail.com",  address: "3387 Birch St, Gahanna OH 43230",   source: "referral", notes: "Whole house carpet replacement." },
   ];
 
-  const customers = [];
+  const customers: { id: number }[] = [];
   for (const c of customerData) {
     const customer = await prisma.customer.upsert({
       where: { id: customers.length + 1 },
