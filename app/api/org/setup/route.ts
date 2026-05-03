@@ -2,12 +2,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrgId } from "@/lib/tenant";
+import { logError } from "@/lib/logger";
+import { withLogging } from "@/lib/with-logging";
 
 const schema = z.object({
   name: z.string().min(1).max(200),
 });
 
-export async function POST(req: NextRequest) {
+export const POST = withLogging(async function (req: NextRequest) {
   try {
     const orgId = await getOrgId();
     const body = await req.json();
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("Org setup error:", err);
+    logError({ errorMessage: err instanceof Error ? err.message : "Unknown error", err });
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-}
+});

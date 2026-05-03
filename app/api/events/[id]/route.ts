@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrgId } from "@/lib/tenant";
+import { withLogging } from "@/lib/with-logging";
 
 const updateSchema = z.object({
   type: z.enum(["job", "visit", "other"]).optional(),
@@ -26,7 +27,7 @@ const updateSchema = z.object({
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: NextRequest, { params }: RouteParams) {
+export const PATCH = withLogging(async function (req: NextRequest, { params }: RouteParams) {
   try {
     const orgId = await getOrgId();
     const { id } = await params;
@@ -54,9 +55,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: RouteParams) {
+export const DELETE = withLogging(async function (_req: NextRequest, { params }: RouteParams) {
   try {
     const orgId = await getOrgId();
     const { id } = await params;
@@ -65,4 +66,4 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-}
+});

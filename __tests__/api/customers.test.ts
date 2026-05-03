@@ -14,6 +14,11 @@ vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn(),
 }));
 
+vi.mock("@/lib/with-logging", () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: test pass-through
+  withLogging: (fn: any) => fn,
+}));
+
 // Defer imports so mocks are in place first
 const { prisma } = await import("@/lib/prisma");
 const { getOrgId } = await import("@/lib/tenant");
