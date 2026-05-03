@@ -17,62 +17,68 @@ const updateSchema = z.object({
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export const GET = withLogging(async function (_req: NextRequest, { params }: RouteParams) {
-  try {
-    const orgId = await getOrgId();
-    const { id } = await params;
-    const customer = await prisma.customer.findFirst({
-      where: { id: parseInt(id, 10), orgId },
-      include: {
-        estimates: { orderBy: { createdAt: "desc" } },
-        _count: { select: { estimates: true } },
-      },
-    });
-    if (!customer)
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(customer);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-});
-
-export const PATCH = withLogging(async function (req: NextRequest, { params }: RouteParams) {
-  try {
-    const orgId = await getOrgId();
-    const { id } = await params;
-    const body = await req.json();
-    const parsed = updateSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message },
-        { status: 400 }
-      );
+export const GET = withLogging(
+  async (_req: NextRequest, { params }: RouteParams) => {
+    try {
+      const orgId = await getOrgId();
+      const { id } = await params;
+      const customer = await prisma.customer.findFirst({
+        where: { id: parseInt(id, 10), orgId },
+        include: {
+          estimates: { orderBy: { createdAt: "desc" } },
+          _count: { select: { estimates: true } },
+        },
+      });
+      if (!customer)
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json(customer);
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const customer = await prisma.customer.updateMany({
-      where: { id: parseInt(id, 10), orgId },
-      data: parsed.data,
-    });
-
-    if (customer.count === 0)
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-});
+);
 
-export const DELETE = withLogging(async function (_req: NextRequest, { params }: RouteParams) {
-  try {
-    const orgId = await getOrgId();
-    const { id } = await params;
-    await prisma.customer.deleteMany({
-      where: { id: parseInt(id, 10), orgId },
-    });
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+export const PATCH = withLogging(
+  async (req: NextRequest, { params }: RouteParams) => {
+    try {
+      const orgId = await getOrgId();
+      const { id } = await params;
+      const body = await req.json();
+      const parsed = updateSchema.safeParse(body);
+
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: parsed.error.issues[0]?.message },
+          { status: 400 }
+        );
+      }
+
+      const customer = await prisma.customer.updateMany({
+        where: { id: parseInt(id, 10), orgId },
+        data: parsed.data,
+      });
+
+      if (customer.count === 0)
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
   }
-});
+);
+
+export const DELETE = withLogging(
+  async (_req: NextRequest, { params }: RouteParams) => {
+    try {
+      const orgId = await getOrgId();
+      const { id } = await params;
+      await prisma.customer.deleteMany({
+        where: { id: parseInt(id, 10), orgId },
+      });
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
+  }
+);

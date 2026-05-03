@@ -43,7 +43,8 @@ describe("GET /api/customers", () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockFindMany.mockResolvedValue(fakeCustomers as any);
 
-    const res = await GET();
+    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler, req unused
+    const res = await GET(undefined as any);
     const data = await res.json();
 
     expect(res.status).toBe(200);
@@ -56,7 +57,8 @@ describe("GET /api/customers", () => {
   it("returns 401 when not authenticated", async () => {
     mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
 
-    const res = await GET();
+    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler, req unused
+    const res = await GET(undefined as any);
     const data = await res.json();
 
     expect(res.status).toBe(401);

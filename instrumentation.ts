@@ -12,7 +12,7 @@ export const onRequestError: Instrumentation.onRequestError = (
     logError({
       method: request.method,
       path: request.path,
-      errorMessage: err.message,
+      errorMessage: err instanceof Error ? err.message : String(err),
     });
   }
 };

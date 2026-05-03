@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 import { withLogging } from "@/lib/with-logging";
 
 const signupSchema = z.object({
@@ -11,7 +11,7 @@ const signupSchema = z.object({
   password: z.string().min(8).max(100),
 });
 
-export const POST = withLogging(async function (req: NextRequest) {
+export const POST = withLogging(async (req: NextRequest) => {
   try {
     const body = await req.json();
     const parsed = signupSchema.safeParse(body);
@@ -56,7 +56,10 @@ export const POST = withLogging(async function (req: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (err) {
-    logError({ errorMessage: err instanceof Error ? err.message : "Unknown error", err });
+    logError({
+      errorMessage: err instanceof Error ? err.message : "Unknown error",
+      err,
+    });
     return NextResponse.json(
       { error: "Server error. Please try again." },
       { status: 500 }

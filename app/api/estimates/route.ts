@@ -11,7 +11,7 @@ const createSchema = z.object({
   depositPct: z.number().min(0).max(1).default(0.5),
 });
 
-export const GET = withLogging(async function () {
+export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
     const estimates = await prisma.estimate.findMany({
@@ -28,7 +28,7 @@ export const GET = withLogging(async function () {
   }
 });
 
-export const POST = withLogging(async function (req: NextRequest) {
+export const POST = withLogging(async (req: NextRequest) => {
   try {
     const orgId = await getOrgId();
     const body = await req.json();

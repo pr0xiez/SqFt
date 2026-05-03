@@ -27,43 +27,47 @@ const updateSchema = z.object({
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-export const PATCH = withLogging(async function (req: NextRequest, { params }: RouteParams) {
-  try {
-    const orgId = await getOrgId();
-    const { id } = await params;
-    const body = await req.json();
-    const parsed = updateSchema.safeParse(body);
+export const PATCH = withLogging(
+  async (req: NextRequest, { params }: RouteParams) => {
+    try {
+      const orgId = await getOrgId();
+      const { id } = await params;
+      const body = await req.json();
+      const parsed = updateSchema.safeParse(body);
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message },
-        { status: 400 }
-      );
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: parsed.error.issues[0]?.message },
+          { status: 400 }
+        );
+      }
+
+      const data = {
+        ...parsed.data,
+        ...(parsed.data.date ? { date: new Date(parsed.data.date) } : {}),
+      };
+
+      await prisma.event.updateMany({
+        where: { id: parseInt(id, 10), orgId },
+        data,
+      });
+
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
-
-    const data = {
-      ...parsed.data,
-      ...(parsed.data.date ? { date: new Date(parsed.data.date) } : {}),
-    };
-
-    await prisma.event.updateMany({
-      where: { id: parseInt(id, 10), orgId },
-      data,
-    });
-
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-});
+);
 
-export const DELETE = withLogging(async function (_req: NextRequest, { params }: RouteParams) {
-  try {
-    const orgId = await getOrgId();
-    const { id } = await params;
-    await prisma.event.deleteMany({ where: { id: parseInt(id, 10), orgId } });
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+export const DELETE = withLogging(
+  async (_req: NextRequest, { params }: RouteParams) => {
+    try {
+      const orgId = await getOrgId();
+      const { id } = await params;
+      await prisma.event.deleteMany({ where: { id: parseInt(id, 10), orgId } });
+      return NextResponse.json({ ok: true });
+    } catch {
+      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    }
   }
-});
+);
