@@ -1,0 +1,127 @@
+// SqFt — Flooring Contractor Estimating SaaS
+// Multi-tenant: all data is scoped to an Organization
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── TENANCY ─────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("free") // free | pro
+  createdAt DateTime @default(now())
+
+  users     User[]
+  customers Customer[]
+  estimates Estimate[]
+  events    Event[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String   // bcrypt hash
+  role      String   @default("member") // owner | admin | member
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+// ── CORE DATA ────────────────────────────────────────────────────────────────
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  source    String   @default("phone") // phone | online | referral | walkin | website
+  notes     String?
+  createdAt DateTime @default(now())
+
+  estimates Estimate[]
+  events    Event[]
+}
+
+model Estimate {
+  id         Int      @id @default(autoincrement())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  status     String   @default("quote") // quote | scheduled | in_progress | completed
+  date       DateTime @default(now())
+  taxRate    Float    @default(0.08)
+  markupPct  Float    @default(0)
+  depositPct Float    @default(0.50)
+  createdAt  DateTime @default(now())
+
+  items     EstimateItem[]
+  lineItems LineItem[]
+  events    Event[]
+}
+
+// A room measurement or a text note inside an estimate
+model EstimateItem {
+  id         Int      @id @default(autoincrement())
+  estimateId Int
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  type       String   // room | note
+  sortOrder  Int      @default(0)
+
+  // Room fields
+  name       String?
+  shape      String?  // rect | tri | lshape
+  w          Float?
+  l          Float?
+  lshapeData Json?    // { sections:[{w,l}], deductions:[{w,l,label}] }
+  note       String?
+
+  // Note fields
+  text       String?
+}
+
+// A line item (material/labor) in the bill of materials
+model LineItem {
+  id            Int      @id @default(autoincrement())
+  estimateId    Int
+  estimate      Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  name          String
+  rate          Float    @default(0)
+  qtyMode       String   @default("manual") // manual | linked
+  qty           Float?
+  wastePct      Float    @default(0)
+  unitLabel     String   @default("ft²")
+  linkedRoomIds Int[]    // EstimateItem ids linked to this line item
+  sortOrder     Int      @default(0)
+}
+
+// Calendar events: job installations, measurement visits, etc.
+model Event {
+  id         Int      @id @default(autoincrement())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  type       String   // job | visit | other
+  title      String
+  customerId Int?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  estimateId Int?
+  estimate   Estimate? @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  date       DateTime
+  startTime  String   // "08:00"
+  endTime    String   // "17:00"
+  crew       String?
+  notes      String?
+  createdAt  DateTime @default(now())
+}

@@ -1,26 +1,141 @@
 @import "tailwindcss";
 
+/* ── DESIGN TOKENS ────────────────────────────────────────────────────────── */
+/* Exact values from flooring-prototype-v0_8.html                             */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Neutral warm palette */
+  --linen:     #f5f0e8;
+  --linen-d:   #ede7d9;
+  --linen-dd:  #e0d8c8;
+  --manila:    #d4c9b0;
+  --sand:      #c2b49a;
+  --driftwood: #8c7d68;
+  --oak:       #3d3228;
+  --oak-l:     #5a4a38;
+  --rule:      rgba(61, 50, 40, 0.09);
+  --cream:     #faf7f0;
+
+  /* Accent colors */
+  --vermil:   #c0341a;
+  --vermil-l: #e04828;
+  --vermil-d: #8a2010;
+  --sage:     #4a6650;
+  --sage-l:   #5f8568;
+  --gold:     #9a7a20;
+  --gold-l:   #c4a030;
+
+  /* Typography aliases */
+  --font-display: 'Playfair Display', serif;
+  --font-mono:    'Azeret Mono', monospace;
+  --font-label:   'Fraunces', serif;
 }
+
+/* ── TAILWIND v4 THEME EXTENSION ─────────────────────────────────────────── */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors */
+  --color-linen:     var(--linen);
+  --color-linen-d:   var(--linen-d);
+  --color-linen-dd:  var(--linen-dd);
+  --color-manila:    var(--manila);
+  --color-sand:      var(--sand);
+  --color-driftwood: var(--driftwood);
+  --color-oak:       var(--oak);
+  --color-oak-l:     var(--oak-l);
+  --color-cream:     var(--cream);
+  --color-vermil:    var(--vermil);
+  --color-vermil-l:  var(--vermil-l);
+  --color-vermil-d:  var(--vermil-d);
+  --color-sage:      var(--sage);
+  --color-sage-l:    var(--sage-l);
+  --color-gold:      var(--gold);
+  --color-gold-l:    var(--gold-l);
+
+  /* Typography */
+  --font-display: var(--font-display);
+  --font-mono:    var(--font-mono);
+  --font-label:   var(--font-label);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── BASE RESET & BODY ───────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-mono);
+  background-color: var(--linen-d);
+  color: var(--oak);
+  min-height: 100vh;
+  /* Horizontal rule texture from prototype */
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 27px,
+    var(--rule) 27px,
+    var(--rule) 28px
+  );
+  background-attachment: fixed;
+  background-size: 100% 28px;
+}
+
+/* ── ANIMATIONS ──────────────────────────────────────────────────────────── */
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes stampIn {
+  from { opacity: 0; transform: scale(0.88) rotate(-3deg); }
+  to   { opacity: 1; transform: scale(1) rotate(-2deg); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── SHARED UTILITIES ────────────────────────────────────────────────────── */
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--linen-dd);
+  margin: 12px 0;
+}
+
+/* Card corner decoration */
+.card-corner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(225deg, var(--linen-d) 50%, transparent 50%);
+}
+
+/* ── MOBILE BOTTOM NAV ───────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 56px;
+  }
 }
