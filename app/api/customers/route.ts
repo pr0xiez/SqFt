@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrgId } from "@/lib/tenant";
+import { withLogging } from "@/lib/with-logging";
 
 const createSchema = z.object({
   name: z.string().min(1).max(200),
@@ -14,7 +15,7 @@ const createSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-export async function GET() {
+export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
     const customers = await prisma.customer.findMany({
@@ -26,9 +27,9 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withLogging(async (req: NextRequest) => {
   try {
     const orgId = await getOrgId();
     const body = await req.json();
@@ -49,4 +50,4 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-}
+});

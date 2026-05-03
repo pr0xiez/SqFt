@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrgId } from "@/lib/tenant";
+import { withLogging } from "@/lib/with-logging";
 
 const createSchema = z.object({
   customerId: z.number().int().positive(),
@@ -10,7 +11,7 @@ const createSchema = z.object({
   depositPct: z.number().min(0).max(1).default(0.5),
 });
 
-export async function GET() {
+export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
     const estimates = await prisma.estimate.findMany({
@@ -25,9 +26,9 @@ export async function GET() {
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withLogging(async (req: NextRequest) => {
   try {
     const orgId = await getOrgId();
     const body = await req.json();
@@ -48,4 +49,4 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-}
+});
