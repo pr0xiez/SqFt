@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · SqFt</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf7;--surface:#ffffff;--surface-2:#f4f3ed;
+  --ink:#1a1a17;--ink-2:#3a3a35;--muted:#6b6b66;--line:#e6e4dd;--line-2:#d8d6cd;
+  --accent:#c0341a;--accent-l:#e04828;
+  --shadow:0 1px 2px rgba(20,18,12,.04),0 4px 14px rgba(20,18,12,.04);
+  --display:'Inter Tight',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+[data-theme="dark"]{
+  --bg:#0f0f0d;--surface:#181815;--surface-2:#222220;
+  --ink:#f0eee5;--ink-2:#c9c6bc;--muted:#888579;--line:#2a2a26;--line-2:#363632;
+  --accent:#ff6a44;--accent-l:#ff8665;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--display);background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s;display:flex;flex-direction:column}
+
+/* Top bar — minimal, just brand + theme toggle */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;flex-shrink:0}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.025em}
+.brand em{color:var(--accent);font-style:normal}
+.theme-toggle{font-family:var(--mono);font-size:11px;border:1px solid var(--line);background:transparent;cursor:pointer;padding:6px 10px;border-radius:6px;color:var(--muted);transition:.15s;display:flex;align-items:center;gap:6px}
+.theme-toggle:hover{border-color:var(--ink-2);color:var(--ink)}
+
+/* Center stage */
+.stage{flex:1;display:flex;align-items:center;justify-content:center;padding:24px 20px 80px}
+.card{width:100%;max-width:380px}
+
+/* Heading */
+.eyebrow{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em;margin-bottom:10px}
+.h1{font-size:34px;font-weight:700;letter-spacing:-.025em;line-height:1.05;margin-bottom:8px}
+.h1 .light{font-weight:400;color:var(--ink-2)}
+.sub{font-family:var(--mono);font-size:12px;color:var(--muted);margin-bottom:32px}
+
+/* Fields */
+.field{margin-bottom:18px}
+.field-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:block}
+.field-input{width:100%;font-family:var(--display);font-size:15px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:11px 14px;border-radius:6px;transition:.15s}
+.field-input:focus{outline:none;border-color:var(--ink-2);background:var(--surface)}
+.field-input::placeholder{color:var(--muted);font-family:var(--display)}
+
+.password-wrap{position:relative}
+.password-wrap .field-input{padding-right:54px}
+.peek{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--muted);padding:6px 8px;border-radius:4px;letter-spacing:.04em;text-transform:uppercase;transition:.15s}
+.peek:hover{color:var(--ink);background:var(--surface-2)}
+
+/* Sign in button */
+.btn-signin{width:100%;font-family:var(--mono);font-size:12px;font-weight:500;padding:13px;background:var(--ink);color:var(--bg);border:none;cursor:pointer;border-radius:6px;letter-spacing:.04em;text-transform:uppercase;transition:.15s;margin-top:6px}
+.btn-signin:hover{background:var(--ink-2)}
+.btn-signin:active{transform:translateY(1px)}
+.btn-signin .arrow{margin-left:6px;display:inline-block;transition:transform .15s}
+.btn-signin:hover .arrow{transform:translateX(2px)}
+
+/* Error */
+.err{font-family:var(--mono);font-size:11px;color:var(--accent);margin-top:-8px;margin-bottom:14px;padding:8px 12px;border:1px solid var(--accent);border-left-width:3px;border-radius:5px;display:none;letter-spacing:.02em;background:rgba(192,52,26,.04)}
+[data-theme="dark"] .err{background:rgba(255,106,68,.06)}
+.err.show{display:block;animation:slideDown .2s ease both}
+@keyframes slideDown{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Loading state */
+.btn-signin.loading{color:transparent;position:relative;pointer-events:none}
+.btn-signin.loading::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid var(--bg);border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Hairline divider above signup link */
+.foot{margin-top:32px;padding-top:24px;border-top:1px solid var(--line);text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.02em}
+.foot a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line-2);padding-bottom:1px;transition:border-color .15s}
+.foot a:hover{border-bottom-color:var(--ink)}
+
+/* Page footer */
+.page-foot{padding:20px 28px;font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:.04em;flex-shrink:0}
+
+/* Responsive */
+@media (max-width:480px){
+  .topbar{padding:16px 18px}
+  .stage{padding:16px 18px 60px}
+  .h1{font-size:28px}
+  .page-foot{padding:16px 18px}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><em>Sq</em>Ft</div>
+  <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+    <span id="theme-icon">☾</span><span id="theme-label">Dark</span>
+  </button>
+</header>
+
+<main class="stage">
+  <div class="card">
+    <div class="eyebrow">Welcome back</div>
+    <h1 class="h1">Sign in to <span class="light">SqFt</span></h1>
+    <div class="sub">Flooring estimates, jobs, and crews.</div>
+
+    <form id="login-form" autocomplete="on" novalidate>
+      <div class="err" id="err">Incorrect email or password.</div>
+
+      <div class="field">
+        <label class="field-label" for="email">Email</label>
+        <input class="field-input" type="email" id="email" name="email" placeholder="you@yourcompany.com" autocomplete="email" required>
+      </div>
+
+      <div class="field">
+        <label class="field-label" for="password">Password</label>
+        <div class="password-wrap">
+          <input class="field-input" type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+          <button type="button" class="peek" id="peek" aria-label="Show password">Show</button>
+        </div>
+      </div>
+
+      <button class="btn-signin" id="btn-signin" type="submit">
+        Sign in <span class="arrow">→</span>
+      </button>
+    </form>
+
+    <div class="foot">
+      New to SqFt? <a href="#" onclick="event.preventDefault()">Request access</a>
+    </div>
+  </div>
+</main>
+
+<footer class="page-foot">
+  © 2025 SqFt · v0.9
+</footer>
+
+<script>
+// Theme
+(function(){
+  const saved = localStorage.getItem('sqft-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  updateThemeUI(saved);
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = cur === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('sqft-theme', next);
+    updateThemeUI(next);
+  });
+})();
+function updateThemeUI(t){
+  document.getElementById('theme-icon').textContent = t === 'dark' ? '☀' : '☾';
+  document.getElementById('theme-label').textContent = t === 'dark' ? 'Light' : 'Dark';
+}
+
+// Password peek
+const pw = document.getElementById('password');
+const peek = document.getElementById('peek');
+peek.addEventListener('click', () => {
+  const isHidden = pw.type === 'password';
+  pw.type = isHidden ? 'text' : 'password';
+  peek.textContent = isHidden ? 'Hide' : 'Show';
+});
+
+// Submit — demo: any email + 'demo' password works; otherwise show error.
+const form = document.getElementById('login-form');
+const btn = document.getElementById('btn-signin');
+const err = document.getElementById('err');
+const emailEl = document.getElementById('email');
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  err.classList.remove('show');
+  const email = emailEl.value.trim();
+  const password = pw.value;
+  if (!email || !password) {
+    err.textContent = 'Please enter your email and password.';
+    err.classList.add('show');
+    return;
+  }
+  btn.classList.add('loading');
+  setTimeout(() => {
+    btn.classList.remove('loading');
+    // demo: accept any non-empty creds, route to the app
+    window.location.href = 'SqFt - Quiet.html';
+  }, 700);
+});
+</script>
+
+</body>
+</html>

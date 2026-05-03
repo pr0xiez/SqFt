@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SqFt — UI kit</title>
+<link rel="stylesheet" href="sqft.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body data-screen-label="SqFt UI kit · dashboard">
+
+<div id="root"></div>
+
+<script type="text/babel" src="components.jsx"></script>
+<script type="text/babel">
+const { useState } = React;
+
+function App() {
+  const [theme, setTheme] = useState('light');
+  React.useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, [theme]);
+  const [active, setActive] = useState('Dashboard');
+
+  return (
+    <>
+      <TopNav
+        tabs={['Dashboard','Customers','Estimates','Schedule','Quote Builder']}
+        active={active} onChange={setActive}
+        theme={theme} onToggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')}
+      />
+      <main className="screen">
+        <PageHeader
+          eyebrow="Friday, 2 May 2025"
+          title="Good Morning,"
+          light="Mike"
+          sub="7 active jobs · 3 quotes pending · 2 crews in field"
+          actions={<>
+            <Button>+ New Customer</Button>
+            <Button variant="primary">+ New Estimate</Button>
+          </>}
+        />
+
+        <AlertStack>
+          <Alert tone="danger" cta="Send reminder →">
+            <strong>Henderson</strong> invoice — $3,840 — is 14 days overdue
+          </Alert>
+          <Alert tone="warn" cta="Follow up →">
+            <strong>Kowalski</strong> quote expires in 2 days — no response yet
+          </Alert>
+        </AlertStack>
+
+        <MetricStrip>
+          <Metric label="Revenue · this month" value="$38,420" tone="sage" sub="↑ 12% vs. last month" subTone="up" />
+          <Metric label="Outstanding"          value="$11,260" tone="verm" sub="3 invoices unpaid"     subTone="down" />
+          <Metric label="Pipeline value"       value="$54,800" tone="gold" sub="8 open quotes" />
+          <Metric label="Average margin"       value="31%"                 sub="↑ 2 pts" subTone="up" />
+        </MetricStrip>
+
+        <div className="row">
+          <Card title="Job Pipeline" sub="all active work">
+            <Pipeline>
+              <PipelineColumn heading="Estimates · 4" jobs={[
+                { name: 'Johnson — LVP',  sub: '3 rooms · finalized', amount: '$3,017' },
+                { name: 'Sharma — Tile',  sub: '2 rooms',             amount: '—' },
+                { name: 'Park — HW',      sub: '1 room',              amount: '—' },
+                { name: 'Nguyen',         sub: 'new lead',            amount: '—' },
+              ]} />
+              <PipelineColumn heading="Scheduled · 2" jobs={[
+                { name: 'Martinez — HW', sub: 'May 5 · Carlos', amount: '$8,900' },
+                { name: 'Thompson',      sub: 'May 7 · Dave',   amount: '$3,100' },
+              ]} />
+              <PipelineColumn heading="Active · 2" jobs={[
+                { name: 'Chen — stair', sub: 'Day 2/3 · Carlos', amount: '$5,600' },
+                { name: 'Williams',     sub: 'Day 1/2 · Dave',   amount: '$4,750' },
+              ]} />
+              <PipelineColumn heading="Done · 3" jobs={[
+                { name: 'Henderson', sub: 'Overdue', subColor: 'var(--accent)', amount: '$3,840', amtTone: 'late' },
+                { name: 'Garcia',    sub: 'Paid ✓',  subColor: 'var(--sage)',   amount: '$7,200', amtTone: 'paid' },
+                { name: 'Lee — HW',  sub: 'Paid ✓',  subColor: 'var(--sage)',   amount: '$9,100', amtTone: 'paid' },
+              ]} />
+            </Pipeline>
+          </Card>
+
+          <Card title="Source mix" sub="last 30 days">
+            <div style={{display:'grid',gridTemplateColumns:'1fr',gap:10,marginTop:6}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <Badge tone="phone">PHONE</Badge>
+                <div style={{flex:1,height:4,background:'var(--line)',borderRadius:2,position:'relative'}}>
+                  <div style={{position:'absolute',inset:0,width:'45%',background:'var(--sage)',borderRadius:2}}></div>
+                </div>
+                <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--muted)',minWidth:32,textAlign:'right'}}>9</div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <Badge tone="online">ONLINE</Badge>
+                <div style={{flex:1,height:4,background:'var(--line)',borderRadius:2,position:'relative'}}>
+                  <div style={{position:'absolute',inset:0,width:'30%',background:'var(--gold)',borderRadius:2}}></div>
+                </div>
+                <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--muted)',minWidth:32,textAlign:'right'}}>6</div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <Badge tone="referral">REFERRAL</Badge>
+                <div style={{flex:1,height:4,background:'var(--line)',borderRadius:2,position:'relative'}}>
+                  <div style={{position:'absolute',inset:0,width:'20%',background:'var(--accent)',borderRadius:2}}></div>
+                </div>
+                <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--muted)',minWidth:32,textAlign:'right'}}>4</div>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <Badge tone="walkin">WALK-IN</Badge>
+                <div style={{flex:1,height:4,background:'var(--line)',borderRadius:2,position:'relative'}}>
+                  <div style={{position:'absolute',inset:0,width:'5%',background:'var(--muted)',borderRadius:2}}></div>
+                </div>
+                <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--muted)',minWidth:32,textAlign:'right'}}>1</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        <Card title="Today's Schedule" action={<Button variant="ghost" style={{fontSize:11}}>Full calendar →</Button>}>
+          <ListRow time="08:00" dotColor="var(--gold)" name="Chen — LVP Staircase · Day 2" sub="Carlos · 142 Maple Dr" tag="$5,600" />
+          <ListRow time="08:30" dotColor="var(--sage)" name="Williams — Tile Bath · Day 1" sub="Dave · 87 Oak Ave"     tag="$4,750" />
+          <ListRow time="10:00" dotColor="var(--accent)" name="Measure — Nguyen Residence" sub="Mike · 33 Pine Ct"     tag="lead" />
+          <ListRow time="14:00" dotColor="var(--muted)" name="Showroom — Park Family"      sub="Sarah · Material selection" tag="appt" />
+        </Card>
+
+        <div style={{marginTop:16}}>
+          <SummaryBar items={[
+            { label: 'Gross area', value: '202 sf' },
+            { label: 'Order qty',  value: '222 sf', tone: 'gold' },
+          ]} trailing={
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <span className="s-label" style={{margin:0}}>Waste</span>
+              <select style={{fontFamily:'var(--mono)',fontSize:11,padding:'6px 10px',border:'1px solid rgba(255,255,255,.2)',background:'transparent',color:'var(--bg)',borderRadius:5}}>
+                <option>+10%</option>
+              </select>
+            </div>
+          } />
+        </div>
+      </main>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
