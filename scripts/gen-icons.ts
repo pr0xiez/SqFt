@@ -1,13 +1,13 @@
-import sharp from 'sharp';
-import path from 'path';
-import { mkdirSync } from 'fs';
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import sharp from "sharp";
 
-const ICONS_DIR = path.join(process.cwd(), 'public', 'icons');
+const ICONS_DIR = path.join(process.cwd(), "public", "icons");
 mkdirSync(ICONS_DIR, { recursive: true });
 
-const OAK    = '#3d3228';
-const LINEN  = '#f5f0e8';
-const VERMIL = '#c0341a';
+const OAK = "#3d3228";
+const LINEN = "#f5f0e8";
+const VERMIL = "#c0341a";
 
 // Builds the SVG source at a given size.
 // maskable=true: fills full square (safe zone handled by padding),
@@ -22,14 +22,14 @@ function buildSvg(size: number, maskable = false): Buffer {
   const cy = size / 2;
 
   // "ft" — large serif, centred slightly left of icon centre
-  const ftSize   = Math.round(size * 0.39 * s);
-  const ftX      = Math.round(cx - size * 0.04 * s);
-  const ftY      = Math.round(cy + size * 0.10 * s);
+  const ftSize = Math.round(size * 0.39 * s);
+  const ftX = Math.round(cx - size * 0.04 * s);
+  const ftY = Math.round(cy + size * 0.1 * s);
 
   // "2" superscript — upper-right, vermillion
-  const supSize  = Math.round(size * 0.22 * s);
-  const supX     = Math.round(cx + size * 0.29 * s);
-  const supY     = Math.round(cy - size * 0.11 * s);
+  const supSize = Math.round(size * 0.22 * s);
+  const supX = Math.round(cx + size * 0.29 * s);
+  const supY = Math.round(cy - size * 0.11 * s);
 
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
@@ -56,12 +56,15 @@ async function emit(size: number, filename: string, maskable = false) {
 }
 
 async function main() {
-  console.log('Generating SqFt PWA icons…');
-  await emit(192, 'icon-192.png');
-  await emit(512, 'icon-512.png');
-  await emit(512, 'icon-maskable-512.png', true);
-  await emit(180, 'apple-touch-icon.png');
-  console.log('Done.');
+  console.log("Generating SqFt PWA icons…");
+  await emit(192, "icon-192.png");
+  await emit(512, "icon-512.png");
+  await emit(512, "icon-maskable-512.png", true);
+  await emit(180, "apple-touch-icon.png");
+  console.log("Done.");
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

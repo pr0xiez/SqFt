@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 export default function LoginPage() {
@@ -38,9 +38,7 @@ export default function LoginPage() {
     <div className="w-full max-w-sm">
       {/* Brand */}
       <div className="mb-8 text-center">
-        <h1
-          className="font-[var(--font-display)] text-4xl font-black italic text-oak leading-none"
-        >
+        <h1 className="font-[var(--font-display)] text-4xl font-black italic text-oak leading-none">
           Sq<em className="not-italic text-vermil">Ft</em>
         </h1>
         <p className="font-[var(--font-mono)] text-xs text-driftwood uppercase tracking-widest mt-1">

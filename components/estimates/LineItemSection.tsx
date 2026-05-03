@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import type { Estimate } from "@/lib/hooks/useEstimates";
-import type { RoomItem, LineItemCalc } from "@/lib/utils";
-import { parsef, liSubtotal, getEffectiveQty, fmtDollar } from "@/lib/utils";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import type { Estimate } from "@/lib/hooks/useEstimates";
+import type { LineItemCalc, RoomItem } from "@/lib/utils";
+import { fmtDollar, getEffectiveQty, liSubtotal, parsef } from "@/lib/utils";
 
 interface Props {
   estimate: Estimate;
@@ -13,15 +13,22 @@ interface Props {
 }
 
 let _liNextId = Date.now() + 100000;
-function tempLiId() { return ++_liNextId; }
+function tempLiId() {
+  return ++_liNextId;
+}
 
 export function LineItemSection({ estimate, onSave }: Props) {
   const [items, setItems] = useState<LineItemCalc[]>(estimate.lineItems ?? []);
-  const rooms = (estimate.items ?? []).filter((i): i is RoomItem => i.type === "room");
+  const rooms = (estimate.items ?? []).filter(
+    (i): i is RoomItem => i.type === "room"
+  );
 
-  const save = useCallback(async (newItems: LineItemCalc[]) => {
-    await onSave(newItems);
-  }, [onSave]);
+  const save = useCallback(
+    async (newItems: LineItemCalc[]) => {
+      await onSave(newItems);
+    },
+    [onSave]
+  );
 
   function addItem() {
     const newItems: LineItemCalc[] = [
@@ -68,7 +75,9 @@ export function LineItemSection({ estimate, onSave }: Props) {
         <h2 className="font-[var(--font-display)] text-lg font-bold text-oak">
           Materials & Labor
         </h2>
-        <Button size="sm" onClick={addItem}>+ Add Item</Button>
+        <Button size="sm" onClick={addItem}>
+          + Add Item
+        </Button>
       </div>
 
       {/* Column headers (desktop) */}
@@ -115,7 +124,9 @@ export function LineItemSection({ estimate, onSave }: Props) {
                         ? "bg-oak border-oak text-linen"
                         : "bg-linen border-sand text-driftwood"
                     )}
-                  >M</button>
+                  >
+                    M
+                  </button>
                   {rooms.length > 0 && (
                     <button
                       onClick={() => updateItem(li.id, { qtyMode: "linked" })}
@@ -125,7 +136,9 @@ export function LineItemSection({ estimate, onSave }: Props) {
                           ? "bg-oak border-oak text-linen"
                           : "bg-linen border-sand text-driftwood"
                       )}
-                    >↗</button>
+                    >
+                      ↗
+                    </button>
                   )}
                 </div>
                 {li.qtyMode === "manual" ? (
@@ -134,14 +147,18 @@ export function LineItemSection({ estimate, onSave }: Props) {
                     min="0"
                     step="0.01"
                     value={li.qty ?? ""}
-                    onChange={(e) => updateItem(li.id, { qty: parsef(e.target.value) })}
+                    onChange={(e) =>
+                      updateItem(li.id, { qty: parsef(e.target.value) })
+                    }
                     onBlur={() => save(items)}
                     placeholder="0"
                     className="w-full border-[1.5px] border-oak bg-linen px-2 py-1 font-[var(--font-mono)] text-xs text-oak text-right focus:outline-none focus:border-vermil"
                   />
                 ) : (
                   <div className="font-[var(--font-mono)] text-xs text-driftwood px-2 py-1 border border-linen-dd text-right">
-                    {effectiveQty !== null ? Math.round(effectiveQty * 10) / 10 : "—"}
+                    {effectiveQty !== null
+                      ? Math.round(effectiveQty * 10) / 10
+                      : "—"}
                   </div>
                 )}
               </div>
@@ -152,7 +169,9 @@ export function LineItemSection({ estimate, onSave }: Props) {
                 min="0"
                 step="0.01"
                 value={li.rate}
-                onChange={(e) => updateItem(li.id, { rate: parsef(e.target.value) ?? 0 })}
+                onChange={(e) =>
+                  updateItem(li.id, { rate: parsef(e.target.value) ?? 0 })
+                }
                 onBlur={() => save(items)}
                 placeholder="0.00"
                 className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak text-right focus:outline-none focus:border-vermil"
@@ -165,7 +184,9 @@ export function LineItemSection({ estimate, onSave }: Props) {
                 max="100"
                 step="1"
                 value={li.wastePct}
-                onChange={(e) => updateItem(li.id, { wastePct: parsef(e.target.value) ?? 0 })}
+                onChange={(e) =>
+                  updateItem(li.id, { wastePct: parsef(e.target.value) ?? 0 })
+                }
                 onBlur={() => save(items)}
                 placeholder="0"
                 className="border-[1.5px] border-oak bg-linen px-2 py-1.5 font-[var(--font-mono)] text-xs text-oak text-right focus:outline-none focus:border-vermil"

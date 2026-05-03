@@ -12,7 +12,7 @@ interface Props {
 
 const SAGE = "#4a6650";
 const OAK = "#3d3228";
-const LINEN = "#f5f0e8";
+const _LINEN = "#f5f0e8";
 
 export function RoomCanvas({ room, width = 180, height = 110 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,7 +37,8 @@ export function RoomCanvas({ room, width = 180, height = 110 }: Props) {
     const y = (height - rl - 16) / 2;
 
     // Fill
-    ctx.fillStyle = room.shape === "tri" ? "rgba(74,102,80,.15)" : "rgba(74,102,80,.12)";
+    ctx.fillStyle =
+      room.shape === "tri" ? "rgba(74,102,80,.15)" : "rgba(74,102,80,.12)";
     ctx.strokeStyle = SAGE;
     ctx.lineWidth = 1.5;
 

@@ -1,9 +1,9 @@
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
 
 // Extend the built-in session types to include orgId and role
 declare module "next-auth" {

@@ -977,7 +977,7 @@ body{font-family:var(--mono);background:var(--linen-d);color:var(--oak);min-heig
 // ══════════════════════════════════════════════
 // CUSTOMERS
 // ══════════════════════════════════════════════
-let customers = [
+const customers = [
   {id:1, name:'Johnson, R.',  phone:'(614) 555-0142', email:'rjohnson@email.com',  address:'2241 Birchwood Ave, Columbus OH 43215', source:'phone',    notes:'Referred by Lee family. Wants LVP throughout main floor.', addedAt:'Mar 12, 2025'},
   {id:2, name:'Sharma, P.',   phone:'(614) 555-0289', email:'psharma@email.com',   address:'84 Lakeview Dr, Dublin OH 43017',        source:'online',   notes:'Submitted contact form — bath tile project.',              addedAt:'Apr 8, 2025'},
   {id:3, name:'Martinez, C.', phone:'(614) 555-0422', email:'',                    address:'19 Oak Hills Blvd, Columbus OH 43201',   source:'referral', notes:'Referred by Johnson. Hardwood + carpet.',                  addedAt:'Jan 5, 2025'},
@@ -1044,8 +1044,8 @@ let rpTargetId = null, rpSelected = [], rpWaste = 10;
 // ══════════════════════════════════════════════
 // UTILS
 // ══════════════════════════════════════════════
-function parsef(v){const n=parseFloat(v);return isNaN(n)||n<=0?null:n}
-function fmtBig(n){return n!=null?'$'+Math.round(n).toLocaleString():'—'}
+function parsef(v){const n=parseFloat(v);return Number.isNaN(n)||n<=0?null:n}
+function fmtBig(n){return n!=null?`$${Math.round(n).toLocaleString()}`:'—'}
 function deepCopy(x){return JSON.parse(JSON.stringify(x))}
 function getCustomer(id){return customers.find(c=>c.id===id)}
 function getRooms(){return estimateItems.filter(i=>i.type==='room')}
@@ -1058,10 +1058,10 @@ function roomSqft(room){
   return room.shape==='tri'?w*l/2:w*l;
 }
 function lshapeNet(data){
-  if(!data||!data.sections)return null;
+  if(!data?.sections)return null;
   let g=0;data.sections.forEach(s=>{const w=parsef(s.w),l=parsef(s.l);if(w&&l)g+=w*l});
   if(!g)return null;
-  let d=0;(data.deducts||[]).forEach(x=>{const v=parseFloat(x.sqft);if(!isNaN(v)&&v>0)d+=v});
+  let d=0;(data.deducts||[]).forEach(x=>{const v=parseFloat(x.sqft);if(!Number.isNaN(v)&&v>0)d+=v});
   return Math.max(0,g-d);
 }
 function estTotalArea(est){let t=0;est.items.filter(i=>i.type==='room').forEach(r=>{const s=roomSqft(r);if(s)t+=s});return t}
@@ -1083,7 +1083,7 @@ function showToast(title,body){
 function showScreen(id, tab){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('screen-'+id).classList.add('active');
+  document.getElementById(`screen-${id}`).classList.add('active');
   if(id==='customers'||id==='customer-detail') document.getElementById('nav-customers').classList.add('active');
   else if(id==='estlist'||id==='estimates') document.getElementById('nav-estimates').classList.add('active');
   else if(id==='schedule') document.getElementById('nav-schedule').classList.add('active');
@@ -1095,13 +1095,13 @@ function showScreen(id, tab){
   if(id==='quote'){renderLineItems();updateQuoteCustomerBar();updateQuoteEstRef()}
   if(id==='schedule') renderCalendar();
 }
-function backToList(){saveActiveEstimate();showScreen('estlist',null)}
-function backToEstimate(){showScreen('estimates',null)}
+function _backToList(){saveActiveEstimate();showScreen('estlist',null)}
+function _backToEstimate(){showScreen('estimates',null)}
 
 // ══════════════════════════════════════════════
 // NEW CUSTOMER PANEL
 // ══════════════════════════════════════════════
-function openNewCustomer(context){
+function _openNewCustomer(context){
   newCustomerReturnContext=context||null;
   // Reset form
   ['ncp-name','ncp-phone','ncp-email','ncp-address','ncp-notes'].forEach(id=>{document.getElementById(id).value=''});
@@ -1120,7 +1120,7 @@ function selectSource(btn){
   btn.classList.add('active');
   newCustomerSource=btn.dataset.source;
 }
-function saveNewCustomer(){
+function _saveNewCustomer(){
   const name=document.getElementById('ncp-name').value.trim();
   const phone=document.getElementById('ncp-phone').value.trim();
   if(!name){document.getElementById('ncp-name').focus();return}
@@ -1140,7 +1140,7 @@ function saveNewCustomer(){
     activeCustomerId=customer.id;
     updateEstCustomerBar();
     updateBuilderTopbar();
-    showToast(customer.name+' linked','Customer created and linked to estimate #'+activeEstimateId);
+    showToast(`${customer.name} linked`,`Customer created and linked to estimate #${activeEstimateId}`);
   } else if(alsoEst){
     // Create estimate for new customer then open builder
     newEstimateForCustomerId(customer.id);
@@ -1148,14 +1148,14 @@ function saveNewCustomer(){
     // Open customer detail
     activeCustomerDetailId=customer.id;
     showScreen('customer-detail',null);
-    showToast('Customer added',customer.name+' · '+sourceName(customer.source));
+    showToast('Customer added',`${customer.name} · ${sourceName(customer.source)}`);
   }
 }
 
 // ══════════════════════════════════════════════
 // CUSTOMER LIST
 // ══════════════════════════════════════════════
-function setCustFilter(f,btn){
+function _setCustFilter(f,btn){
   custFilterValue=f;
   document.querySelectorAll('#screen-customers .list-filter').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
@@ -1164,8 +1164,8 @@ function setCustFilter(f,btn){
 function renderCustomerList(){
   const rows=document.getElementById('clist-rows');if(!rows)return;
   const filtered=custFilterValue==='all'?customers:customers.filter(c=>c.source===custFilterValue);
-  document.getElementById('clist-sub').textContent=customers.length+' customer'+(customers.length!==1?'s':'');
-  document.getElementById('clist-count').textContent=filtered.length+' shown';
+  document.getElementById('clist-sub').textContent=`${customers.length} customer${customers.length!==1?'s':''}`;
+  document.getElementById('clist-count').textContent=`${filtered.length} shown`;
   rows.innerHTML='';
   if(!filtered.length){
     rows.innerHTML=`<div class="list-empty"><div class="list-empty-title">No customers yet</div><div class="list-empty-sub">Click "+ New Customer" to add your first lead</div></div>`;
@@ -1174,11 +1174,11 @@ function renderCustomerList(){
   filtered.forEach(c=>{
     const ests=customerEstimates(c.id);
     const row=document.createElement('div');
-    row.className='list-row clist-row '+c.source;
+    row.className=`list-row clist-row ${c.source}`;
     row.innerHTML=`
       <div class="cl-main">
         <div class="cl-name">${c.name}</div>
-        <div class="cl-contact">${c.phone}${c.email?' · '+c.email:''}</div>
+        <div class="cl-contact">${c.phone}${c.email?` · ${c.email}`:''}</div>
         ${c.address?`<div class="cl-contact" style="margin-top:2px">${c.address.split(',').slice(0,2).join(',')}</div>`:''}
       </div>
       <div class="cl-cell"><span class="source-badge ${c.source}">${sourceName(c.source)}</span></div>
@@ -1200,9 +1200,9 @@ function openCustomerDetail(id){
 }
 function renderCustomerDetail(){
   const c=getCustomer(activeCustomerDetailId);if(!c)return;
-  document.getElementById('cd-eyebrow').textContent='Customer · '+sourceName(c.source);
+  document.getElementById('cd-eyebrow').textContent=`Customer · ${sourceName(c.source)}`;
   document.getElementById('cd-topbar-title').textContent=c.name.split(',')[0];
-  document.getElementById('cd-topbar-sub').textContent=c.phone+(c.email?' · '+c.email:'');
+  document.getElementById('cd-topbar-sub').textContent=c.phone+(c.email?` · ${c.email}`:'');
   document.getElementById('cd-name').value=c.name;
   document.getElementById('cd-phone').value=c.phone;
   document.getElementById('cd-email').value=c.email||'';
@@ -1213,7 +1213,7 @@ function renderCustomerDetail(){
   renderCdSourceBadge();
   // Estimates for this customer
   const ests=customerEstimates(c.id);
-  document.getElementById('cd-est-count').textContent='('+ests.length+')';
+  document.getElementById('cd-est-count').textContent=`(${ests.length})`;
   const estRows=document.getElementById('cd-est-rows');
   if(!ests.length){
     estRows.innerHTML=`<div class="cd-no-ests"><div class="cd-no-ests-text">No estimates yet — click "+ New Estimate" to get started</div></div>`;
@@ -1227,7 +1227,7 @@ function renderCustomerDetail(){
     row.className='cd-est-row';
     row.innerHTML=`
       <div class="ced-num">#${est.id}</div>
-      <div class="ced-area">${area>0?area.toFixed(0)+' ft²':rooms.length+' rm'+(rooms.length!==1?'s':'')}</div>
+      <div class="ced-area">${area>0?`${area.toFixed(0)} ft²`:`${rooms.length} rm${rooms.length!==1?'s':''}`}</div>
       <div class="ced-date">${est.date}</div>
       <div class="ced-action"><button class="ced-open-btn" onclick="event.stopPropagation();openEstimateById(${est.id})">Open →</button></div>
     `;
@@ -1235,7 +1235,7 @@ function renderCustomerDetail(){
     estRows.appendChild(row);
   });
 }
-function updateCustomerField(field,value){
+function _updateCustomerField(field,value){
   const c=getCustomer(activeCustomerDetailId);if(!c)return;
   c[field]=value;
   if(field==='name'){
@@ -1246,7 +1246,7 @@ function renderCdSourceBadge(){
   const c=getCustomer(activeCustomerDetailId);if(!c)return;
   document.getElementById('cd-source-badge').innerHTML=`<span class="source-badge ${c.source}">${sourceName(c.source)}</span>`;
 }
-function newEstimateForCustomer(){newEstimateForCustomerId(activeCustomerDetailId)}
+function _newEstimateForCustomer(){newEstimateForCustomerId(activeCustomerDetailId)}
 function newEstimateForCustomerId(cid){
   const c=getCustomer(cid);
   const id=nextEstimateId++;
@@ -1258,7 +1258,7 @@ function newEstimateForCustomerId(cid){
   loadEstimate(id);
   showScreen('estimates',null);
   updateBuilderTopbar();
-  if(c)showToast('New estimate for '+c.name,'#'+id+' created');
+  if(c)showToast(`New estimate for ${c.name}`,`#${id} created`);
 }
 
 // ══════════════════════════════════════════════
@@ -1289,7 +1289,7 @@ function openEstimateById(id){loadEstimate(id);showScreen('estimates',null);upda
 // ══════════════════════════════════════════════
 function renderEstimateList(){
   const rows=document.getElementById('estlist-rows');if(!rows)return;
-  document.getElementById('estlist-sub').textContent=allEstimates.length+' estimate'+(allEstimates.length!==1?'s':'');
+  document.getElementById('estlist-sub').textContent=`${allEstimates.length} estimate${allEstimates.length!==1?'s':''}`;
   rows.innerHTML='';
   if(!allEstimates.length){rows.innerHTML=`<div class="list-empty"><div class="list-empty-title">No estimates</div><div class="list-empty-sub">Click "+ New Estimate" to get started</div></div>`;return}
   allEstimates.forEach(est=>{
@@ -1304,7 +1304,7 @@ function renderEstimateList(){
         <div class="el-cname">${c?c.name:'<span style="color:var(--manila);font-style:italic;font-family:var(--label)">No customer</span>'}</div>
         <div class="el-caddr">${c?c.address.split(',').slice(0,2).join(','):'—'}</div>
       </div>
-      <div class="el-rooms"><div class="el-rooms-area">${area>0?area.toFixed(0)+' sq ft':'—'}</div><div class="el-rooms-detail">${rooms.length} room${rooms.length!==1?'s':''}</div></div>
+      <div class="el-rooms"><div class="el-rooms-area">${area>0?`${area.toFixed(0)} sq ft`:'—'}</div><div class="el-rooms-detail">${rooms.length} room${rooms.length!==1?'s':''}</div></div>
       <div class="el-date">${est.date}</div>
       <div class="el-action"><button class="el-open-btn" onclick="event.stopPropagation();openEstimateById(${est.id})">Open →</button></div>
     `;
@@ -1312,7 +1312,7 @@ function renderEstimateList(){
     rows.appendChild(row);
   });
 }
-function newEstimate(){
+function _newEstimate(){
   const id=nextEstimateId++;
   allEstimates.unshift({id,customerId:null,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),items:[],itemNextId:1,lsSecCounters:{},lsDedCounters:{},lineItems:[],liNextId:1});
   loadEstimate(id);showScreen('estimates',null);updateBuilderTopbar();
@@ -1324,40 +1324,40 @@ function newEstimate(){
 function updateBuilderTopbar(){
   const est=allEstimates.find(e=>e.id===activeEstimateId);if(!est)return;
   const c=getCustomer(est.customerId);
-  document.getElementById('est-eyebrow').textContent='Estimate #'+est.id+' · '+est.date;
-  document.getElementById('est-topbar-sub').textContent=c?c.name.split(',')[0]+' Residence':'No customer linked';
+  document.getElementById('est-eyebrow').textContent=`Estimate #${est.id} · ${est.date}`;
+  document.getElementById('est-topbar-sub').textContent=c?`${c.name.split(',')[0]} Residence`:'No customer linked';
 }
 function updateEstCustomerBar(){
   const c=getCustomer(activeCustomerId);
   document.getElementById('est-cb-name').textContent=c?c.name:'No customer linked';
-  document.getElementById('est-cb-detail').textContent=c?c.phone+(c.address?' · '+c.address.split(',')[0]:''):'Click Change to link a customer';
+  document.getElementById('est-cb-detail').textContent=c?c.phone+(c.address?` · ${c.address.split(',')[0]}`:''):'Click Change to link a customer';
   const viewBtn=document.getElementById('est-cb-view-btn');
   if(viewBtn)viewBtn.style.display=c?'':'none';
 }
 function updateQuoteCustomerBar(){
   const c=getCustomer(activeCustomerId);
-  if(c){document.getElementById('quote-cb-name').textContent=c.name;document.getElementById('quote-cb-detail').textContent=c.phone+(c.address?' · '+c.address:'');document.getElementById('quote-topbar-sub').textContent=c.name.split(',')[0]+' Residence';}
+  if(c){document.getElementById('quote-cb-name').textContent=c.name;document.getElementById('quote-cb-detail').textContent=c.phone+(c.address?` · ${c.address}`:'');document.getElementById('quote-topbar-sub').textContent=`${c.name.split(',')[0]} Residence`;}
 }
 function updateQuoteEstRef(){
   const est=allEstimates.find(e=>e.id===activeEstimateId);
   const rooms=getRooms();let total=0;rooms.forEach(r=>{const s=roomSqft(r);if(s)total+=s});
-  document.getElementById('quote-est-label').textContent='Estimate #'+(activeEstimateId||'—');
-  document.getElementById('quote-est-detail').textContent=' · '+rooms.length+' rooms · '+(total>0?total.toFixed(0)+' sq ft':'in progress')+(est?' · '+est.date:'');
-  document.getElementById('quote-room-summary').textContent=rooms.filter(r=>roomSqft(r)>0).map(r=>r.name.split(' ')[0]+' '+roomSqft(r).toFixed(0)+'ft²').join(' · ');
-  document.getElementById('quote-eyebrow').textContent='Quote #Q-'+(activeEstimateId||'—')+' · Draft';
+  document.getElementById('quote-est-label').textContent=`Estimate #${activeEstimateId||'—'}`;
+  document.getElementById('quote-est-detail').textContent=` · ${rooms.length} rooms · ${total>0?`${total.toFixed(0)} sq ft`:'in progress'}${est?` · ${est.date}`:''}`;
+  document.getElementById('quote-room-summary').textContent=rooms.filter(r=>roomSqft(r)>0).map(r=>`${r.name.split(' ')[0]} ${roomSqft(r).toFixed(0)}ft²`).join(' · ');
+  document.getElementById('quote-eyebrow').textContent=`Quote #Q-${activeEstimateId||'—'} · Draft`;
 }
-function viewActiveCustomer(){activeCustomerDetailId=activeCustomerId;showScreen('customer-detail',null)}
+function _viewActiveCustomer(){activeCustomerDetailId=activeCustomerId;showScreen('customer-detail',null)}
 
 // ══════════════════════════════════════════════
 // CUSTOMER PICKER (for estimate/quote builder)
 // ══════════════════════════════════════════════
-function openCpPicker(){
+function _openCpPicker(){
   document.getElementById('cp-search').value='';
   renderCpList();
   const panel=document.getElementById('cp-panel');panel.style.display='block';
   let top=140,left=Math.max(16,window.innerWidth/2-190);
   if(top+400>window.innerHeight)top=window.innerHeight-420;
-  panel.style.top=top+'px';panel.style.left=left+'px';
+  panel.style.top=`${top}px`;panel.style.left=`${left}px`;
   document.getElementById('cp-overlay').classList.add('open');
   setTimeout(()=>document.getElementById('cp-search').focus(),50);
 }
@@ -1368,9 +1368,9 @@ function renderCpList(){
   const filtered=customers.filter(c=>!q||c.name.toLowerCase().includes(q)||c.phone.includes(q));
   filtered.forEach(c=>{
     const row=document.createElement('div');
-    row.className='pp-row'+(c.id===activeCustomerId?' selected-radio':'');
-    row.innerHTML=`<div class="pp-check"><span class="pp-check-mark">✓</span></div><div style="flex:1"><div class="pp-item-name">${c.name}</div><div class="pp-item-sub">${c.phone}${c.address?' · '+c.address.split(',')[0]:''}</div></div><span class="source-badge ${c.source}" style="font-size:8px;padding:2px 7px">${sourceName(c.source)}</span>`;
-    row.onclick=()=>{activeCustomerId=c.id;closeCpPicker();updateEstCustomerBar();updateQuoteCustomerBar();updateBuilderTopbar();showToast(c.name+' linked','Connected to estimate #'+activeEstimateId)};
+    row.className=`pp-row${c.id===activeCustomerId?' selected-radio':''}`;
+    row.innerHTML=`<div class="pp-check"><span class="pp-check-mark">✓</span></div><div style="flex:1"><div class="pp-item-name">${c.name}</div><div class="pp-item-sub">${c.phone}${c.address?` · ${c.address.split(',')[0]}`:''}</div></div><span class="source-badge ${c.source}" style="font-size:8px;padding:2px 7px">${sourceName(c.source)}</span>`;
+    row.onclick=()=>{activeCustomerId=c.id;closeCpPicker();updateEstCustomerBar();updateQuoteCustomerBar();updateBuilderTopbar();showToast(`${c.name} linked`,`Connected to estimate #${activeEstimateId}`)};
     list.appendChild(row);
   });
   if(!filtered.length)list.innerHTML='<div style="padding:20px 16px;font-family:var(--label);font-style:italic;font-size:12px;color:var(--sand);text-align:center">No customers match — create a new one below</div>';
@@ -1390,7 +1390,7 @@ function renderEstimateItems(){
 }
 function buildRoomEl(room,idx){
   const s=roomSqft(room);const div=document.createElement('div');
-  div.className='est-item-room'+(room.shape==='lshape'?' is-lshape':'');
+  div.className=`est-item-room${room.shape==='lshape'?' is-lshape':''}`;
   const dimSection=room.shape!=='lshape'?`
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
       <span style="font-family:var(--label);font-style:italic;font-size:11px;color:var(--driftwood);min-width:84px">Dimensions</span>
@@ -1398,7 +1398,7 @@ function buildRoomEl(room,idx){
       <span style="font-family:var(--display);font-size:20px;color:var(--sand);line-height:1">×</span>
       <input class="dim-input" type="number" min="0" step="0.5" value="${room.l}" placeholder="L" oninput="estimateItems[${idx}].l=this.value;updateRoomDisplay(${room.id})"/>
       <span style="font-family:var(--label);font-style:italic;font-size:11px;color:var(--driftwood)">ft</span>
-      <span id="room-area-${room.id}" style="font-family:var(--display);font-size:22px;font-weight:900;color:${s?'var(--oak)':'var(--manila)'};margin-left:auto;letter-spacing:-.01em">${s?s.toFixed(1)+' ft²':'—'}</span>
+      <span id="room-area-${room.id}" style="font-family:var(--display);font-size:22px;font-weight:900;color:${s?'var(--oak)':'var(--manila)'};margin-left:auto;letter-spacing:-.01em">${s?`${s.toFixed(1)} ft²`:'—'}</span>
     </div>`:buildLShapeInlineHtml(room,idx);
   div.innerHTML=`
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -1417,34 +1417,34 @@ function buildRoomEl(room,idx){
     <input class="note-input" value="${room.note}" placeholder="Field note — materials, condition, special instructions…" oninput="estimateItems[${idx}].note=this.value"/>`;
   return div;
 }
-function buildLShapeInlineHtml(room,idx){
+function buildLShapeInlineHtml(room,_idx){
   const data=room.lshapeData;const netArea=lshapeNet(data);
   const secHtml=data.sections.map((s,si)=>{
     const area=parsef(s.w)&&parsef(s.l)?(parsef(s.w)*parsef(s.l)).toFixed(0):null;
-    return `<div class="ls-sec-row"><input class="ls-sec-name" value="${s.name}" placeholder="Section" oninput="updateLSSection(${room.id},${si},'name',this.value)"/><input class="ls-dim" type="number" min="0" step="0.5" value="${s.w}" placeholder="W" oninput="updateLSSection(${room.id},${si},'w',this.value)"/><span style="font-family:var(--display);font-size:18px;color:var(--sand)">×</span><input class="ls-dim" type="number" min="0" step="0.5" value="${s.l}" placeholder="L" oninput="updateLSSection(${room.id},${si},'l',this.value)"/><span style="font-family:var(--label);font-style:italic;font-size:11px;color:var(--driftwood)">ft</span><span style="font-family:var(--display);font-size:14px;font-weight:700;color:${area?'var(--oak)':'var(--manila)'};margin-left:auto">${area?area+' ft²':'—'}</span><button class="ls-remove-btn" onclick="removeLSSection(${room.id},${si})">×</button></div>`;
+    return `<div class="ls-sec-row"><input class="ls-sec-name" value="${s.name}" placeholder="Section" oninput="updateLSSection(${room.id},${si},'name',this.value)"/><input class="ls-dim" type="number" min="0" step="0.5" value="${s.w}" placeholder="W" oninput="updateLSSection(${room.id},${si},'w',this.value)"/><span style="font-family:var(--display);font-size:18px;color:var(--sand)">×</span><input class="ls-dim" type="number" min="0" step="0.5" value="${s.l}" placeholder="L" oninput="updateLSSection(${room.id},${si},'l',this.value)"/><span style="font-family:var(--label);font-style:italic;font-size:11px;color:var(--driftwood)">ft</span><span style="font-family:var(--display);font-size:14px;font-weight:700;color:${area?'var(--oak)':'var(--manila)'};margin-left:auto">${area?`${area} ft²`:'—'}</span><button class="ls-remove-btn" onclick="removeLSSection(${room.id},${si})">×</button></div>`;
   }).join('');
   const dedHtml=data.deducts.map((d,di)=>`<div class="ls-deduct-row"><span style="font-family:var(--display);font-size:17px;color:var(--vermil);line-height:1;flex-shrink:0">−</span><input class="ls-ded-label" value="${d.label}" placeholder="Cutout" oninput="updateLSDeduct(${room.id},${di},'label',this.value)"/><input class="ls-ded-input" type="number" min="0" step="0.5" value="${d.sqft}" placeholder="0" oninput="updateLSDeduct(${room.id},${di},'sqft',this.value)"/><span style="font-family:var(--label);font-style:italic;font-size:11px;color:var(--driftwood)">ft²</span><button class="ls-remove-btn" onclick="removeLSDeduct(${room.id},${di})">×</button></div>`).join('');
-  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-family:var(--label);font-style:italic;font-size:11px;color:var(--gold)">L-Shape · ${data.sections.length} section${data.sections.length!==1?'s':''}</span><span id="room-area-${room.id}" style="font-family:var(--display);font-size:22px;font-weight:900;color:${netArea?'var(--gold)':'var(--manila)'};letter-spacing:-.01em">${netArea?netArea.toFixed(1)+' ft²':'—'}</span></div><div class="lshape-inline"><canvas class="lshape-inline-canvas" id="lsc-${room.id}" width="900" height="130"></canvas><div class="lshape-inline-body"><div class="ls-section-header">Sections</div><div>${secHtml}</div><button class="ls-add-btn" onclick="addLSSection(${room.id})">+ Add Section</button><div class="ls-section-header" style="margin-top:10px">Cutout Deductions</div><div>${dedHtml}</div><button class="ls-add-btn" onclick="addLSDeduct(${room.id})">+ Add Cutout</button></div></div>`;
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><span style="font-family:var(--label);font-style:italic;font-size:11px;color:var(--gold)">L-Shape · ${data.sections.length} section${data.sections.length!==1?'s':''}</span><span id="room-area-${room.id}" style="font-family:var(--display);font-size:22px;font-weight:900;color:${netArea?'var(--gold)':'var(--manila)'};letter-spacing:-.01em">${netArea?`${netArea.toFixed(1)} ft²`:'—'}</span></div><div class="lshape-inline"><canvas class="lshape-inline-canvas" id="lsc-${room.id}" width="900" height="130"></canvas><div class="lshape-inline-body"><div class="ls-section-header">Sections</div><div>${secHtml}</div><button class="ls-add-btn" onclick="addLSSection(${room.id})">+ Add Section</button><div class="ls-section-header" style="margin-top:10px">Cutout Deductions</div><div>${dedHtml}</div><button class="ls-add-btn" onclick="addLSDeduct(${room.id})">+ Add Cutout</button></div></div>`;
 }
 function buildNoteEl(item,idx){
   const div=document.createElement('div');div.className='est-item-note';
   div.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px"><div class="note-tag">✎ &nbsp;Field Note</div><button onclick="removeEstItem(${item.id})" style="background:none;border:none;cursor:pointer;color:var(--manila);font-family:var(--mono);font-size:9px;padding:2px 8px;letter-spacing:.1em;text-transform:uppercase;transition:color .12s" onmouseover="this.style.color='var(--vermil)'" onmouseout="this.style.color='var(--manila)'">× Remove</button></div><textarea class="note-body-input" placeholder="Add a note…" oninput="estimateItems[${idx}].text=this.value">${item.text||''}</textarea>`;
   return div;
 }
-function updateLSSection(rid,si,f,v){const r=getRoomById(rid);if(!r)return;r.lshapeData.sections[si][f]=v;updateRoomDisplay(rid);drawRoomDiagram(rid)}
-function updateLSDeduct(rid,di,f,v){const r=getRoomById(rid);if(!r)return;r.lshapeData.deducts[di][f]=v;updateRoomDisplay(rid)}
-function addLSSection(rid){const r=getRoomById(rid);if(!r)return;if(!lsSecCounters[rid])lsSecCounters[rid]=1;const n=r.lshapeData.sections.length;r.lshapeData.sections.push({id:lsSecCounters[rid]++,name:'Section '+String.fromCharCode(65+n),w:'',l:''});renderEstimateItems()}
-function removeLSSection(rid,si){const r=getRoomById(rid);if(!r)return;r.lshapeData.sections.splice(si,1);renderEstimateItems()}
-function addLSDeduct(rid){const r=getRoomById(rid);if(!r)return;if(!lsDedCounters[rid])lsDedCounters[rid]=1;r.lshapeData.deducts.push({id:lsDedCounters[rid]++,label:'Cutout',sqft:''});renderEstimateItems()}
-function removeLSDeduct(rid,di){const r=getRoomById(rid);if(!r)return;r.lshapeData.deducts.splice(di,1);renderEstimateItems()}
-function updateRoomDisplay(rid){const room=getRoomById(rid);if(!room)return;const s=roomSqft(room);const el=document.getElementById('room-area-'+rid);if(el){el.textContent=s?s.toFixed(1)+' ft²':'—';el.style.color=s?(room.shape==='lshape'?'var(--gold)':'var(--oak)'):'var(--manila)'}recalcEstimate()}
-function setRoomShape(rid,shape){const r=getRoomById(rid);if(!r)return;r.shape=shape;if(shape==='lshape'&&r.lshapeData.sections.length===0){if(!lsSecCounters[rid])lsSecCounters[rid]=1;r.lshapeData.sections=[{id:lsSecCounters[rid]++,name:'Section A',w:'',l:''},{id:lsSecCounters[rid]++,name:'Section B',w:'',l:''}];if(!lsDedCounters[rid])lsDedCounters[rid]=1}renderEstimateItems()}
-function addEstRoom(){estimateItems.push({id:estNextId++,type:'room',name:'New Room',shape:'rect',w:'',l:'',note:'',lshapeData:{sections:[],deducts:[]}});renderEstimateItems()}
-function addEstNote(){estimateItems.push({id:estNextId++,type:'note',text:''});renderEstimateItems()}
-function removeEstItem(id){const i=estimateItems.findIndex(x=>x.id===id);if(i>-1){estimateItems.splice(i,1);renderEstimateItems()}}
-function recalcEstimate(){let total=0;getRooms().forEach(r=>{const s=roomSqft(r);if(s)total+=s});const waste=parseFloat(document.getElementById('est-waste-sel')?.value||1.1);const g=document.getElementById('est-gross');const o=document.getElementById('est-order');if(g)g.textContent=total>0?total.toFixed(1)+' sq ft':'—';if(o)o.textContent=total>0?Math.ceil(total*waste)+' sq ft':'—'}
+function _updateLSSection(rid,si,f,v){const r=getRoomById(rid);if(!r)return;r.lshapeData.sections[si][f]=v;updateRoomDisplay(rid);drawRoomDiagram(rid)}
+function _updateLSDeduct(rid,di,f,v){const r=getRoomById(rid);if(!r)return;r.lshapeData.deducts[di][f]=v;updateRoomDisplay(rid)}
+function _addLSSection(rid){const r=getRoomById(rid);if(!r)return;if(!lsSecCounters[rid])lsSecCounters[rid]=1;const n=r.lshapeData.sections.length;r.lshapeData.sections.push({id:lsSecCounters[rid]++,name:`Section ${String.fromCharCode(65+n)}`,w:'',l:''});renderEstimateItems()}
+function _removeLSSection(rid,si){const r=getRoomById(rid);if(!r)return;r.lshapeData.sections.splice(si,1);renderEstimateItems()}
+function _addLSDeduct(rid){const r=getRoomById(rid);if(!r)return;if(!lsDedCounters[rid])lsDedCounters[rid]=1;r.lshapeData.deducts.push({id:lsDedCounters[rid]++,label:'Cutout',sqft:''});renderEstimateItems()}
+function _removeLSDeduct(rid,di){const r=getRoomById(rid);if(!r)return;r.lshapeData.deducts.splice(di,1);renderEstimateItems()}
+function updateRoomDisplay(rid){const room=getRoomById(rid);if(!room)return;const s=roomSqft(room);const el=document.getElementById(`room-area-${rid}`);if(el){el.textContent=s?`${s.toFixed(1)} ft²`:'—';el.style.color=s?(room.shape==='lshape'?'var(--gold)':'var(--oak)'):'var(--manila)'}recalcEstimate()}
+function _setRoomShape(rid,shape){const r=getRoomById(rid);if(!r)return;r.shape=shape;if(shape==='lshape'&&r.lshapeData.sections.length===0){if(!lsSecCounters[rid])lsSecCounters[rid]=1;r.lshapeData.sections=[{id:lsSecCounters[rid]++,name:'Section A',w:'',l:''},{id:lsSecCounters[rid]++,name:'Section B',w:'',l:''}];if(!lsDedCounters[rid])lsDedCounters[rid]=1}renderEstimateItems()}
+function _addEstRoom(){estimateItems.push({id:estNextId++,type:'room',name:'New Room',shape:'rect',w:'',l:'',note:'',lshapeData:{sections:[],deducts:[]}});renderEstimateItems()}
+function _addEstNote(){estimateItems.push({id:estNextId++,type:'note',text:''});renderEstimateItems()}
+function _removeEstItem(id){const i=estimateItems.findIndex(x=>x.id===id);if(i>-1){estimateItems.splice(i,1);renderEstimateItems()}}
+function recalcEstimate(){let total=0;getRooms().forEach(r=>{const s=roomSqft(r);if(s)total+=s});const waste=parseFloat(document.getElementById('est-waste-sel')?.value||1.1);const g=document.getElementById('est-gross');const o=document.getElementById('est-order');if(g)g.textContent=total>0?`${total.toFixed(1)} sq ft`:'—';if(o)o.textContent=total>0?`${Math.ceil(total*waste)} sq ft`:'—'}
 function drawRoomDiagram(rid){
-  const room=getRoomById(rid);const canvas=document.getElementById('lsc-'+rid);if(!canvas||!room)return;
+  const room=getRoomById(rid);const canvas=document.getElementById(`lsc-${rid}`);if(!canvas||!room)return;
   const ctx=canvas.getContext('2d');const W=canvas.width,H=canvas.height;
   ctx.clearRect(0,0,W,H);ctx.fillStyle='#ede7d9';ctx.fillRect(0,0,W,H);
   ctx.strokeStyle='rgba(61,50,40,.07)';ctx.lineWidth=1;
@@ -1459,8 +1459,8 @@ function drawRoomDiagram(rid){
     ctx.fillStyle=FILL[i%FILL.length];ctx.strokeStyle=STROKE[i%STROKE.length];ctx.lineWidth=1.5;
     ctx.beginPath();ctx.rect(x,y,pw,ph);ctx.fill();ctx.stroke();
     ctx.textAlign='center';ctx.fillStyle=STROKE[i%STROKE.length];ctx.font='bold 11px "Playfair Display",serif';ctx.fillText(s.name,x+pw/2,y+ph/2-5);
-    ctx.font='9px "Azeret Mono",monospace';ctx.fillStyle='rgba(61,50,40,.6)';ctx.fillText(parsef(s.w)+'×'+parsef(s.l),x+pw/2,y+ph/2+9);
-    ctx.font='bold 10px "Azeret Mono",monospace';ctx.fillStyle=STROKE[i%STROKE.length];ctx.fillText((parsef(s.w)*parsef(s.l)).toFixed(0)+' ft²',x+pw/2,y+ph/2+22);
+    ctx.font='9px "Azeret Mono",monospace';ctx.fillStyle='rgba(61,50,40,.6)';ctx.fillText(`${parsef(s.w)}×${parsef(s.l)}`,x+pw/2,y+ph/2+9);
+    ctx.font='bold 10px "Azeret Mono",monospace';ctx.fillStyle=STROKE[i%STROKE.length];ctx.fillText(`${(parsef(s.w)*parsef(s.l)).toFixed(0)} ft²`,x+pw/2,y+ph/2+22);
     x+=pw+20;
   });
 }
@@ -1470,36 +1470,36 @@ function drawRoomDiagram(rid){
 // ══════════════════════════════════════════════
 function getLinkedQty(item){if(item.qtyMode!=='linked'||!item.linkedRoomIds.length)return null;let t=0;item.linkedRoomIds.forEach(rid=>{const r=getRoomById(rid);if(r){const a=roomSqft(r);if(a)t+=a}});if(!t)return null;return Math.ceil(t*(1+item.wastePct/100))}
 function getEffectiveQty(item){if(item.qtyMode==='linked'){const lq=getLinkedQty(item);return lq!==null?lq:parseFloat(item.qty)||0}return parseFloat(item.qty)||0}
-function liSubtotal(item){const q=getEffectiveQty(item),r=parseFloat(item.rate);return(q&&!isNaN(r))?q*r:null}
+function liSubtotal(item){const q=getEffectiveQty(item),r=parseFloat(item.rate);return(q&&!Number.isNaN(r))?q*r:null}
 function renderLineItems(){
   const container=document.getElementById('li-rows');if(!container)return;
   container.innerHTML='';let subtotal=0;
   lineItems.forEach((item,i)=>{
     const hasRooms=item.qtyMode==='linked'&&item.linkedRoomIds.length>0;
     const lq=hasRooms?getLinkedQty(item):null;const sub=liSubtotal(item);if(sub)subtotal+=sub;
-    const row=document.createElement('div');row.className='li-row'+(hasRooms?' has-rooms':'');
+    const row=document.createElement('div');row.className=`li-row${hasRooms?' has-rooms':''}`;
     const scopeLabel=hasRooms?`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>${item.linkedRoomIds.length} room${item.linkedRoomIds.length!==1?'s':''}`:`<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Link rooms`;
     const qtyHtml=hasRooms&&lq!=null?`<div class="li-qty-cell"><div class="li-qty-linked"><span class="li-qty-num">${lq}</span><span class="li-qty-unit-label">${item.unitLabel}</span></div></div>`:`<div class="li-qty-cell"><input class="li-qty-manual" type="number" min="0" step="1" value="${item.qty}" placeholder="qty" oninput="lineItems[${i}].qty=this.value;renderLineItems()"/> <span style="font-family:var(--mono);font-size:9px;color:var(--driftwood)">${item.unitLabel}</span></div>`;
-    const tagsHtml=hasRooms?`<div class="li-room-tags">${item.linkedRoomIds.map(rid=>{const r=getRoomById(rid);if(!r)return'';const a=roomSqft(r);return`<span class="room-tag">${r.name}<span class="room-tag-area">${a?a.toFixed(0)+' ft²':'no area'}</span></span>`;}).join('')}${item.wastePct>0?`<span class="waste-tag">+${item.wastePct}% waste → ${lq} ft²</span>`:`<span style="font-family:var(--mono);font-size:9px;color:var(--sage-l);margin-left:4px">${lq} ft² total</span>`}</div>`:'';
-    row.innerHTML=`<div class="li-row-main"><input class="li-name-input" value="${item.name}" placeholder="Description…" oninput="lineItems[${i}].name=this.value"/><div class="li-scope-cell"><button class="li-scope-btn ${hasRooms?'rooms-linked':''}" onclick="openRoomPicker(${item.id},event)">${scopeLabel}</button></div>${qtyHtml}<div style="position:relative"><span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;color:var(--driftwood);pointer-events:none">$</span><input class="li-rate-input" style="padding-left:22px" type="number" min="0" step="0.01" value="${item.rate}" placeholder="0.00" oninput="lineItems[${i}].rate=this.value;renderLineItems()"/></div><div class="li-subtotal ${sub?'has-val':''}">${sub?'$'+sub.toFixed(2):'—'}</div><button class="li-remove-btn" onclick="removeLineItem(${item.id})">×</button></div>${tagsHtml}`;
+    const tagsHtml=hasRooms?`<div class="li-room-tags">${item.linkedRoomIds.map(rid=>{const r=getRoomById(rid);if(!r)return'';const a=roomSqft(r);return`<span class="room-tag">${r.name}<span class="room-tag-area">${a?`${a.toFixed(0)} ft²`:'no area'}</span></span>`;}).join('')}${item.wastePct>0?`<span class="waste-tag">+${item.wastePct}% waste → ${lq} ft²</span>`:`<span style="font-family:var(--mono);font-size:9px;color:var(--sage-l);margin-left:4px">${lq} ft² total</span>`}</div>`:'';
+    row.innerHTML=`<div class="li-row-main"><input class="li-name-input" value="${item.name}" placeholder="Description…" oninput="lineItems[${i}].name=this.value"/><div class="li-scope-cell"><button class="li-scope-btn ${hasRooms?'rooms-linked':''}" onclick="openRoomPicker(${item.id},event)">${scopeLabel}</button></div>${qtyHtml}<div style="position:relative"><span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;color:var(--driftwood);pointer-events:none">$</span><input class="li-rate-input" style="padding-left:22px" type="number" min="0" step="0.01" value="${item.rate}" placeholder="0.00" oninput="lineItems[${i}].rate=this.value;renderLineItems()"/></div><div class="li-subtotal ${sub?'has-val':''}">${sub?`$${sub.toFixed(2)}`:'—'}</div><button class="li-remove-btn" onclick="removeLineItem(${item.id})">×</button></div>${tagsHtml}`;
     container.appendChild(row);
   });
   recalcQuote(subtotal);
 }
-function recalcQuote(sub){if(sub===undefined){let s=0;lineItems.forEach(i=>{const t=liSubtotal(i);if(t)s+=t});sub=s}const taxPct=parseFloat(document.getElementById('q-tax-pct')?.value||0),markupPct=parseFloat(document.getElementById('q-markup-pct')?.value||0),tax=sub*taxPct/100,costBasis=sub+tax,markupAmt=costBasis*markupPct/100,total=costBasis+markupAmt,margin=markupPct>0?markupAmt/total*100:0;const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('q-subtotal','$'+sub.toFixed(2));set('q-tax-amt','$'+tax.toFixed(2));set('q-markup-amt','$'+markupAmt.toFixed(2));set('q-total','$'+total.toFixed(2));set('q-total-big',fmtBig(total));set('q-cost-basis','$'+costBasis.toFixed(2));set('q-margin',margin.toFixed(0)+'%');set('q-deposit',fmtBig(total/2))}
-function addLineItem(){lineItems.push({id:liNextId++,name:'',linkedRoomIds:[],qtyMode:'manual',qty:'',wastePct:0,rate:'',unitLabel:'ft²'});renderLineItems()}
-function removeLineItem(id){const i=lineItems.findIndex(x=>x.id===id);if(i>-1){lineItems.splice(i,1);renderLineItems()}}
+function recalcQuote(sub){if(sub===undefined){let s=0;lineItems.forEach(i=>{const t=liSubtotal(i);if(t)s+=t});sub=s}const taxPct=parseFloat(document.getElementById('q-tax-pct')?.value||0),markupPct=parseFloat(document.getElementById('q-markup-pct')?.value||0),tax=sub*taxPct/100,costBasis=sub+tax,markupAmt=costBasis*markupPct/100,total=costBasis+markupAmt,margin=markupPct>0?markupAmt/total*100:0;const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v};set('q-subtotal',`$${sub.toFixed(2)}`);set('q-tax-amt',`$${tax.toFixed(2)}`);set('q-markup-amt',`$${markupAmt.toFixed(2)}`);set('q-total',`$${total.toFixed(2)}`);set('q-total-big',fmtBig(total));set('q-cost-basis',`$${costBasis.toFixed(2)}`);set('q-margin',`${margin.toFixed(0)}%`);set('q-deposit',fmtBig(total/2))}
+function _addLineItem(){lineItems.push({id:liNextId++,name:'',linkedRoomIds:[],qtyMode:'manual',qty:'',wastePct:0,rate:'',unitLabel:'ft²'});renderLineItems()}
+function _removeLineItem(id){const i=lineItems.findIndex(x=>x.id===id);if(i>-1){lineItems.splice(i,1);renderLineItems()}}
 
 // ══════════════════════════════════════════════
 // ROOM PICKER
 // ══════════════════════════════════════════════
-function openRoomPicker(itemId,evt){
+function _openRoomPicker(itemId,evt){
   evt.stopPropagation();const item=lineItems.find(x=>x.id===itemId);if(!item)return;
   rpTargetId=itemId;rpSelected=[...item.linkedRoomIds];rpWaste=item.wastePct;
   const rect=evt.currentTarget.getBoundingClientRect();const panel=document.getElementById('rp-panel');panel.style.display='block';
   let left=rect.left,top=rect.bottom+6;
   if(left+340>window.innerWidth-16)left=window.innerWidth-356;if(top+420>window.innerHeight)top=rect.top-426;
-  panel.style.left=left+'px';panel.style.top=top+'px';
+  panel.style.left=`${left}px`;panel.style.top=`${top}px`;
   document.getElementById('rp-overlay').classList.add('open');
   document.getElementById('rp-waste').value=rpWaste;
   renderRoomPickerList();updateRoomPickerPreview();
@@ -1509,23 +1509,23 @@ function renderRoomPickerList(){
   const list=document.getElementById('rp-room-list');list.innerHTML='';
   getRooms().forEach(room=>{
     const a=roomSqft(room);const row=document.createElement('div');
-    row.className='pp-row'+(rpSelected.includes(room.id)?' pp-checked':'');
-    row.innerHTML=`<div class="pp-check" style="border-radius:0"><span class="pp-check-mark">✓</span></div><div><div class="pp-item-name">${room.name}</div><div class="pp-item-sub" style="${!a?'color:var(--manila)':''}">${a?a.toFixed(1)+' sq ft · '+room.shape:'no dimensions yet'}</div></div>`;
+    row.className=`pp-row${rpSelected.includes(room.id)?' pp-checked':''}`;
+    row.innerHTML=`<div class="pp-check" style="border-radius:0"><span class="pp-check-mark">✓</span></div><div><div class="pp-item-name">${room.name}</div><div class="pp-item-sub" style="${!a?'color:var(--manila)':''}">${a?`${a.toFixed(1)} sq ft · ${room.shape}`:'no dimensions yet'}</div></div>`;
     row.onclick=()=>toggleRoomInPicker(room.id);list.appendChild(row);
   });
   updateAllCheckUI();
 }
 function toggleRoomInPicker(id){const idx=rpSelected.indexOf(id);if(idx>-1)rpSelected.splice(idx,1);else rpSelected.push(id);renderRoomPickerList();updateRoomPickerPreview()}
-function toggleAllRooms(){rpSelected=rpSelected.length===getRooms().length?[]:getRooms().map(r=>r.id);renderRoomPickerList();updateRoomPickerPreview()}
+function _toggleAllRooms(){rpSelected=rpSelected.length===getRooms().length?[]:getRooms().map(r=>r.id);renderRoomPickerList();updateRoomPickerPreview()}
 function updateAllCheckUI(){const rooms=getRooms();const ac=document.getElementById('rp-all-check');const ck=ac.querySelector('.pp-check-mark');if(rpSelected.length===rooms.length&&rooms.length>0){ck.style.opacity='1';ac.style.background='var(--sage)';ac.style.borderColor='var(--sage)'}else if(rpSelected.length>0){ck.style.opacity='1';ac.style.background='var(--gold)';ac.style.borderColor='var(--gold)'}else{ck.style.opacity='0';ac.style.background='transparent';ac.style.borderColor='var(--sand)'}}
-function updateRoomPickerPreview(){rpWaste=parseInt(document.getElementById('rp-waste').value)||0;let total=0;rpSelected.forEach(rid=>{const r=getRoomById(rid);if(r){const a=roomSqft(r);if(a)total+=a}});const el=document.getElementById('rp-preview');if(!rpSelected.length){el.textContent='No rooms selected';el.style.color='var(--driftwood)'}else if(!total){el.textContent=rpSelected.length+' room'+(rpSelected.length!==1?'s':'')+' — add dimensions';el.style.color='var(--driftwood)'}else{const w=Math.ceil(total*(1+rpWaste/100));el.textContent=total.toFixed(0)+' ft²'+(rpWaste>0?` + ${rpWaste}% → ${w} ft²`:` → ${w} ft²`);el.style.color='var(--sage)'}}
-function applyRoomLink(){if(!rpTargetId)return;const item=lineItems.find(x=>x.id===rpTargetId);if(!item)return;item.linkedRoomIds=[...rpSelected];item.wastePct=rpWaste;item.qtyMode=rpSelected.length?'linked':'manual';closeRoomPicker();renderLineItems()}
-function clearRoomLink(){if(!rpTargetId)return;const item=lineItems.find(x=>x.id===rpTargetId);if(!item)return;item.linkedRoomIds=[];item.qtyMode='manual';rpSelected=[];closeRoomPicker();renderLineItems()}
+function updateRoomPickerPreview(){rpWaste=parseInt(document.getElementById('rp-waste').value, 10)||0;let total=0;rpSelected.forEach(rid=>{const r=getRoomById(rid);if(r){const a=roomSqft(r);if(a)total+=a}});const el=document.getElementById('rp-preview');if(!rpSelected.length){el.textContent='No rooms selected';el.style.color='var(--driftwood)'}else if(!total){el.textContent=`${rpSelected.length} room${rpSelected.length!==1?'s':''} — add dimensions`;el.style.color='var(--driftwood)'}else{const w=Math.ceil(total*(1+rpWaste/100));el.textContent=`${total.toFixed(0)} ft²${rpWaste>0?` + ${rpWaste}% → ${w} ft²`:` → ${w} ft²`}`;el.style.color='var(--sage)'}}
+function _applyRoomLink(){if(!rpTargetId)return;const item=lineItems.find(x=>x.id===rpTargetId);if(!item)return;item.linkedRoomIds=[...rpSelected];item.wastePct=rpWaste;item.qtyMode=rpSelected.length?'linked':'manual';closeRoomPicker();renderLineItems()}
+function _clearRoomLink(){if(!rpTargetId)return;const item=lineItems.find(x=>x.id===rpTargetId);if(!item)return;item.linkedRoomIds=[];item.qtyMode='manual';rpSelected=[];closeRoomPicker();renderLineItems()}
 
 // ══════════════════════════════════════════════
 // EVENTS / SCHEDULE
 // ══════════════════════════════════════════════
-let events = [
+const events = [
   {id:1, type:'job',   title:'Chen — LVP Staircase', customerId:5, estimateId:null, date:'2025-05-02', start:'08:00', end:'16:00', crew:'Carlos', notes:'Day 2 of 3'},
   {id:2, type:'job',   title:'Williams — Tile Bath',  customerId:null, estimateId:null, date:'2025-05-02', start:'08:30', end:'17:00', crew:'Dave',   notes:'Day 1 of 2'},
   {id:3, type:'visit', title:'Measure — Nguyen Residence', customerId:6, estimateId:1045, date:'2025-05-02', start:'10:00', end:'11:30', crew:'Mike', notes:'Main floor + master bedroom'},
@@ -1613,12 +1613,12 @@ function renderCalendar() {
   const timeCol = document.getElementById('cal-time-col');
   timeCol.innerHTML = '';
   const totalHours = CAL_END_H - CAL_START_H;
-  timeCol.style.height = (totalHours * HOUR_PX) + 'px';
+  timeCol.style.height = `${totalHours * HOUR_PX}px`;
   for (let h = CAL_START_H; h <= CAL_END_H; h++) {
     const y = (h - CAL_START_H) * HOUR_PX;
     const label = document.createElement('div');
     label.className = 'cal-hour-label';
-    label.style.top = y + 'px';
+    label.style.top = `${y}px`;
     label.textContent = fmtTime(`${String(h).padStart(2,'0')}:00`);
     timeCol.appendChild(label);
   }
@@ -1626,25 +1626,25 @@ function renderCalendar() {
   // Days grid
   const daysEl = document.getElementById('cal-days');
   daysEl.innerHTML = '';
-  daysEl.style.height = (totalHours * HOUR_PX) + 'px';
+  daysEl.style.height = `${totalHours * HOUR_PX}px`;
 
   days.forEach(d => {
     const ds = dateStr(d);
     const isToday = ds === TODAY_STR;
     const col = document.createElement('div');
-    col.className = 'cal-day-col' + (isToday ? ' today' : '');
-    col.style.height = (totalHours * HOUR_PX) + 'px';
+    col.className = `cal-day-col${isToday ? ' today' : ''}`;
+    col.style.height = `${totalHours * HOUR_PX}px`;
 
     // Hour lines
     for (let h = CAL_START_H; h <= CAL_END_H; h++) {
       const line = document.createElement('div');
       line.className = 'cal-hour-line';
-      line.style.top = ((h - CAL_START_H) * HOUR_PX) + 'px';
+      line.style.top = `${(h - CAL_START_H) * HOUR_PX}px`;
       col.appendChild(line);
       if (h < CAL_END_H) {
         const half = document.createElement('div');
         half.className = 'cal-half-line';
-        half.style.top = ((h - CAL_START_H) * HOUR_PX + HOUR_PX/2) + 'px';
+        half.style.top = `${(h - CAL_START_H) * HOUR_PX + HOUR_PX/2}px`;
         col.appendChild(half);
       }
     }
@@ -1673,8 +1673,8 @@ function renderCalendar() {
       const h    = Math.max(bot - top, 28);
       const el   = document.createElement('div');
       el.className = `cal-event ${ev.type}`;
-      el.style.top    = top + 'px';
-      el.style.height = h + 'px';
+      el.style.top    = `${top}px`;
+      el.style.height = `${h}px`;
       el.innerHTML = `
         <div class="cal-event-title">${ev.title}</div>
         ${h > 36 ? `<div class="cal-event-time">${fmtTime(ev.start)} – ${fmtTime(ev.end)}</div>` : ''}
@@ -1687,7 +1687,7 @@ function renderCalendar() {
   });
 }
 
-function navigateWeek(delta) {
+function _navigateWeek(delta) {
   if (delta === 0) {
     calWeekStart = getWeekStart(new Date(TODAY_STR));
   } else {
@@ -1729,13 +1729,13 @@ function openEventPanel(opts = {}) {
   if (opts.customerId && !ev) {
     const c = getCustomer(opts.customerId);
     showEvpCustomerRef(c);
-  } else if (ev && ev.customerId) {
+  } else if (ev?.customerId) {
     showEvpCustomerRef(getCustomer(ev.customerId));
   } else {
     hideEvpCustomerRef();
   }
 
-  if ((opts.estimateId || (ev && ev.estimateId)) && evpType === 'job') {
+  if ((opts.estimateId || (ev?.estimateId)) && evpType === 'job') {
     const estId = opts.estimateId || ev.estimateId;
     const est = allEstimates.find(e => e.id === estId);
     if (est) showEvpEstimateRef(est);
@@ -1760,7 +1760,7 @@ function closeEventPanel() {
   activeEventId = null;
 }
 
-function selectEventType(btn) {
+function _selectEventType(btn) {
   document.querySelectorAll('.evp-type-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   evpType = btn.dataset.evtype;
@@ -1780,7 +1780,7 @@ function populateEvpCustomerSelect(selectedId) {
   customers.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c.id;
-    opt.textContent = c.name + ' · ' + c.phone;
+    opt.textContent = `${c.name} · ${c.phone}`;
     if (c.id === selectedId) opt.selected = true;
     sel.appendChild(opt);
   });
@@ -1794,14 +1794,14 @@ function populateEvpEstimateSelect(customerId, selectedId) {
     const opt = document.createElement('option');
     opt.value = est.id;
     const area = estTotalArea(est);
-    opt.textContent = `#${est.id} · ${est.date}${area > 0 ? ' · '+area.toFixed(0)+' sq ft' : ''}`;
+    opt.textContent = `#${est.id} · ${est.date}${area > 0 ? ` · ${area.toFixed(0)} sq ft` : ''}`;
     if (est.id === selectedId) opt.selected = true;
     sel.appendChild(opt);
   });
 }
 
-function onEvpCustomerChange() {
-  const cid = parseInt(document.getElementById('evp-customer-sel').value) || null;
+function _onEvpCustomerChange() {
+  const cid = parseInt(document.getElementById('evp-customer-sel').value, 10) || null;
   populateEvpEstimateSelect(cid, null);
   // Auto-generate title
   if (cid) {
@@ -1818,7 +1818,7 @@ function onEvpCustomerChange() {
 function showEvpCustomerRef(c) {
   if (!c) return;
   document.getElementById('evp-customer-ref').style.display = 'flex';
-  document.getElementById('evp-customer-ref-name').textContent = c.name + ' · ' + c.phone;
+  document.getElementById('evp-customer-ref-name').textContent = `${c.name} · ${c.phone}`;
   document.getElementById('evp-customer-field').style.display = 'none';
   document.getElementById('evp-customer-sel').value = c.id; // keep in sync for saveEvent
 }
@@ -1826,13 +1826,13 @@ function hideEvpCustomerRef() {
   document.getElementById('evp-customer-ref').style.display = 'none';
   document.getElementById('evp-customer-field').style.display = '';
 }
-function clearEvpCustomer() { hideEvpCustomerRef(); }
+function _clearEvpCustomer() { hideEvpCustomerRef(); }
 
 function showEvpEstimateRef(est) {
   const area = estTotalArea(est);
   document.getElementById('evp-estimate-ref').style.display = 'flex';
   document.getElementById('evp-estimate-ref-name').textContent =
-    `#${est.id} · ${est.date}${area > 0 ? ' · '+area.toFixed(0)+' sq ft' : ''}`;
+    `#${est.id} · ${est.date}${area > 0 ? ` · ${area.toFixed(0)} sq ft` : ''}`;
   document.getElementById('evp-estimate-field').style.display = 'none';
   document.getElementById('evp-estimate-sel').value = est.id; // keep in sync
 }
@@ -1840,9 +1840,9 @@ function hideEvpEstimateRef() {
   document.getElementById('evp-estimate-ref').style.display = 'none';
   if (evpType === 'job') document.getElementById('evp-estimate-field').style.display = '';
 }
-function clearEvpEstimate() { hideEvpEstimateRef(); }
+function _clearEvpEstimate() { hideEvpEstimateRef(); }
 
-function saveEvent() {
+function _saveEvent() {
   const title = document.getElementById('evp-title-input').value.trim();
   if (!title) { document.getElementById('evp-title-input').focus(); return; }
   const date  = document.getElementById('evp-date').value;
@@ -1851,9 +1851,9 @@ function saveEvent() {
   const crew  = document.getElementById('evp-crew').value;
   const notes = document.getElementById('evp-notes').value.trim();
   // Customer: read from select (hidden or visible)
-  const customerId = parseInt(document.getElementById('evp-customer-sel').value) || null;
+  const customerId = parseInt(document.getElementById('evp-customer-sel').value, 10) || null;
   const estimateId = evpType === 'job'
-    ? (parseInt(document.getElementById('evp-estimate-sel').value) || null)
+    ? (parseInt(document.getElementById('evp-estimate-sel').value, 10) || null)
     : null;
 
   if (activeEventId) {
@@ -1867,10 +1867,10 @@ function saveEvent() {
   // Navigate to the week containing the saved event
   calWeekStart = getWeekStart(new Date(date));
   renderCalendar();
-  showToast('Event saved', title + ' · ' + fmtTime(start));
+  showToast('Event saved', `${title} · ${fmtTime(start)}`);
 }
 
-function deleteActiveEvent() {
+function _deleteActiveEvent() {
   if (!activeEventId) return;
   const i = events.findIndex(e => e.id === activeEventId);
   if (i > -1) events.splice(i, 1);
@@ -1879,7 +1879,7 @@ function deleteActiveEvent() {
 }
 
 // ── CONTEXT SCHEDULE OPENERS ──
-function scheduleVisitForCustomer(customerId) {
+function _scheduleVisitForCustomer(customerId) {
   const c = getCustomer(customerId);
   openEventPanel({type:'visit', customerId, crew:'Mike'});
   if (c) {
@@ -1892,7 +1892,7 @@ function scheduleVisitForCustomer(customerId) {
   showScreen('schedule', document.getElementById('nav-schedule'));
 }
 
-function scheduleJobForEstimate(estimateId) {
+function _scheduleJobForEstimate(estimateId) {
   const est = allEstimates.find(e => e.id === estimateId);
   if (!est) return;
   const c = getCustomer(est.customerId);
@@ -1915,8 +1915,8 @@ window.addEventListener('load',()=>{
     data:{labels:['Dec','Jan','Feb','Mar','Apr','May'],datasets:[{data:[28400,31200,24800,35600,34200,38420],
       backgroundColor:['rgba(61,50,40,.07)','rgba(61,50,40,.07)','rgba(61,50,40,.07)','rgba(61,50,40,.07)','rgba(61,50,40,.07)','rgba(192,52,26,.8)'],
       borderColor:['rgba(61,50,40,.3)','rgba(61,50,40,.3)','rgba(61,50,40,.3)','rgba(61,50,40,.3)','rgba(61,50,40,.3)','rgba(138,32,16,1)'],borderWidth:1.5,borderRadius:1}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#3d3228',titleColor:'#c2b49a',bodyColor:'#f5f0e8',padding:10,bodyFont:{family:'Azeret Mono',size:13,weight:'600'},callbacks:{label:c=>'  $'+c.parsed.y.toLocaleString()}}},
-      scales:{x:{grid:{display:false},border:{display:false},ticks:{font:{family:'Azeret Mono',size:10},color:'#8c7d68'}},y:{grid:{color:'rgba(61,50,40,.07)'},border:{display:false},ticks:{font:{family:'Azeret Mono',size:10},color:'#8c7d68',callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#3d3228',titleColor:'#c2b49a',bodyColor:'#f5f0e8',padding:10,bodyFont:{family:'Azeret Mono',size:13,weight:'600'},callbacks:{label:c=>`  $${c.parsed.y.toLocaleString()}`}}},
+      scales:{x:{grid:{display:false},border:{display:false},ticks:{font:{family:'Azeret Mono',size:10},color:'#8c7d68'}},y:{grid:{color:'rgba(61,50,40,.07)'},border:{display:false},ticks:{font:{family:'Azeret Mono',size:10},color:'#8c7d68',callback:v=>`$${(v/1000).toFixed(0)}k`}}}}});
   loadEstimate(1042);
 });
 </script>

@@ -1,6 +1,6 @@
-import { Providers } from "@/components/ui/Providers";
+import type { ReactNode } from "react";
 import { AppNav } from "@/components/ui/AppNav";
-import { ReactNode } from "react";
+import { Providers } from "@/components/ui/Providers";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (

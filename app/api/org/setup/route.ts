@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getOrgId } from "@/lib/tenant";
-import { z } from "zod";
 
 const schema = z.object({
   name: z.string().min(1).max(200),
@@ -14,7 +14,10 @@ export async function POST(req: NextRequest) {
     const parsed = schema.safeParse(body);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid company name" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid company name" },
+        { status: 400 }
+      );
     }
 
     const slug =
