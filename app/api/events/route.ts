@@ -10,6 +10,10 @@ const createSchema = z.object({
   customerId: z.number().int().positive().optional(),
   estimateId: z.number().int().positive().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
   crew: z.string().max(200).optional(),
@@ -45,10 +49,12 @@ export const POST = withLogging(async (req: NextRequest) => {
       );
     }
 
+    const { endDate, ...rest } = parsed.data;
     const event = await prisma.event.create({
       data: {
-        ...parsed.data,
-        date: new Date(parsed.data.date),
+        ...rest,
+        date: new Date(rest.date),
+        ...(endDate ? { endDate: new Date(endDate) } : {}),
         orgId,
       },
     });
