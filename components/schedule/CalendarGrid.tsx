@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { useToast } from "@/components/ui/Toast";
@@ -93,13 +93,13 @@ function layoutEvents(dayEvents: CalEvent[]): PlacedEvent[] {
 }
 
 export function ScheduleView() {
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr());
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
 
   const isMobile = useIsMobile();
-  const daysToShow = isMobile ? 3 : 6;
+  const daysToShow = isMobile ? 3 : 7;
 
   const { data: events = [] } = useEvents();
   const { data: customers = [] } = useCustomers();
@@ -109,11 +109,21 @@ export function ScheduleView() {
   const { showToast } = useToast();
 
   const days = useMemo(
-    () => Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i)),
+    () =>
+      weekStart
+        ? Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i))
+        : [],
     [weekStart, daysToShow]
   );
 
-  const today = todayStr();
+  const [today, setToday] = useState("");
+
+  useEffect(() => {
+    const t = todayStr();
+    setToday(t);
+    setSelectedDate(t);
+    setWeekStart(getWeekStart(new Date()));
+  }, []);
 
   function openNewEvent(date: string) {
     setSelectedDate(date);
@@ -144,7 +154,10 @@ export function ScheduleView() {
     return map;
   }, [events]);
 
-  const weekLabel = `Week of ${days[0]?.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${days[days.length - 1]?.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${days[days.length - 1]?.getFullYear()}`;
+  const weekLabel =
+    days.length > 0
+      ? `Week of ${days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${days[days.length - 1].toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${days[days.length - 1].getFullYear()}`
+      : "";
 
   return (
     <div>
@@ -164,7 +177,9 @@ export function ScheduleView() {
         <div className="flex gap-2">
           <Button
             size="sm"
-            onClick={() => setWeekStart((d) => addDays(d, -daysToShow))}
+            onClick={() =>
+              setWeekStart((d) => (d ? addDays(d, -daysToShow) : d))
+            }
           >
             ←
           </Button>
@@ -176,7 +191,9 @@ export function ScheduleView() {
           </Button>
           <Button
             size="sm"
-            onClick={() => setWeekStart((d) => addDays(d, daysToShow))}
+            onClick={() =>
+              setWeekStart((d) => (d ? addDays(d, daysToShow) : d))
+            }
           >
             →
           </Button>

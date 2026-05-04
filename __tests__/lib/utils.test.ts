@@ -281,14 +281,14 @@ describe("liSubtotal", () => {
 
 describe("getWeekStart", () => {
   it("returns Monday when given a Wednesday", () => {
-    const wed = new Date("2024-01-10"); // Wednesday
+    const wed = new Date(2024, 0, 10, 12); // Wednesday, local noon to avoid UTC midnight boundary
     const mon = getWeekStart(wed);
     expect(mon.getDay()).toBe(1);
     expect(dateStr(mon)).toBe("2024-01-08");
   });
 
   it("returns the previous Monday when given a Sunday", () => {
-    const sun = new Date("2024-01-14"); // Sunday
+    const sun = new Date(2024, 0, 14, 12); // Sunday, local noon to avoid UTC midnight boundary
     const mon = getWeekStart(sun);
     expect(mon.getDay()).toBe(1);
     expect(dateStr(mon)).toBe("2024-01-08");
@@ -307,7 +307,7 @@ describe("getWeekStart", () => {
 // ── addDays ───────────────────────────────────────────────────────────────────
 
 describe("addDays", () => {
-  const base = new Date("2024-01-10");
+  const base = new Date(2024, 0, 10, 12); // local noon to avoid UTC midnight boundary
   it("adds positive days", () =>
     expect(dateStr(addDays(base, 5))).toBe("2024-01-15"));
   it("adds negative days (subtracts)", () =>
