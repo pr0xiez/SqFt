@@ -116,7 +116,10 @@ export default function LoginPage() {
             <span className="invisible">Sign in →</span>
           ) : (
             <>
-              Sign in <span className="ml-1.5 inline-block transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+              Sign in{" "}
+              <span className="ml-1.5 inline-block transition-transform duration-150 group-hover:translate-x-0.5">
+                →
+              </span>
             </>
           )}
           {loading && (

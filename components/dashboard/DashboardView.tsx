@@ -171,8 +171,7 @@ export function DashboardView() {
               (now - new Date(expiringEst.date).getTime()) / 86_400_000
             );
             const name =
-              expiringEst.customer?.name?.split(",")[0] ??
-              `#${expiringEst.id}`;
+              expiringEst.customer?.name?.split(",")[0] ?? `#${expiringEst.id}`;
             return (
               <div className="flex items-center gap-3.5 px-4 py-3 bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--gold)] rounded-lg text-[13px] cursor-pointer transition-transform duration-150 hover:translate-x-0.5 hover:shadow-[var(--shadow)]">
                 <span className="flex-1 text-[var(--ink)]">

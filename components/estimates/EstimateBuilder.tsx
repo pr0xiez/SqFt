@@ -88,9 +88,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
           </div>
           <Button
             size="sm"
-            onClick={() =>
-              router.push(`/customers/${estimate.customer?.id}`)
-            }
+            onClick={() => router.push(`/customers/${estimate.customer?.id}`)}
           >
             View
           </Button>

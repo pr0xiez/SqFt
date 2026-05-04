@@ -59,7 +59,8 @@ export function EstimateListView() {
         ) : (
           estimates.map((est) => {
             const area = est.items ? estTotalArea(est.items) : 0;
-            const roomCount = est.items?.filter((i) => i.type === "room").length ?? 0;
+            const roomCount =
+              est.items?.filter((i) => i.type === "room").length ?? 0;
 
             return (
               <button
