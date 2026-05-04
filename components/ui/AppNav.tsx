@@ -24,47 +24,49 @@ export function AppNav() {
       {/* ── Desktop Top Nav ── */}
       <nav
         className={cn(
-          "hidden md:flex items-center h-[60px] px-7 gap-7 sticky top-0 z-50",
+          "hidden md:block sticky top-0 z-50",
           "bg-[var(--surface)] border-b border-[var(--line)]",
           "transition-[background,border-color] duration-[250ms]"
         )}
         aria-label="Main navigation"
       >
-        <span className="text-[18px] font-[800] tracking-[-0.025em] select-none leading-none">
-          <em className="not-italic text-[var(--accent)]">Sq</em>Ft
-        </span>
+        <div className="flex items-center h-[60px] px-8 gap-7 max-w-[1200px] mx-auto">
+          <span className="text-[18px] font-[800] tracking-[-0.025em] select-none leading-none">
+            <em className="not-italic text-[var(--accent)]">Sq</em>Ft
+          </span>
 
-        {NAV_TABS.map(({ href, label }) => {
-          const active = isActive(href);
-          return (
-            <Link
-              key={href}
-              href={href}
+          {NAV_TABS.map(({ href, label }) => {
+            const active = isActive(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "font-[var(--font-mono)] text-[11px] tracking-[.02em]",
+                  "bg-transparent border-none cursor-pointer",
+                  "py-1.5 border-b-2 transition-[color,border-color] duration-150",
+                  active
+                    ? "text-[var(--ink)] border-b-[var(--accent)]"
+                    : "text-[var(--muted)] border-b-transparent hover:text-[var(--ink)]"
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
+
+          <div className="ml-auto flex items-center gap-2.5">
+            <ThemeToggle />
+            <div
               className={cn(
-                "font-[var(--font-mono)] text-[11px] tracking-[.02em]",
-                "bg-transparent border-none cursor-pointer",
-                "py-1.5 border-b-2 transition-[color,border-color] duration-150",
-                active
-                  ? "text-[var(--ink)] border-b-[var(--accent)]"
-                  : "text-[var(--muted)] border-b-transparent hover:text-[var(--ink)]"
+                "w-[30px] h-[30px] rounded-full",
+                "bg-[var(--surface-2)] border border-[var(--line)]",
+                "flex items-center justify-center",
+                "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink)]"
               )}
             >
-              {label}
-            </Link>
-          );
-        })}
-
-        <div className="ml-auto flex items-center gap-2.5">
-          <ThemeToggle />
-          <div
-            className={cn(
-              "w-[30px] h-[30px] rounded-full",
-              "bg-[var(--surface-2)] border border-[var(--line)]",
-              "flex items-center justify-center",
-              "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink)]"
-            )}
-          >
-            MJ
+              MJ
+            </div>
           </div>
         </div>
       </nav>
@@ -125,24 +127,28 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
   const icons: Record<string, React.ReactNode> = {
     Dashboard: (
       <svg {...props}>
+        <title>{label}</title>
         <path d="M3 12L12 4l9 8" />
         <path d="M5 10v10h5v-6h4v6h5V10" />
       </svg>
     ),
     Customers: (
       <svg {...props}>
+        <title>{label}</title>
         <circle cx="12" cy="8" r="3.5" />
         <path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" />
       </svg>
     ),
     Estimates: (
       <svg {...props}>
+        <title>{label}</title>
         <rect x="5" y="3" width="14" height="18" rx="1.5" />
         <path d="M9 8h6M9 12h6M9 16h4" />
       </svg>
     ),
     Schedule: (
       <svg {...props}>
+        <title>{label}</title>
         <rect x="4" y="5" width="16" height="15" rx="1.5" />
         <path d="M4 9h16M9 3v4M15 3v4" />
       </svg>
