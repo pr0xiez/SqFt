@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +37,20 @@ export function DashboardView() {
   const { data: estimates = [] } = useEstimates();
   const { data: events = [] } = useEvents();
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
+  const [greeting, setGreeting] = useState("");
+  const [dateLabel, setDateLabel] = useState("");
+
+  useEffect(() => {
+    setGreeting(getGreeting());
+    setDateLabel(
+      new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    );
+  }, []);
 
   const today = todayStr();
   const firstName = session?.user?.name?.split(" ")[0] ?? "there";
@@ -117,15 +131,10 @@ export function DashboardView() {
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+            {dateLabel}
           </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            {getGreeting()},{" "}
+            {greeting},{" "}
             <span className="font-[400] text-[var(--ink-2)]">{firstName}</span>
           </h1>
           <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
