@@ -157,7 +157,8 @@ export function computeEstimateTotal(est: {
 
 /** Get today's date as YYYY-MM-DD string */
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 /** Get a greeting based on the current hour */
@@ -187,7 +188,7 @@ export function addDays(date: Date, n: number): Date {
 
 /** Format a Date as YYYY-MM-DD */
 export function dateStr(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 /** Format a Date as "Mon 5" for calendar headers */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { useToast } from "@/components/ui/Toast";
@@ -95,7 +95,7 @@ function layoutEvents(dayEvents: CalEvent[]): PlacedEvent[] {
 export function ScheduleView() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [panelOpen, setPanelOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string>(todayStr());
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
 
   const isMobile = useIsMobile();
@@ -113,7 +113,13 @@ export function ScheduleView() {
     [weekStart, daysToShow]
   );
 
-  const today = todayStr();
+  const [today, setToday] = useState("");
+
+  useEffect(() => {
+    const t = todayStr();
+    setToday(t);
+    setSelectedDate(t);
+  }, []);
 
   function openNewEvent(date: string) {
     setSelectedDate(date);
