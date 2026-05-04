@@ -3,9 +3,8 @@ import { logError, logMutation, logRequest } from "../../lib/logger";
 
 function captureOutput() {
   const lines: string[] = [];
-  const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+  const spy = vi.spyOn(console, "log").mockImplementation((chunk) => {
     lines.push(String(chunk));
-    return true;
   });
   return { lines, spy };
 }
