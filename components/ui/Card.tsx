@@ -24,7 +24,7 @@ export function Card({ className, title, sub, children, ...props }: CardProps) {
             </strong>
           )}
           {sub && (
-            <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            <span className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em]">
               {sub}
             </span>
           )}

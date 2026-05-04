@@ -111,7 +111,7 @@ export function DashboardView() {
       {/* Page header */}
       <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
+          <div className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em] mb-1.5">
             {new Date().toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
@@ -123,7 +123,7 @@ export function DashboardView() {
             {getGreeting()},{" "}
             <span className="font-[400] text-[var(--ink-2)]">{firstName}</span>
           </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-1">
+          <div className="font-[var(--font-mono)] text-[12px] font-[500] text-[var(--muted)] tracking-[.04em] mt-1">
             {inProgress.length} active · {quotes.length} quotes pending
           </div>
         </div>
@@ -157,7 +157,7 @@ export function DashboardView() {
                     <strong>{name}</strong> invoice
                     {total ? ` — ${total}` : ""} — is {days} days overdue
                   </span>
-                  <span className="font-[var(--font-mono)] text-[11px] font-[500] shrink-0">
+                  <span className="font-[var(--font-mono)] text-[11px] font-[500] tracking-[.04em] shrink-0">
                     Send reminder →
                   </span>
                 </div>
@@ -180,7 +180,7 @@ export function DashboardView() {
                     <strong>{name}</strong> quote is {days} days old — no
                     response yet
                   </span>
-                  <span className="font-[var(--font-mono)] text-[11px] font-[500] shrink-0">
+                  <span className="font-[var(--font-mono)] text-[11px] font-[500] tracking-[.04em] shrink-0">
                     Follow up →
                   </span>
                 </div>
@@ -193,7 +193,7 @@ export function DashboardView() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[var(--line)] border border-[var(--line)] rounded-lg overflow-hidden">
         {metrics.map((m) => (
           <div key={m.label} className="bg-[var(--surface)] px-5 py-5">
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-2.5">
+            <div className="font-[var(--font-mono)] text-[10px] font-[500] text-[var(--muted)] uppercase tracking-[.06em] mb-2.5">
               {m.label}
             </div>
             <div
@@ -203,7 +203,7 @@ export function DashboardView() {
             </div>
             {m.sub && (
               <div
-                className={`font-[var(--font-mono)] text-[10px] mt-1.5 ${m.subColor || "text-[var(--muted)]"}`}
+                className={`font-[var(--font-mono)] text-[10px] font-[500] tracking-[.04em] mt-1.5 ${m.subColor || "text-[var(--muted)]"}`}
               >
                 {m.sub}
               </div>
@@ -219,7 +219,7 @@ export function DashboardView() {
             {pipelineCols.map(({ status, label, ests }) => (
               <div key={status}>
                 <div
-                  className={`font-[var(--font-mono)] text-[9px] uppercase tracking-[.08em] pb-1.5 border-b border-[var(--line)] mb-2 ${STATUS_COLORS[status]}`}
+                  className={`font-[var(--font-mono)] text-[9px] font-[500] uppercase tracking-[.08em] pb-1.5 border-b border-[var(--line)] mb-2 ${STATUS_COLORS[status]}`}
                 >
                   {label} · {ests.length}
                 </div>
@@ -269,19 +269,19 @@ export function DashboardView() {
                         {displayName}
                       </div>
                       <div
-                        className={`font-[var(--font-mono)] text-[10px] ${status === "completed" ? "text-[var(--sage)]" : "text-[var(--muted)]"}`}
+                        className={`font-[var(--font-mono)] text-[10px] font-[500] tracking-[.04em] ${status === "completed" ? "text-[var(--sage)]" : "text-[var(--muted)]"}`}
                       >
                         {subLine}
                       </div>
                       {total && (
                         <div
-                          className={`font-[var(--font-mono)] text-[11px] font-[600] mt-0.5 ${status === "completed" ? "text-[var(--sage)]" : "text-[var(--ink)]"}`}
+                          className={`font-[var(--font-mono)] text-[11px] font-[600] tracking-[.04em] mt-0.5 ${status === "completed" ? "text-[var(--sage)]" : "text-[var(--ink)]"}`}
                         >
                           {total}
                         </div>
                       )}
                       {!total && (
-                        <div className="font-[var(--font-mono)] text-[11px] font-[600] text-[var(--muted)] mt-0.5">
+                        <div className="font-[var(--font-mono)] text-[11px] font-[600] tracking-[.04em] text-[var(--muted)] mt-0.5">
                           —
                         </div>
                       )}
@@ -313,7 +313,7 @@ export function DashboardView() {
           </Button>
         </div>
         {todayEvents.length === 0 ? (
-          <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+          <p className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em]">
             Nothing scheduled for today.
           </p>
         ) : (
@@ -342,7 +342,7 @@ export function DashboardView() {
                   key={ev.id}
                   className={`flex items-start gap-3.5 py-[11px] cursor-pointer transition-[padding] duration-150 hover:pl-1.5 ${isLast ? "" : "border-b border-[var(--line)]"}`}
                 >
-                  <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] min-w-[50px] shrink-0 pt-px">
+                  <span className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em] min-w-[50px] shrink-0 pt-px">
                     {ev.startTime}
                   </span>
                   <span
@@ -354,12 +354,12 @@ export function DashboardView() {
                       {ev.title}
                     </div>
                     {subParts.length > 0 && (
-                      <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
+                      <div className="font-[var(--font-mono)] text-[10px] font-[500] text-[var(--muted)] tracking-[.04em] mt-0.5">
                         {subParts.join(" · ")}
                       </div>
                     )}
                   </div>
-                  <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] shrink-0">
+                  <span className="font-[var(--font-mono)] text-[10px] font-[500] text-[var(--muted)] tracking-[.04em] shrink-0">
                     {tag}
                   </span>
                 </div>
