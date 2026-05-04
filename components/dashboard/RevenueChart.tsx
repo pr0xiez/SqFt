@@ -54,9 +54,12 @@ export function RevenueChart({ estimates }: Props) {
       if (!ctx) return;
 
       const rootStyle = getComputedStyle(document.documentElement);
-      const accentColor = rootStyle.getPropertyValue("--accent").trim() || "#c0341a";
-      const mutedColor = rootStyle.getPropertyValue("--muted").trim() || "#6b6b66";
-      const lineColor = rootStyle.getPropertyValue("--line").trim() || "#e6e4dd";
+      const accentColor =
+        rootStyle.getPropertyValue("--accent").trim() || "#c0341a";
+      const mutedColor =
+        rootStyle.getPropertyValue("--muted").trim() || "#6b6b66";
+      const lineColor =
+        rootStyle.getPropertyValue("--line").trim() || "#e6e4dd";
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 200);
       gradient.addColorStop(0, `${accentColor}44`);
@@ -102,7 +105,7 @@ export function RevenueChart({ estimates }: Props) {
                 color: mutedColor,
               },
               grid: { display: false },
-              border: { color: "#e6e4dd" },
+              border: { color: lineColor },
             },
           },
         },
