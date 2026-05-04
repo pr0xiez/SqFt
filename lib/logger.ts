@@ -1,7 +1,7 @@
 const ENV = process.env.NODE_ENV ?? "development";
 
 function write(entry: Record<string, unknown>): void {
-  process.stdout.write(`${JSON.stringify(entry)}\n`);
+  console.log(JSON.stringify(entry));
 }
 
 export function logRequest(ctx: {
