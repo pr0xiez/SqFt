@@ -99,7 +99,7 @@ export function ScheduleView() {
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
 
   const isMobile = useIsMobile();
-  const daysToShow = isMobile ? 3 : 6;
+  const daysToShow = isMobile ? 3 : 7;
 
   const { data: events = [] } = useEvents();
   const { data: customers = [] } = useCustomers();

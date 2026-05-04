@@ -287,11 +287,11 @@ describe("getWeekStart", () => {
     expect(dateStr(mon)).toBe("2024-01-08");
   });
 
-  it("returns the upcoming Monday when given a Sunday", () => {
+  it("returns the previous Monday when given a Sunday", () => {
     const sun = new Date(2024, 0, 14, 12); // Sunday, local noon to avoid UTC midnight boundary
     const mon = getWeekStart(sun);
     expect(mon.getDay()).toBe(1);
-    expect(dateStr(mon)).toBe("2024-01-15");
+    expect(dateStr(mon)).toBe("2024-01-08");
   });
 
   it("returns the same day when given a Monday", () => {
