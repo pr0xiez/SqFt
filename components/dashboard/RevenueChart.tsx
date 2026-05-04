@@ -53,10 +53,13 @@ export function RevenueChart({ estimates }: Props) {
       const ctx = canvasRef.current.getContext("2d");
       if (!ctx) return;
 
+      const rootStyle = getComputedStyle(document.documentElement);
       const accentColor =
-        getComputedStyle(document.documentElement)
-          .getPropertyValue("--accent")
-          .trim() || "#c0341a";
+        rootStyle.getPropertyValue("--accent").trim() || "#c0341a";
+      const mutedColor =
+        rootStyle.getPropertyValue("--muted").trim() || "#6b6b66";
+      const lineColor =
+        rootStyle.getPropertyValue("--line").trim() || "#e6e4dd";
 
       const gradient = ctx.createLinearGradient(0, 0, 0, 200);
       gradient.addColorStop(0, `${accentColor}44`);
@@ -91,18 +94,18 @@ export function RevenueChart({ estimates }: Props) {
               ticks: {
                 callback: (v) => `$${Number(v).toLocaleString()}`,
                 font: { family: "'JetBrains Mono', monospace", size: 10 },
-                color: "#6b6b66",
+                color: mutedColor,
               },
-              grid: { color: "#e6e4dd" },
-              border: { color: "#e6e4dd" },
+              grid: { color: lineColor },
+              border: { color: lineColor },
             },
             x: {
               ticks: {
                 font: { family: "'JetBrains Mono', monospace", size: 10 },
-                color: "#6b6b66",
+                color: mutedColor,
               },
               grid: { display: false },
-              border: { color: "#e6e4dd" },
+              border: { color: lineColor },
             },
           },
         },

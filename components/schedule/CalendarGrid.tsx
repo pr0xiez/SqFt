@@ -87,7 +87,7 @@ export function ScheduleView() {
       {/* Header */}
       <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
+          <div className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em] mb-1.5">
             Week of{" "}
             {weekStart.toLocaleDateString("en-US", {
               month: "long",
@@ -146,12 +146,12 @@ export function ScheduleView() {
                   className="px-2 py-2 border-r last:border-r-0 border-[var(--line)] text-center cursor-pointer hover:bg-[var(--surface)] transition-colors"
                   onClick={() => openNewEvent(ds)}
                 >
-                  <div className="font-[var(--font-mono)] text-[9px] uppercase tracking-[.04em] text-[var(--ink-2)]">
+                  <div className="font-[var(--font-mono)] text-[9px] font-[500] uppercase tracking-[.04em] text-[var(--ink-2)]">
                     {d.toLocaleDateString("en-US", { weekday: "short" })}
                   </div>
                   <div
                     className={cn(
-                      "font-[var(--font-display)] text-[18px] font-[600] leading-tight",
+                      "font-[var(--font-display)] text-[18px] font-[600] leading-tight tracking-[-0.01em]",
                       isToday ? "text-[var(--accent)]" : "text-[var(--ink)]"
                     )}
                   >
@@ -178,7 +178,7 @@ export function ScheduleView() {
                   className="absolute left-0 right-0 flex justify-end pr-1.5"
                   style={{ top: (hour - START_HOUR) * 60 * PX_PER_MIN }}
                 >
-                  <span className="font-[var(--font-mono)] text-[9px] text-[var(--muted)] -translate-y-1/2">
+                  <span className="font-[var(--font-mono)] text-[9px] font-[500] text-[var(--muted)] tracking-[.04em] -translate-y-1/2">
                     {hour % 12 === 0 ? 12 : hour % 12}
                     {hour < 12 ? "a" : "p"}
                   </span>
@@ -254,7 +254,7 @@ export function ScheduleView() {
                             {ev.title}
                           </div>
                           {height > 30 && (
-                            <div className="font-[var(--font-mono)] text-[8px] opacity-80">
+                            <div className="font-[var(--font-mono)] text-[8px] font-[500] tracking-[.04em] opacity-80">
                               {ev.startTime}–{ev.endTime}
                             </div>
                           )}
@@ -349,9 +349,9 @@ function EventFormPanel({
   }
 
   const inputClass =
-    "border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]";
+    "border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] font-[500] text-[var(--ink)] tracking-[.04em] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]";
   const labelClass =
-    "font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]";
+    "font-[var(--font-mono)] text-[10px] font-[500] uppercase tracking-[.06em] text-[var(--muted)]";
 
   return (
     <SlidePanel
@@ -370,7 +370,7 @@ function EventFormPanel({
                 type="button"
                 onClick={() => setType(t)}
                 className={cn(
-                  "flex-1 min-h-[36px] px-3 font-[var(--font-mono)] text-[10px] tracking-[.02em]",
+                  "flex-1 min-h-[36px] px-3 font-[var(--font-mono)] text-[10px] font-[500] tracking-[.02em]",
                   "border rounded-[6px] transition-[background,border-color,color] duration-[150ms]",
                   type === t
                     ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
@@ -481,7 +481,7 @@ function EventFormPanel({
           <button
             type="button"
             onClick={() => onDelete(ev.id)}
-            className="w-full min-h-[36px] font-[var(--font-mono)] text-[10px] tracking-[.02em] text-[var(--accent)] hover:bg-[var(--accent)]/5 border border-[var(--accent)]/30 rounded-[6px] transition-colors"
+            className="w-full min-h-[36px] font-[var(--font-mono)] text-[10px] font-[500] tracking-[.02em] text-[var(--accent)] hover:bg-[var(--accent)]/5 border border-[var(--accent)]/30 rounded-[6px] transition-colors"
           >
             Delete event
           </button>

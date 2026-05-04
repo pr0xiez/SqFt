@@ -51,7 +51,7 @@ export function AppNav() {
                 href={href}
                 className={cn(
                   "relative h-full flex items-center px-4",
-                  "font-[var(--font-mono)] text-[11px] tracking-[.02em]",
+                  "font-[var(--font-mono)] text-[11px] font-[500] tracking-[.02em]",
                   "transition-colors duration-[150ms]",
                   active
                     ? "text-[var(--ink)] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-[var(--accent)] after:rounded-t-[1px]"
@@ -72,7 +72,7 @@ export function AppNav() {
               "w-[30px] h-[30px] rounded-full",
               "bg-[var(--surface-2)] border border-[var(--line)]",
               "flex items-center justify-center",
-              "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink-2)]",
+              "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink-2)] tracking-[.04em]",
               "select-none"
             )}
           >
@@ -102,7 +102,7 @@ export function AppNav() {
                 className={cn(
                   "flex flex-col items-center justify-center gap-[3px]",
                   "py-[7px] px-1 min-h-[50px]",
-                  "font-[var(--font-mono)] text-[9.5px] tracking-[.04em]",
+                  "font-[var(--font-mono)] text-[9.5px] font-[500] tracking-[.04em]",
                   "rounded-lg transition-colors duration-[150ms]",
                   "relative",
                   active
