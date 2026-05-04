@@ -169,11 +169,15 @@ export function getGreeting(): string {
   return "Good evening";
 }
 
-/** Get Monday of the week containing the given date */
+/**
+ * Get the Monday of the week to display for the given date.
+ * Sunday rolls forward to the upcoming Monday so the calendar shows the
+ * coming work week instead of the just-finished one.
+ */
 export function getWeekStart(date: Date): Date {
   const d = new Date(date);
   const day = d.getDay(); // 0=Sun,1=Mon,...
-  const diff = day === 0 ? -6 : 1 - day;
+  const diff = day === 0 ? 1 : 1 - day;
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
