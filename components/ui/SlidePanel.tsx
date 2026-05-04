@@ -7,18 +7,20 @@ interface SlidePanelProps {
   open: boolean;
   onClose: () => void;
   title?: string;
+  sub?: string;
   width?: string;
+  footer?: ReactNode;
   children: ReactNode;
-  side?: "right" | "bottom";
 }
 
 export function SlidePanel({
   open,
   onClose,
   title,
-  width = "440px",
+  sub,
+  width = "420px",
+  footer,
   children,
-  side = "right",
 }: SlidePanelProps) {
   useEffect(() => {
     if (!open) return;
@@ -36,15 +38,13 @@ export function SlidePanel({
     };
   }, [open]);
 
-  const isRight = side === "right";
-
   return (
     <>
-      {/* Backdrop */}
+      {/* Overlay */}
       <div
         className={cn(
-          "fixed inset-0 z-[300] transition-opacity duration-200",
-          "bg-black/40 backdrop-blur-[2px]",
+          "fixed inset-0 z-[400] bg-black/40 backdrop-blur-[2px]",
+          "transition-opacity duration-200",
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -57,45 +57,38 @@ export function SlidePanel({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "fixed z-[400] bg-[var(--surface)] border border-[var(--line)]",
-          "flex flex-col transition-transform duration-300 ease-out",
-          // Mobile: bottom sheet
-          "bottom-0 left-0 right-0 max-h-[85vh] rounded-t-xl border-b-0",
-          "shadow-[var(--shadow-md)]",
-          // Desktop right panel overrides
-          isRight &&
-            "md:inset-y-0 md:right-0 md:left-auto md:max-h-none md:w-auto md:rounded-none md:border-b",
-          // Closed states
-          !open && "translate-y-full",
-          isRight && !open && "md:translate-y-0 md:translate-x-full",
-          !isRight && !open && "md:translate-y-full"
+          "fixed top-0 right-0 bottom-0 z-[401]",
+          "bg-[var(--surface)] border-l border-[var(--line)]",
+          "flex flex-col",
+          "transition-transform duration-[250ms] ease-out",
+          "w-full md:w-auto",
+          open ? "translate-x-0" : "translate-x-full"
         )}
-        style={isRight ? { maxWidth: width } : undefined}
+        style={{ maxWidth: width }}
       >
-        {/* Drag handle — mobile only */}
-        <div className="md:hidden flex justify-center pt-2 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full bg-[var(--line-2)]" />
-        </div>
-
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--line)] shrink-0">
-            <h2 className="font-[var(--font-display)] font-[600] text-[15px] text-[var(--ink)] tracking-[-0.01em]">
+          <div className="px-6 py-5 border-b border-[var(--line)] bg-[var(--surface-2)] shrink-0">
+            <div className="text-[20px] font-[700] tracking-[-0.025em] leading-none mb-1">
               {title}
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-[var(--muted)] hover:text-[var(--ink)] transition-colors text-xl leading-none -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="Close panel"
-            >
-              ✕
-            </button>
+            </div>
+            {sub && (
+              <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+                {sub}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="px-6 py-3.5 border-t border-[var(--line)] bg-[var(--surface-2)] flex gap-2 shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
     </>
   );

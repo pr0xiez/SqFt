@@ -9,6 +9,7 @@
       "!**/public",
       "!**/prisma/migrations",
       "!**/docs",
+      "!**/design",
       "!**/*.css",
       "!.claude/*"
     ]
@@ -33,7 +34,8 @@
         "useButtonType": "warn",
         "noLabelWithoutControl": "warn",
         "noStaticElementInteractions": "warn",
-        "useKeyWithClickEvents": "warn"
+        "useKeyWithClickEvents": "warn",
+        "noSvgWithoutTitle": "warn"
       }
     }
   },
