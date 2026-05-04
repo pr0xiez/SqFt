@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { SourceBadge } from "@/components/ui/SourceBadge";
 import { cn } from "@/lib/cn";
 import { useCustomers } from "@/lib/hooks/useCustomers";
+import { sourceName } from "@/lib/utils";
 
 const SOURCES = [
   "all",
@@ -17,10 +18,17 @@ const SOURCES = [
   "website",
 ] as const;
 
+const SOURCE_ROW_BORDERS: Record<string, string> = {
+  phone: "border-l-[var(--sage)]",
+  online: "border-l-[var(--gold)]",
+  referral: "border-l-[var(--accent)]",
+  walkin: "border-l-[var(--muted)]",
+  website: "border-l-[var(--ink-2)]",
+};
+
 export function CustomerListView() {
   const router = useRouter();
   const { data: customers = [], isLoading } = useCustomers();
-
   const [filter, setFilter] = useState<string>("all");
   const [panelOpen, setPanelOpen] = useState(false);
 
@@ -28,111 +36,122 @@ export function CustomerListView() {
     filter === "all" ? customers : customers.filter((c) => c.source === filter);
 
   return (
-    <div className="space-y-4">
+    <>
       {/* Header */}
-      <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
+      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            All clients
+          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
+            SqFt · Flooring Estimates
           </div>
-          <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
+          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Customers
           </h1>
-          <div className="font-[var(--font-mono)] text-[12px] font-[500] text-[var(--muted)] tracking-[.04em] mt-1">
+          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
             {customers.length} customers
           </div>
         </div>
         <Button variant="primary" onClick={() => setPanelOpen(true)}>
-          + New customer
+          + New Customer
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
         {SOURCES.map((src) => (
           <button
             key={src}
             type="button"
             onClick={() => setFilter(src)}
             className={cn(
-              "min-h-[36px] px-4 font-[var(--font-mono)] text-[11px] font-[500] tracking-[.02em]",
-              "border rounded-[6px] transition-[background,border-color,color] duration-[150ms]",
+              "font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[6px] cursor-pointer transition-colors duration-150",
               filter === src
-                ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
-                : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
+                ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
+                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
             )}
           >
-            {src === "all" ? "All" : src}
+            {src === "all" ? "All" : sourceName(src)}
           </button>
         ))}
+        {filtered.length !== customers.length && (
+          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] ml-auto">
+            {filtered.length} shown
+          </span>
+        )}
       </div>
 
-      {/* Table header — desktop only */}
-      <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_80px] gap-3 px-4 py-2 bg-[var(--surface-2)] border-b border-[var(--line)] font-[var(--font-mono)] text-[10px] font-[500] uppercase tracking-[.06em] text-[var(--muted)]">
-        <span>Name</span>
-        <span>Phone</span>
-        <span>Source</span>
-        <span>Added</span>
-        <span className="text-right">Estimates</span>
-      </div>
+      {/* Table */}
+      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
+        {/* Header row */}
+        <div className="hidden md:grid grid-cols-[1fr_130px_100px_90px_80px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            Customer
+          </div>
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            Source
+          </div>
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            Estimates
+          </div>
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            Added
+          </div>
+          <div className="px-3.5 py-2.5" />
+        </div>
 
-      {/* Rows */}
-      {isLoading ? (
-        <p className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em] py-4">
-          Loading…
-        </p>
-      ) : filtered.length === 0 ? (
-        <p className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em] py-4">
-          No customers yet. Add your first one →
-        </p>
-      ) : (
-        <div className="divide-y divide-[var(--line)]">
-          {filtered.map((c) => (
+        {isLoading ? (
+          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            Loading…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            No customers found.
+          </div>
+        ) : (
+          filtered.map((c) => (
             <button
               key={c.id}
               type="button"
               onClick={() => router.push(`/customers/${c.id}`)}
-              className="w-full text-left grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_80px] gap-x-3 gap-y-0 px-4 py-3 bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
+              className={cn(
+                "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_130px_100px_90px_80px]",
+                "items-center border-b border-[var(--line)] last:border-b-0",
+                "cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]",
+                "border-l-[3px]",
+                SOURCE_ROW_BORDERS[c.source] ?? "border-l-transparent"
+              )}
             >
-              <div>
-                <span className="font-[var(--font-display)] text-[14px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
+              <div className="px-3.5 py-3.5">
+                <div className="text-[14px] font-[600] tracking-[-0.01em] mb-0.5">
                   {c.name}
-                </span>
-                {c.address && (
-                  <span className="block font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em] truncate mt-0.5">
-                    {c.address}
-                  </span>
-                )}
-                <div className="flex items-center gap-3 mt-1.5 md:hidden">
-                  <SourceBadge source={c.source} />
-                  <span className="font-[var(--font-mono)] text-[10px] font-[500] text-[var(--muted)] tracking-[.04em]">
-                    {c._count?.estimates ?? 0} estimate
-                    {(c._count?.estimates ?? 0) !== 1 ? "s" : ""}
-                  </span>
+                </div>
+                <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                  {c.phone}
+                  {c.email ? ` · ${c.email}` : ""}
                 </div>
               </div>
-              <span className="font-[var(--font-mono)] text-[12px] font-[500] text-[var(--ink-2)] tracking-[.04em] hidden md:block self-center">
-                {c.phone ?? "—"}
-              </span>
-              <span className="hidden md:flex items-center">
+              <div className="px-3.5 py-3.5 hidden md:block">
                 <SourceBadge source={c.source} />
-              </span>
-              <span className="font-[var(--font-mono)] text-[12px] font-[500] text-[var(--muted)] tracking-[.04em] hidden md:block self-center">
+              </div>
+              <div className="px-3.5 py-3.5 hidden md:block text-[16px] font-[600]">
+                {c._count?.estimates ?? 0}
+              </div>
+              <div className="px-3.5 py-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
                 {new Date(c.createdAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
-                  year: "2-digit",
                 })}
-              </span>
-              <span className="font-[var(--font-mono)] text-[12px] font-[500] text-right text-[var(--ink-2)] tracking-[.04em] hidden md:block self-center">
-                {c._count?.estimates ?? 0}
-              </span>
+              </div>
+              <div className="px-3.5 py-3.5 hidden md:block">
+                <span className="font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
+                  Open →
+                </span>
+              </div>
             </button>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
 
       <NewCustomerPanel open={panelOpen} onClose={() => setPanelOpen(false)} />
-    </div>
+    </>
   );
 }

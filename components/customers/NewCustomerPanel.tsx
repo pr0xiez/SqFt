@@ -15,6 +15,15 @@ interface NewCustomerPanelProps {
   onClose: () => void;
 }
 
+const SOURCES = ["phone", "online", "referral", "walkin", "website"] as const;
+const SOURCE_LABELS: Record<string, string> = {
+  phone: "Phone",
+  online: "Online",
+  referral: "Referral",
+  walkin: "Walk-in",
+  website: "Website",
+};
+
 export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
   const createCustomer = useCreateCustomer();
   const { showToast } = useToast();
@@ -27,6 +36,7 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
     source: "phone",
     notes: "",
   });
+  const [alsoEstimate, setAlsoEstimate] = useState(false);
 
   function resetForm() {
     setForm({
@@ -37,17 +47,21 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
       source: "phone",
       notes: "",
     });
+    setAlsoEstimate(false);
   }
 
   async function handleSave() {
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      showToast("Name required", "Please enter a name");
+      return;
+    }
     try {
       const created = await createCustomer.mutateAsync(form);
       onClose();
       resetForm();
-      showToast(`Customer "${created.name}" added.`);
+      showToast("Customer saved", created.name);
     } catch {
-      showToast("Failed to create customer. Please try again.");
+      showToast("Failed to create customer");
     }
   }
 
@@ -58,107 +72,10 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
         onClose();
         resetForm();
       }}
-      title="New customer"
-    >
-      <div className="space-y-4">
-        {/* Source tabs */}
-        <div>
-          <p className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)] block mb-2">
-            Lead source
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              ["phone", "online", "referral", "walkin", "website"] as const
-            ).map((src) => (
-              <button
-                key={src}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, source: src }))}
-                className={cn(
-                  "min-h-[36px] px-3 font-[var(--font-mono)] text-[10px] tracking-[.02em]",
-                  "border rounded-[6px] transition-[background,border-color,color] duration-[150ms]",
-                  form.source === src
-                    ? "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)]"
-                    : "bg-[var(--surface)] border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)]"
-                )}
-              >
-                {src}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {[
-          {
-            field: "name" as const,
-            label: "Full name *",
-            type: "text",
-            required: true,
-          },
-          {
-            field: "phone" as const,
-            label: "Phone",
-            type: "tel",
-            required: false,
-          },
-          {
-            field: "email" as const,
-            label: "Email",
-            type: "email",
-            required: false,
-          },
-          {
-            field: "address" as const,
-            label: "Address",
-            type: "text",
-            required: false,
-          },
-        ].map(({ field, label, type, required }) => (
-          <div key={field} className="flex flex-col gap-1">
-            <label
-              htmlFor={field}
-              className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]"
-            >
-              {label}
-            </label>
-            <input
-              id={field}
-              type={type}
-              value={(form[field] as string) ?? ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, [field]: e.target.value }))
-              }
-              required={required}
-              className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
-            />
-          </div>
-        ))}
-
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="notes"
-            className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]"
-          >
-            Notes
-          </label>
-          <textarea
-            id="notes"
-            rows={3}
-            value={form.notes ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms] resize-none"
-          />
-        </div>
-
-        <div className="flex gap-3 pt-2">
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            disabled={!form.name.trim() || createCustomer.isPending}
-            className="flex-1 justify-center"
-          >
-            {createCustomer.isPending ? "Saving…" : "Save customer"}
-          </Button>
+      title="New Customer"
+      sub="Add a lead to start"
+      footer={
+        <>
           <Button
             onClick={() => {
               onClose();
@@ -168,7 +85,99 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
           >
             Cancel
           </Button>
+          <Button
+            variant="accent"
+            onClick={handleSave}
+            disabled={!form.name.trim() || createCustomer.isPending}
+            className="flex-1 justify-center"
+          >
+            {createCustomer.isPending ? "Saving…" : "Save"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {/* Source selector */}
+        <div className="grid grid-cols-5 gap-px bg-[var(--line)] border border-[var(--line)] rounded-[5px] overflow-hidden mb-4">
+          {SOURCES.map((src) => (
+            <button
+              key={src}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, source: src }))}
+              className={cn(
+                "py-2 px-1 font-[var(--font-mono)] text-[9px] tracking-[.04em] uppercase cursor-pointer transition-colors duration-150 border-none",
+                form.source === src
+                  ? "bg-[var(--ink)] text-[var(--bg)]"
+                  : "bg-[var(--surface)] text-[var(--muted)]"
+              )}
+            >
+              {SOURCE_LABELS[src]}
+            </button>
+          ))}
         </div>
+
+        {/* Fields */}
+        {[
+          {
+            field: "name" as const,
+            label: "Name *",
+            placeholder: "Last, F.",
+          },
+          {
+            field: "phone" as const,
+            label: "Phone",
+            placeholder: "(614) 555-...",
+          },
+          {
+            field: "email" as const,
+            label: "Email",
+            placeholder: "name@email.com",
+          },
+          {
+            field: "address" as const,
+            label: "Address",
+            placeholder: "Street, City",
+          },
+        ].map(({ field, label, placeholder }) => (
+          <div key={field} className="mb-4">
+            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+              {label}
+            </div>
+            <input
+              type="text"
+              value={(form[field] as string) ?? ""}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, [field]: e.target.value }))
+              }
+              placeholder={placeholder}
+              className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+            />
+          </div>
+        ))}
+
+        <div className="mb-4">
+          <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+            Notes
+          </div>
+          <textarea
+            rows={3}
+            value={form.notes ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 resize-none"
+          />
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={alsoEstimate}
+            onChange={(e) => setAlsoEstimate(e.target.checked)}
+            className="accent-[var(--accent)]"
+          />
+          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            Also create an estimate
+          </span>
+        </label>
       </div>
     </SlidePanel>
   );

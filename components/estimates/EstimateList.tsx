@@ -2,43 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { estTotalArea } from "@/lib/utils";
-
-const STATUS_STYLES: Record<string, string> = {
-  quote: "text-[var(--gold)]   border-[var(--gold)]/40   bg-[var(--gold)]/7",
-  scheduled:
-    "text-[var(--sage)]   border-[var(--sage)]/40   bg-[var(--sage)]/7",
-  in_progress:
-    "text-[var(--accent)] border-[var(--accent)]/40 bg-[var(--accent)]/7",
-  completed:
-    "text-[var(--ink-2)]  border-[var(--ink-2)]/30  bg-[var(--ink-2)]/5",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  quote: "Quote",
-  scheduled: "Scheduled",
-  in_progress: "In progress",
-  completed: "Completed",
-};
 
 export function EstimateListView() {
   const router = useRouter();
   const { data: estimates = [], isLoading } = useEstimates();
 
   return (
-    <div className="space-y-4">
+    <>
       {/* Header */}
-      <div className="flex items-end justify-between pb-4 border-b border-[var(--line)]">
+      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            All jobs
+            SqFt · Flooring Estimates
           </div>
-          <h1 className="font-[var(--font-display)] text-[36px] font-[700] text-[var(--ink)] leading-[1.05] tracking-[-0.025em]">
+          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Estimates
           </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-1">
+          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
             {estimates.length} estimates
           </div>
         </div>
@@ -47,106 +29,83 @@ export function EstimateListView() {
         </Button>
       </div>
 
-      {/* Column headers — desktop only */}
-      <div className="hidden md:grid grid-cols-[80px_2fr_1fr_100px_100px] gap-3 px-4 py-2 bg-[var(--surface-2)] border-b border-[var(--line)] font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
-        <span>#</span>
-        <span>Customer</span>
-        <span>Date</span>
-        <span>Status</span>
-        <span className="text-right">Area</span>
-      </div>
+      {/* Table */}
+      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
+        {/* Header row */}
+        <div className="hidden md:grid grid-cols-[80px_1fr_130px_110px_80px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            #
+          </div>
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            Customer
+          </div>
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            Area
+          </div>
+          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+            Date
+          </div>
+          <div className="px-3.5 py-2.5" />
+        </div>
 
-      {isLoading ? (
-        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
-          Loading…
-        </p>
-      ) : estimates.length === 0 ? (
-        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
-          No estimates yet. Create one from a customer record.
-        </p>
-      ) : (
-        <div className="divide-y divide-[var(--line)]">
-          {estimates.map((est) => {
+        {isLoading ? (
+          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            Loading…
+          </div>
+        ) : estimates.length === 0 ? (
+          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            No estimates yet. Create one from a customer record.
+          </div>
+        ) : (
+          estimates.map((est) => {
             const area = est.items ? estTotalArea(est.items) : 0;
-            const dateLabel = new Date(est.date).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "2-digit",
-            });
-            const statusStyle =
-              STATUS_STYLES[est.status] ?? STATUS_STYLES.quote;
-            const statusLabel = STATUS_LABELS[est.status] ?? est.status;
+            const roomCount = est.items?.filter((i) => i.type === "room").length ?? 0;
 
             return (
               <button
                 key={est.id}
                 type="button"
                 onClick={() => router.push(`/estimates/${est.id}`)}
-                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_2fr_1fr_100px_100px] gap-x-3 gap-y-0 px-4 py-3 bg-[var(--surface)] hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
+                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_130px_110px_80px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
               >
-                <span className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] hidden md:block self-center">
-                  #{est.id}
-                </span>
-
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] md:hidden">
-                        #{est.id} ·{" "}
-                      </span>
-                      <span className="font-[var(--font-display)] text-[14px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
-                        {est.customer?.name ?? "—"}
-                      </span>
-                    </div>
-                    <span
-                      className={cn(
-                        "md:hidden shrink-0 inline-block border px-2 py-0.5 rounded-[4px]",
-                        "font-[var(--font-mono)] text-[9px] uppercase tracking-[.04em]",
-                        statusStyle
-                      )}
-                    >
-                      {statusLabel}
-                    </span>
+                <div className="px-3.5 py-3.5 hidden md:block">
+                  <span className="font-[var(--font-mono)] text-[13px] font-[600]">
+                    #{est.id}
+                  </span>
+                </div>
+                <div className="px-3.5 py-3.5">
+                  <div className="text-[14px] font-[600] tracking-[-0.01em]">
+                    {est.customer?.name ?? "—"}
                   </div>
-                  {est.customer?.address && (
-                    <span className="block font-[var(--font-mono)] text-[11px] text-[var(--muted)] truncate mt-0.5">
-                      {est.customer.address}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-3 mt-1 md:hidden">
-                    <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-                      {dateLabel}
-                    </span>
-                    {area > 0 && (
-                      <span className="font-[var(--font-mono)] text-[10px] text-[var(--ink-2)]">
-                        {Math.round(area)} sf
-                      </span>
-                    )}
+                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
+                    {est.customer?.address ?? ""}
                   </div>
                 </div>
-
-                <span className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] hidden md:block self-center">
-                  {dateLabel}
-                </span>
-                <span className="hidden md:flex items-center">
-                  <span
-                    className={cn(
-                      "inline-block border px-2 py-0.5 rounded-[4px]",
-                      "font-[var(--font-mono)] text-[9px] uppercase tracking-[.04em]",
-                      statusStyle
-                    )}
-                  >
-                    {statusLabel}
+                <div className="px-3.5 py-3.5 hidden md:block">
+                  <div className="text-[13px] font-[600]">
+                    {area > 0 ? `${Math.round(area)} sqft` : "—"}
+                  </div>
+                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-px">
+                    {roomCount} room{roomCount === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <div className="px-3.5 py-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+                  {new Date(est.date).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </div>
+                <div className="px-3.5 py-3.5 hidden md:block">
+                  <span className="font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px]">
+                    Open →
                   </span>
-                </span>
-                <span className="font-[var(--font-mono)] text-[12px] text-right text-[var(--ink-2)] hidden md:block self-center">
-                  {area > 0 ? `${Math.round(area)} sf` : "—"}
-                </span>
+                </div>
               </button>
             );
-          })}
-        </div>
-      )}
-    </div>
+          })
+        )}
+      </div>
+    </>
   );
 }

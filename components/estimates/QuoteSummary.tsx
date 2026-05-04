@@ -44,68 +44,80 @@ export function QuoteSummary({ estimate, onSave }: Props) {
   }
 
   return (
-    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5 space-y-4">
-      <h2 className="font-[var(--font-display)] text-[15px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
-        Quote summary
-      </h2>
+    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden mt-3.5">
+      {/* Header */}
+      <div className="px-3.5 py-2.5 bg-[var(--surface-2)] border-b border-[var(--line)]">
+        <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
+          Quote Settings
+        </span>
+      </div>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      {/* Editable fields */}
+      <div className="grid md:grid-cols-3 gap-4 px-5 py-4">
         {[
           {
-            label: "Tax rate (%)",
+            label: "Tax rate",
             value: taxRate * 100,
             onChange: (v: number) => setTaxRate(v / 100),
+            suffix: "%",
           },
           {
-            label: "Markup (%)",
+            label: "Markup",
             value: markupPct,
             onChange: (v: number) => setMarkupPct(v),
+            suffix: "%",
           },
           {
-            label: "Deposit (%)",
+            label: "Deposit",
             value: depositPct * 100,
             onChange: (v: number) => setDepositPct(v / 100),
+            suffix: "%",
           },
-        ].map(({ label, value, onChange }) => (
-          <div key={label} className="flex flex-col gap-1">
-            <label className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
+        ].map(({ label, value, onChange, suffix }) => (
+          <div key={label}>
+            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
               {label}
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={value}
-              onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-              className="border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[6px] font-[var(--font-mono)] text-[13px] text-[var(--ink)] focus:outline-none focus:border-[var(--accent)] transition-[border-color] duration-[150ms]"
-            />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={value}
+                onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+                className="w-[60px] text-[13px] font-[600] text-center border border-[var(--line)] rounded-[4px] bg-[var(--surface)] py-1 px-1 focus:outline-none focus:border-[var(--ink-2)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                {suffix}
+              </span>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Totals */}
-      <div className="border-t border-[var(--line)] pt-4 space-y-2">
+      <div className="border-t border-[var(--line)] px-5 py-4 space-y-2.5">
         {[
           { label: "Subtotal", value: subtotal },
           { label: `Markup (${markupPct}%)`, value: markup },
           { label: `Tax (${(taxRate * 100).toFixed(1)}%)`, value: tax },
         ].map(({ label, value }) => (
           <div key={label} className="flex justify-between items-baseline">
-            <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em]">
               {label}
             </span>
-            <span className="font-[var(--font-mono)] text-[12px] text-[var(--ink-2)]">
+            <span className="font-[var(--font-mono)] text-[13px] font-[600]">
               {fmtDollar(value)}
             </span>
           </div>
         ))}
 
-        <div className="flex justify-between items-baseline pt-2 border-t border-[var(--line)]">
-          <span className="font-[var(--font-display)] text-[15px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
+        <div className="flex justify-between items-baseline pt-3 border-t border-[var(--line)]">
+          <span className="text-[15px] font-[600] tracking-[-0.01em]">
             Total
           </span>
-          <span className="font-[var(--font-display)] text-[28px] font-[700] text-[var(--ink)] tracking-[-0.025em] leading-none">
+          <span className="text-[28px] font-[700] tracking-[-0.025em] leading-none">
             {fmtDollar(total)}
           </span>
         </div>
@@ -114,12 +126,12 @@ export function QuoteSummary({ estimate, onSave }: Props) {
           <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Deposit ({(depositPct * 100).toFixed(0)}%)
           </span>
-          <span className="font-[var(--font-mono)] text-[13px] font-[500] text-[var(--sage)]">
+          <span className="font-[var(--font-mono)] text-[13px] font-[600] text-[var(--sage)]">
             {fmtDollar(deposit)}
           </span>
         </div>
 
-        <div className="flex justify-between items-baseline pt-1">
+        <div className="flex justify-between items-baseline">
           <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
             Margin
           </span>
@@ -129,9 +141,12 @@ export function QuoteSummary({ estimate, onSave }: Props) {
         </div>
       </div>
 
-      <Button variant="sage" onClick={handleSave} disabled={saving} size="sm">
-        {saving ? "Saving…" : "Save quote settings"}
-      </Button>
+      {/* Save button */}
+      <div className="px-5 py-3 border-t border-[var(--line)] bg-[var(--surface-2)]">
+        <Button variant="sage" onClick={handleSave} disabled={saving} size="sm">
+          {saving ? "Saving…" : "Save quote settings"}
+        </Button>
+      </div>
     </div>
   );
 }

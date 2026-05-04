@@ -1,5 +1,5 @@
 /**
- * Seed script — populates the database with demo data from flooring-prototype-v0_8.html
+ * Seed script — populates the database with demo data matching the SqFt prototype
  * Run with: npx prisma db seed
  */
 
@@ -41,55 +41,55 @@ async function main() {
   });
   console.log(`  ✓ User: ${user.email} / password: demo1234`);
 
-  // ── Customers (from prototype) ────────────────────────────────────────────
+  // ── Customers (matching prototype data) ───────────────────────────────────
   const customerData = [
     {
-      name: "Johnson, R.",
+      name: "Henderson, J.",
       phone: "(614) 555-0142",
-      email: "rjohnson@email.com",
-      address: "4821 Oakwood Dr, Columbus OH 43214",
+      email: "henderson@email.com",
+      address: "1247 Elm St, Columbus",
       source: "phone",
-      notes: "Wants LVP throughout main floor. Has dog.",
+      notes: "Prefers Mon mornings",
     },
     {
-      name: "Chen, M.",
-      phone: "(614) 555-0287",
-      email: "mchen@gmail.com",
-      address: "1203 Elm St, Westerville OH 43081",
+      name: "Martinez, R.",
+      phone: "(614) 555-0188",
+      email: "rmartinez@email.com",
+      address: "89 Oak Ave, Worthington",
       source: "referral",
-      notes: "Referred by Johnson. Staircase + upstairs hallway.",
+      notes: "Referred by Henderson",
     },
     {
-      name: "Williams, T.",
-      phone: "(614) 555-0391",
-      email: "twilliams@work.com",
-      address: "7734 Maple Ave, Dublin OH 43016",
+      name: "Chen, L.",
+      phone: "(614) 555-0211",
+      email: "lchen@email.com",
+      address: "142 Maple Dr, Dublin",
       source: "online",
-      notes: "Kitchen tile only. Budget conscious.",
+      notes: "Wants to start ASAP",
     },
     {
-      name: "Garcia, A.",
-      phone: "(614) 555-0455",
-      email: "agarcia@yahoo.com",
-      address: "2209 Pine Rd, Hilliard OH 43026",
+      name: "Park Family",
+      phone: "(614) 555-0307",
+      email: "parkfamily@email.com",
+      address: "218 Birch Ln, Bexley",
       source: "walkin",
-      notes: "Full basement LVP + bathroom tile.",
+      notes: "",
     },
     {
-      name: "Thompson, B.",
-      phone: "(614) 555-0518",
-      email: "bthompson@email.com",
-      address: "9901 Cedar Ln, Powell OH 43065",
+      name: "Nguyen, A.",
+      phone: "(614) 555-0421",
+      email: "",
+      address: "33 Pine Ct, Upper Arlington",
       source: "website",
-      notes: "New construction. Builder grade hardwood.",
+      notes: "New construction",
     },
     {
-      name: "Martinez, L.",
-      phone: "(614) 555-0634",
-      email: "lmartinez@gmail.com",
-      address: "3387 Birch St, Gahanna OH 43230",
-      source: "referral",
-      notes: "Whole house carpet replacement.",
+      name: "Sharma, P.",
+      phone: "(614) 555-0509",
+      email: "p.sharma@email.com",
+      address: "67 Cedar Way, Westerville",
+      source: "phone",
+      notes: "",
     },
   ];
 
@@ -104,14 +104,16 @@ async function main() {
   }
   console.log(`  ✓ ${customers.length} customers`);
 
-  // ── Estimates ─────────────────────────────────────────────────────────────
-  const est1 = await prisma.estimate.create({
+  // ── Estimates (matching prototype) ────────────────────────────────────────
+
+  // #1042 — Henderson — 3 rooms, LVP, with line items
+  const est1042 = await prisma.estimate.create({
     data: {
       orgId: org.id,
       customerId: customers[0].id,
-      status: "in_progress",
-      taxRate: 0.08,
-      markupPct: 12,
+      status: "quote",
+      taxRate: 0.075,
+      markupPct: 35,
       depositPct: 0.5,
       items: {
         create: [
@@ -121,120 +123,120 @@ async function main() {
             shape: "rect",
             w: 18,
             l: 14,
-            note: "Remove existing carpet first",
+            note: "",
             sortOrder: 0,
           },
           {
             type: "room",
-            name: "Dining Room",
+            name: "Master Bedroom",
             shape: "rect",
-            w: 13,
-            l: 11,
+            w: 15,
+            l: 13,
             note: "",
             sortOrder: 1,
           },
           {
             type: "room",
-            name: "Main Hallway",
-            shape: "rect",
-            w: 4,
-            l: 22,
-            note: "Transition strip at front door",
-            sortOrder: 2,
-          },
-          {
-            type: "room",
-            name: "Kitchen Nook",
+            name: "Hallway",
             shape: "lshape",
+            w: 12,
+            l: 4,
             lshapeData: {
-              sections: [
-                { w: 12, l: 10 },
-                { w: 6, l: 8 },
-              ],
-              deductions: [{ w: 3, l: 3, label: "Island" }],
+              sections: [{ w: 12, l: 4 }],
+              deductions: [],
             },
-            note: "Match LVP to living room",
-            sortOrder: 3,
+            note: "L-shape, narrow at door",
+            sortOrder: 2,
           },
         ],
       },
       lineItems: {
         create: [
           {
-            name: "LVP — Driftwood Oak 8mm",
-            rate: 2.85,
+            name: "LVP — Mohawk RevWood",
+            rate: 4.85,
             qtyMode: "linked",
             wastePct: 10,
-            unitLabel: "ft²",
+            unitLabel: "sqft",
             linkedRoomIds: [],
             sortOrder: 0,
           },
           {
-            name: "Underlayment 2mm",
+            name: "Underlayment — 6 mil",
             rate: 0.45,
             qtyMode: "linked",
-            wastePct: 5,
-            unitLabel: "ft²",
+            wastePct: 0,
+            unitLabel: "sqft",
             linkedRoomIds: [],
             sortOrder: 1,
           },
           {
-            name: "Demo & Haul Away",
-            rate: 0.6,
+            name: "Removal of carpet",
+            rate: 1.2,
             qtyMode: "linked",
             wastePct: 0,
-            unitLabel: "ft²",
+            unitLabel: "sqft",
             linkedRoomIds: [],
             sortOrder: 2,
           },
           {
-            name: "Transition Strips",
-            rate: 28,
+            name: "Floor prep & leveling",
+            rate: 0.65,
             qtyMode: "manual",
-            qty: 3,
-            unitLabel: "ea",
+            qty: 495,
+            unitLabel: "sqft",
             linkedRoomIds: [],
             sortOrder: 3,
           },
           {
-            name: "Installation Labor",
-            rate: 1.75,
-            qtyMode: "linked",
-            wastePct: 0,
-            unitLabel: "ft²",
+            name: "Quarter round trim",
+            rate: 2.5,
+            qtyMode: "manual",
+            qty: 180,
+            unitLabel: "lf",
             linkedRoomIds: [],
             sortOrder: 4,
+          },
+          {
+            name: "Haul away & disposal",
+            rate: 185.0,
+            qtyMode: "manual",
+            qty: 1,
+            unitLabel: "job",
+            linkedRoomIds: [],
+            sortOrder: 5,
           },
         ],
       },
     },
   });
 
-  const est2 = await prisma.estimate.create({
+  // #1043 — Sharma — Tile, 2 rooms
+  const est1043 = await prisma.estimate.create({
     data: {
       orgId: org.id,
-      customerId: customers[1].id,
-      status: "scheduled",
-      taxRate: 0.08,
-      markupPct: 10,
+      customerId: customers[5].id,
+      status: "quote",
+      taxRate: 0.075,
+      markupPct: 35,
       depositPct: 0.5,
       items: {
         create: [
           {
             type: "room",
-            name: "Staircase",
+            name: "Master Bath",
             shape: "rect",
-            w: 3,
-            l: 14,
-            note: "14 risers, bullnose needed",
+            w: 10,
+            l: 8,
+            note: "",
             sortOrder: 0,
           },
           {
             type: "room",
-            name: "Upstairs Hallway",
+            name: "Powder",
             shape: "rect",
-            w: 4,
-            l: 18,
+            w: 6,
+            l: 5,
             note: "",
             sortOrder: 1,
           },
@@ -243,46 +245,117 @@ async function main() {
     },
   });
 
-  const est3 = await prisma.estimate.create({
+  // #1044 — Park — Living + Dining, L-shape
+  const est1044 = await prisma.estimate.create({
     data: {
       orgId: org.id,
       customerId: customers[3].id,
       status: "quote",
-      taxRate: 0.08,
-      markupPct: 15,
+      taxRate: 0.075,
+      markupPct: 35,
       depositPct: 0.5,
       items: {
         create: [
           {
             type: "room",
-            name: "Basement Open Area",
+            name: "Living + Dining",
+            shape: "lshape",
+            w: 14,
+            l: 22,
+            lshapeData: {
+              sections: [{ w: 14, l: 22 }],
+              deductions: [],
+            },
+            note: "open concept",
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  // #1045 — Nguyen — empty (new lead)
+  const _est1045 = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[4].id,
+      status: "quote",
+      taxRate: 0.075,
+      markupPct: 35,
+      depositPct: 0.5,
+    },
+  });
+
+  // #1040 — Chen — Staircase
+  const est1040 = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[2].id,
+      status: "in_progress",
+      taxRate: 0.075,
+      markupPct: 35,
+      depositPct: 0.5,
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Main Staircase",
             shape: "rect",
-            w: 28,
-            l: 36,
-            note: "Below grade — check moisture first",
+            w: 14,
+            l: 3,
+            note: "13 risers · LVP wrap",
             sortOrder: 0,
           },
           {
             type: "room",
-            name: "Basement Bedroom",
+            name: "Upper Landing",
             shape: "rect",
-            w: 12,
-            l: 14,
+            w: 8,
+            l: 6,
+            note: "",
+            sortOrder: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  // #1041 — Martinez — Hardwood, 3 rooms
+  const est1041 = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[1].id,
+      status: "scheduled",
+      taxRate: 0.075,
+      markupPct: 35,
+      depositPct: 0.5,
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Living Room",
+            shape: "rect",
+            w: 20,
+            l: 16,
+            note: "Hardwood — oak select",
+            sortOrder: 0,
+          },
+          {
+            type: "room",
+            name: "Dining Room",
+            shape: "rect",
+            w: 14,
+            l: 12,
             note: "",
             sortOrder: 1,
           },
           {
             type: "room",
-            name: "Bathroom",
-            shape: "lshape",
-            lshapeData: {
-              sections: [
-                { w: 8, l: 6 },
-                { w: 4, l: 3 },
-              ],
-              deductions: [{ w: 2, l: 2, label: "Vanity" }],
-            },
-            note: "Porcelain tile, 12×24",
+            name: "Front Hall",
+            shape: "rect",
+            w: 10,
+            l: 5,
+            note: "",
             sortOrder: 2,
           },
         ],
@@ -290,18 +363,7 @@ async function main() {
     },
   });
 
-  const _est4 = await prisma.estimate.create({
-    data: {
-      orgId: org.id,
-      customerId: customers[4].id,
-      status: "completed",
-      taxRate: 0.08,
-      markupPct: 18,
-      depositPct: 0.5,
-    },
-  });
-
-  console.log(`  ✓ 4 estimates`);
+  console.log("  ✓ 6 estimates");
 
   // ── Calendar events ───────────────────────────────────────────────────────
   const today = new Date();
@@ -316,99 +378,111 @@ async function main() {
       {
         orgId: org.id,
         type: "job",
-        title: "Chen — LVP Staircase (Day 1)",
-        customerId: customers[1].id,
-        estimateId: est2.id,
+        title: "Chen Staircase · Day 2",
+        customerId: customers[2].id,
+        estimateId: est1040.id,
         date: d(0),
         startTime: "08:00",
         endTime: "16:00",
         crew: "Carlos",
-        notes: "Day 1 of 2",
+        notes: "",
       },
       {
         orgId: org.id,
         type: "job",
-        title: "Chen — LVP Staircase (Day 2)",
-        customerId: customers[1].id,
-        estimateId: est2.id,
-        date: d(1),
-        startTime: "08:00",
-        endTime: "12:00",
-        crew: "Carlos",
-        notes: "Day 2 — finish + cleanup",
-      },
-      {
-        orgId: org.id,
-        type: "visit",
-        title: "Johnson — Measure Living Room",
-        customerId: customers[0].id,
-        estimateId: est1.id,
-        date: d(1),
-        startTime: "14:00",
+        title: "Williams Tile Bath · Day 1",
+        customerId: customers[5].id,
+        estimateId: est1043.id,
+        date: d(0),
+        startTime: "08:30",
         endTime: "15:30",
-        crew: "Mike",
-        notes: "Confirm L-shape kitchen nook dims",
-      },
-      {
-        orgId: org.id,
-        type: "job",
-        title: "Johnson — LVP Install (Day 1)",
-        customerId: customers[0].id,
-        estimateId: est1.id,
-        date: d(3),
-        startTime: "07:30",
-        endTime: "17:00",
-        crew: "Carlos + Ray",
-        notes: "Materials delivered day before",
-      },
-      {
-        orgId: org.id,
-        type: "job",
-        title: "Johnson — LVP Install (Day 2)",
-        customerId: customers[0].id,
-        estimateId: est1.id,
-        date: d(4),
-        startTime: "07:30",
-        endTime: "15:00",
-        crew: "Carlos + Ray",
+        crew: "Dave",
         notes: "",
       },
       {
         orgId: org.id,
         type: "visit",
-        title: "Garcia — Basement Measure",
-        customerId: customers[3].id,
-        estimateId: est3.id,
-        date: d(2),
+        title: "Measure — Nguyen Residence",
+        customerId: customers[4].id,
+        date: d(0),
         startTime: "10:00",
         endTime: "11:00",
         crew: "Mike",
-        notes: "Bring moisture meter",
-      },
-      {
-        orgId: org.id,
-        type: "visit",
-        title: "Martinez — Initial Consultation",
-        customerId: customers[5].id,
-        date: d(5),
-        startTime: "13:00",
-        endTime: "14:00",
-        crew: "Mike",
-        notes: "Whole house carpet replacement",
+        notes: "",
       },
       {
         orgId: org.id,
         type: "other",
-        title: "Pick up materials — ProSource",
-        date: d(2),
-        startTime: "09:00",
-        endTime: "10:00",
-        crew: "Ray",
-        notes: "Order #44821",
+        title: "Showroom — Park Family",
+        customerId: customers[3].id,
+        date: d(0),
+        startTime: "14:00",
+        endTime: "15:00",
+        crew: "Sarah",
+        notes: "Material selection",
+      },
+      {
+        orgId: org.id,
+        type: "job",
+        title: "Chen Staircase · Day 3",
+        customerId: customers[2].id,
+        estimateId: est1040.id,
+        date: d(1),
+        startTime: "08:00",
+        endTime: "15:00",
+        crew: "Carlos",
+        notes: "",
+      },
+      {
+        orgId: org.id,
+        type: "job",
+        title: "Martinez HW",
+        customerId: customers[1].id,
+        estimateId: est1041.id,
+        date: d(3),
+        startTime: "08:00",
+        endTime: "16:00",
+        crew: "Carlos",
+        notes: "",
+      },
+      {
+        orgId: org.id,
+        type: "job",
+        title: "Park Living + Dining",
+        customerId: customers[3].id,
+        estimateId: est1044.id,
+        date: d(5),
+        startTime: "08:00",
+        endTime: "15:00",
+        crew: "Dave",
+        notes: "",
+      },
+      {
+        orgId: org.id,
+        type: "visit",
+        title: "Henderson follow-up",
+        customerId: customers[0].id,
+        date: d(4),
+        startTime: "10:00",
+        endTime: "11:00",
+        crew: "Mike",
+        notes: "",
+      },
+      {
+        orgId: org.id,
+        type: "job",
+        title: "Henderson — Floor install",
+        customerId: customers[0].id,
+        estimateId: est1042.id,
+        date: d(6),
+        startTime: "08:00",
+        endTime: "16:00",
+        crew: "Carlos",
+        notes: "",
       },
     ],
   });
-  console.log(`  ✓ 8 calendar events`);
+  console.log("  ✓ 9 calendar events");
 
   console.log("\n✅ Seed complete!");
   console.log("   Login: demo@sqft.app / demo1234");
