@@ -93,7 +93,7 @@ function layoutEvents(dayEvents: CalEvent[]): PlacedEvent[] {
 }
 
 export function ScheduleView() {
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
@@ -109,7 +109,10 @@ export function ScheduleView() {
   const { showToast } = useToast();
 
   const days = useMemo(
-    () => Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i)),
+    () =>
+      weekStart
+        ? Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i))
+        : [],
     [weekStart, daysToShow]
   );
 
@@ -119,6 +122,7 @@ export function ScheduleView() {
     const t = todayStr();
     setToday(t);
     setSelectedDate(t);
+    setWeekStart(getWeekStart(new Date()));
   }, []);
 
   function openNewEvent(date: string) {
@@ -143,7 +147,10 @@ export function ScheduleView() {
     return map;
   }, [events]);
 
-  const weekLabel = `Week of ${days[0]?.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${days[days.length - 1]?.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${days[days.length - 1]?.getFullYear()}`;
+  const weekLabel =
+    days.length > 0
+      ? `Week of ${days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${days[days.length - 1].toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${days[days.length - 1].getFullYear()}`
+      : "";
 
   return (
     <div>
@@ -163,7 +170,9 @@ export function ScheduleView() {
         <div className="flex gap-2">
           <Button
             size="sm"
-            onClick={() => setWeekStart((d) => addDays(d, -daysToShow))}
+            onClick={() =>
+              setWeekStart((d) => (d ? addDays(d, -daysToShow) : d))
+            }
           >
             ←
           </Button>
@@ -175,7 +184,9 @@ export function ScheduleView() {
           </Button>
           <Button
             size="sm"
-            onClick={() => setWeekStart((d) => addDays(d, daysToShow))}
+            onClick={() =>
+              setWeekStart((d) => (d ? addDays(d, daysToShow) : d))
+            }
           >
             →
           </Button>
