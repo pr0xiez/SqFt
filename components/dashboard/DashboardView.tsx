@@ -16,13 +16,6 @@ import {
   todayStr,
 } from "@/lib/utils";
 
-const STATUS_COLORS: Record<string, string> = {
-  quote: "text-[var(--gold)]",
-  scheduled: "text-[var(--sage)]",
-  in_progress: "text-[var(--accent)]",
-  completed: "text-[var(--ink-2)]",
-};
-
 function sumTotals(ests: Estimate[]): number {
   return ests.reduce((sum, e) => {
     const t = computeEstimateTotal(e);
@@ -128,7 +121,7 @@ export function DashboardView() {
   return (
     <>
       {/* Page header */}
-      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
+      <div className="flex flex-wrap items-end justify-between mb-8 gap-5">
         <div>
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
             {dateLabel}
@@ -153,7 +146,7 @@ export function DashboardView() {
       </div>
 
       {/* Alerts */}
-      <div className="flex flex-col gap-2 mb-6">
+      <div className="flex flex-col gap-2 mb-8">
         {overdueEst &&
           (() => {
             const days = Math.floor(
@@ -196,7 +189,7 @@ export function DashboardView() {
       </div>
 
       {/* Metrics strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[var(--line)] border border-[var(--line)] mb-6 rounded-lg overflow-hidden">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[var(--line)] border border-[var(--line)] mb-8 rounded-lg overflow-hidden">
         {metrics.map((m) => (
           <div
             key={m.label}
@@ -222,7 +215,7 @@ export function DashboardView() {
       </div>
 
       {/* Pipeline + Revenue row */}
-      <div className="grid md:grid-cols-[1.6fr_1fr] gap-4 mb-4">
+      <div className="grid md:grid-cols-[1.6fr_1fr] gap-6 mb-6">
         <Card title="Job Pipeline" sub="all active work">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
             {pipelineCols.map(({ status, label, ests }) => (

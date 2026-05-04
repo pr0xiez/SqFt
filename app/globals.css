@@ -116,25 +116,27 @@
 
 /* ── BASE RESET & BODY ───────────────────────────────────────────────────── */
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
 
-html {
-  scroll-behavior: smooth;
-}
+  html {
+    scroll-behavior: smooth;
+  }
 
-body {
-  font-family: var(--font-display, 'Inter Tight', system-ui, sans-serif);
-  background: var(--bg);
-  color: var(--ink);
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-  transition: background 0.25s, color 0.25s;
+  body {
+    font-family: var(--font-display, 'Inter Tight', system-ui, sans-serif);
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.25s, color 0.25s;
+  }
 }
 
 /* ── ANIMATIONS ──────────────────────────────────────────────────────────── */
@@ -169,8 +171,10 @@ body {
 
 /* ── MOBILE BOTTOM NAV BODY PADDING ─────────────────────────────────────── */
 
-@media (max-width: 767px) {
-  body {
-    padding-bottom: 56px;
+@layer base {
+  @media (max-width: 767px) {
+    body {
+      padding-bottom: 56px;
+    }
   }
 }
