@@ -7,6 +7,7 @@ export interface Estimate {
   id: number;
   orgId: string;
   customerId: number;
+  title: string;
   status: string;
   date: string;
   taxRate: number;
@@ -27,6 +28,7 @@ export interface CreateEstimateInput {
 }
 
 export interface UpdateEstimateInput {
+  title?: string;
   status?: string;
   taxRate?: number;
   markupPct?: number;

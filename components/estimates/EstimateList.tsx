@@ -76,10 +76,12 @@ export function EstimateListView() {
                 </div>
                 <div className="px-3.5 py-3.5">
                   <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                    {est.customer?.name ?? "—"}
+                    {est.title || est.customer?.name || "—"}
                   </div>
                   <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
-                    {est.customer?.address ?? ""}
+                    {est.title
+                      ? (est.customer?.name ?? "")
+                      : (est.customer?.address ?? "")}
                   </div>
                 </div>
                 <div className="px-3.5 py-3.5 hidden md:block">

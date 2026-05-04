@@ -130,9 +130,16 @@ export function ScheduleView() {
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalEvent[]> = {};
     for (const ev of events) {
-      const d = ev.date.slice(0, 10);
-      if (!map[d]) map[d] = [];
-      map[d].push(ev);
+      const start = ev.date.slice(0, 10);
+      const end = ev.endDate ? ev.endDate.slice(0, 10) : start;
+      let cur = start;
+      while (cur <= end) {
+        if (!map[cur]) map[cur] = [];
+        map[cur].push(ev);
+        const d = new Date(`${cur}T12:00:00Z`);
+        d.setUTCDate(d.getUTCDate() + 1);
+        cur = d.toISOString().slice(0, 10);
+      }
     }
     return map;
   }, [events]);
@@ -381,7 +388,7 @@ interface EventFormPanelProps {
   defaultDate: string;
   editingEvent: CalEvent | null;
   customers: { id: number; name: string }[];
-  estimates: { id: number; customerId: number | null }[];
+  estimates: { id: number; customerId: number | null; title: string }[];
   onSave: (data: CreateEventInput) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }
@@ -399,9 +406,11 @@ function EventFormPanel({
   const [type, setType] = useState<"job" | "visit" | "other">("visit");
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(defaultDate);
+  const [endDate, setEndDate] = useState(defaultDate);
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
   const [customerId, setCustomerId] = useState<number | undefined>();
+  const [estimateId, setEstimateId] = useState<number | undefined>();
   const [crew, setCrew] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -419,9 +428,11 @@ function EventFormPanel({
         type,
         title,
         date,
+        ...(endDate > date ? { endDate } : {}),
         startTime,
         endTime,
         customerId,
+        estimateId,
         crew,
         notes,
       });
@@ -506,11 +517,12 @@ function EventFormPanel({
           </div>
           <select
             value={customerId ?? ""}
-            onChange={(e) =>
+            onChange={(e) => {
               setCustomerId(
                 e.target.value ? parseInt(e.target.value, 10) : undefined
-              )
-            }
+              );
+              setEstimateId(undefined);
+            }}
             className={inputClass}
           >
             <option value="">
@@ -530,23 +542,26 @@ function EventFormPanel({
             <div className={labelClass}>
               Estimate <span className="text-[var(--accent)]">*</span>
             </div>
-            <select className={inputClass} disabled={!customerId}>
+            <select
+              value={estimateId ?? ""}
+              onChange={(e) =>
+                setEstimateId(
+                  e.target.value ? parseInt(e.target.value, 10) : undefined
+                )
+              }
+              className={inputClass}
+              disabled={!customerId}
+            >
               {!customerId ? (
-                <option value="" disabled>
-                  — Pick a customer first —
-                </option>
+                <option value="">— Pick a customer first —</option>
               ) : customerEstimates.length === 0 ? (
-                <option value="" disabled>
-                  — No estimates for this customer —
-                </option>
+                <option value="">— No estimates for this customer —</option>
               ) : (
                 <>
-                  <option value="" disabled>
-                    — Select estimate —
-                  </option>
+                  <option value="">— Select estimate —</option>
                   {customerEstimates.map((e) => (
                     <option key={e.id} value={e.id}>
-                      #{e.id}
+                      {e.title || `Estimate #${e.id}`}
                     </option>
                   ))}
                 </>
@@ -555,15 +570,30 @@ function EventFormPanel({
           </div>
         )}
 
-        {/* Date */}
-        <div className="mb-4">
-          <div className={labelClass}>Date</div>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className={inputClass}
-          />
+        {/* Date / End Date */}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div>
+            <div className={labelClass}>Start Date</div>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                if (endDate < e.target.value) setEndDate(e.target.value);
+              }}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <div className={labelClass}>End Date</div>
+            <input
+              type="date"
+              value={endDate}
+              min={date}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={inputClass}
+            />
+          </div>
         </div>
 
         {/* Start / End */}

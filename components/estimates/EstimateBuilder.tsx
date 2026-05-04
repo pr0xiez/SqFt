@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { QuoteSummary } from "@/components/estimates/QuoteSummary";
 import { RoomSection } from "@/components/estimates/RoomSection";
@@ -17,6 +18,24 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const { data: estimate, isLoading } = useEstimate(estimateId);
   const updateEstimate = useUpdateEstimate(estimateId);
   const { showToast } = useToast();
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingTitle) titleInputRef.current?.focus();
+  }, [editingTitle]);
+
+  async function saveTitle() {
+    const trimmed = titleDraft.trim();
+    setEditingTitle(false);
+    if (trimmed === (estimate?.title ?? "")) return;
+    try {
+      await updateEstimate.mutateAsync({ title: trimmed });
+    } catch {
+      showToast("Failed to save title");
+    }
+  }
 
   if (isLoading) {
     return (
@@ -54,9 +73,37 @@ export function EstimateBuilderView({ estimateId }: Props) {
               year: "numeric",
             })}
           </div>
-          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Site Measure
-          </h1>
+          {editingTitle ? (
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") titleInputRef.current?.blur();
+                if (e.key === "Escape") {
+                  setEditingTitle(false);
+                }
+              }}
+              className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em] bg-transparent border-b border-[var(--ink-2)] outline-none w-full max-w-[480px]"
+              placeholder="Untitled estimate"
+            />
+          ) : (
+            <button
+              type="button"
+              className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em] cursor-text hover:opacity-70 transition-opacity text-left"
+              onClick={() => {
+                setTitleDraft(estimate.title ?? "");
+                setEditingTitle(true);
+              }}
+              title="Click to edit title"
+            >
+              {estimate.title || (
+                <span className="text-[var(--muted)]">Untitled estimate</span>
+              )}
+            </button>
+          )}
           <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
             {rooms.length} room{rooms.length === 1 ? "" : "s"} ·{" "}
             {Math.round(totalArea)} sqft

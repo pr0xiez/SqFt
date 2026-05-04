@@ -47,6 +47,7 @@ const lineItemSchema = z.object({
 });
 
 const updateSchema = z.object({
+  title: z.string().max(200).optional(),
   status: z.enum(["quote", "scheduled", "in_progress", "completed"]).optional(),
   taxRate: z.number().min(0).max(1).optional(),
   markupPct: z.number().min(0).optional(),

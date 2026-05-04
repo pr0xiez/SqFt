@@ -6,6 +6,7 @@ import { withLogging } from "@/lib/with-logging";
 
 const createSchema = z.object({
   customerId: z.number().int().positive(),
+  title: z.string().max(200).default(""),
   taxRate: z.number().min(0).max(1).default(0.08),
   markupPct: z.number().min(0).default(0),
   depositPct: z.number().min(0).max(1).default(0.5),

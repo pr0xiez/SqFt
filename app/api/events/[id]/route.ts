@@ -13,6 +13,11 @@ const updateSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
   startTime: z
     .string()
     .regex(/^\d{2}:\d{2}$/)
@@ -42,9 +47,13 @@ export const PATCH = withLogging(
         );
       }
 
+      const { endDate, ...rest } = parsed.data;
       const data = {
-        ...parsed.data,
-        ...(parsed.data.date ? { date: new Date(parsed.data.date) } : {}),
+        ...rest,
+        ...(rest.date ? { date: new Date(rest.date) } : {}),
+        ...(endDate !== undefined
+          ? { endDate: endDate ? new Date(endDate) : null }
+          : {}),
       };
 
       await prisma.event.updateMany({

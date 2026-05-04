@@ -10,6 +10,7 @@ export interface CalEvent {
   customerId?: number | null;
   estimateId?: number | null;
   date: string; // ISO date string
+  endDate?: string | null; // ISO date string, null = same day as date
   startTime: string; // "08:00"
   endTime: string; // "17:00"
   crew?: string | null;
@@ -24,6 +25,7 @@ export interface CreateEventInput {
   customerId?: number;
   estimateId?: number;
   date: string;
+  endDate?: string;
   startTime: string;
   endTime: string;
   crew?: string;

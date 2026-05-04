@@ -60,6 +60,7 @@ model Estimate {
   org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   customerId Int
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title      String   @default("")
   status     String   @default("quote") // quote | scheduled | in_progress | completed
   date       DateTime @default(now())
   taxRate    Float    @default(0.08)
@@ -119,6 +120,7 @@ model Event {
   estimateId Int?
   estimate   Estimate? @relation(fields: [estimateId], references: [id], onDelete: SetNull)
   date       DateTime
+  endDate    DateTime?
   startTime  String   // "08:00"
   endTime    String   // "17:00"
   crew       String?
