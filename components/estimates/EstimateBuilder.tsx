@@ -8,6 +8,7 @@ import { RoomSection } from "@/components/estimates/RoomSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
+import { estTotalArea } from "@/lib/utils";
 
 interface Props {
   estimateId: number;
@@ -54,11 +55,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
   }
 
   const rooms = (estimate.items ?? []).filter((i) => i.type === "room");
-  const totalArea = rooms.reduce((s, r) => {
-    const w = typeof r.w === "number" ? r.w : parseFloat(String(r.w)) || 0;
-    const l = typeof r.l === "number" ? r.l : parseFloat(String(r.l)) || 0;
-    return s + w * l;
-  }, 0);
+  const totalArea = estTotalArea(estimate.items ?? []);
 
   return (
     <>
