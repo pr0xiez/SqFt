@@ -22,10 +22,18 @@ export default auth((req) => {
     req.nextUrl.pathname.startsWith("/onboarding");
   const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");
 
-  // Allow auth API routes through
+  // Allow auth API routes through unconditionally
   if (isApiAuth) return NextResponse.next();
 
-  // Redirect unauthenticated users to login
+  const isApiRoute = req.nextUrl.pathname.startsWith("/api/");
+
+  // API routes: return 401 rather than redirecting (non-browser clients
+  // cannot follow a login redirect).
+  if (!isAuth && isApiRoute) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Page routes: redirect unauthenticated users to login
   if (!isAuth && !isAuthRoute) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
