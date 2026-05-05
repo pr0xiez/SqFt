@@ -9,6 +9,14 @@ const localEnv = resolve(process.cwd(), ".env");
 const parentEnv = resolve(process.cwd(), "../../..", ".env");
 loadDotenv({ path: existsSync(localEnv) ? localEnv : parentEnv });
 
+// .env.test overrides DATABASE_URL (and anything else) for E2E runs.
+const localTestEnv = resolve(process.cwd(), ".env.test");
+const parentTestEnv = resolve(process.cwd(), "../../..", ".env.test");
+loadDotenv({
+  path: existsSync(localTestEnv) ? localTestEnv : parentTestEnv,
+  override: true,
+});
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
