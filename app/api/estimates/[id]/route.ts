@@ -98,37 +98,36 @@ export const PATCH = withLogging(
 
       const { items, lineItems, ...topLevel } = parsed.data;
 
-      // Update top-level fields
-      await prisma.estimate.updateMany({
-        where: { id: estimateId, orgId },
-        data: topLevel,
+      await prisma.$transaction(async (tx) => {
+        await tx.estimate.updateMany({
+          where: { id: estimateId, orgId },
+          data: topLevel,
+        });
+
+        if (items !== undefined) {
+          await tx.estimateItem.deleteMany({ where: { estimateId } });
+          if (items.length > 0) {
+            await tx.estimateItem.createMany({
+              data: items.map(({ id: _id, ...item }) => ({
+                ...item,
+                estimateId,
+              })),
+            });
+          }
+        }
+
+        if (lineItems !== undefined) {
+          await tx.lineItem.deleteMany({ where: { estimateId } });
+          if (lineItems.length > 0) {
+            await tx.lineItem.createMany({
+              data: lineItems.map(({ id: _id, ...li }) => ({
+                ...li,
+                estimateId,
+              })),
+            });
+          }
+        }
       });
-
-      // Replace items if provided (delete-and-recreate for simplicity)
-      if (items !== undefined) {
-        await prisma.estimateItem.deleteMany({ where: { estimateId } });
-        if (items.length > 0) {
-          await prisma.estimateItem.createMany({
-            data: items.map(({ id: _id, ...item }) => ({
-              ...item,
-              estimateId,
-            })),
-          });
-        }
-      }
-
-      // Replace line items if provided
-      if (lineItems !== undefined) {
-        await prisma.lineItem.deleteMany({ where: { estimateId } });
-        if (lineItems.length > 0) {
-          await prisma.lineItem.createMany({
-            data: lineItems.map(({ id: _id, ...li }) => ({
-              ...li,
-              estimateId,
-            })),
-          });
-        }
-      }
 
       return NextResponse.json({ ok: true });
     } catch (err) {
