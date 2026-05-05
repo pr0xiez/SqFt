@@ -47,7 +47,10 @@ export const POST = withLogging(async (req: NextRequest) => {
     });
 
     return NextResponse.json(estimate, { status: 201 });
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 });
