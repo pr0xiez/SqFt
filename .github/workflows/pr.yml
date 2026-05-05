@@ -59,3 +59,21 @@ jobs:
           # Replace with real GitHub Actions secrets for production builds.
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           AUTH_SECRET: ci-placeholder-not-real
+
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_TRUST_HOST: "1"
+          NEXTAUTH_URL: "http://localhost:3000"
