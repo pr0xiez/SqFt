@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -7,7 +7,7 @@ function uniqueEmail() {
 }
 
 async function apiSignup(
-  request: Parameters<Parameters<typeof test>[1]>[0]["request"],
+  request: APIRequestContext,
   email: string,
   password: string,
   name = "Test User"
