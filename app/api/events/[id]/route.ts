@@ -62,7 +62,10 @@ export const PATCH = withLogging(
       });
 
       return NextResponse.json({ ok: true });
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === "Unauthorized") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
       return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
   }
@@ -75,7 +78,10 @@ export const DELETE = withLogging(
       const { id } = await params;
       await prisma.event.deleteMany({ where: { id: parseInt(id, 10), orgId } });
       return NextResponse.json({ ok: true });
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === "Unauthorized") {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
       return NextResponse.json({ error: "Server error" }, { status: 500 });
     }
   }
