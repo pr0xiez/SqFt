@@ -176,6 +176,46 @@ describe("estTotalArea", () => {
   });
 
   it("returns 0 for empty array", () => expect(estTotalArea([])).toBe(0));
+
+  it("counts triangle rooms as half of w*l", () => {
+    const items: RoomItem[] = [
+      { id: 1, type: "room", shape: "tri", w: "10", l: "8" },
+    ];
+    expect(estTotalArea(items)).toBe(40); // 10*8/2
+  });
+
+  it("counts L-shape rooms using net section area", () => {
+    const items: RoomItem[] = [
+      {
+        id: 1,
+        type: "room",
+        shape: "lshape",
+        lshapeData: {
+          sections: [{ w: "10", l: "10" }],
+          deductions: [{ w: "3", l: "2" }],
+        },
+      },
+    ];
+    expect(estTotalArea(items)).toBe(94); // 100 - 6
+  });
+
+  it("sums mixed rect, triangle, and L-shape rooms", () => {
+    const items: RoomItem[] = [
+      { id: 1, type: "room", shape: "rect", w: "10", l: "10" }, // 100
+      { id: 2, type: "room", shape: "tri", w: "10", l: "8" }, // 40
+      {
+        id: 3,
+        type: "room",
+        shape: "lshape",
+        lshapeData: {
+          sections: [{ w: "10", l: "10" }],
+          deductions: [{ w: "3", l: "2" }],
+        },
+      }, // 94
+      { id: 4, type: "note", text: "note" }, // ignored
+    ];
+    expect(estTotalArea(items)).toBe(234); // 100 + 40 + 94
+  });
 });
 
 // ── getEffectiveQty ───────────────────────────────────────────────────────────
