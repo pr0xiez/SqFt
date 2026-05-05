@@ -226,10 +226,11 @@ export function ScheduleView() {
             const ds = dateStr(d);
             const isToday = ds === today;
             return (
-              <div
+              <button
                 key={ds}
+                type="button"
                 className={cn(
-                  "px-2.5 py-2 text-center border-l border-[var(--line)] bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-2)] transition-colors",
+                  "px-2.5 py-2 text-center border-l border-[var(--line)] bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-2)] transition-colors w-full",
                   isToday &&
                     "bg-[rgba(192,52,26,0.04)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.06)]"
                 )}
@@ -246,7 +247,7 @@ export function ScheduleView() {
                 >
                   {d.getDate()}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -287,8 +288,11 @@ export function ScheduleView() {
               const placed = layoutEvents(dayEvents);
 
               return (
+                // biome-ignore lint/a11y/useSemanticElements: contains inner <button> event chips — nested <button> is invalid HTML
                 <div
                   key={ds}
+                  role="button"
+                  tabIndex={0}
                   className={cn(
                     "relative border-l border-[var(--line)] cursor-pointer",
                     isToday &&
@@ -296,6 +300,7 @@ export function ScheduleView() {
                   )}
                   style={{ minHeight: BODY_HEIGHT }}
                   onClick={() => openNewEvent(ds)}
+                  onKeyDown={(e) => e.key === "Enter" && openNewEvent(ds)}
                 >
                   {/* Hour lines */}
                   {HOURS.map((hour) => (

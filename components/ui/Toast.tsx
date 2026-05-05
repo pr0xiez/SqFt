@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { cn } from "@/lib/cn";
@@ -73,14 +74,14 @@ interface ToastItem {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const counter = { current: 0 };
+  const counter = useRef(0);
 
   const showToast = useCallback(
     (title: string, body?: string, duration?: number) => {
       const id = ++counter.current;
       setToasts((prev) => [...prev, { id, title, body, duration }]);
     },
-    [counter]
+    []
   );
 
   const dismiss = useCallback((id: number) => {
