@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 function uniqueEmail() {
   return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
@@ -60,7 +60,7 @@ test.describe
       await ctx.close();
     });
 
-    async function login(page: Parameters<Parameters<typeof test>[1]>[0]) {
+    async function login(page: Page) {
       await page.goto("/login");
       await page.fill("#email", userEmail);
       await page.fill("#password", userPassword);
@@ -85,6 +85,7 @@ test.describe
       await page.fill("#email", userEmail);
       await page.fill("#password", userPassword);
       await page.click('button[type="submit"]');
+      await page.waitForURL("/");
 
       const custRes = await ctx.request.post("/api/customers", {
         data: { name: "Bob Builder", source: "phone" },

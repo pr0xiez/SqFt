@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const estimateFindMany = vi.fn();
 const estimateFindFirst = vi.fn();
 const estimateCreate = vi.fn();
+const txEstimateCreate = vi.fn();
 const estimateUpdateMany = vi.fn();
 const estimateDeleteMany = vi.fn();
 const estimateCount = vi.fn();
@@ -10,6 +11,8 @@ const estimateItemDeleteMany = vi.fn();
 const estimateItemCreateMany = vi.fn();
 const lineItemDeleteMany = vi.fn();
 const lineItemCreateMany = vi.fn();
+const organizationFindUnique = vi.fn();
+const organizationUpdate = vi.fn();
 
 // $transaction executes the callback with a tx object that mirrors the per-entity mocks
 const txMock = {
@@ -17,6 +20,7 @@ const txMock = {
     updateMany: estimateUpdateMany,
     count: estimateCount,
     findFirst: estimateFindFirst,
+    create: txEstimateCreate,
   },
   estimateItem: {
     deleteMany: estimateItemDeleteMany,
@@ -25,6 +29,10 @@ const txMock = {
   lineItem: {
     deleteMany: lineItemDeleteMany,
     createMany: lineItemCreateMany,
+  },
+  organization: {
+    findUnique: organizationFindUnique,
+    update: organizationUpdate,
   },
 };
 
@@ -78,12 +86,20 @@ describe("getEstimate", () => {
 // ── createEstimate ────────────────────────────────────────────────────────────
 
 describe("createEstimate", () => {
-  it("injects orgId", async () => {
-    estimateCreate.mockResolvedValue({ id: 1 });
+  it("injects orgId and assigns quoteNumber atomically", async () => {
+    organizationFindUnique.mockResolvedValue({ nextQuoteNumber: 3 });
+    organizationUpdate.mockResolvedValue({});
+    txEstimateCreate.mockResolvedValue({ id: 1, quoteNumber: 3 });
     await createEstimate("org1", { customerId: 2 });
-    expect(estimateCreate).toHaveBeenCalledWith(
+    expect(txEstimateCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ orgId: "org1" }),
+        data: expect.objectContaining({ orgId: "org1", quoteNumber: 3 }),
+      })
+    );
+    expect(organizationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "org1" },
+        data: { nextQuoteNumber: 4 },
       })
     );
   });
