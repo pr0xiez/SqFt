@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import {
+  deleteCustomer,
+  getCustomer,
+  updateCustomer,
+} from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -22,13 +26,7 @@ export const GET = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      const customer = await prisma.customer.findFirst({
-        where: { id: parseInt(id, 10), orgId },
-        include: {
-          estimates: { orderBy: { createdAt: "desc" } },
-          _count: { select: { estimates: true } },
-        },
-      });
+      const customer = await getCustomer(parseInt(id, 10), orgId);
       if (!customer)
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json(customer);
@@ -53,15 +51,14 @@ export const PATCH = withLogging(
         );
       }
 
-      const customer = await prisma.customer.updateMany({
-        where: { id: parseInt(id, 10), orgId },
-        data: parsed.data,
-      });
-
-      if (customer.count === 0)
+      const customer = await updateCustomer(
+        parseInt(id, 10),
+        orgId,
+        parsed.data
+      );
+      if (!customer)
         return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-      return NextResponse.json({ ok: true });
+      return NextResponse.json(customer);
     } catch (err) {
       if (err instanceof Error && err.message === "Unauthorized") {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -76,9 +73,7 @@ export const DELETE = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      await prisma.customer.deleteMany({
-        where: { id: parseInt(id, 10), orgId },
-      });
+      await deleteCustomer(parseInt(id, 10), orgId);
       return NextResponse.json({ ok: true });
     } catch (err) {
       if (err instanceof Error && err.message === "Unauthorized") {

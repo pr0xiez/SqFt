@@ -1,23 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    estimate: {
-      findMany: vi.fn(),
-      create: vi.fn(),
-      findFirst: vi.fn(),
-      updateMany: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    estimateItem: {
-      deleteMany: vi.fn(),
-      createMany: vi.fn(),
-    },
-    lineItem: {
-      deleteMany: vi.fn(),
-      createMany: vi.fn(),
-    },
-  },
+vi.mock("@/lib/repositories", () => ({
+  listEstimates: vi.fn(),
+  createEstimate: vi.fn(),
+  getEstimate: vi.fn(),
+  saveEstimate: vi.fn(),
+  deleteEstimate: vi.fn(),
 }));
 
 vi.mock("@/lib/tenant", () => ({
@@ -33,56 +21,101 @@ vi.mock("@/lib/logger", () => ({
   logError: vi.fn(),
 }));
 
-const { prisma } = await import("@/lib/prisma");
+const {
+  listEstimates,
+  createEstimate,
+  getEstimate,
+  saveEstimate,
+  deleteEstimate,
+} = await import("@/lib/repositories");
 const { getOrgId } = await import("@/lib/tenant");
-const { POST } = await import("@/app/api/estimates/route");
-const { PATCH, DELETE } = await import("@/app/api/estimates/[id]/route");
+const { GET: listGET, POST } = await import("@/app/api/estimates/route");
+const { GET, PATCH, DELETE } = await import("@/app/api/estimates/[id]/route");
 
 const mockGetOrgId = vi.mocked(getOrgId);
-const mockCreate = vi.mocked(prisma.estimate.create);
-const mockUpdateMany = vi.mocked(prisma.estimate.updateMany);
-const mockDeleteMany = vi.mocked(prisma.estimate.deleteMany);
+const mockListEstimates = vi.mocked(listEstimates);
+const mockCreateEstimate = vi.mocked(createEstimate);
+const mockGetEstimate = vi.mocked(getEstimate);
+const mockSaveEstimate = vi.mocked(saveEstimate);
+const mockDeleteEstimate = vi.mocked(deleteEstimate);
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+function makeParams(id: string) {
+  return { params: Promise.resolve({ id }) };
+}
 
-// ── POST /api/estimates ───────────────────────────────────────────────────────
-
-function makePostRequest(body: unknown): Request {
-  return new Request("http://localhost/api/estimates", {
-    method: "POST",
+function makeRequest(url: string, body: unknown, method = "POST"): Request {
+  return new Request(url, {
+    method,
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 }
 
-describe("POST /api/estimates", () => {
-  it("creates an estimate and returns 201", async () => {
-    const payload = { customerId: 1 };
-    const created = {
-      id: 1,
-      orgId: "org1",
-      ...payload,
-      taxRate: 0.08,
-      markupPct: 0,
-      depositPct: 0.5,
-      title: "",
-    };
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+// ── GET /api/estimates ────────────────────────────────────────────────────────
+
+describe("GET /api/estimates", () => {
+  it("returns estimate list with 200", async () => {
+    const fakeEstimates = [{ id: 1, orgId: "org1", title: "Job A" }];
     mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockCreate.mockResolvedValue(created as any);
+    mockListEstimates.mockResolvedValue(fakeEstimates as any);
 
-    const req = makePostRequest(payload);
+    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler
+    const res = await listGET(undefined as any);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(fakeEstimates);
+    expect(mockListEstimates).toHaveBeenCalledWith("org1");
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler
+    const res = await listGET(undefined as any);
+    expect(res.status).toBe(401);
+  });
+});
+
+// ── POST /api/estimates ───────────────────────────────────────────────────────
+
+describe("POST /api/estimates", () => {
+  it("creates an estimate and returns 201", async () => {
+    const payload = { customerId: 1, title: "New Job" };
+    const created = { id: 5, orgId: "org1", ...payload };
+    mockGetOrgId.mockResolvedValue("org1");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockCreateEstimate.mockResolvedValue(created as any);
+
+    const req = makeRequest("http://localhost/api/estimates", payload);
     const res = await POST(req as Parameters<typeof POST>[0]);
 
     expect(res.status).toBe(201);
+    expect(await res.json()).toEqual(created);
+    expect(mockCreateEstimate).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({ customerId: 1 })
+    );
+  });
+
+  it("returns 400 when customerId is missing", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    const req = makeRequest("http://localhost/api/estimates", {
+      title: "Oops",
+    });
+    const res = await POST(req as Parameters<typeof POST>[0]);
+    expect(res.status).toBe(400);
+    expect(mockCreateEstimate).not.toHaveBeenCalled();
   });
 
   it("returns 401 when not authenticated", async () => {
     mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
 
-    const req = makePostRequest({ customerId: 1 });
+    const req = makeRequest("http://localhost/api/estimates", {
+      customerId: 1,
+    });
     const res = await POST(req as Parameters<typeof POST>[0]);
     const data = await res.json();
 
@@ -92,33 +125,104 @@ describe("POST /api/estimates", () => {
 
   it("returns 500 when a runtime error occurs", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    mockCreate.mockRejectedValue(new Error("DB error"));
+    mockCreateEstimate.mockRejectedValue(new Error("DB error"));
 
-    const req = makePostRequest({ customerId: 1 });
+    const req = makeRequest("http://localhost/api/estimates", {
+      customerId: 1,
+    });
     const res = await POST(req as Parameters<typeof POST>[0]);
 
     expect(res.status).toBe(500);
   });
 });
 
+// ── GET /api/estimates/[id] ───────────────────────────────────────────────────
+
+describe("GET /api/estimates/[id]", () => {
+  it("returns the estimate with 200", async () => {
+    const fake = { id: 1, orgId: "org1", items: [], lineItems: [] };
+    mockGetOrgId.mockResolvedValue("org1");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockGetEstimate.mockResolvedValue(fake as any);
+
+    // biome-ignore lint/suspicious/noExplicitAny: unused req
+    const res = await GET(undefined as any, makeParams("1"));
+    expect(res.status).toBe(200);
+    expect(mockGetEstimate).toHaveBeenCalledWith(1, "org1");
+  });
+
+  it("returns 404 when not found", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockGetEstimate.mockResolvedValue(null);
+
+    // biome-ignore lint/suspicious/noExplicitAny: unused req
+    const res = await GET(undefined as any, makeParams("99"));
+    expect(res.status).toBe(404);
+  });
+});
+
 // ── PATCH /api/estimates/[id] ─────────────────────────────────────────────────
 
-function makePatchRequest(body: unknown): Request {
-  return new Request("http://localhost/api/estimates/1", {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
-const fakeParams = { params: Promise.resolve({ id: "1" }) };
-
 describe("PATCH /api/estimates/[id]", () => {
+  it("saves and returns the updated estimate", async () => {
+    const updated = {
+      id: 1,
+      orgId: "org1",
+      title: "Updated",
+      items: [],
+      lineItems: [],
+    };
+    mockGetOrgId.mockResolvedValue("org1");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockSaveEstimate.mockResolvedValue(updated as any);
+
+    const req = makeRequest(
+      "http://localhost/api/estimates/1",
+      { title: "Updated" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(updated);
+    expect(mockSaveEstimate).toHaveBeenCalledWith(
+      1,
+      "org1",
+      expect.objectContaining({ title: "Updated" })
+    );
+  });
+
+  it("returns 404 when estimate not found", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockSaveEstimate.mockResolvedValue(null);
+
+    const req = makeRequest(
+      "http://localhost/api/estimates/99",
+      { title: "Gone" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("99")
+    );
+    expect(res.status).toBe(404);
+  });
+
   it("returns 401 when not authenticated", async () => {
     mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
 
-    const req = makePatchRequest({ title: "Updated" });
-    const res = await PATCH(req as Parameters<typeof PATCH>[0], fakeParams);
+    const req = makeRequest(
+      "http://localhost/api/estimates/1",
+      { title: "Updated" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
     const data = await res.json();
 
     expect(res.status).toBe(401);
@@ -127,10 +231,17 @@ describe("PATCH /api/estimates/[id]", () => {
 
   it("returns 500 when a runtime error occurs", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    mockUpdateMany.mockRejectedValue(new Error("DB error"));
+    mockSaveEstimate.mockRejectedValue(new Error("DB error"));
 
-    const req = makePatchRequest({ title: "Updated" });
-    const res = await PATCH(req as Parameters<typeof PATCH>[0], fakeParams);
+    const req = makeRequest(
+      "http://localhost/api/estimates/1",
+      { title: "Boom" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
 
     expect(res.status).toBe(500);
   });
@@ -139,29 +250,29 @@ describe("PATCH /api/estimates/[id]", () => {
 // ── DELETE /api/estimates/[id] ────────────────────────────────────────────────
 
 describe("DELETE /api/estimates/[id]", () => {
+  it("deletes and returns ok", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockDeleteEstimate.mockResolvedValue(true);
+
+    // biome-ignore lint/suspicious/noExplicitAny: unused req
+    const res = await DELETE(undefined as any, makeParams("1"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
   it("returns 401 when not authenticated", async () => {
     mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
 
     const req = new Request("http://localhost/api/estimates/1", {
       method: "DELETE",
     });
-    const res = await DELETE(req as Parameters<typeof DELETE>[0], fakeParams);
+    const res = await DELETE(
+      req as Parameters<typeof DELETE>[0],
+      makeParams("1")
+    );
     const data = await res.json();
 
     expect(res.status).toBe(401);
     expect(data).toEqual({ error: "Unauthorized" });
-  });
-
-  it("returns 200 when authenticated", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockDeleteMany.mockResolvedValue({ count: 1 } as any);
-
-    const req = new Request("http://localhost/api/estimates/1", {
-      method: "DELETE",
-    });
-    const res = await DELETE(req as Parameters<typeof DELETE>[0], fakeParams);
-
-    expect(res.status).toBe(200);
   });
 });

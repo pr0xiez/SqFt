@@ -16,6 +16,10 @@ vi.mock("@/lib/with-logging", () => ({
   withLogging: (fn: any) => fn,
 }));
 
+vi.mock("@/lib/logger", () => ({
+  logError: vi.fn(),
+}));
+
 const { prisma } = await import("@/lib/prisma");
 const { getOrgId } = await import("@/lib/tenant");
 const { GET, PATCH } = await import("@/app/api/estimates/[id]/route");
@@ -23,8 +27,20 @@ const { GET, PATCH } = await import("@/app/api/estimates/[id]/route");
 const mockGetOrgId = vi.mocked(getOrgId);
 const mockTransaction = vi.mocked(prisma.$transaction);
 
+const fakeEstimate = {
+  id: 5,
+  orgId: "org1",
+  title: "Updated",
+  items: [],
+  lineItems: [],
+};
+
 const mockTx = {
-  estimate: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+  estimate: {
+    updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    count: vi.fn().mockResolvedValue(1),
+    findFirst: vi.fn().mockResolvedValue(fakeEstimate),
+  },
   estimateItem: {
     deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     createMany: vi.fn().mockResolvedValue({ count: 0 }),
@@ -94,7 +110,7 @@ describe("PATCH /api/estimates/[id]", () => {
     const data = await res.json();
 
     expect(res.status).toBe(200);
-    expect(data).toEqual({ ok: true });
+    expect(data).toMatchObject({ id: 5, orgId: "org1" });
 
     expect(mockTransaction).toHaveBeenCalledOnce();
     expect(mockTx.estimate.updateMany).toHaveBeenCalledWith(

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { createEvent, listEvents } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -23,13 +23,7 @@ const createSchema = z.object({
 export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
-    const events = await prisma.event.findMany({
-      where: { orgId },
-      orderBy: [{ date: "asc" }, { startTime: "asc" }],
-      include: {
-        customer: { select: { id: true, name: true, address: true } },
-      },
-    });
+    const events = await listEvents(orgId);
     return NextResponse.json(events);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,13 +44,10 @@ export const POST = withLogging(async (req: NextRequest) => {
     }
 
     const { endDate, ...rest } = parsed.data;
-    const event = await prisma.event.create({
-      data: {
-        ...rest,
-        date: new Date(rest.date),
-        ...(endDate ? { endDate: new Date(endDate) } : {}),
-        orgId,
-      },
+    const event = await createEvent(orgId, {
+      ...rest,
+      date: new Date(rest.date),
+      ...(endDate ? { endDate: new Date(endDate) } : {}),
     });
 
     return NextResponse.json(event, { status: 201 });

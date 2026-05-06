@@ -1,13 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock dependencies before importing the route
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    customer: {
-      findMany: vi.fn(),
-      create: vi.fn(),
-    },
-  },
+vi.mock("@/lib/repositories", () => ({
+  listCustomers: vi.fn(),
+  createCustomer: vi.fn(),
 }));
 
 vi.mock("@/lib/tenant", () => ({
@@ -19,14 +14,13 @@ vi.mock("@/lib/with-logging", () => ({
   withLogging: (fn: any) => fn,
 }));
 
-// Defer imports so mocks are in place first
-const { prisma } = await import("@/lib/prisma");
+const { listCustomers, createCustomer } = await import("@/lib/repositories");
 const { getOrgId } = await import("@/lib/tenant");
 const { GET, POST } = await import("@/app/api/customers/route");
 
 const mockGetOrgId = vi.mocked(getOrgId);
-const mockFindMany = vi.mocked(prisma.customer.findMany);
-const mockCreate = vi.mocked(prisma.customer.create);
+const mockListCustomers = vi.mocked(listCustomers);
+const mockCreateCustomer = vi.mocked(createCustomer);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,11 +31,11 @@ beforeEach(() => {
 describe("GET /api/customers", () => {
   it("returns customer list with 200", async () => {
     const fakeCustomers = [
-      { id: "1", name: "Alice", orgId: "org1", _count: { estimates: 2 } },
+      { id: 1, name: "Alice", orgId: "org1", _count: { estimates: 2 } },
     ];
     mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockFindMany.mockResolvedValue(fakeCustomers as any);
+    mockListCustomers.mockResolvedValue(fakeCustomers as any);
 
     // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler, req unused
     const res = await GET(undefined as any);
@@ -49,9 +43,7 @@ describe("GET /api/customers", () => {
 
     expect(res.status).toBe(200);
     expect(data).toEqual(fakeCustomers);
-    expect(mockFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { orgId: "org1" } })
-    );
+    expect(mockListCustomers).toHaveBeenCalledWith("org1");
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -79,10 +71,10 @@ function makeRequest(body: unknown): Request {
 describe("POST /api/customers", () => {
   it("creates a customer and returns 201", async () => {
     const payload = { name: "Bob", phone: "555-1234", source: "phone" };
-    const created = { id: "c1", orgId: "org1", ...payload };
+    const created = { id: 1, orgId: "org1", ...payload };
     mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockCreate.mockResolvedValue(created as any);
+    mockCreateCustomer.mockResolvedValue(created as any);
 
     const req = makeRequest(payload);
     const res = await POST(req as Parameters<typeof POST>[0]);
@@ -90,10 +82,9 @@ describe("POST /api/customers", () => {
 
     expect(res.status).toBe(201);
     expect(data).toEqual(created);
-    expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ orgId: "org1", name: "Bob" }),
-      })
+    expect(mockCreateCustomer).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({ name: "Bob" })
     );
   });
 
@@ -106,7 +97,7 @@ describe("POST /api/customers", () => {
 
     expect(res.status).toBe(400);
     expect(data.error).toBeDefined();
-    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockCreateCustomer).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid email", async () => {
@@ -120,7 +111,7 @@ describe("POST /api/customers", () => {
     const res = await POST(req as Parameters<typeof POST>[0]);
 
     expect(res.status).toBe(400);
-    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockCreateCustomer).not.toHaveBeenCalled();
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -136,7 +127,7 @@ describe("POST /api/customers", () => {
 
   it("returns 500 when a runtime error occurs", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    mockCreate.mockRejectedValue(new Error("DB connection failed"));
+    mockCreateCustomer.mockRejectedValue(new Error("DB connection failed"));
 
     const req = makeRequest({ name: "Dave", source: "referral" });
     const res = await POST(req as Parameters<typeof POST>[0]);

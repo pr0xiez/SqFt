@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logError } from "@/lib/logger";
-import { prisma } from "@/lib/prisma";
+import { deleteEstimate, getEstimate, saveEstimate } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -63,14 +63,7 @@ export const GET = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      const estimate = await prisma.estimate.findFirst({
-        where: { id: parseInt(id, 10), orgId },
-        include: {
-          customer: true,
-          items: { orderBy: { sortOrder: "asc" } },
-          lineItems: { orderBy: { sortOrder: "asc" } },
-        },
-      });
+      const estimate = await getEstimate(parseInt(id, 10), orgId);
       if (!estimate)
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json(estimate);
@@ -85,7 +78,6 @@ export const PATCH = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      const estimateId = parseInt(id, 10);
       const body = await req.json();
       const parsed = updateSchema.safeParse(body);
 
@@ -96,40 +88,10 @@ export const PATCH = withLogging(
         );
       }
 
-      const { items, lineItems, ...topLevel } = parsed.data;
-
-      await prisma.$transaction(async (tx) => {
-        await tx.estimate.updateMany({
-          where: { id: estimateId, orgId },
-          data: topLevel,
-        });
-
-        if (items !== undefined) {
-          await tx.estimateItem.deleteMany({ where: { estimateId } });
-          if (items.length > 0) {
-            await tx.estimateItem.createMany({
-              data: items.map(({ id: _id, ...item }) => ({
-                ...item,
-                estimateId,
-              })),
-            });
-          }
-        }
-
-        if (lineItems !== undefined) {
-          await tx.lineItem.deleteMany({ where: { estimateId } });
-          if (lineItems.length > 0) {
-            await tx.lineItem.createMany({
-              data: lineItems.map(({ id: _id, ...li }) => ({
-                ...li,
-                estimateId,
-              })),
-            });
-          }
-        }
-      });
-
-      return NextResponse.json({ ok: true });
+      const estimate = await saveEstimate(parseInt(id, 10), orgId, parsed.data);
+      if (!estimate)
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json(estimate);
     } catch (err) {
       if (err instanceof Error && err.message === "Unauthorized") {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -148,9 +110,7 @@ export const DELETE = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      await prisma.estimate.deleteMany({
-        where: { id: parseInt(id, 10), orgId },
-      });
+      await deleteEstimate(parseInt(id, 10), orgId);
       return NextResponse.json({ ok: true });
     } catch (err) {
       if (err instanceof Error && err.message === "Unauthorized") {
