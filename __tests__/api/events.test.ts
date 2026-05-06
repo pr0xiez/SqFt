@@ -71,15 +71,15 @@ describe("GET /api/events", () => {
 
 // ── POST /api/events ──────────────────────────────────────────────────────────
 
-describe("POST /api/events", () => {
-  const validPayload = {
-    type: "job",
-    title: "Install day",
-    date: "2026-06-01",
-    startTime: "08:00",
-    endTime: "17:00",
-  };
+const validPayload = {
+  type: "job",
+  title: "Install day",
+  date: "2026-06-01",
+  startTime: "08:00",
+  endTime: "17:00",
+};
 
+describe("POST /api/events", () => {
   it("creates an event and returns 201", async () => {
     const created = { id: 3, orgId: "org1", ...validPayload };
     mockGetOrgId.mockResolvedValue("org1");
@@ -107,6 +107,27 @@ describe("POST /api/events", () => {
     const res = await POST(req as Parameters<typeof POST>[0]);
     expect(res.status).toBe(400);
     expect(mockCreateEvent).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+
+    const req = makeRequest("http://localhost/api/events", validPayload);
+    const res = await POST(req as Parameters<typeof POST>[0]);
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
+  });
+
+  it("returns 500 when a runtime error occurs", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockCreateEvent.mockRejectedValue(new Error("DB error"));
+
+    const req = makeRequest("http://localhost/api/events", validPayload);
+    const res = await POST(req as Parameters<typeof POST>[0]);
+
+    expect(res.status).toBe(500);
   });
 });
 
@@ -153,6 +174,41 @@ describe("PATCH /api/events/[id]", () => {
     );
     expect(res.status).toBe(404);
   });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+
+    const req = makeRequest(
+      "http://localhost/api/events/1",
+      { title: "Updated" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
+  });
+
+  it("returns 500 when a runtime error occurs", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockUpdateEvent.mockRejectedValue(new Error("DB error"));
+
+    const req = makeRequest(
+      "http://localhost/api/events/1",
+      { title: "Boom" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
+
+    expect(res.status).toBe(500);
+  });
 });
 
 // ── DELETE /api/events/[id] ───────────────────────────────────────────────────
@@ -166,5 +222,21 @@ describe("DELETE /api/events/[id]", () => {
     const res = await DELETE(undefined as any, makeParams("1"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
+  });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+
+    const req = new Request("http://localhost/api/events/1", {
+      method: "DELETE",
+    });
+    const res = await DELETE(
+      req as Parameters<typeof DELETE>[0],
+      makeParams("1")
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
   });
 });

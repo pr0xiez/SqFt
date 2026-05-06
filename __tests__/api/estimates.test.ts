@@ -109,6 +109,31 @@ describe("POST /api/estimates", () => {
     expect(res.status).toBe(400);
     expect(mockCreateEstimate).not.toHaveBeenCalled();
   });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+
+    const req = makeRequest("http://localhost/api/estimates", {
+      customerId: 1,
+    });
+    const res = await POST(req as Parameters<typeof POST>[0]);
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
+  });
+
+  it("returns 500 when a runtime error occurs", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockCreateEstimate.mockRejectedValue(new Error("DB error"));
+
+    const req = makeRequest("http://localhost/api/estimates", {
+      customerId: 1,
+    });
+    const res = await POST(req as Parameters<typeof POST>[0]);
+
+    expect(res.status).toBe(500);
+  });
 });
 
 // ── GET /api/estimates/[id] ───────────────────────────────────────────────────
@@ -185,6 +210,41 @@ describe("PATCH /api/estimates/[id]", () => {
     );
     expect(res.status).toBe(404);
   });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+
+    const req = makeRequest(
+      "http://localhost/api/estimates/1",
+      { title: "Updated" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
+  });
+
+  it("returns 500 when a runtime error occurs", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockSaveEstimate.mockRejectedValue(new Error("DB error"));
+
+    const req = makeRequest(
+      "http://localhost/api/estimates/1",
+      { title: "Boom" },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
+
+    expect(res.status).toBe(500);
+  });
 });
 
 // ── DELETE /api/estimates/[id] ────────────────────────────────────────────────
@@ -198,5 +258,21 @@ describe("DELETE /api/estimates/[id]", () => {
     const res = await DELETE(undefined as any, makeParams("1"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
+  });
+
+  it("returns 401 when not authenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+
+    const req = new Request("http://localhost/api/estimates/1", {
+      method: "DELETE",
+    });
+    const res = await DELETE(
+      req as Parameters<typeof DELETE>[0],
+      makeParams("1")
+    );
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
   });
 });

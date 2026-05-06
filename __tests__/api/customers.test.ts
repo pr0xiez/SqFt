@@ -114,8 +114,20 @@ describe("POST /api/customers", () => {
     expect(mockCreateCustomer).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when getOrgId throws", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Session error"));
+  it("returns 401 when not authenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+
+    const req = makeRequest({ name: "Dave", source: "referral" });
+    const res = await POST(req as Parameters<typeof POST>[0]);
+    const data = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(data).toEqual({ error: "Unauthorized" });
+  });
+
+  it("returns 500 when a runtime error occurs", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockCreateCustomer.mockRejectedValue(new Error("DB connection failed"));
 
     const req = makeRequest({ name: "Dave", source: "referral" });
     const res = await POST(req as Parameters<typeof POST>[0]);
