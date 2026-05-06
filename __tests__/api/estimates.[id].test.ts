@@ -27,7 +27,13 @@ const { GET, PATCH } = await import("@/app/api/estimates/[id]/route");
 const mockGetOrgId = vi.mocked(getOrgId);
 const mockTransaction = vi.mocked(prisma.$transaction);
 
-const fakeEstimate = { id: 5, orgId: "org1", title: "Updated", items: [], lineItems: [] };
+const fakeEstimate = {
+  id: 5,
+  orgId: "org1",
+  title: "Updated",
+  items: [],
+  lineItems: [],
+};
 
 const mockTx = {
   estimate: {
