@@ -1,4 +1,4 @@
-import { type Page, expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 function uniqueEmail() {
   return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
