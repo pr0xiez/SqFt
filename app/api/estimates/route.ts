@@ -42,8 +42,19 @@ export const POST = withLogging(async (req: NextRequest) => {
       );
     }
 
-    const estimate = await prisma.estimate.create({
-      data: { ...parsed.data, orgId },
+    const estimate = await prisma.$transaction(async (tx) => {
+      const org = await tx.organization.findUnique({
+        where: { id: orgId },
+        select: { nextQuoteNumber: true },
+      });
+      const quoteNumber = org?.nextQuoteNumber ?? 1;
+      await tx.organization.update({
+        where: { id: orgId },
+        data: { nextQuoteNumber: quoteNumber + 1 },
+      });
+      return tx.estimate.create({
+        data: { ...parsed.data, orgId, quoteNumber },
+      });
     });
 
     return NextResponse.json(estimate, { status: 201 });

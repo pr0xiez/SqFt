@@ -13,11 +13,16 @@ datasource db {
 // ── TENANCY ─────────────────────────────────────────────────────────────────
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  plan      String   @default("free") // free | pro
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  plan            String   @default("free") // free | pro
+  phone           String?
+  address         String?
+  licenseNumber   String?
+  logo            String?
+  nextQuoteNumber Int      @default(1)
+  createdAt       DateTime @default(now())
 
   users     User[]
   customers Customer[]
@@ -55,18 +60,19 @@ model Customer {
 }
 
 model Estimate {
-  id         Int      @id @default(autoincrement())
-  orgId      String
-  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  customerId Int
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  title      String   @default("")
-  status     String   @default("quote") // quote | scheduled | in_progress | completed
-  date       DateTime @default(now())
-  taxRate    Float    @default(0.08)
-  markupPct  Float    @default(0)
-  depositPct Float    @default(0.50)
-  createdAt  DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId  Int
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title       String   @default("")
+  status      String   @default("quote") // quote | scheduled | in_progress | completed
+  quoteNumber Int?
+  date        DateTime @default(now())
+  taxRate     Float    @default(0.08)
+  markupPct   Float    @default(0)
+  depositPct  Float    @default(0.50)
+  createdAt   DateTime @default(now())
 
   items     EstimateItem[]
   lineItems LineItem[]

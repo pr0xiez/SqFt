@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
@@ -8,7 +9,12 @@ import { RoomSection } from "@/components/estimates/RoomSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
+import { useOrg } from "@/lib/hooks/useOrg";
 import { estTotalArea } from "@/lib/utils";
+
+const PdfModal = dynamic(() => import("@/components/estimates/PdfModal"), {
+  ssr: false,
+});
 
 interface Props {
   estimateId: number;
@@ -17,11 +23,29 @@ interface Props {
 export function EstimateBuilderView({ estimateId }: Props) {
   const router = useRouter();
   const { data: estimate, isLoading } = useEstimate(estimateId);
+  const { data: org } = useOrg();
   const updateEstimate = useUpdateEstimate(estimateId);
   const { showToast } = useToast();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        actionsRef.current &&
+        !actionsRef.current.contains(e.target as Node)
+      ) {
+        setActionsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [actionsOpen]);
 
   useEffect(() => {
     if (editingTitle) titleInputRef.current?.focus();
@@ -110,9 +134,26 @@ export function EstimateBuilderView({ estimateId }: Props) {
           <Button onClick={() => router.push("/estimates")}>
             ← All estimates
           </Button>
-          <Button variant="primary" onClick={() => {}}>
-            Quote builder →
-          </Button>
+          <div className="relative" ref={actionsRef}>
+            <Button variant="primary" onClick={() => setActionsOpen((o) => !o)}>
+              Actions ▾
+            </Button>
+            {actionsOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[160px] py-1">
+                <button
+                  type="button"
+                  className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    setPdfModalOpen(true);
+                    setActionsOpen(false);
+                  }}
+                  disabled={!org}
+                >
+                  Download PDF
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -177,6 +218,16 @@ export function EstimateBuilderView({ estimateId }: Props) {
           }
         }}
       />
+
+      {/* PDF modal */}
+      {org && (
+        <PdfModal
+          open={pdfModalOpen}
+          onClose={() => setPdfModalOpen(false)}
+          estimate={estimate}
+          org={org}
+        />
+      )}
     </>
   );
 }

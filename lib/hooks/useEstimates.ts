@@ -9,6 +9,7 @@ export interface Estimate {
   customerId: number;
   title: string;
   status: string;
+  quoteNumber?: number | null;
   date: string;
   taxRate: number;
   markupPct: number;
