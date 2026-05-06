@@ -65,9 +65,20 @@ export async function getEstimate(
 
 export async function createEstimate(
   orgId: string,
-  data: Omit<Prisma.EstimateUncheckedCreateInput, "orgId">
+  data: Omit<Prisma.EstimateUncheckedCreateInput, "orgId" | "quoteNumber">
 ) {
-  return prisma.estimate.create({ data: { ...data, orgId } });
+  return prisma.$transaction(async (tx) => {
+    const org = await tx.organization.findUnique({
+      where: { id: orgId },
+      select: { nextQuoteNumber: true },
+    });
+    const quoteNumber = org?.nextQuoteNumber ?? 1;
+    await tx.organization.update({
+      where: { id: orgId },
+      data: { nextQuoteNumber: quoteNumber + 1 },
+    });
+    return tx.estimate.create({ data: { ...data, orgId, quoteNumber } });
+  });
 }
 
 export async function saveEstimate(
