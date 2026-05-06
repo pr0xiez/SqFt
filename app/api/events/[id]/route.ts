@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { deleteEvent, updateEvent } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -56,12 +56,10 @@ export const PATCH = withLogging(
           : {}),
       };
 
-      await prisma.event.updateMany({
-        where: { id: parseInt(id, 10), orgId },
-        data,
-      });
-
-      return NextResponse.json({ ok: true });
+      const event = await updateEvent(parseInt(id, 10), orgId, data);
+      if (!event)
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json(event);
     } catch (err) {
       if (err instanceof Error && err.message === "Unauthorized") {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -76,7 +74,7 @@ export const DELETE = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      await prisma.event.deleteMany({ where: { id: parseInt(id, 10), orgId } });
+      await deleteEvent(parseInt(id, 10), orgId);
       return NextResponse.json({ ok: true });
     } catch (err) {
       if (err instanceof Error && err.message === "Unauthorized") {

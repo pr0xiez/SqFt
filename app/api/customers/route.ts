@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { createCustomer, listCustomers } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -18,11 +18,7 @@ const createSchema = z.object({
 export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
-    const customers = await prisma.customer.findMany({
-      where: { orgId },
-      orderBy: { createdAt: "desc" },
-      include: { _count: { select: { estimates: true } } },
-    });
+    const customers = await listCustomers(orgId);
     return NextResponse.json(customers);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,10 +38,7 @@ export const POST = withLogging(async (req: NextRequest) => {
       );
     }
 
-    const customer = await prisma.customer.create({
-      data: { ...parsed.data, orgId },
-    });
-
+    const customer = await createCustomer(orgId, parsed.data);
     return NextResponse.json(customer, { status: 201 });
   } catch (err) {
     if (err instanceof Error && err.message === "Unauthorized") {

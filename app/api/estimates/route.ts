@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { createEstimate, listEstimates } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -15,14 +15,7 @@ const createSchema = z.object({
 export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
-    const estimates = await prisma.estimate.findMany({
-      where: { orgId },
-      orderBy: { createdAt: "desc" },
-      include: {
-        customer: { select: { id: true, name: true, address: true } },
-        _count: { select: { items: true } },
-      },
-    });
+    const estimates = await listEstimates(orgId);
     return NextResponse.json(estimates);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,21 +35,7 @@ export const POST = withLogging(async (req: NextRequest) => {
       );
     }
 
-    const estimate = await prisma.$transaction(async (tx) => {
-      const org = await tx.organization.findUnique({
-        where: { id: orgId },
-        select: { nextQuoteNumber: true },
-      });
-      const quoteNumber = org?.nextQuoteNumber ?? 1;
-      await tx.organization.update({
-        where: { id: orgId },
-        data: { nextQuoteNumber: quoteNumber + 1 },
-      });
-      return tx.estimate.create({
-        data: { ...parsed.data, orgId, quoteNumber },
-      });
-    });
-
+    const estimate = await createEstimate(orgId, parsed.data);
     return NextResponse.json(estimate, { status: 201 });
   } catch (err) {
     if (err instanceof Error && err.message === "Unauthorized") {
