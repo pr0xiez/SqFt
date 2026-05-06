@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logError } from "@/lib/logger";
-import { prisma } from "@/lib/prisma";
+import { deleteEstimate, getEstimate, saveEstimate } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -63,14 +63,7 @@ export const GET = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      const estimate = await prisma.estimate.findFirst({
-        where: { id: parseInt(id, 10), orgId },
-        include: {
-          customer: true,
-          items: { orderBy: { sortOrder: "asc" } },
-          lineItems: { orderBy: { sortOrder: "asc" } },
-        },
-      });
+      const estimate = await getEstimate(parseInt(id, 10), orgId);
       if (!estimate)
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json(estimate);
@@ -85,7 +78,6 @@ export const PATCH = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      const estimateId = parseInt(id, 10);
       const body = await req.json();
       const parsed = updateSchema.safeParse(body);
 
@@ -96,41 +88,10 @@ export const PATCH = withLogging(
         );
       }
 
-      const { items, lineItems, ...topLevel } = parsed.data;
-
-      // Update top-level fields
-      await prisma.estimate.updateMany({
-        where: { id: estimateId, orgId },
-        data: topLevel,
-      });
-
-      // Replace items if provided (delete-and-recreate for simplicity)
-      if (items !== undefined) {
-        await prisma.estimateItem.deleteMany({ where: { estimateId } });
-        if (items.length > 0) {
-          await prisma.estimateItem.createMany({
-            data: items.map(({ id: _id, ...item }) => ({
-              ...item,
-              estimateId,
-            })),
-          });
-        }
-      }
-
-      // Replace line items if provided
-      if (lineItems !== undefined) {
-        await prisma.lineItem.deleteMany({ where: { estimateId } });
-        if (lineItems.length > 0) {
-          await prisma.lineItem.createMany({
-            data: lineItems.map(({ id: _id, ...li }) => ({
-              ...li,
-              estimateId,
-            })),
-          });
-        }
-      }
-
-      return NextResponse.json({ ok: true });
+      const estimate = await saveEstimate(parseInt(id, 10), orgId, parsed.data);
+      if (!estimate)
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json(estimate);
     } catch (err) {
       logError({
         errorMessage: err instanceof Error ? err.message : "Unknown error",
@@ -146,9 +107,7 @@ export const DELETE = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      await prisma.estimate.deleteMany({
-        where: { id: parseInt(id, 10), orgId },
-      });
+      await deleteEstimate(parseInt(id, 10), orgId);
       return NextResponse.json({ ok: true });
     } catch {
       return NextResponse.json({ error: "Server error" }, { status: 500 });
