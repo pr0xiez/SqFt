@@ -14,6 +14,7 @@ export interface Estimate {
   taxRate: number;
   markupPct: number;
   depositPct: number;
+  approvalToken?: string | null;
   createdAt: string;
   customer?: { id: number; name: string; address?: string | null };
   items?: RoomItem[];
@@ -96,6 +97,20 @@ export function useUpdateEstimate(id: number) {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["estimates", id] });
     },
+  });
+}
+
+export function useRotateApprovalToken(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<{ approvalToken: string }> => {
+      const res = await fetch(`/api/estimates/${id}/approval-token`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to generate approval token");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["estimates", id] }),
   });
 }
 

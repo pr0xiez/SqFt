@@ -8,7 +8,11 @@ import { QuoteSummary } from "@/components/estimates/QuoteSummary";
 import { RoomSection } from "@/components/estimates/RoomSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
+import {
+  useEstimate,
+  useRotateApprovalToken,
+  useUpdateEstimate,
+} from "@/lib/hooks/useEstimates";
 import { useOrg } from "@/lib/hooks/useOrg";
 import { estTotalArea } from "@/lib/utils";
 
@@ -25,6 +29,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const { data: estimate, isLoading } = useEstimate(estimateId);
   const { data: org } = useOrg();
   const updateEstimate = useUpdateEstimate(estimateId);
+  const rotateToken = useRotateApprovalToken(estimateId);
   const { showToast } = useToast();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -50,6 +55,22 @@ export function EstimateBuilderView({ estimateId }: Props) {
   useEffect(() => {
     if (editingTitle) titleInputRef.current?.focus();
   }, [editingTitle]);
+
+  async function copyShareLink(forceNew: boolean) {
+    setActionsOpen(false);
+    try {
+      let token = estimate?.approvalToken ?? null;
+      if (!token || forceNew) {
+        const res = await rotateToken.mutateAsync();
+        token = res.approvalToken;
+      }
+      const url = `${window.location.origin}/q/${token}`;
+      await navigator.clipboard.writeText(url);
+      showToast(forceNew ? "New link copied" : "Link copied");
+    } catch {
+      showToast("Failed to generate link");
+    }
+  }
 
   async function saveTitle() {
     const trimmed = titleDraft.trim();
@@ -151,6 +172,26 @@ export function EstimateBuilderView({ estimateId }: Props) {
                 >
                   Download PDF
                 </button>
+                <button
+                  type="button"
+                  className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={() => copyShareLink(false)}
+                  disabled={rotateToken.isPending}
+                >
+                  {estimate.approvalToken
+                    ? "Copy share link"
+                    : "Create share link"}
+                </button>
+                {estimate.approvalToken ? (
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => copyShareLink(true)}
+                    disabled={rotateToken.isPending}
+                  >
+                    Regenerate link
+                  </button>
+                ) : null}
               </div>
             )}
           </div>

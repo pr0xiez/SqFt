@@ -1,5 +1,10 @@
+import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+
+function generateToken(): string {
+  return randomBytes(32).toString("base64url");
+}
 
 export type EstimateWithCustomerAndCount = Prisma.EstimateGetPayload<{
   include: {
@@ -141,4 +146,55 @@ export async function deleteEstimate(
 ): Promise<boolean> {
   const result = await prisma.estimate.deleteMany({ where: { id, orgId } });
   return result.count > 0;
+}
+
+/**
+ * Generate (or rotate) the public approval token for an estimate.
+ * Returns the new token, or null if the estimate isn't found in the org.
+ */
+export async function rotateApprovalToken(
+  id: number,
+  orgId: string
+): Promise<string | null> {
+  const token = generateToken();
+  const result = await prisma.estimate.updateMany({
+    where: { id, orgId },
+    data: { approvalToken: token },
+  });
+  return result.count > 0 ? token : null;
+}
+
+/**
+ * Look up an estimate by its public approval token (no org scoping —
+ * the token itself authorizes access). Returns null on miss.
+ */
+export async function getEstimateByToken(token: string): Promise<
+  | (EstimateWithDetails & {
+      org: {
+        name: string;
+        phone: string | null;
+        address: string | null;
+        licenseNumber: string | null;
+        logo: string | null;
+      };
+    })
+  | null
+> {
+  return prisma.estimate.findUnique({
+    where: { approvalToken: token },
+    include: {
+      customer: true,
+      items: { orderBy: { sortOrder: "asc" } },
+      lineItems: { orderBy: { sortOrder: "asc" } },
+      org: {
+        select: {
+          name: true,
+          phone: true,
+          address: true,
+          licenseNumber: true,
+          logo: true,
+        },
+      },
+    },
+  });
 }

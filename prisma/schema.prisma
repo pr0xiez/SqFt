@@ -72,6 +72,7 @@ model Estimate {
   taxRate     Float    @default(0.08)
   markupPct   Float    @default(0)
   depositPct  Float    @default(0.50)
+  approvalToken String? @unique
   createdAt   DateTime @default(now())
 
   items     EstimateItem[]
