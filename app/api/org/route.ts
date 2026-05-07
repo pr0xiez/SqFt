@@ -15,6 +15,7 @@ export const GET = withLogging(async () => {
         address: true,
         licenseNumber: true,
         logo: true,
+        invoicePrefix: true,
       },
     });
     if (!org) return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -114,14 +114,14 @@ test.describe
       ).toBeVisible();
     });
 
-    test("2.1.4 clicking Actions reveals the Download PDF item", async ({
+    test("2.1.4 clicking Actions reveals the Download Quote PDF item", async ({
       page,
     }) => {
       await login(page);
       await page.goto(`/estimates/${estimateId}`);
       await page.getByRole("button", { name: /actions/i }).click();
       await expect(
-        page.getByRole("button", { name: /download pdf/i })
+        page.getByRole("button", { name: /download quote pdf/i })
       ).toBeVisible();
     });
 
@@ -133,7 +133,7 @@ test.describe
       await login(page);
       await page.goto(`/estimates/${estimateId}`);
       await page.getByRole("button", { name: /actions/i }).click();
-      await page.getByRole("button", { name: /download pdf/i }).click();
+      await page.getByRole("button", { name: /download quote pdf/i }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
       await expect(page.getByText("Quote PDF")).toBeVisible();
     });
@@ -144,7 +144,7 @@ test.describe
       await login(page);
       await page.goto(`/estimates/${estimateId}`);
       await page.getByRole("button", { name: /actions/i }).click();
-      await page.getByRole("button", { name: /download pdf/i }).click();
+      await page.getByRole("button", { name: /download quote pdf/i }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
       await expect(
         page.getByRole("dialog").getByText(`Q-${quoteNumber}`)
@@ -155,7 +155,7 @@ test.describe
       await login(page);
       await page.goto(`/estimates/${estimateId}`);
       await page.getByRole("button", { name: /actions/i }).click();
-      await page.getByRole("button", { name: /download pdf/i }).click();
+      await page.getByRole("button", { name: /download quote pdf/i }).click();
       await expect(page.getByRole("dialog")).toBeVisible();
       // PDFViewer renders an iframe once the PDF is generated client-side
       await expect(page.getByRole("dialog").locator("iframe")).toBeVisible({
@@ -169,7 +169,7 @@ test.describe
       await login(page);
       await page.goto(`/estimates/${estimateId}`);
       await page.getByRole("button", { name: /actions/i }).click();
-      await page.getByRole("button", { name: /download pdf/i }).click();
+      await page.getByRole("button", { name: /download quote pdf/i }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
       // PDFDownloadLink switches from "Generating…" to "Download PDF" once ready
@@ -184,7 +184,7 @@ test.describe
       await login(page);
       await page.goto(`/estimates/${estimateId}`);
       await page.getByRole("button", { name: /actions/i }).click();
-      await page.getByRole("button", { name: /download pdf/i }).click();
+      await page.getByRole("button", { name: /download quote pdf/i }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
       await page.keyboard.press("Escape");
@@ -195,7 +195,7 @@ test.describe
       await login(page);
       await page.goto(`/estimates/${estimateId}`);
       await page.getByRole("button", { name: /actions/i }).click();
-      await page.getByRole("button", { name: /download pdf/i }).click();
+      await page.getByRole("button", { name: /download quote pdf/i }).click();
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
       await dialog.getByRole("button", { name: /close/i }).click();

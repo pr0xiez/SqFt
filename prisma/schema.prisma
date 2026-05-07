@@ -22,6 +22,8 @@ model Organization {
   licenseNumber   String?
   logo            String?
   nextQuoteNumber Int      @default(1)
+  nextInvoiceNumber Int    @default(1)
+  invoicePrefix   String?
   createdAt       DateTime @default(now())
 
   users     User[]
@@ -68,6 +70,9 @@ model Estimate {
   title       String   @default("")
   status      String   @default("quote") // quote | scheduled | in_progress | completed
   quoteNumber Int?
+  invoiceNumber Int?
+  invoicedAt  DateTime?
+  dueDate     DateTime?
   date        DateTime @default(now())
   taxRate     Float    @default(0.08)
   markupPct   Float    @default(0)

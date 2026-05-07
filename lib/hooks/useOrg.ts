@@ -9,6 +9,7 @@ export interface Org {
   address: string | null;
   licenseNumber: string | null;
   logo: string | null;
+  invoicePrefix?: string | null;
 }
 
 async function fetchOrg(): Promise<Org> {

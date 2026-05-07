@@ -2,7 +2,10 @@
 
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import { useEffect } from "react";
-import { EstimatePdfDoc } from "@/components/estimates/EstimatePdf";
+import {
+  EstimatePdfDoc,
+  type PdfMode,
+} from "@/components/estimates/EstimatePdf";
 import { Button } from "@/components/ui/Button";
 import type { Estimate } from "@/lib/hooks/useEstimates";
 import type { Org } from "@/lib/hooks/useOrg";
@@ -12,9 +15,16 @@ interface Props {
   onClose: () => void;
   estimate: Estimate;
   org: Org;
+  mode?: PdfMode;
 }
 
-export default function PdfModal({ open, onClose, estimate, org }: Props) {
+export default function PdfModal({
+  open,
+  onClose,
+  estimate,
+  org,
+  mode = "quote",
+}: Props) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -33,15 +43,21 @@ export default function PdfModal({ open, onClose, estimate, org }: Props) {
 
   if (!open) return null;
 
-  const docType = "Quote";
-  const docNumber = estimate.quoteNumber
-    ? `Q-${estimate.quoteNumber}`
-    : `#${estimate.id}`;
+  const isInvoice = mode === "invoice";
+  const docType = isInvoice ? "Invoice" : "Quote";
+  const invoicePrefix = org.invoicePrefix?.trim() || "INV";
+  const docNumber = isInvoice
+    ? estimate.invoiceNumber
+      ? `${invoicePrefix}-${estimate.invoiceNumber}`
+      : `#${estimate.id}`
+    : estimate.quoteNumber
+      ? `Q-${estimate.quoteNumber}`
+      : `#${estimate.id}`;
   const customerSlug = (estimate.customer?.name ?? "customer")
     .replace(/\s+/g, "-")
     .replace(/[^a-zA-Z0-9-]/g, "");
   const filename = `${docType}-${docNumber}-${customerSlug}.pdf`;
-  const doc = <EstimatePdfDoc estimate={estimate} org={org} />;
+  const doc = <EstimatePdfDoc estimate={estimate} org={org} mode={mode} />;
 
   return (
     <>

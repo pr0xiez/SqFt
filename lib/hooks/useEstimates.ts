@@ -10,6 +10,9 @@ export interface Estimate {
   title: string;
   status: string;
   quoteNumber?: number | null;
+  invoiceNumber?: number | null;
+  invoicedAt?: string | null;
+  dueDate?: string | null;
   date: string;
   taxRate: number;
   markupPct: number;
@@ -91,6 +94,28 @@ export function useUpdateEstimate(id: number) {
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to save estimate");
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+      qc.invalidateQueries({ queryKey: ["estimates", id] });
+    },
+  });
+}
+
+export function useMarkAsInvoice(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input?: { dueDate?: string; netDays?: number }) => {
+      const res = await fetch(`/api/estimates/${id}/invoice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: input ? JSON.stringify(input) : undefined,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? "Failed to mark as invoice");
+      }
+      return res.json() as Promise<Estimate>;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimates"] });

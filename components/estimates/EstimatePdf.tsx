@@ -164,18 +164,53 @@ const styles = StyleSheet.create({
   depositValue: {
     color: "#2a6e4a",
   },
+  docDueDate: {
+    fontSize: 9,
+    color: "#a13f3f",
+    fontFamily: "Helvetica-Bold",
+    marginTop: 2,
+  },
+  paymentSection: {
+    marginTop: 32,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+  },
+  paymentLabel: {
+    fontSize: 8,
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  paymentText: {
+    fontSize: 9,
+    color: "#444",
+    marginBottom: 2,
+  },
 });
 
 function fmt(n: number): string {
   return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
+export type PdfMode = "quote" | "invoice";
+
 interface Props {
   estimate: Estimate;
   org: Org;
+  mode?: PdfMode;
 }
 
-export function EstimatePdfDoc({ estimate, org }: Props) {
+function formatDate(d: Date | string): string {
+  return new Date(d).toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export function EstimatePdfDoc({ estimate, org, mode = "quote" }: Props) {
   const rooms = (estimate.items ?? []).filter(
     (i): i is RoomItem => i.type === "room"
   );
@@ -191,15 +226,21 @@ export function EstimatePdfDoc({ estimate, org }: Props) {
   const total = beforeTax + tax;
   const deposit = total * estimate.depositPct;
 
-  const docType = "QUOTE";
-  const docNumber = estimate.quoteNumber
-    ? `Q-${estimate.quoteNumber}`
-    : `#${estimate.id}`;
-  const dateStr = new Date(estimate.date).toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  const isInvoice = mode === "invoice";
+  const docType = isInvoice ? "INVOICE" : "QUOTE";
+  const invoicePrefix = org.invoicePrefix?.trim() || "INV";
+  const docNumber = isInvoice
+    ? estimate.invoiceNumber
+      ? `${invoicePrefix}-${estimate.invoiceNumber}`
+      : `#${estimate.id}`
+    : estimate.quoteNumber
+      ? `Q-${estimate.quoteNumber}`
+      : `#${estimate.id}`;
+  const issuedAt =
+    isInvoice && estimate.invoicedAt ? estimate.invoicedAt : estimate.date;
+  const dateStr = formatDate(issuedAt);
+  const dueDateStr =
+    isInvoice && estimate.dueDate ? formatDate(estimate.dueDate) : null;
 
   return (
     <Document>
@@ -223,6 +264,9 @@ export function EstimatePdfDoc({ estimate, org }: Props) {
             <Text style={styles.docType}>{docType}</Text>
             <Text style={styles.docNumber}>{docNumber}</Text>
             <Text style={styles.docDate}>{dateStr}</Text>
+            {dueDateStr ? (
+              <Text style={styles.docDueDate}>Due {dueDateStr}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -299,7 +343,7 @@ export function EstimatePdfDoc({ estimate, org }: Props) {
               {fmt(total)}
             </Text>
           </View>
-          {estimate.depositPct > 0 ? (
+          {!isInvoice && estimate.depositPct > 0 ? (
             <View style={[styles.totalRow, styles.depositRow]}>
               <Text style={[styles.totalLabel, styles.depositLabel]}>
                 Deposit ({(estimate.depositPct * 100).toFixed(0)}% due)
@@ -310,6 +354,21 @@ export function EstimatePdfDoc({ estimate, org }: Props) {
             </View>
           ) : null}
         </View>
+
+        {isInvoice ? (
+          <View style={styles.paymentSection}>
+            <Text style={styles.paymentLabel}>Payment Instructions</Text>
+            <Text style={styles.paymentText}>
+              Please remit payment by the due date listed above. Make checks
+              payable to {org.name}.
+            </Text>
+            {org.phone ? (
+              <Text style={styles.paymentText}>
+                Questions? Contact us at {org.phone}.
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </Page>
     </Document>
   );

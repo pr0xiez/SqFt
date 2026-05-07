@@ -135,6 +135,68 @@ export async function saveEstimate(
   });
 }
 
+export type MarkAsInvoiceResult =
+  | { ok: true; estimate: EstimateWithDetails }
+  | { ok: false; reason: "not_found" | "already_invoiced" | "invalid_status" };
+
+const INVOICEABLE_STATUSES = new Set(["scheduled", "in_progress", "completed"]);
+
+const DEFAULT_NET_DAYS = 30;
+
+export async function markEstimateAsInvoice(
+  id: number,
+  orgId: string,
+  opts?: { dueDate?: Date; netDays?: number }
+): Promise<MarkAsInvoiceResult> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.estimate.findFirst({
+      where: { id, orgId },
+      select: { id: true, status: true, invoiceNumber: true },
+    });
+    if (!existing) return { ok: false, reason: "not_found" } as const;
+    if (existing.invoiceNumber !== null) {
+      return { ok: false, reason: "already_invoiced" } as const;
+    }
+    if (!INVOICEABLE_STATUSES.has(existing.status)) {
+      return { ok: false, reason: "invalid_status" } as const;
+    }
+
+    const updatedOrg = await tx.organization.update({
+      where: { id: orgId },
+      data: { nextInvoiceNumber: { increment: 1 } },
+      select: { nextInvoiceNumber: true },
+    });
+    const invoiceNumber = updatedOrg.nextInvoiceNumber - 1;
+
+    const invoicedAt = new Date();
+    const dueDate =
+      opts?.dueDate ??
+      new Date(
+        invoicedAt.getTime() +
+          (opts?.netDays ?? DEFAULT_NET_DAYS) * 24 * 60 * 60 * 1000
+      );
+
+    const result = await tx.estimate.updateMany({
+      where: { id, orgId, invoiceNumber: null },
+      data: { invoiceNumber, invoicedAt, dueDate },
+    });
+    if (result.count === 0) {
+      return { ok: false, reason: "already_invoiced" } as const;
+    }
+
+    const estimate = await tx.estimate.findFirst({
+      where: { id, orgId },
+      include: {
+        customer: true,
+        items: { orderBy: { sortOrder: "asc" } },
+        lineItems: { orderBy: { sortOrder: "asc" } },
+      },
+    });
+    if (!estimate) return { ok: false, reason: "not_found" } as const;
+    return { ok: true, estimate } as const;
+  });
+}
+
 export async function deleteEstimate(
   id: number,
   orgId: string

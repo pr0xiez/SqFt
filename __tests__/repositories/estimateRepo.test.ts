@@ -58,6 +58,7 @@ const {
   createEstimate,
   saveEstimate,
   deleteEstimate,
+  markEstimateAsInvoice,
 } = await import("@/lib/repositories/estimateRepo");
 
 beforeEach(() => vi.clearAllMocks());
@@ -196,6 +197,120 @@ describe("saveEstimate", () => {
 
     expect(result).toBeNull();
     expect(estimateItemDeleteMany).not.toHaveBeenCalled();
+  });
+});
+
+// ── markEstimateAsInvoice ─────────────────────────────────────────────────────
+
+describe("markEstimateAsInvoice", () => {
+  it("returns not_found when estimate does not exist in org", async () => {
+    estimateFindFirst.mockResolvedValueOnce(null);
+    const result = await markEstimateAsInvoice(99, "org1");
+    expect(result).toEqual({ ok: false, reason: "not_found" });
+    expect(organizationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("returns already_invoiced when invoiceNumber is already set", async () => {
+    estimateFindFirst.mockResolvedValueOnce({
+      id: 1,
+      status: "scheduled",
+      invoiceNumber: 5,
+    });
+    const result = await markEstimateAsInvoice(1, "org1");
+    expect(result).toEqual({ ok: false, reason: "already_invoiced" });
+    expect(organizationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects estimates still in quote status", async () => {
+    estimateFindFirst.mockResolvedValueOnce({
+      id: 1,
+      status: "quote",
+      invoiceNumber: null,
+    });
+    const result = await markEstimateAsInvoice(1, "org1");
+    expect(result).toEqual({ ok: false, reason: "invalid_status" });
+    expect(organizationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("atomically increments nextInvoiceNumber and assigns it", async () => {
+    estimateFindFirst
+      .mockResolvedValueOnce({
+        id: 1,
+        status: "scheduled",
+        invoiceNumber: null,
+      })
+      .mockResolvedValueOnce({ id: 1, invoiceNumber: 7 });
+    organizationUpdate.mockResolvedValueOnce({ nextInvoiceNumber: 8 });
+    estimateUpdateMany.mockResolvedValueOnce({ count: 1 });
+
+    const result = await markEstimateAsInvoice(1, "org1");
+
+    expect(organizationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "org1" },
+        data: { nextInvoiceNumber: { increment: 1 } },
+      })
+    );
+    expect(estimateUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 1, orgId: "org1", invoiceNumber: null },
+        data: expect.objectContaining({ invoiceNumber: 7 }),
+      })
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("treats lost race (updateMany count 0) as already_invoiced", async () => {
+    estimateFindFirst.mockResolvedValueOnce({
+      id: 1,
+      status: "scheduled",
+      invoiceNumber: null,
+    });
+    organizationUpdate.mockResolvedValueOnce({ nextInvoiceNumber: 8 });
+    estimateUpdateMany.mockResolvedValueOnce({ count: 0 });
+
+    const result = await markEstimateAsInvoice(1, "org1");
+    expect(result).toEqual({ ok: false, reason: "already_invoiced" });
+  });
+
+  it("uses provided dueDate when given", async () => {
+    const due = new Date("2026-12-31T00:00:00Z");
+    estimateFindFirst
+      .mockResolvedValueOnce({
+        id: 1,
+        status: "scheduled",
+        invoiceNumber: null,
+      })
+      .mockResolvedValueOnce({ id: 1, invoiceNumber: 7, dueDate: due });
+    organizationUpdate.mockResolvedValueOnce({ nextInvoiceNumber: 8 });
+    estimateUpdateMany.mockResolvedValueOnce({ count: 1 });
+
+    await markEstimateAsInvoice(1, "org1", { dueDate: due });
+
+    expect(estimateUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ dueDate: due }),
+      })
+    );
+  });
+
+  it("defaults due date to ~30 days after invoicedAt", async () => {
+    estimateFindFirst
+      .mockResolvedValueOnce({
+        id: 1,
+        status: "scheduled",
+        invoiceNumber: null,
+      })
+      .mockResolvedValueOnce({ id: 1, invoiceNumber: 7 });
+    organizationUpdate.mockResolvedValueOnce({ nextInvoiceNumber: 8 });
+    estimateUpdateMany.mockResolvedValueOnce({ count: 1 });
+
+    await markEstimateAsInvoice(1, "org1");
+
+    const call = estimateUpdateMany.mock.calls[0]?.[0];
+    const data = (call as { data: { invoicedAt: Date; dueDate: Date } }).data;
+    const diffMs = data.dueDate.getTime() - data.invoicedAt.getTime();
+    expect(Math.round(diffMs / (24 * 60 * 60 * 1000))).toBe(30);
   });
 });
 

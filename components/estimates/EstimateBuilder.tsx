@@ -8,7 +8,11 @@ import { QuoteSummary } from "@/components/estimates/QuoteSummary";
 import { RoomSection } from "@/components/estimates/RoomSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
+import {
+  useEstimate,
+  useMarkAsInvoice,
+  useUpdateEstimate,
+} from "@/lib/hooks/useEstimates";
 import { useOrg } from "@/lib/hooks/useOrg";
 import { estTotalArea } from "@/lib/utils";
 
@@ -25,12 +29,14 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const { data: estimate, isLoading } = useEstimate(estimateId);
   const { data: org } = useOrg();
   const updateEstimate = useUpdateEstimate(estimateId);
+  const markAsInvoice = useMarkAsInvoice(estimateId);
   const { showToast } = useToast();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfMode, setPdfMode] = useState<"quote" | "invoice">("quote");
   const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,19 +86,61 @@ export function EstimateBuilderView({ estimateId }: Props) {
 
   const rooms = (estimate.items ?? []).filter((i) => i.type === "room");
   const totalArea = estTotalArea(estimate.items ?? []);
+  const isInvoiced = estimate.invoiceNumber != null;
+  const canBeInvoiced = !isInvoiced && estimate.status !== "quote";
+  const invoicePrefix = org?.invoicePrefix?.trim() || "INV";
+
+  async function handleMarkAsInvoice() {
+    setActionsOpen(false);
+    if (
+      !window.confirm(
+        "Mark this estimate as an invoice? An invoice number will be assigned and the due date will be set to 30 days from today. This cannot be undone."
+      )
+    ) {
+      return;
+    }
+    try {
+      await markAsInvoice.mutateAsync(undefined);
+      showToast("Marked as invoice");
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Failed to mark as invoice"
+      );
+    }
+  }
 
   return (
     <>
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            Estimate #{estimate.id} ·{" "}
-            {new Date(estimate.date).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
+          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5 flex items-center gap-2 flex-wrap">
+            <span>
+              Estimate #{estimate.id} ·{" "}
+              {new Date(estimate.date).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+            {isInvoiced ? (
+              <span
+                data-testid="invoice-badge"
+                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-[600] uppercase tracking-[.06em] bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/30"
+              >
+                Invoice {invoicePrefix}-{estimate.invoiceNumber}
+                {estimate.dueDate ? (
+                  <span className="text-[var(--muted)] font-[400] normal-case tracking-normal">
+                    · Due{" "}
+                    {new Date(estimate.dueDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
           </div>
           {editingTitle ? (
             <input
@@ -139,18 +187,44 @@ export function EstimateBuilderView({ estimateId }: Props) {
               Actions ▾
             </Button>
             {actionsOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[160px] py-1">
+              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[200px] py-1">
                 <button
                   type="button"
                   className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
                   onClick={() => {
+                    setPdfMode("quote");
                     setPdfModalOpen(true);
                     setActionsOpen(false);
                   }}
                   disabled={!org}
                 >
-                  Download PDF
+                  Download Quote PDF
                 </button>
+                {isInvoiced ? (
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      setPdfMode("invoice");
+                      setPdfModalOpen(true);
+                      setActionsOpen(false);
+                    }}
+                    disabled={!org}
+                  >
+                    Download Invoice PDF
+                  </button>
+                ) : null}
+                {canBeInvoiced ? (
+                  <button
+                    type="button"
+                    data-testid="mark-as-invoice"
+                    className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed border-t border-[var(--line)]"
+                    onClick={handleMarkAsInvoice}
+                    disabled={markAsInvoice.isPending}
+                  >
+                    {markAsInvoice.isPending ? "Marking…" : "Mark as Invoice"}
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
@@ -226,6 +300,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
           onClose={() => setPdfModalOpen(false)}
           estimate={estimate}
           org={org}
+          mode={pdfMode}
         />
       )}
     </>
