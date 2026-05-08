@@ -21,13 +21,16 @@ vi.mock("@/lib/logger", () => ({
   logError: vi.fn(),
 }));
 
-const { getEstimate, saveEstimate } = await import("@/lib/repositories");
+const { getEstimate, saveEstimate, deleteEstimate } = await import(
+  "@/lib/repositories"
+);
 const { getOrgId } = await import("@/lib/tenant");
-const { GET, PATCH } = await import("@/app/api/estimates/[id]/route");
+const { GET, PATCH, DELETE } = await import("@/app/api/estimates/[id]/route");
 
 const mockGetOrgId = vi.mocked(getOrgId);
 const mockGetEstimate = vi.mocked(getEstimate);
 const mockSaveEstimate = vi.mocked(saveEstimate);
+const mockDeleteEstimate = vi.mocked(deleteEstimate);
 
 const fakeEstimate = {
   id: 5,
@@ -59,6 +62,22 @@ function makeParams(id: string) {
 // ── GET /api/estimates/[id] ───────────────────────────────────────────────────
 
 describe("GET /api/estimates/[id]", () => {
+  it("returns 200 with the estimate", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockGetEstimate.mockResolvedValue({
+      id: 1,
+      orgId: "org1",
+      title: "Job A",
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+    } as any);
+    const res = await GET(
+      undefined as Parameters<typeof GET>[0],
+      makeParams("1")
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: 1, orgId: "org1", title: "Job A" });
+  });
+
   it("returns 404 when estimate not found", async () => {
     mockGetOrgId.mockResolvedValue("org1");
     mockGetEstimate.mockResolvedValue(null);
@@ -163,5 +182,30 @@ describe("PATCH /api/estimates/[id]", () => {
     );
 
     expect(res.status).toBe(500);
+  });
+});
+
+// ── DELETE /api/estimates/[id] ────────────────────────────────────────────────
+
+describe("DELETE /api/estimates/[id]", () => {
+  it("returns 200 on success", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockDeleteEstimate.mockResolvedValue(true);
+    const res = await DELETE(
+      undefined as Parameters<typeof DELETE>[0],
+      makeParams("1")
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(mockDeleteEstimate).toHaveBeenCalledWith(1, "org1");
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+    const res = await DELETE(
+      undefined as Parameters<typeof DELETE>[0],
+      makeParams("1")
+    );
+    expect(res.status).toBe(401);
   });
 });

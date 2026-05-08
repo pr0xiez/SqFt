@@ -140,7 +140,7 @@ describe("POST /api/estimates", () => {
 
 describe("GET /api/estimates/[id]", () => {
   it("returns the estimate with 200", async () => {
-    const fake = { id: 1, orgId: "org1", items: [], lineItems: [] };
+    const fake = { id: 1, orgId: "org1", items: [] };
     mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockGetEstimate.mockResolvedValue(fake as any);
@@ -170,7 +170,6 @@ describe("PATCH /api/estimates/[id]", () => {
       orgId: "org1",
       title: "Updated",
       items: [],
-      lineItems: [],
     };
     mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
