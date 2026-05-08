@@ -1,24 +1,14 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { LineItemSection } from "@/components/estimates/LineItemSection";
-import { QuoteSummary } from "@/components/estimates/QuoteSummary";
+import { EstimateQuotesCard } from "@/components/estimates/EstimateQuotesCard";
 import { RoomSection } from "@/components/estimates/RoomSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import {
-  useEstimate,
-  useRotateApprovalToken,
-  useUpdateEstimate,
-} from "@/lib/hooks/useEstimates";
-import { useOrg } from "@/lib/hooks/useOrg";
+import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
+import { useCreateQuote } from "@/lib/hooks/useQuotes";
 import { estTotalArea } from "@/lib/utils";
-
-const PdfModal = dynamic(() => import("@/components/estimates/PdfModal"), {
-  ssr: false,
-});
 
 interface Props {
   estimateId: number;
@@ -27,50 +17,16 @@ interface Props {
 export function EstimateBuilderView({ estimateId }: Props) {
   const router = useRouter();
   const { data: estimate, isLoading } = useEstimate(estimateId);
-  const { data: org } = useOrg();
   const updateEstimate = useUpdateEstimate(estimateId);
-  const rotateToken = useRotateApprovalToken(estimateId);
+  const createQuote = useCreateQuote();
   const { showToast } = useToast();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const [pdfModalOpen, setPdfModalOpen] = useState(false);
-  const actionsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!actionsOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        actionsRef.current &&
-        !actionsRef.current.contains(e.target as Node)
-      ) {
-        setActionsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [actionsOpen]);
 
   useEffect(() => {
     if (editingTitle) titleInputRef.current?.focus();
   }, [editingTitle]);
-
-  async function copyShareLink(forceNew: boolean) {
-    setActionsOpen(false);
-    try {
-      let token = estimate?.approvalToken ?? null;
-      if (!token || forceNew) {
-        const res = await rotateToken.mutateAsync();
-        token = res.approvalToken;
-      }
-      const url = `${window.location.origin}/q/${token}`;
-      await navigator.clipboard.writeText(url);
-      showToast(forceNew ? "New link copied" : "Link copied");
-    } catch {
-      showToast("Failed to generate link");
-    }
-  }
 
   async function saveTitle() {
     const trimmed = titleDraft.trim();
@@ -80,6 +36,15 @@ export function EstimateBuilderView({ estimateId }: Props) {
       await updateEstimate.mutateAsync({ title: trimmed });
     } catch {
       showToast("Failed to save title");
+    }
+  }
+
+  async function handleCreateQuote() {
+    try {
+      const newQuote = await createQuote.mutateAsync({ estimateId });
+      router.push(`/quotes/${newQuote.id}`);
+    } catch {
+      showToast("Failed to create quote");
     }
   }
 
@@ -108,7 +73,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            Estimate #{estimate.id} ·{" "}
+            Estimate #{estimate.estimateNumber ?? estimate.id} ·{" "}
             {new Date(estimate.date).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -155,46 +120,13 @@ export function EstimateBuilderView({ estimateId }: Props) {
           <Button onClick={() => router.push("/estimates")}>
             ← All estimates
           </Button>
-          <div className="relative" ref={actionsRef}>
-            <Button variant="primary" onClick={() => setActionsOpen((o) => !o)}>
-              Actions ▾
-            </Button>
-            {actionsOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[160px] py-1">
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
-                  onClick={() => {
-                    setPdfModalOpen(true);
-                    setActionsOpen(false);
-                  }}
-                  disabled={!org}
-                >
-                  Download PDF
-                </button>
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
-                  onClick={() => copyShareLink(false)}
-                  disabled={rotateToken.isPending}
-                >
-                  {estimate.approvalToken
-                    ? "Copy share link"
-                    : "Create share link"}
-                </button>
-                {estimate.approvalToken ? (
-                  <button
-                    type="button"
-                    className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
-                    onClick={() => copyShareLink(true)}
-                    disabled={rotateToken.isPending}
-                  >
-                    Regenerate link
-                  </button>
-                ) : null}
-              </div>
-            )}
-          </div>
+          <Button
+            variant="primary"
+            onClick={handleCreateQuote}
+            disabled={createQuote.isPending}
+          >
+            {createQuote.isPending ? "Creating…" : "+ Create Quote"}
+          </Button>
         </div>
       </div>
 
@@ -221,6 +153,13 @@ export function EstimateBuilderView({ estimateId }: Props) {
         </div>
       )}
 
+      {/* Quotes card */}
+      <EstimateQuotesCard
+        quotes={estimate.quotes ?? []}
+        onCreateQuote={handleCreateQuote}
+        isCreating={createQuote.isPending}
+      />
+
       {/* Rooms */}
       <RoomSection
         estimate={estimate}
@@ -233,42 +172,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
           }
         }}
       />
-
-      {/* Line Items */}
-      <LineItemSection
-        estimate={estimate}
-        onSave={async (lineItems) => {
-          try {
-            await updateEstimate.mutateAsync({ lineItems });
-            showToast("Saved");
-          } catch {
-            showToast("Save failed");
-          }
-        }}
-      />
-
-      {/* Quote Summary */}
-      <QuoteSummary
-        estimate={estimate}
-        onSave={async (data) => {
-          try {
-            await updateEstimate.mutateAsync(data);
-            showToast("Quote settings saved");
-          } catch {
-            showToast("Save failed");
-          }
-        }}
-      />
-
-      {/* PDF modal */}
-      {org && (
-        <PdfModal
-          open={pdfModalOpen}
-          onClose={() => setPdfModalOpen(false)}
-          estimate={estimate}
-          org={org}
-        />
-      )}
     </>
   );
 }
