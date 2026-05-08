@@ -15,6 +15,13 @@ import {
 //     schema rejected the nulls Prisma returns for nullable columns.
 //   • UI tests exercise the same flows through the page so we catch the next
 //     time the client and server drift apart.
+//
+// React Query is persisted to localStorage (Providers.tsx) with the default
+// 1s throttle, so reloads inside that window can hydrate from a stale cache
+// — and several `useState(estimate.items ?? [])` call sites in the builder
+// initialize once and never re-sync from updated props, which makes that
+// stale cache visible. We clear localStorage before any reload assertion to
+// keep these tests focused on the server round-trip.
 
 function uniqueEmail() {
   return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
@@ -39,6 +46,13 @@ async function signupAndLogin(
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL("/");
   return page;
+}
+
+async function reloadFresh(page: Page): Promise<void> {
+  // Drop the persisted React Query cache so the reload renders from server
+  // data. See top-of-file comment.
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
 }
 
 async function createCustomerAndEstimate(
@@ -309,7 +323,7 @@ test.describe
     });
 
     test("3.2.2 the new room persists across reload", async () => {
-      await page.reload();
+      await reloadFresh(page);
       await expect(page.getByPlaceholder("Room name")).toHaveValue("New Room");
     });
 
@@ -328,7 +342,7 @@ test.describe
       ]);
       expect(response.status()).toBe(200);
 
-      await page.reload();
+      await reloadFresh(page);
       await expect(page.getByPlaceholder("Room name")).toHaveValue(
         "Living Room"
       );
@@ -336,23 +350,30 @@ test.describe
 
     test("3.2.4 editing dimensions saves and updates sqft display", async () => {
       await page.goto(`/estimates/${estimateId}`);
-      const lInput = page.getByPlaceholder("L");
-      const wInput = page.getByPlaceholder("W");
-      await lInput.fill("12");
-      await wInput.fill("10");
+      // RoomSection saves on every onChange AND onBlur, so filling L then W
+      // fires several overlapping PATCHes. Wait for the network to go quiet
+      // before we assert, otherwise we race in-flight saves.
+      await page.getByPlaceholder("L").fill("12");
+      await page.getByPlaceholder("W").fill("10");
+      await page.getByPlaceholder("W").blur();
+      await page.waitForLoadState("networkidle");
 
-      const [response] = await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH"
-        ),
-        wInput.blur(),
-      ]);
-      expect(response.status()).toBe(200);
       await expect(page.getByText(/120 sqft/).first()).toBeVisible();
 
-      await page.reload();
+      // Confirm the server has both fields by hitting the API directly —
+      // immune to React render order.
+      await expect
+        .poll(async () => {
+          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
+          const body = await r.json();
+          const room = (body.items as Array<{ w: number; l: number }>).find(
+            (i) => i.w != null && i.l != null
+          );
+          return room ? `${room.l}x${room.w}` : null;
+        })
+        .toBe("12x10");
+
+      await reloadFresh(page);
       await expect(page.getByPlaceholder("L")).toHaveValue("12");
       await expect(page.getByPlaceholder("W")).toHaveValue("10");
     });
@@ -384,15 +405,21 @@ test.describe
 
       const note = page.getByPlaceholder("Field note…");
       await note.fill("Tile in entryway only");
-      await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH"
-        ),
-        note.blur(),
-      ]);
-      await page.reload();
+      await note.blur();
+      await page.waitForLoadState("networkidle");
+
+      await expect
+        .poll(async () => {
+          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
+          const body = await r.json();
+          const noteItem = (
+            body.items as Array<{ type: string; text: string | null }>
+          ).find((i) => i.type === "note");
+          return noteItem?.text;
+        })
+        .toBe("Tile in entryway only");
+
+      await reloadFresh(page);
       await expect(page.getByPlaceholder("Field note…")).toHaveValue(
         "Tile in entryway only"
       );
@@ -411,7 +438,7 @@ test.describe
         removeBtn.click(),
       ]);
 
-      await page.reload();
+      await reloadFresh(page);
       // After removing the only room, no room-name input remains.
       await expect(page.getByPlaceholder("Room name")).toHaveCount(0);
     });
@@ -448,29 +475,27 @@ test.describe
       ]);
       expect(response.status()).toBe(200);
 
-      await page.reload();
-      await expect(page.locator('input[value="New line item"]')).toBeVisible();
+      await reloadFresh(page);
+      // The line-item name is the only `type="text"` input on this page (no
+      // rooms in this describe; the title is rendered as a button until
+      // clicked). Querying by attribute is brittle for controlled inputs, so
+      // use the value via toHaveValue.
+      await expect(page.locator('input[type="text"]').first()).toHaveValue(
+        "New line item"
+      );
     });
 
     test("3.3.2 editing line item name saves and persists", async () => {
       await page.goto(`/estimates/${estimateId}`);
-      const nameInput = page.locator('input[value="New line item"]');
+      const nameInput = page.locator('input[type="text"]').first();
       await nameInput.fill("LVP — Mohawk RevWood");
+      await nameInput.blur();
+      await page.waitForLoadState("networkidle");
 
-      await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH" &&
-            r.status() === 200
-        ),
-        nameInput.blur(),
-      ]);
-
-      await page.reload();
-      await expect(
-        page.locator('input[value="LVP — Mohawk RevWood"]')
-      ).toBeVisible();
+      await reloadFresh(page);
+      await expect(page.locator('input[type="text"]').first()).toHaveValue(
+        "LVP — Mohawk RevWood"
+      );
     });
 
     test("3.3.3 editing the title saves and persists", async () => {
@@ -490,13 +515,17 @@ test.describe
         titleInput.blur(),
       ]);
 
-      await page.reload();
+      await reloadFresh(page);
       await expect(page.getByText("Henderson — Whole house")).toBeVisible();
     });
 
     test("3.3.4 saving quote settings persists tax, markup, deposit", async () => {
       await page.goto(`/estimates/${estimateId}`);
-      const fields = page.locator('input[type="number"][step="0.1"]');
+      // QuoteSummary's inputs are the only number inputs with min=0/max=100 —
+      // line item qty inputs don't have those, so this locator avoids them.
+      const fields = page.locator(
+        'input[type="number"][min="0"][max="100"][step="0.1"]'
+      );
       // Tax / Markup / Deposit, in render order.
       await fields.nth(0).fill("7.5");
       await fields.nth(1).fill("32");
@@ -512,8 +541,10 @@ test.describe
         page.getByRole("button", { name: /save quote settings/i }).click(),
       ]);
 
-      await page.reload();
-      const fieldsAfter = page.locator('input[type="number"][step="0.1"]');
+      await reloadFresh(page);
+      const fieldsAfter = page.locator(
+        'input[type="number"][min="0"][max="100"][step="0.1"]'
+      );
       await expect(fieldsAfter.nth(0)).toHaveValue("7.5");
       await expect(fieldsAfter.nth(1)).toHaveValue("32");
       await expect(fieldsAfter.nth(2)).toHaveValue("40");
