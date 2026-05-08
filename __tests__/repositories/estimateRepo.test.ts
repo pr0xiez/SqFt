@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const estimateFindMany = vi.fn();
 const estimateFindFirst = vi.fn();
+const estimateFindUnique = vi.fn();
 const estimateCreate = vi.fn();
 const txEstimateCreate = vi.fn();
 const estimateUpdateMany = vi.fn();
@@ -45,7 +46,9 @@ vi.mock("@/lib/prisma", () => ({
     estimate: {
       findMany: estimateFindMany,
       findFirst: estimateFindFirst,
+      findUnique: estimateFindUnique,
       create: estimateCreate,
+      updateMany: estimateUpdateMany,
       deleteMany: estimateDeleteMany,
     },
     $transaction,
@@ -58,6 +61,8 @@ const {
   createEstimate,
   saveEstimate,
   deleteEstimate,
+  rotateApprovalToken,
+  getEstimateByToken,
 } = await import("@/lib/repositories/estimateRepo");
 
 beforeEach(() => vi.clearAllMocks());
@@ -196,6 +201,61 @@ describe("saveEstimate", () => {
 
     expect(result).toBeNull();
     expect(estimateItemDeleteMany).not.toHaveBeenCalled();
+  });
+});
+
+// ── rotateApprovalToken ───────────────────────────────────────────────────────
+
+describe("rotateApprovalToken", () => {
+  it("returns null when estimate is not in the org", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 0 });
+    expect(await rotateApprovalToken(99, "org1")).toBeNull();
+  });
+
+  it("issues a URL-safe token of sufficient length", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    const token = await rotateApprovalToken(1, "org1");
+    expect(token).not.toBeNull();
+    expect(token?.length).toBeGreaterThanOrEqual(32);
+    // base64url alphabet: A-Z, a-z, 0-9, -, _
+    expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(estimateUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 1, orgId: "org1" },
+        data: expect.objectContaining({ approvalToken: token }),
+      })
+    );
+  });
+
+  it("issues different tokens on subsequent calls", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    const a = await rotateApprovalToken(1, "org1");
+    const b = await rotateApprovalToken(1, "org1");
+    expect(a).not.toBe(b);
+  });
+});
+
+// ── getEstimateByToken ────────────────────────────────────────────────────────
+
+describe("getEstimateByToken", () => {
+  it("looks up by approvalToken with org branding included", async () => {
+    estimateFindUnique.mockResolvedValue({ id: 1, org: { name: "X" } });
+    await getEstimateByToken("some-token");
+    expect(estimateFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { approvalToken: "some-token" },
+        include: expect.objectContaining({
+          org: expect.objectContaining({
+            select: expect.objectContaining({ name: true }),
+          }),
+        }),
+      })
+    );
+  });
+
+  it("returns null when token does not match any estimate", async () => {
+    estimateFindUnique.mockResolvedValue(null);
+    expect(await getEstimateByToken("nope")).toBeNull();
   });
 });
 

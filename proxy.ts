@@ -21,9 +21,10 @@ export default auth((req) => {
     req.nextUrl.pathname.startsWith("/signup") ||
     req.nextUrl.pathname.startsWith("/onboarding");
   const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");
+  const isPublicQuote = req.nextUrl.pathname.startsWith("/q/");
 
-  // Allow auth API routes through unconditionally
-  if (isApiAuth) return NextResponse.next();
+  // Allow auth API routes and public token-authed quote pages through unconditionally
+  if (isApiAuth || isPublicQuote) return NextResponse.next();
 
   const isApiRoute = req.nextUrl.pathname.startsWith("/api/");
 
