@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createEvent, listEvents } from "@/lib/repositories";
+import { EventValidationError } from "@/lib/repositories/eventRepo";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
@@ -8,7 +9,7 @@ const createSchema = z.object({
   type: z.enum(["job", "visit", "other"]),
   title: z.string().min(1).max(200),
   customerId: z.number().int().positive().optional(),
-  estimateId: z.number().int().positive().optional(),
+  quoteId: z.number().int().positive().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z
     .string()
@@ -52,6 +53,9 @@ export const POST = withLogging(async (req: NextRequest) => {
 
     return NextResponse.json(event, { status: 201 });
   } catch (err) {
+    if (err instanceof EventValidationError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     if (err instanceof Error && err.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

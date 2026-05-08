@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/repositories/eventRepo", () => ({
+  EventValidationError: class EventValidationError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = "EventValidationError";
+    }
+  },
+}));
+
 vi.mock("@/lib/repositories", () => ({
   listEvents: vi.fn(),
   createEvent: vi.fn(),
@@ -20,6 +29,7 @@ const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
   "@/lib/repositories"
 );
 const { getOrgId } = await import("@/lib/tenant");
+const { EventValidationError } = await import("@/lib/repositories/eventRepo");
 const { GET: listGET, POST } = await import("@/app/api/events/route");
 const { PATCH, DELETE } = await import("@/app/api/events/[id]/route");
 
@@ -128,6 +138,60 @@ describe("POST /api/events", () => {
     const res = await POST(req as Parameters<typeof POST>[0]);
 
     expect(res.status).toBe(500);
+  });
+
+  it("creates a visit without a quoteId", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockCreateEvent.mockResolvedValue({ id: 1 } as any);
+    const req = makeRequest("http://localhost/api/events", {
+      type: "visit",
+      title: "Measure",
+      date: "2026-06-01",
+      startTime: "10:00",
+      endTime: "11:00",
+    });
+    const res = await POST(req as Parameters<typeof POST>[0]);
+    expect(res.status).toBe(201);
+  });
+
+  it("creates a job with a quoteId", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockCreateEvent.mockResolvedValue({ id: 1 } as any);
+    const req = makeRequest("http://localhost/api/events", {
+      type: "job",
+      title: "Install",
+      quoteId: 42,
+      date: "2026-06-01",
+      startTime: "08:00",
+      endTime: "16:00",
+    });
+    const res = await POST(req as Parameters<typeof POST>[0]);
+    expect(res.status).toBe(201);
+    expect(mockCreateEvent).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({ type: "job", quoteId: 42 })
+    );
+  });
+
+  it("returns 400 when a job is submitted without a quoteId", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockCreateEvent.mockRejectedValue(
+      new EventValidationError("Job events require a quoteId")
+    );
+    const req = makeRequest("http://localhost/api/events", {
+      type: "job",
+      title: "Install",
+      date: "2026-06-01",
+      startTime: "08:00",
+      endTime: "16:00",
+    });
+    const res = await POST(req as Parameters<typeof POST>[0]);
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "Job events require a quoteId",
+    });
   });
 });
 
