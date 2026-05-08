@@ -87,7 +87,9 @@ test.describe
       expect(res?.status()).toBe(200);
       await expect(page.getByText("QUOTE", { exact: true })).toBeVisible();
       await expect(page.getByText("Carla Customer")).toBeVisible();
-      await expect(page.getByText("Public Floors LLC")).toBeVisible();
+      await expect(
+        page.getByText("Public Floors LLC", { exact: true })
+      ).toBeVisible();
       await ctx.close();
     });
 
