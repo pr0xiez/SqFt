@@ -323,6 +323,18 @@ test.describe
     });
 
     test("3.2.2 the new room persists across reload", async () => {
+      // Confirm the add-room PATCH from 3.2.1 has actually landed before
+      // reloading — under CI load the React Query refetch can race the test.
+      await expect
+        .poll(async () => {
+          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
+          const body = await r.json();
+          return (body.items as Array<{ type: string }>).filter(
+            (i) => i.type === "room"
+          ).length;
+        })
+        .toBeGreaterThan(0);
+
       await reloadFresh(page);
       await expect(page.getByPlaceholder("Room name")).toHaveValue("New Room");
     });
@@ -330,17 +342,23 @@ test.describe
     test("3.2.3 editing the room name and blurring saves successfully", async () => {
       await page.goto(`/estimates/${estimateId}`);
       const input = page.getByPlaceholder("Room name");
+      // RoomSection saves on every onChange AND onBlur, so fill+blur fires
+      // two overlapping PATCHes. Wait for the network to go quiet, then
+      // confirm the server converged via the API — same pattern as 3.2.4.
       await input.fill("Living Room");
+      await input.blur();
+      await page.waitForLoadState("networkidle");
 
-      const [response] = await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH"
-        ),
-        input.blur(),
-      ]);
-      expect(response.status()).toBe(200);
+      await expect
+        .poll(async () => {
+          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
+          const body = await r.json();
+          const room = (
+            body.items as Array<{ type: string; name: string }>
+          ).find((i) => i.type === "room");
+          return room?.name;
+        })
+        .toBe("Living Room");
 
       await reloadFresh(page);
       await expect(page.getByPlaceholder("Room name")).toHaveValue(
