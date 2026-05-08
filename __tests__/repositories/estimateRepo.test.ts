@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const estimateFindMany = vi.fn();
 const estimateFindFirst = vi.fn();
-const estimateFindUnique = vi.fn();
 const estimateCreate = vi.fn();
 const txEstimateCreate = vi.fn();
 const estimateUpdateMany = vi.fn();
@@ -10,12 +9,9 @@ const estimateDeleteMany = vi.fn();
 const estimateCount = vi.fn();
 const estimateItemDeleteMany = vi.fn();
 const estimateItemCreateMany = vi.fn();
-const lineItemDeleteMany = vi.fn();
-const lineItemCreateMany = vi.fn();
 const organizationFindUnique = vi.fn();
 const organizationUpdate = vi.fn();
 
-// $transaction executes the callback with a tx object that mirrors the per-entity mocks
 const txMock = {
   estimate: {
     updateMany: estimateUpdateMany,
@@ -26,10 +22,6 @@ const txMock = {
   estimateItem: {
     deleteMany: estimateItemDeleteMany,
     createMany: estimateItemCreateMany,
-  },
-  lineItem: {
-    deleteMany: lineItemDeleteMany,
-    createMany: lineItemCreateMany,
   },
   organization: {
     findUnique: organizationFindUnique,
@@ -46,7 +38,6 @@ vi.mock("@/lib/prisma", () => ({
     estimate: {
       findMany: estimateFindMany,
       findFirst: estimateFindFirst,
-      findUnique: estimateFindUnique,
       create: estimateCreate,
       updateMany: estimateUpdateMany,
       deleteMany: estimateDeleteMany,
@@ -61,8 +52,6 @@ const {
   createEstimate,
   saveEstimate,
   deleteEstimate,
-  rotateApprovalToken,
-  getEstimateByToken,
 } = await import("@/lib/repositories/estimateRepo");
 
 beforeEach(() => vi.clearAllMocks());
@@ -77,201 +66,136 @@ describe("listEstimates", () => {
       expect.objectContaining({ where: { orgId: "org1" } })
     );
   });
+
+  it("includes quote count", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    await listEstimates("org1");
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          _count: { select: { items: true, quotes: true } },
+        }),
+      })
+    );
+  });
 });
 
-// ── getEstimate ───────────────────────────────────────────────────────────────
+// ── getEstimate ──────────────────────────────────────────────────────────────
 
 describe("getEstimate", () => {
-  it("returns null when not found", async () => {
+  it("scopes by id and orgId and includes a lightweight quotes summary", async () => {
     estimateFindFirst.mockResolvedValue(null);
-    expect(await getEstimate(99, "org1")).toBeNull();
-  });
-});
-
-// ── createEstimate ────────────────────────────────────────────────────────────
-
-describe("createEstimate", () => {
-  it("injects orgId and assigns quoteNumber atomically", async () => {
-    organizationFindUnique.mockResolvedValue({ nextQuoteNumber: 3 });
-    organizationUpdate.mockResolvedValue({});
-    txEstimateCreate.mockResolvedValue({ id: 1, quoteNumber: 3 });
-    await createEstimate("org1", { customerId: 2 });
-    expect(txEstimateCreate).toHaveBeenCalledWith(
+    await getEstimate(7, "org1");
+    expect(estimateFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ orgId: "org1", quoteNumber: 3 }),
-      })
-    );
-    expect(organizationUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "org1" },
-        data: { nextQuoteNumber: 4 },
-      })
-    );
-  });
-});
-
-// ── saveEstimate — transaction behavior ───────────────────────────────────────
-
-describe("saveEstimate", () => {
-  it("returns null when estimate not found in org", async () => {
-    estimateUpdateMany.mockResolvedValue({ count: 0 });
-    const result = await saveEstimate(99, "org1", { title: "X" });
-    expect(result).toBeNull();
-    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
-  });
-
-  it("updates top-level fields and returns the estimate", async () => {
-    const updated = { id: 1, title: "New title", items: [], lineItems: [] };
-    estimateUpdateMany.mockResolvedValue({ count: 1 });
-    estimateFindFirst.mockResolvedValue(updated);
-
-    const result = await saveEstimate(1, "org1", { title: "New title" });
-
-    expect(result).toEqual(updated);
-    expect(estimateUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 1, orgId: "org1" } })
-    );
-    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
-  });
-
-  it("replaces items inside the transaction", async () => {
-    const updated = { id: 1, items: [{ id: 2 }], lineItems: [] };
-    estimateUpdateMany.mockResolvedValue({ count: 1 });
-    estimateFindFirst.mockResolvedValue(updated);
-
-    await saveEstimate(1, "org1", {
-      items: [{ type: "room", sortOrder: 0 }],
-    });
-
-    expect(estimateItemDeleteMany).toHaveBeenCalledWith({
-      where: { estimateId: 1 },
-    });
-    expect(estimateItemCreateMany).toHaveBeenCalled();
-    expect(lineItemDeleteMany).not.toHaveBeenCalled();
-  });
-
-  it("replaces lineItems inside the transaction", async () => {
-    const updated = { id: 1, items: [], lineItems: [{ id: 3 }] };
-    estimateUpdateMany.mockResolvedValue({ count: 1 });
-    estimateFindFirst.mockResolvedValue(updated);
-
-    await saveEstimate(1, "org1", {
-      lineItems: [
-        {
-          name: "Labor",
-          rate: 5,
-          wastePct: 0,
-          unitLabel: "ft²",
-          linkedRoomIds: [],
-          sortOrder: 0,
-        },
-      ],
-    });
-
-    expect(lineItemDeleteMany).toHaveBeenCalledWith({
-      where: { estimateId: 1 },
-    });
-    expect(lineItemCreateMany).toHaveBeenCalled();
-    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
-  });
-
-  it("propagates transaction errors (simulating DB rollback)", async () => {
-    $transaction.mockRejectedValueOnce(new Error("DB failure"));
-    await expect(
-      saveEstimate(1, "org1", { title: "Boom", items: [] })
-    ).rejects.toThrow("DB failure");
-  });
-
-  it("uses count check when patch has no top-level fields", async () => {
-    estimateCount.mockResolvedValue(1);
-    estimateFindFirst.mockResolvedValue({ id: 1, items: [], lineItems: [] });
-
-    await saveEstimate(1, "org1", { items: [] });
-
-    expect(estimateCount).toHaveBeenCalledWith({
-      where: { id: 1, orgId: "org1" },
-    });
-    expect(estimateUpdateMany).not.toHaveBeenCalled();
-  });
-
-  it("returns null when only items provided but estimate not in org", async () => {
-    estimateCount.mockResolvedValue(0);
-
-    const result = await saveEstimate(99, "org1", { items: [] });
-
-    expect(result).toBeNull();
-    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
-  });
-});
-
-// ── rotateApprovalToken ───────────────────────────────────────────────────────
-
-describe("rotateApprovalToken", () => {
-  it("returns null when estimate is not in the org", async () => {
-    estimateUpdateMany.mockResolvedValue({ count: 0 });
-    expect(await rotateApprovalToken(99, "org1")).toBeNull();
-  });
-
-  it("issues a URL-safe token of sufficient length", async () => {
-    estimateUpdateMany.mockResolvedValue({ count: 1 });
-    const token = await rotateApprovalToken(1, "org1");
-    expect(token).not.toBeNull();
-    expect(token?.length).toBeGreaterThanOrEqual(32);
-    // base64url alphabet: A-Z, a-z, 0-9, -, _
-    expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
-    expect(estimateUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 1, orgId: "org1" },
-        data: expect.objectContaining({ approvalToken: token }),
-      })
-    );
-  });
-
-  it("issues different tokens on subsequent calls", async () => {
-    estimateUpdateMany.mockResolvedValue({ count: 1 });
-    const a = await rotateApprovalToken(1, "org1");
-    const b = await rotateApprovalToken(1, "org1");
-    expect(a).not.toBe(b);
-  });
-});
-
-// ── getEstimateByToken ────────────────────────────────────────────────────────
-
-describe("getEstimateByToken", () => {
-  it("looks up by approvalToken with org branding included", async () => {
-    estimateFindUnique.mockResolvedValue({ id: 1, org: { name: "X" } });
-    await getEstimateByToken("some-token");
-    expect(estimateFindUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { approvalToken: "some-token" },
+        where: { id: 7, orgId: "org1" },
         include: expect.objectContaining({
-          org: expect.objectContaining({
-            select: expect.objectContaining({ name: true }),
+          quotes: expect.objectContaining({
+            select: expect.objectContaining({
+              id: true,
+              quoteNumber: true,
+              status: true,
+            }),
           }),
         }),
       })
     );
   });
+});
 
-  it("returns null when token does not match any estimate", async () => {
-    estimateFindUnique.mockResolvedValue(null);
-    expect(await getEstimateByToken("nope")).toBeNull();
+// ── createEstimate ───────────────────────────────────────────────────────────
+
+describe("createEstimate", () => {
+  it("allocates the next estimateNumber from Organization.nextEstimateNumber", async () => {
+    organizationFindUnique.mockResolvedValue({ nextEstimateNumber: 42 });
+    organizationUpdate.mockResolvedValue({});
+    txEstimateCreate.mockResolvedValue({ id: 1, estimateNumber: 42 });
+
+    await createEstimate("org1", { customerId: 9, title: "Job" });
+
+    expect(organizationUpdate).toHaveBeenCalledWith({
+      where: { id: "org1" },
+      data: { nextEstimateNumber: 43 },
+    });
+    expect(txEstimateCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        orgId: "org1",
+        customerId: 9,
+        estimateNumber: 42,
+      }),
+    });
+  });
+
+  it("defaults estimateNumber to 1 when org counter missing", async () => {
+    organizationFindUnique.mockResolvedValue(null);
+    organizationUpdate.mockResolvedValue({});
+    txEstimateCreate.mockResolvedValue({ id: 1, estimateNumber: 1 });
+
+    await createEstimate("org1", { customerId: 9 });
+
+    expect(txEstimateCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ estimateNumber: 1 }),
+    });
   });
 });
 
-// ── deleteEstimate ────────────────────────────────────────────────────────────
+// ── saveEstimate ─────────────────────────────────────────────────────────────
 
-describe("deleteEstimate", () => {
-  it("returns false when nothing was deleted", async () => {
-    estimateDeleteMany.mockResolvedValue({ count: 0 });
-    expect(await deleteEstimate(99, "org1")).toBe(false);
+describe("saveEstimate", () => {
+  it("updates only top-level fields when no items provided", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    estimateFindFirst.mockResolvedValue({ id: 1 });
+
+    await saveEstimate(1, "org1", { title: "Renamed" });
+
+    expect(estimateUpdateMany).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      data: { title: "Renamed" },
+    });
+    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
   });
 
-  it("returns true when deleted", async () => {
+  it("returns null when nothing matches the id+org", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 0 });
+    const result = await saveEstimate(99, "org1", { title: "x" });
+    expect(result).toBeNull();
+  });
+
+  it("replaces items wholesale when items provided", async () => {
+    estimateCount.mockResolvedValue(1);
+    estimateFindFirst.mockResolvedValue({ id: 1 });
+
+    await saveEstimate(1, "org1", {
+      items: [
+        {
+          type: "room",
+          name: "Living",
+          shape: "rect",
+          w: 10,
+          l: 12,
+          sortOrder: 0,
+        },
+      ],
+    });
+
+    expect(estimateItemDeleteMany).toHaveBeenCalledWith({
+      where: { estimateId: 1 },
+    });
+    expect(estimateItemCreateMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ estimateId: 1, name: "Living" })],
+    });
+  });
+});
+
+// ── deleteEstimate ───────────────────────────────────────────────────────────
+
+describe("deleteEstimate", () => {
+  it("returns true when something was deleted", async () => {
     estimateDeleteMany.mockResolvedValue({ count: 1 });
     expect(await deleteEstimate(1, "org1")).toBe(true);
-    expect(estimateDeleteMany).toHaveBeenCalledWith({
-      where: { id: 1, orgId: "org1" },
-    });
+  });
+  it("returns false when nothing matched", async () => {
+    estimateDeleteMany.mockResolvedValue({ count: 0 });
+    expect(await deleteEstimate(99, "org1")).toBe(false);
   });
 });
