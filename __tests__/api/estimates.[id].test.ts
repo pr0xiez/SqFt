@@ -71,7 +71,8 @@ describe("GET /api/estimates/[id]", () => {
       // biome-ignore lint/suspicious/noExplicitAny: test stub
     } as any);
     const res = await GET(
-      undefined as Parameters<typeof GET>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: GET handler no-arg
+      undefined as any,
       makeParams("1")
     );
     expect(res.status).toBe(200);
@@ -192,7 +193,8 @@ describe("DELETE /api/estimates/[id]", () => {
     mockGetOrgId.mockResolvedValue("org1");
     mockDeleteEstimate.mockResolvedValue(true);
     const res = await DELETE(
-      undefined as Parameters<typeof DELETE>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: DELETE handler no-arg
+      undefined as any,
       makeParams("1")
     );
     expect(res.status).toBe(200);
@@ -203,7 +205,8 @@ describe("DELETE /api/estimates/[id]", () => {
   it("returns 401 when unauthenticated", async () => {
     mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
     const res = await DELETE(
-      undefined as Parameters<typeof DELETE>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: DELETE handler no-arg
+      undefined as any,
       makeParams("1")
     );
     expect(res.status).toBe(401);

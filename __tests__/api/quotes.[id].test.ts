@@ -61,7 +61,8 @@ describe("GET /api/quotes/[id]", () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockGetQuote.mockResolvedValue({ id: 1 } as any);
     const res = await GET(
-      undefined as Parameters<typeof GET>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: GET handler no-arg
+      undefined as any,
       makeParams("1")
     );
     expect(res.status).toBe(200);
@@ -71,7 +72,8 @@ describe("GET /api/quotes/[id]", () => {
     mockGetOrgId.mockResolvedValue("org1");
     mockGetQuote.mockResolvedValue(null);
     const res = await GET(
-      undefined as Parameters<typeof GET>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: GET handler no-arg
+      undefined as any,
       makeParams("99")
     );
     expect(res.status).toBe(404);
@@ -118,7 +120,8 @@ describe("DELETE /api/quotes/[id]", () => {
     mockGetOrgId.mockResolvedValue("org1");
     mockDeleteQuote.mockResolvedValue(true);
     const res = await DELETE(
-      undefined as Parameters<typeof DELETE>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: DELETE handler no-arg
+      undefined as any,
       makeParams("1")
     );
     expect(res.status).toBe(200);
@@ -128,7 +131,8 @@ describe("DELETE /api/quotes/[id]", () => {
     mockGetOrgId.mockResolvedValue("org1");
     mockDeleteQuote.mockRejectedValue(new QuoteHasEventsError(2));
     const res = await DELETE(
-      undefined as Parameters<typeof DELETE>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: DELETE handler no-arg
+      undefined as any,
       makeParams("1")
     );
     expect(res.status).toBe(409);
@@ -143,7 +147,8 @@ describe("POST /api/quotes/[id]/approval-token", () => {
     mockGetOrgId.mockResolvedValue("org1");
     mockRotate.mockResolvedValue("the-token");
     const res = await tokenPOST(
-      undefined as Parameters<typeof tokenPOST>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: POST handler no-arg
+      undefined as any,
       makeParams("1")
     );
     expect(res.status).toBe(200);
@@ -154,7 +159,8 @@ describe("POST /api/quotes/[id]/approval-token", () => {
     mockGetOrgId.mockResolvedValue("org1");
     mockRotate.mockResolvedValue(null);
     const res = await tokenPOST(
-      undefined as Parameters<typeof tokenPOST>[0],
+      // biome-ignore lint/suspicious/noExplicitAny: POST handler no-arg
+      undefined as any,
       makeParams("99")
     );
     expect(res.status).toBe(404);
