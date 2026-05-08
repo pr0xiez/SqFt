@@ -34,26 +34,9 @@ const estimateItemSchema = z.object({
   text: z.string().nullish(),
 });
 
-const lineItemSchema = z.object({
-  id: z.number().int(),
-  name: z.string(),
-  rate: z.number(),
-  qtyMode: z.enum(["manual", "linked"]).default("manual"),
-  qty: z.number().nullish(),
-  wastePct: z.number().default(0),
-  unitLabel: z.string().default("ft²"),
-  linkedRoomIds: z.array(z.number().int()).default([]),
-  sortOrder: z.number().int().default(0),
-});
-
 const updateSchema = z.object({
   title: z.string().max(200).optional(),
-  status: z.enum(["quote", "scheduled", "in_progress", "completed"]).optional(),
-  taxRate: z.number().min(0).max(1).optional(),
-  markupPct: z.number().min(0).optional(),
-  depositPct: z.number().min(0).max(1).optional(),
   items: z.array(estimateItemSchema).optional(),
-  lineItems: z.array(lineItemSchema).optional(),
 });
 
 type RouteParams = { params: Promise<{ id: string }> };
