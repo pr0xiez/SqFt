@@ -20,18 +20,18 @@ const estimateItemSchema = z.object({
   id: z.number().int(),
   type: z.enum(["room", "note"]),
   sortOrder: z.number().int().default(0),
-  name: z.string().optional(),
-  shape: z.enum(["rect", "tri", "lshape"]).optional(),
-  w: z.number().optional(),
-  l: z.number().optional(),
+  name: z.string().nullish(),
+  shape: z.enum(["rect", "tri", "lshape"]).nullish(),
+  w: z.number().nullish(),
+  l: z.number().nullish(),
   lshapeData: z
     .object({
       sections: z.array(lshapeSectionSchema),
       deductions: z.array(lshapeDeductSchema),
     })
-    .optional(),
-  note: z.string().optional(),
-  text: z.string().optional(),
+    .nullish(),
+  note: z.string().nullish(),
+  text: z.string().nullish(),
 });
 
 const lineItemSchema = z.object({
@@ -39,7 +39,7 @@ const lineItemSchema = z.object({
   name: z.string(),
   rate: z.number(),
   qtyMode: z.enum(["manual", "linked"]).default("manual"),
-  qty: z.number().optional(),
+  qty: z.number().nullish(),
   wastePct: z.number().default(0),
   unitLabel: z.string().default("ft²"),
   linkedRoomIds: z.array(z.number().int()).default([]),

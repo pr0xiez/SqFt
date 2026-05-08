@@ -21,10 +21,16 @@ export type EstimateWithDetails = Prisma.EstimateGetPayload<{
   };
 }>;
 
+// `lshapeData` accepts a JSON value or null — null is normalized to "omit"
+// inside `saveEstimate` because Prisma's NullableJsonNullValueInput rejects
+// raw null.
 type EstimateItemInput = Omit<
   Prisma.EstimateItemUncheckedCreateInput,
-  "id" | "estimateId"
-> & { id?: number };
+  "id" | "estimateId" | "lshapeData"
+> & {
+  id?: number;
+  lshapeData?: Prisma.InputJsonValue | null;
+};
 
 type LineItemInput = Omit<
   Prisma.LineItemUncheckedCreateInput,
@@ -109,9 +115,12 @@ export async function saveEstimate(
       await tx.estimateItem.deleteMany({ where: { estimateId: id } });
       if (items.length > 0) {
         await tx.estimateItem.createMany({
-          data: items.map(({ id: _id, ...item }) => ({
+          data: items.map(({ id: _id, lshapeData, ...item }) => ({
             ...item,
             estimateId: id,
+            // Prisma's NullableJsonNullValueInput rejects raw null; omit the
+            // field entirely so the column ends up as DB NULL.
+            ...(lshapeData == null ? {} : { lshapeData }),
           })),
         });
       }
