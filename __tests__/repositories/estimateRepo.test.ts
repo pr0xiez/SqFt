@@ -161,6 +161,24 @@ describe("saveEstimate", () => {
     expect(result).toBeNull();
   });
 
+  it("returns null when items-only update targets nonexistent estimate", async () => {
+    estimateCount.mockResolvedValue(0);
+    const result = await saveEstimate(99, "org1", {
+      items: [
+        {
+          type: "room",
+          name: "Living",
+          shape: "rect",
+          w: 10,
+          l: 12,
+          sortOrder: 0,
+        },
+      ],
+    });
+    expect(result).toBeNull();
+    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
+  });
+
   it("replaces items wholesale when items provided", async () => {
     estimateCount.mockResolvedValue(1);
     estimateFindFirst.mockResolvedValue({ id: 1 });
