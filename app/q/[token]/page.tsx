@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import {
-  type PublicEstimate,
+  type PublicQuote,
   PublicQuoteView,
 } from "@/components/estimates/PublicQuoteView";
-import { getEstimateByToken } from "@/lib/repositories";
+import { getQuoteByToken } from "@/lib/repositories";
 import type { LShapeData } from "@/lib/utils";
 
 export const metadata = {
@@ -22,21 +22,29 @@ export default async function PublicQuotePage({ params }: Props) {
   // Reject any token shape that couldn't have been issued, before hitting the DB.
   if (!token || token.length < 16 || token.length > 128) notFound();
 
-  const estimate = await getEstimateByToken(token);
-  if (!estimate) notFound();
+  const quote = await getQuoteByToken(token);
+  if (!quote) notFound();
 
-  const view: PublicEstimate = {
-    id: estimate.id,
-    title: estimate.title,
-    quoteNumber: estimate.quoteNumber,
-    date: estimate.date,
-    taxRate: estimate.taxRate,
-    markupPct: estimate.markupPct,
-    depositPct: estimate.depositPct,
-    customer: estimate.customer
-      ? { name: estimate.customer.name, address: estimate.customer.address }
+  const view: PublicQuote = {
+    id: quote.id,
+    quoteNumber: quote.quoteNumber,
+    status: quote.status,
+    date: quote.date,
+    taxRate: quote.taxRate,
+    markupPct: quote.markupPct,
+    depositPct: quote.depositPct,
+    estimate: {
+      id: quote.estimate.id,
+      estimateNumber: quote.estimate.estimateNumber,
+      title: quote.estimate.title,
+    },
+    customer: quote.estimate.customer
+      ? {
+          name: quote.estimate.customer.name,
+          address: quote.estimate.customer.address,
+        }
       : null,
-    items: estimate.items.map((i) => ({
+    items: quote.estimate.items.map((i) => ({
       id: i.id,
       type: i.type === "room" ? "room" : "note",
       shape:
@@ -50,7 +58,7 @@ export default async function PublicQuotePage({ params }: Props) {
       note: i.note,
       text: i.text,
     })),
-    lineItems: estimate.lineItems.map((li) => ({
+    lineItems: quote.lineItems.map((li) => ({
       id: li.id,
       name: li.name,
       rate: li.rate,
@@ -61,8 +69,8 @@ export default async function PublicQuotePage({ params }: Props) {
       linkedRoomIds: li.linkedRoomIds,
       sortOrder: li.sortOrder,
     })),
-    org: estimate.org,
+    org: quote.org,
   };
 
-  return <PublicQuoteView estimate={view} />;
+  return <PublicQuoteView quote={view} />;
 }

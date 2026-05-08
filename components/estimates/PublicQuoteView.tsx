@@ -7,14 +7,19 @@ import {
   roomSqft,
 } from "@/lib/utils";
 
-export interface PublicEstimate {
+export interface PublicQuote {
   id: number;
-  title: string;
-  quoteNumber: number | null;
+  quoteNumber: number;
+  status: string;
   date: string | Date;
   taxRate: number;
   markupPct: number;
   depositPct: number;
+  estimate: {
+    id: number;
+    estimateNumber: number | null;
+    title: string;
+  };
   customer: { name: string; address: string | null } | null;
   items: RoomItem[];
   lineItems: LineItemCalc[];
@@ -28,27 +33,25 @@ export interface PublicEstimate {
 }
 
 interface Props {
-  estimate: PublicEstimate;
+  quote: PublicQuote;
 }
 
-export function PublicQuoteView({ estimate }: Props) {
-  const rooms = estimate.items.filter((i) => i.type === "room");
-  const lineItems = estimate.lineItems;
+export function PublicQuoteView({ quote }: Props) {
+  const rooms = quote.items.filter((i) => i.type === "room");
+  const lineItems = quote.lineItems;
 
   const subtotal = lineItems.reduce(
     (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
     0
   );
-  const markup = subtotal * (estimate.markupPct / 100);
+  const markup = subtotal * (quote.markupPct / 100);
   const beforeTax = subtotal + markup;
-  const tax = beforeTax * estimate.taxRate;
+  const tax = beforeTax * quote.taxRate;
   const total = beforeTax + tax;
-  const deposit = total * estimate.depositPct;
+  const deposit = total * quote.depositPct;
 
-  const docNumber = estimate.quoteNumber
-    ? `Q-${estimate.quoteNumber}`
-    : `#${estimate.id}`;
-  const dateStr = new Date(estimate.date).toLocaleDateString("en-US", {
+  const docNumber = `Q-${quote.quoteNumber}`;
+  const dateStr = new Date(quote.date).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -59,30 +62,30 @@ export function PublicQuoteView({ estimate }: Props) {
       {/* Header */}
       <header className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-5 mb-7">
         <div className="min-w-0">
-          {estimate.org.logo ? (
+          {quote.org.logo ? (
             // biome-ignore lint/performance/noImgElement: org logos can be remote URLs not configured in next.config
             <img
-              src={estimate.org.logo}
-              alt={estimate.org.name}
+              src={quote.org.logo}
+              alt={quote.org.name}
               className="h-10 max-w-[180px] object-contain mb-2"
             />
           ) : null}
           <div className="text-[18px] font-[700] tracking-[-0.01em]">
-            {estimate.org.name}
+            {quote.org.name}
           </div>
-          {estimate.org.address ? (
+          {quote.org.address ? (
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-0.5">
-              {estimate.org.address}
+              {quote.org.address}
             </div>
           ) : null}
-          {estimate.org.phone ? (
+          {quote.org.phone ? (
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-              {estimate.org.phone}
+              {quote.org.phone}
             </div>
           ) : null}
-          {estimate.org.licenseNumber ? (
+          {quote.org.licenseNumber ? (
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-              Lic# {estimate.org.licenseNumber}
+              Lic# {quote.org.licenseNumber}
             </div>
           ) : null}
         </div>
@@ -107,19 +110,19 @@ export function PublicQuoteView({ estimate }: Props) {
           For
         </div>
         <div className="text-[15px] font-[600]">
-          {estimate.customer?.name ?? ""}
+          {quote.customer?.name ?? ""}
         </div>
-        {estimate.customer?.address ? (
+        {quote.customer?.address ? (
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-0.5">
-            {estimate.customer.address}
+            {quote.customer.address}
           </div>
         ) : null}
       </section>
 
       {/* Title */}
-      {estimate.title ? (
+      {quote.estimate.title ? (
         <h1 className="text-[24px] sm:text-[28px] font-[700] tracking-[-0.025em] mb-5">
-          {estimate.title}
+          {quote.estimate.title}
         </h1>
       ) : null}
 
@@ -185,14 +188,14 @@ export function PublicQuoteView({ estimate }: Props) {
       {/* Totals */}
       <section className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5 space-y-2.5">
         <Row label="Subtotal" value={fmtDollar(subtotal)} />
-        {estimate.markupPct > 0 ? (
+        {quote.markupPct > 0 ? (
           <Row
-            label={`Markup (${estimate.markupPct}%)`}
+            label={`Markup (${quote.markupPct}%)`}
             value={fmtDollar(markup)}
           />
         ) : null}
         <Row
-          label={`Tax (${(estimate.taxRate * 100).toFixed(1)}%)`}
+          label={`Tax (${(quote.taxRate * 100).toFixed(1)}%)`}
           value={fmtDollar(tax)}
         />
         <div className="flex justify-between items-baseline pt-3 border-t border-[var(--line)]">
@@ -203,10 +206,10 @@ export function PublicQuoteView({ estimate }: Props) {
             {fmtDollar(total)}
           </span>
         </div>
-        {estimate.depositPct > 0 ? (
+        {quote.depositPct > 0 ? (
           <div className="flex justify-between items-baseline">
             <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-              Deposit ({(estimate.depositPct * 100).toFixed(0)}% due)
+              Deposit ({(quote.depositPct * 100).toFixed(0)}% due)
             </span>
             <span className="font-[var(--font-mono)] text-[13px] font-[600] text-[var(--sage)]">
               {fmtDollar(deposit)}
@@ -216,7 +219,7 @@ export function PublicQuoteView({ estimate }: Props) {
       </section>
 
       <footer className="text-center mt-10 font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-        Quote prepared by {estimate.org.name}
+        Quote prepared by {quote.org.name}
       </footer>
     </div>
   );
