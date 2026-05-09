@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createEvent, listEvents } from "@/lib/repositories";
+import {
+  createEvent,
+  listEvents,
+  validateCrewMemberIds,
+} from "@/lib/repositories";
 import { EventValidationError } from "@/lib/repositories/eventRepo";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
@@ -17,7 +21,7 @@ const createSchema = z.object({
     .optional(),
   startTime: z.string().regex(/^\d{2}:\d{2}$/),
   endTime: z.string().regex(/^\d{2}:\d{2}$/),
-  crew: z.string().max(200).optional(),
+  crewMemberIds: z.array(z.number().int().positive()).max(20).optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -44,11 +48,23 @@ export const POST = withLogging(async (req: NextRequest) => {
       );
     }
 
-    const { endDate, ...rest } = parsed.data;
+    const { endDate, crewMemberIds, ...rest } = parsed.data;
+
+    if (crewMemberIds && crewMemberIds.length > 0) {
+      const ok = await validateCrewMemberIds(orgId, crewMemberIds);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "Invalid crew member" },
+          { status: 400 }
+        );
+      }
+    }
+
     const event = await createEvent(orgId, {
       ...rest,
       date: new Date(rest.date),
       ...(endDate ? { endDate: new Date(endDate) } : {}),
+      ...(crewMemberIds ? { crewMemberIds } : {}),
     });
 
     return NextResponse.json(event, { status: 201 });

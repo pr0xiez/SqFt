@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const eventFindMany = vi.fn();
 const eventFindFirst = vi.fn();
 const eventCreate = vi.fn();
-const eventUpdateMany = vi.fn();
+const eventUpdate = vi.fn();
 const eventDeleteMany = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
@@ -12,7 +12,7 @@ vi.mock("@/lib/prisma", () => ({
       findMany: eventFindMany,
       findFirst: eventFindFirst,
       create: eventCreate,
-      updateMany: eventUpdateMany,
+      update: eventUpdate,
       deleteMany: eventDeleteMany,
     },
   },
@@ -64,9 +64,30 @@ describe("createEvent", () => {
       startTime: "08:00",
       endTime: "16:00",
     });
-    expect(eventCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ orgId: "org1", quoteId: 42 }),
+    expect(eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ orgId: "org1", quoteId: 42 }),
+      })
+    );
+  });
+
+  it("connects crewMembers when crewMemberIds is supplied", async () => {
+    eventCreate.mockResolvedValue({ id: 1 });
+    await createEvent("org1", {
+      type: "visit",
+      title: "Measure",
+      date: new Date(),
+      startTime: "10:00",
+      endTime: "11:00",
+      crewMemberIds: [10, 11],
     });
+    expect(eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          crewMembers: { connect: [{ id: 10 }, { id: 11 }] },
+        }),
+      })
+    );
   });
 
   it("rejects a job without a quoteId", async () => {
@@ -104,12 +125,24 @@ describe("updateEvent", () => {
   });
 
   it("allows changing a job's quoteId to another quote", async () => {
-    eventFindFirst
-      .mockResolvedValueOnce({ type: "job", quoteId: 1 })
-      .mockResolvedValueOnce({ id: 1 });
-    eventUpdateMany.mockResolvedValue({ count: 1 });
+    eventFindFirst.mockResolvedValueOnce({ type: "job", quoteId: 1 });
+    eventUpdate.mockResolvedValue({ id: 1 });
     await updateEvent(1, "org1", { quoteId: 2 });
-    expect(eventUpdateMany).toHaveBeenCalled();
+    expect(eventUpdate).toHaveBeenCalled();
+  });
+
+  it("uses set semantics when crewMemberIds is supplied", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "visit", quoteId: null });
+    eventUpdate.mockResolvedValue({ id: 1 });
+    await updateEvent(1, "org1", { crewMemberIds: [10] });
+    expect(eventUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 1 },
+        data: expect.objectContaining({
+          crewMembers: { set: [{ id: 10 }] },
+        }),
+      })
+    );
   });
 });
 

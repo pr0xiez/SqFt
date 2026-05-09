@@ -14,6 +14,7 @@ vi.mock("@/lib/repositories", () => ({
   createEvent: vi.fn(),
   updateEvent: vi.fn(),
   deleteEvent: vi.fn(),
+  validateCrewMemberIds: vi.fn(),
 }));
 
 vi.mock("@/lib/tenant", () => ({
