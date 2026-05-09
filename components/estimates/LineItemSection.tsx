@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { RoomLinkPicker } from "@/components/quotes/RoomLinkPicker";
 import { cn } from "@/lib/cn";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 import {
@@ -32,6 +33,10 @@ export function LineItemSection({
   onSave,
 }: Props) {
   const [items, setItems] = useState<LineItemCalc[]>(initialLineItems);
+  const [picker, setPicker] = useState<{
+    lineId: number;
+    rect: DOMRect;
+  } | null>(null);
 
   const save = useCallback(
     async (newItems: LineItemCalc[]) => {
@@ -150,14 +155,10 @@ export function LineItemSection({
                   <div className="px-3 py-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        updateItem(li.id, {
-                          qtyMode:
-                            li.qtyMode === "linked" ? "manual" : "linked",
-                          linkedRoomIds:
-                            li.qtyMode === "linked"
-                              ? []
-                              : rooms.map((r) => r.id),
+                      onClick={(e) =>
+                        setPicker({
+                          lineId: li.id,
+                          rect: e.currentTarget.getBoundingClientRect(),
                         })
                       }
                       className={cn(
@@ -331,6 +332,36 @@ export function LineItemSection({
       >
         + Add Line Item
       </button>
+
+      {picker &&
+        (() => {
+          const li = items.find((i) => i.id === picker.lineId);
+          if (!li) return null;
+          return (
+            <RoomLinkPicker
+              rooms={rooms}
+              initialRoomIds={li.linkedRoomIds}
+              initialWastePct={li.wastePct}
+              anchorRect={picker.rect}
+              onApply={(linkedRoomIds, wastePct) =>
+                updateItem(picker.lineId, {
+                  qtyMode: "linked",
+                  linkedRoomIds,
+                  wastePct,
+                })
+              }
+              onClear={() =>
+                updateItem(picker.lineId, {
+                  qtyMode: "manual",
+                  linkedRoomIds: [],
+                  wastePct: 0,
+                  qty: null,
+                })
+              }
+              onClose={() => setPicker(null)}
+            />
+          );
+        })()}
     </div>
   );
 }
