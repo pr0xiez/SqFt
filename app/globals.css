@@ -169,6 +169,17 @@
   margin: 12px 0;
 }
 
+/* ── CREW FILTER — DIM NON-MATCHING CALENDAR EVENTS ────────────────────── */
+
+.cal-crew-focus .cal-event {
+  opacity: 0.18;
+  filter: saturate(0.4);
+}
+.cal-crew-focus .cal-event.crew-match {
+  opacity: 1;
+  filter: none;
+}
+
 /* ── MOBILE BOTTOM NAV BODY PADDING ─────────────────────────────────────── */
 
 @layer base {
