@@ -33,6 +33,7 @@ export interface CreateEstimateInput {
 
 export interface UpdateEstimateInput {
   title?: string;
+  customerId?: number;
   items?: RoomItem[];
 }
 

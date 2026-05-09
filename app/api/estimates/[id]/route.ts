@@ -36,6 +36,7 @@ const estimateItemSchema = z.object({
 
 const updateSchema = z.object({
   title: z.string().max(200).optional(),
+  customerId: z.number().int().positive().optional(),
   items: z.array(estimateItemSchema).optional(),
 });
 

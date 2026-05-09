@@ -157,6 +157,36 @@ describe("PATCH /api/estimates/[id]", () => {
     );
   });
 
+  it("returns 200 when patching customerId", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+
+    const req = makeRequest("5", { customerId: 12 });
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("5")
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockSaveEstimate).toHaveBeenCalledWith(
+      5,
+      "org1",
+      expect.objectContaining({ customerId: 12 })
+    );
+  });
+
+  it("returns 400 for an invalid customerId (non-positive)", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+
+    const req = makeRequest("5", { customerId: -1 });
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("5")
+    );
+
+    expect(res.status).toBe(400);
+    expect(mockSaveEstimate).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for an invalid payload (item with wrong type)", async () => {
     mockGetOrgId.mockResolvedValue("org1");
 

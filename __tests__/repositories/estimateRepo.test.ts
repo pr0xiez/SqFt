@@ -155,6 +155,19 @@ describe("saveEstimate", () => {
     expect(estimateItemDeleteMany).not.toHaveBeenCalled();
   });
 
+  it("forwards customerId to estimate.updateMany", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    estimateFindFirst.mockResolvedValue({ id: 1 });
+
+    await saveEstimate(1, "org1", { customerId: 42 });
+
+    expect(estimateUpdateMany).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      data: { customerId: 42 },
+    });
+    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
+  });
+
   it("returns null when nothing matches the id+org", async () => {
     estimateUpdateMany.mockResolvedValue({ count: 0 });
     const result = await saveEstimate(99, "org1", { title: "x" });
