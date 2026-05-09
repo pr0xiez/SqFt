@@ -2,10 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { CustomerPickerPanel } from "@/components/estimates/CustomerPickerPanel";
 import { EstimateQuotesCard } from "@/components/estimates/EstimateQuotesCard";
 import { RoomSection } from "@/components/estimates/RoomSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
 import { useCreateQuote } from "@/lib/hooks/useQuotes";
 import { estTotalArea } from "@/lib/utils";
@@ -23,6 +25,9 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const changeCustomerBtnRef = useRef<HTMLButtonElement>(null);
+  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
+  const { data: customers } = useCustomers();
 
   useEffect(() => {
     if (editingTitle) titleInputRef.current?.focus();
@@ -36,6 +41,15 @@ export function EstimateBuilderView({ estimateId }: Props) {
       await updateEstimate.mutateAsync({ title: trimmed });
     } catch {
       showToast("Failed to save title");
+    }
+  }
+
+  async function handleChangeCustomer(customerId: number) {
+    try {
+      await updateEstimate.mutateAsync({ customerId });
+      showToast("Customer changed");
+    } catch {
+      showToast("Failed to change customer");
     }
   }
 
@@ -150,7 +164,28 @@ export function EstimateBuilderView({ estimateId }: Props) {
           >
             View
           </Button>
+          <Button
+            ref={changeCustomerBtnRef}
+            size="sm"
+            onClick={() => {
+              const rect =
+                changeCustomerBtnRef.current?.getBoundingClientRect();
+              if (rect) setPickerAnchor(rect);
+            }}
+          >
+            Change
+          </Button>
         </div>
+      )}
+
+      {pickerAnchor && estimate.customer && (
+        <CustomerPickerPanel
+          customers={customers ?? []}
+          currentCustomerId={estimate.customer.id}
+          anchorRect={pickerAnchor}
+          onSelect={handleChangeCustomer}
+          onClose={() => setPickerAnchor(null)}
+        />
       )}
 
       {/* Quotes card */}
