@@ -8,8 +8,8 @@ import {
 
 // ── 3.1 Estimate Builder ──────────────────────────────────────────────────────
 //
-// Coverage for the heart of the app: editing rooms, line items, title, and
-// quote settings on `/estimates/[id]`. Two layers:
+// Coverage for the heart of the app: editing rooms, title, and rooms on
+// `/estimates/[id]`. Two layers:
 //   • Direct PATCH /api/estimates/[id] tests pin down the wire contract — they
 //     are the regression for the "every save returns 400" bug where the zod
 //     schema rejected the nulls Prisma returns for nullable columns.
@@ -163,35 +163,7 @@ test.describe
       expect(patch.status()).toBe(200);
     });
 
-    test("3.1.3 PATCH accepts a linked-mode line item with qty=null", async () => {
-      const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: {
-          lineItems: [
-            {
-              id: 1,
-              name: "LVP",
-              rate: 4.5,
-              qtyMode: "linked",
-              qty: null,
-              wastePct: 10,
-              unitLabel: "sqft",
-              linkedRoomIds: [],
-              sortOrder: 0,
-            },
-          ],
-        },
-      });
-      expect(res.status()).toBe(200);
-      const body = await res.json();
-      expect(body.lineItems).toHaveLength(1);
-      expect(body.lineItems[0]).toMatchObject({
-        name: "LVP",
-        qtyMode: "linked",
-        qty: null,
-      });
-    });
-
-    test("3.1.4 PATCH persists L-shape JSON correctly", async () => {
+    test("3.1.3 PATCH persists L-shape JSON correctly", async () => {
       const lshapeData = {
         sections: [
           { w: 10, l: 8 },
@@ -226,7 +198,7 @@ test.describe
       expect(fetched.items[0].lshapeData).toEqual(lshapeData);
     });
 
-    test("3.1.5 PATCH persists title", async () => {
+    test("3.1.4 PATCH persists title", async () => {
       const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
         data: { title: "Henderson Living Room" },
       });
@@ -236,33 +208,14 @@ test.describe
       expect(body.title).toBe("Henderson Living Room");
     });
 
-    test("3.1.6 PATCH persists tax / markup / deposit", async () => {
-      const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: { taxRate: 0.075, markupPct: 32, depositPct: 0.4 },
-      });
-      expect(res.status()).toBe(200);
-      const get = await ctx.request.get(`/api/estimates/${estimateId}`);
-      const body = await get.json();
-      expect(body.taxRate).toBeCloseTo(0.075, 5);
-      expect(body.markupPct).toBeCloseTo(32, 5);
-      expect(body.depositPct).toBeCloseTo(0.4, 5);
-    });
-
-    test("3.1.7 PATCH rejects truly invalid input (taxRate > 1)", async () => {
-      const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: { taxRate: 5 },
-      });
-      expect(res.status()).toBe(400);
-    });
-
-    test("3.1.8 PATCH rejects items with missing id (zod still enforces shape)", async () => {
+    test("3.1.5 PATCH rejects items with missing id (zod still enforces shape)", async () => {
       const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
         data: { items: [{ type: "room", name: "no-id" }] },
       });
       expect(res.status()).toBe(400);
     });
 
-    test("3.1.9 PATCH on another org's estimate returns 404", async ({
+    test("3.1.6 PATCH on another org's estimate returns 404", async ({
       browser,
     }) => {
       // Different user → different org. Their session can't see our estimate.
@@ -275,7 +228,7 @@ test.describe
       await otherCtx.close();
     });
 
-    test("3.1.10 PATCH unauthenticated returns 401", async ({ browser }) => {
+    test("3.1.7 PATCH unauthenticated returns 401", async ({ browser }) => {
       const anonCtx = await browser.newContext();
       const res = await anonCtx.request.patch(`/api/estimates/${estimateId}`, {
         data: { title: "Anon" },
@@ -460,12 +413,36 @@ test.describe
       // After removing the only room, no room-name input remains.
       await expect(page.getByPlaceholder("Room name")).toHaveCount(0);
     });
+
+    test("3.2.8 creates a quote from the estimate page and lands on the quote builder", async () => {
+      await page.goto(`/estimates/${estimateId}`);
+      await expect(page.getByText("Quotes for this estimate")).toBeVisible();
+
+      // Click "+ Create Quote" in the EstimateQuotesCard header
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (r) =>
+            r.url().includes("/api/quotes") &&
+            r.request().method() === "POST" &&
+            r.status() === 201
+        ),
+        page
+          .getByRole("button", { name: /\+ Create Quote/ })
+          .first()
+          .click(),
+      ]);
+      expect(response.status()).toBe(201);
+
+      // Should navigate to the quote builder
+      await expect(page).toHaveURL(/\/quotes\/\d+/);
+      await expect(page.getByText("Line Items & Pricing")).toBeVisible();
+    });
   });
 
-// ── 3.3 Estimate Builder UI — line items, title, quote settings ─────────────
+// ── 3.3 Estimate Builder UI — title ──────────────────────────────────────────
 
 test.describe
-  .serial("3.3 Estimate Builder UI — line items, title, quote settings", () => {
+  .serial("3.3 Estimate Builder UI — title", () => {
     let ctx: BrowserContext;
     let page: Page;
     let estimateId: number;
@@ -481,42 +458,7 @@ test.describe
       await ctx.close();
     });
 
-    test("3.3.1 Add Line Item triggers a successful PATCH and persists", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      const [response] = await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH"
-        ),
-        page.getByRole("button", { name: /add line item/i }).click(),
-      ]);
-      expect(response.status()).toBe(200);
-
-      await reloadFresh(page);
-      // The line-item name is the only `type="text"` input on this page (no
-      // rooms in this describe; the title is rendered as a button until
-      // clicked). Querying by attribute is brittle for controlled inputs, so
-      // use the value via toHaveValue.
-      await expect(page.locator('input[type="text"]').first()).toHaveValue(
-        "New line item"
-      );
-    });
-
-    test("3.3.2 editing line item name saves and persists", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      const nameInput = page.locator('input[type="text"]').first();
-      await nameInput.fill("LVP — Mohawk RevWood");
-      await nameInput.blur();
-      await page.waitForLoadState("networkidle");
-
-      await reloadFresh(page);
-      await expect(page.locator('input[type="text"]').first()).toHaveValue(
-        "LVP — Mohawk RevWood"
-      );
-    });
-
-    test("3.3.3 editing the title saves and persists", async () => {
+    test("3.3.1 editing the title saves and persists", async () => {
       await page.goto(`/estimates/${estimateId}`);
       // Title is rendered as a button until clicked; clicking opens an input.
       await page.getByRole("button", { name: /untitled estimate/i }).click();
@@ -535,36 +477,5 @@ test.describe
 
       await reloadFresh(page);
       await expect(page.getByText("Henderson — Whole house")).toBeVisible();
-    });
-
-    test("3.3.4 saving quote settings persists tax, markup, deposit", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      // QuoteSummary's inputs are the only number inputs with min=0/max=100 —
-      // line item qty inputs don't have those, so this locator avoids them.
-      const fields = page.locator(
-        'input[type="number"][min="0"][max="100"][step="0.1"]'
-      );
-      // Tax / Markup / Deposit, in render order.
-      await fields.nth(0).fill("7.5");
-      await fields.nth(1).fill("32");
-      await fields.nth(2).fill("40");
-
-      await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH" &&
-            r.status() === 200
-        ),
-        page.getByRole("button", { name: /save quote settings/i }).click(),
-      ]);
-
-      await reloadFresh(page);
-      const fieldsAfter = page.locator(
-        'input[type="number"][min="0"][max="100"][step="0.1"]'
-      );
-      await expect(fieldsAfter.nth(0)).toHaveValue("7.5");
-      await expect(fieldsAfter.nth(1)).toHaveValue("32");
-      await expect(fieldsAfter.nth(2)).toHaveValue("40");
     });
   });
