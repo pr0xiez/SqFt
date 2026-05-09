@@ -153,6 +153,27 @@ export function computeEstimateTotal(est: {
   return fmtBig(total);
 }
 
+/** Compute the total for a quote from its line items + the rooms it links into.
+ *  Returns null when the quote has no line items.
+ *  Server-side use: lib/repositories/quoteRepo.ts feeds this via the list API. */
+export function quoteTotal(input: {
+  lineItems: LineItemCalc[];
+  estimate: { items: RoomItem[] };
+  markupPct: number;
+  taxRate: number;
+}): number | null {
+  if (input.lineItems.length === 0) return null;
+  const rooms = input.estimate.items.filter(
+    (i): i is RoomItem => i.type === "room"
+  );
+  const subtotal = input.lineItems.reduce(
+    (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
+    0
+  );
+  const beforeTax = subtotal * (1 + input.markupPct / 100);
+  return beforeTax * (1 + input.taxRate);
+}
+
 // ── Date helpers ──────────────────────────────────────────────────────────
 
 /** Get today's date as YYYY-MM-DD string */
