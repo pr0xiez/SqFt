@@ -160,11 +160,7 @@ export function DashboardView() {
                         {hasCrew && (
                           <span className="flex items-center gap-[2px] flex-shrink-0">
                             {ev.crewMembers.slice(0, 3).map((m) => (
-                              <CrewAvatar
-                                key={m.id}
-                                name={m.name}
-                                size="sm"
-                              />
+                              <CrewAvatar key={m.id} name={m.name} size="sm" />
                             ))}
                           </span>
                         )}

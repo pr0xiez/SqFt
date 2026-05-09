@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  eventMatchesCrew,
   type EventForCrew,
+  eventMatchesCrew,
   weekCrewCounts,
 } from "@/components/schedule/crewFilters";
 

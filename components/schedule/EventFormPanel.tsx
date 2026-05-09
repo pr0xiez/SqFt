@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { Button } from "@/components/ui/Button";
+import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { cn } from "@/lib/cn";
 import { useCrewMembers } from "@/lib/hooks/useCrewMembers";
@@ -51,7 +51,8 @@ export function EventFormPanel({
 
   const ev = editingEvent;
   const customerEstimates = useMemo(
-    () => (customerId ? estimates.filter((e) => e.customerId === customerId) : []),
+    () =>
+      customerId ? estimates.filter((e) => e.customerId === customerId) : [],
     [customerId, estimates]
   );
 

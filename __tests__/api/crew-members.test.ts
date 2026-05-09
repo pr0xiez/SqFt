@@ -60,7 +60,6 @@ beforeEach(() => {
 describe("GET /api/crew-members", () => {
   it("returns active members by default", async () => {
     mockList.mockResolvedValue([
-      // biome-ignore lint/suspicious/noExplicitAny: test stub
       {
         id: 1,
         orgId: ORG,
@@ -69,6 +68,7 @@ describe("GET /api/crew-members", () => {
         archived: false,
         createdAt: new Date(),
         _count: { events: 3 },
+        // biome-ignore lint/suspicious/noExplicitAny: test stub
       } as any,
     ]);
     const req = new NextRequest("http://x/api/crew-members");
@@ -94,7 +94,6 @@ describe("GET /api/crew-members", () => {
 
 describe("POST /api/crew-members", () => {
   it("creates and returns 201", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockCreate.mockResolvedValue({
       id: 9,
       orgId: ORG,
@@ -102,6 +101,7 @@ describe("POST /api/crew-members", () => {
       role: "Helper",
       archived: false,
       createdAt: new Date(),
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
     } as any);
     const req = jsonReq("http://x/api/crew-members", {
       name: "Pat",
@@ -125,7 +125,6 @@ describe("POST /api/crew-members", () => {
 
 describe("PATCH /api/crew-members/[id]", () => {
   it("updates and returns the row", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockUpdate.mockResolvedValue({
       id: 5,
       orgId: ORG,
@@ -133,16 +132,28 @@ describe("PATCH /api/crew-members/[id]", () => {
       role: "Owner",
       archived: false,
       createdAt: new Date(),
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
     } as any);
-    const req = jsonReq("http://x/api/crew-members/5", { archived: true }, "PATCH");
-    const res = await PATCH(req as Parameters<typeof PATCH>[0], makeParams("5"));
+    const req = jsonReq(
+      "http://x/api/crew-members/5",
+      { archived: true },
+      "PATCH"
+    );
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("5")
+    );
     expect(res.status).toBe(200);
     expect(mockUpdate).toHaveBeenCalledWith(5, ORG, { archived: true });
   });
 
   it("returns 404 when row missing for org", async () => {
     mockUpdate.mockResolvedValue(null);
-    const req = jsonReq("http://x/api/crew-members/999", { name: "X" }, "PATCH");
+    const req = jsonReq(
+      "http://x/api/crew-members/999",
+      { name: "X" },
+      "PATCH"
+    );
     const res = await PATCH(
       req as Parameters<typeof PATCH>[0],
       makeParams("999")
@@ -154,7 +165,9 @@ describe("PATCH /api/crew-members/[id]", () => {
 describe("DELETE /api/crew-members/[id]", () => {
   it("returns 200 on successful hard delete", async () => {
     mockDelete.mockResolvedValue({ ok: true });
-    const req = new Request("http://x/api/crew-members/5", { method: "DELETE" });
+    const req = new Request("http://x/api/crew-members/5", {
+      method: "DELETE",
+    });
     const res = await DELETE(
       req as Parameters<typeof DELETE>[0],
       makeParams("5")
@@ -164,7 +177,9 @@ describe("DELETE /api/crew-members/[id]", () => {
 
   it("returns 404 when not found", async () => {
     mockDelete.mockResolvedValue({ ok: false, reason: "not-found" });
-    const req = new Request("http://x/api/crew-members/999", { method: "DELETE" });
+    const req = new Request("http://x/api/crew-members/999", {
+      method: "DELETE",
+    });
     const res = await DELETE(
       req as Parameters<typeof DELETE>[0],
       makeParams("999")
@@ -174,7 +189,9 @@ describe("DELETE /api/crew-members/[id]", () => {
 
   it("returns 409 when crew member is in use", async () => {
     mockDelete.mockRejectedValue(new CrewMemberInUseError("in use"));
-    const req = new Request("http://x/api/crew-members/5", { method: "DELETE" });
+    const req = new Request("http://x/api/crew-members/5", {
+      method: "DELETE",
+    });
     const res = await DELETE(
       req as Parameters<typeof DELETE>[0],
       makeParams("5")

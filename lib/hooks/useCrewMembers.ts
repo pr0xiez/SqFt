@@ -23,7 +23,9 @@ export interface UpdateCrewMemberInput {
   archived?: boolean;
 }
 
-async function fetchCrewMembers(includeArchived: boolean): Promise<CrewMember[]> {
+async function fetchCrewMembers(
+  includeArchived: boolean
+): Promise<CrewMember[]> {
   const url = includeArchived
     ? "/api/crew-members?includeArchived=1"
     : "/api/crew-members";

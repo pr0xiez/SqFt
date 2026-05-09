@@ -93,6 +93,7 @@ function AddRow(props: {
   return (
     <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] p-3 mb-4 flex gap-2 items-center">
       <input
+        // biome-ignore lint/a11y/noAutofocus: inline-edit row — focus is the explicit affordance
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -177,6 +178,7 @@ function RosterRow({
       <div className="flex-1 min-w-0">
         {editingName ? (
           <input
+            // biome-ignore lint/a11y/noAutofocus: inline-edit toggled on click — focus is the explicit affordance
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -202,6 +204,7 @@ function RosterRow({
         )}
         {editingRole ? (
           <input
+            // biome-ignore lint/a11y/noAutofocus: inline-edit toggled on click — focus is the explicit affordance
             autoFocus
             value={role}
             onChange={(e) => setRole(e.target.value)}
