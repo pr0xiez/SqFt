@@ -17,10 +17,7 @@ export function SearchInput({
 }: SearchInputProps) {
   return (
     <div
-      className={cn(
-        "relative flex-1 min-w-[200px] max-w-[320px] mr-1",
-        className
-      )}
+      className={cn("relative flex-1 min-w-[200px] max-w-[320px]", className)}
     >
       <svg
         viewBox="0 0 24 24"
