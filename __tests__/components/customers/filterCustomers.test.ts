@@ -67,6 +67,14 @@ describe("filterCustomers", () => {
     expect(result.map((c) => c.id)).toEqual([3]);
   });
 
+  it("ignores undefined optional fields without throwing", () => {
+    const withUndefined: { name: string; source: string }[] = [
+      { name: "Dave", source: "walkin" },
+    ];
+    const result = filterCustomers(withUndefined, "dave", "all");
+    expect(result.map((c) => c.name)).toEqual(["Dave"]);
+  });
+
   it("filters by source when query is empty", () => {
     const result = filterCustomers(sample, "", "phone");
     expect(result.map((c) => c.id)).toEqual([1]);
