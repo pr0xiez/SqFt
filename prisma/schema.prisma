@@ -25,11 +25,12 @@ model Organization {
   nextQuoteNumber    Int      @default(1)
   createdAt          DateTime @default(now())
 
-  users     User[]
-  customers Customer[]
-  estimates Estimate[]
-  quotes    Quote[]
-  events    Event[]
+  users       User[]
+  customers   Customer[]
+  estimates   Estimate[]
+  quotes      Quote[]
+  events      Event[]
+  crewMembers CrewMember[]
 }
 
 model User {
@@ -132,20 +133,34 @@ model LineItem {
 
 // Calendar events: job installations, measurement visits, etc.
 model Event {
-  id         Int          @id @default(autoincrement())
-  orgId      String
-  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  type       String // job | visit | other
-  title      String
-  customerId Int?
-  customer   Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  quoteId    Int?
-  quote      Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
-  date       DateTime
-  endDate    DateTime?
-  startTime  String // "08:00"
-  endTime    String // "17:00"
-  crew       String?
-  notes      String?
-  createdAt  DateTime     @default(now())
+  id          Int          @id @default(autoincrement())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  type        String // job | visit | other
+  title       String
+  customerId  Int?
+  customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  quoteId     Int?
+  quote       Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  date        DateTime
+  endDate     DateTime?
+  startTime   String // "08:00"
+  endTime     String // "17:00"
+  notes       String?
+  createdAt   DateTime     @default(now())
+  crewMembers CrewMember[]
+}
+
+model CrewMember {
+  id        Int          @id @default(autoincrement())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  role      String       @default("")
+  archived  Boolean      @default(false)
+  createdAt DateTime     @default(now())
+
+  events Event[]
+
+  @@index([orgId, archived])
 }
