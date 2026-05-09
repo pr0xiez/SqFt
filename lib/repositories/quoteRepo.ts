@@ -14,6 +14,23 @@ export type QuoteWithEstimateSummary = Prisma.QuoteGetPayload<{
         estimateNumber: true;
         title: true;
         customer: { select: { id: true; name: true; address: true } };
+        items: { orderBy: { sortOrder: "asc" } };
+      };
+    };
+    lineItems: { orderBy: { sortOrder: "asc" } };
+    _count: { select: { lineItems: true } };
+  };
+}>;
+
+/** Narrower payload used by listQuotesForEstimate — no lineItems or estimate.items needed there. */
+export type QuoteWithEstimateSummaryNarrow = Prisma.QuoteGetPayload<{
+  include: {
+    estimate: {
+      select: {
+        id: true;
+        estimateNumber: true;
+        title: true;
+        customer: { select: { id: true; name: true; address: true } };
       };
     };
     _count: { select: { lineItems: true } };
@@ -79,8 +96,10 @@ export async function listQuotes(
           estimateNumber: true,
           title: true,
           customer: { select: { id: true, name: true, address: true } },
+          items: { orderBy: { sortOrder: "asc" } },
         },
       },
+      lineItems: { orderBy: { sortOrder: "asc" } },
       _count: { select: { lineItems: true } },
     },
   });
@@ -89,7 +108,7 @@ export async function listQuotes(
 export async function listQuotesForEstimate(
   estimateId: number,
   orgId: string
-): Promise<QuoteWithEstimateSummary[]> {
+): Promise<QuoteWithEstimateSummaryNarrow[]> {
   return prisma.quote.findMany({
     where: { orgId, estimateId },
     orderBy: { createdAt: "desc" },

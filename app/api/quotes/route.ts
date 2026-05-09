@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createQuote, listQuotes } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
+import { type LineItemCalc, quoteTotal, type RoomItem } from "@/lib/utils";
 import { withLogging } from "@/lib/with-logging";
 
 const createSchema = z.object({
@@ -12,7 +13,20 @@ export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
     const quotes = await listQuotes(orgId);
-    return NextResponse.json(quotes);
+    const out = quotes.map(({ lineItems, estimate, ...rest }) => {
+      const { items, ...estimateRest } = estimate;
+      return {
+        ...rest,
+        estimate: estimateRest,
+        total: quoteTotal({
+          lineItems: lineItems as LineItemCalc[],
+          estimate: { items: items as RoomItem[] },
+          markupPct: rest.markupPct,
+          taxRate: rest.taxRate,
+        }),
+      };
+    });
+    return NextResponse.json(out);
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
