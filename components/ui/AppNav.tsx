@@ -9,6 +9,7 @@ const NAV_TABS = [
   { href: "/", label: "Dashboard", screen: "dashboard" },
   { href: "/customers", label: "Customers", screen: "customers" },
   { href: "/estimates", label: "Estimates", screen: "estimates" },
+  { href: "/quotes", label: "Quotes", screen: "quote-list" },
   { href: "/schedule", label: "Schedule", screen: "schedule" },
 ];
 
@@ -81,7 +82,7 @@ export function AppNav() {
         )}
         aria-label="Main navigation"
       >
-        <div className="grid grid-cols-4 gap-0.5 max-w-[520px] mx-auto">
+        <div className="grid grid-cols-5 gap-0.5 max-w-[520px] mx-auto">
           {NAV_TABS.map(({ href, label }) => {
             const active = isActive(href);
             return (
@@ -144,6 +145,14 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
         <title>{label}</title>
         <rect x="5" y="3" width="14" height="18" rx="1.5" />
         <path d="M9 8h6M9 12h6M9 16h4" />
+      </svg>
+    ),
+    Quotes: (
+      <svg {...props}>
+        <title>{label}</title>
+        <rect x="5" y="3" width="14" height="18" rx="1.5" />
+        <path d="M12 7v10" />
+        <path d="M14.5 9.5c-.7-.7-1.7-.9-2.5-.5-1 .5-1.2 1.7-.4 2.3.7.5 1.7.5 2.4 1 .8.6.6 1.8-.4 2.3-.8.4-1.8.2-2.5-.5" />
       </svg>
     ),
     Schedule: (

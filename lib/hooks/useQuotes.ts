@@ -23,6 +23,7 @@ export interface QuoteListItem {
   createdAt: string;
   estimate: QuoteEstimateSummary;
   _count: { lineItems: number };
+  total: number | null;
 }
 
 export interface QuoteDetail {

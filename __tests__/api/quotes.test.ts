@@ -33,8 +33,17 @@ beforeEach(() => vi.clearAllMocks());
 describe("GET /api/quotes", () => {
   it("returns the quotes list scoped to org", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockListQuotes.mockResolvedValue([{ id: 1 }] as any);
+    mockListQuotes.mockResolvedValue([
+      {
+        id: 1,
+        markupPct: 0,
+        taxRate: 0.08,
+        lineItems: [],
+        estimate: { id: 10, title: "Est", items: [] },
+        _count: { lineItems: 0 },
+      },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+    ] as any);
     // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler
     const res = await GET(undefined as any);
     expect(res.status).toBe(200);
