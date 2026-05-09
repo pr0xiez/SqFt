@@ -115,6 +115,14 @@ input,textarea,select{font-family:inherit;color:inherit}
 .filter:hover{border-color:var(--ink-2);color:var(--ink)}
 .filter.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .filter-count{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+.search-wrap{position:relative;flex:1;min-width:200px;max-width:320px;margin-right:4px}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--muted);pointer-events:none}
+.search-input{width:100%;font-family:var(--mono);font-size:12px;padding:7px 28px 7px 30px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;transition:.15s;letter-spacing:.01em}
+.search-input:focus{outline:none;border-color:var(--ink-2);background:var(--surface)}
+.search-input::placeholder{color:var(--muted)}
+.search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:18px;height:18px;border:none;background:var(--surface-2);border-radius:50%;color:var(--muted);font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+.search-clear.show{display:flex}
+.search-clear:hover{color:var(--ink);background:var(--line)}
 
 /* ── TABLE ── */
 .table{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -141,6 +149,31 @@ input,textarea,select{font-family:inherit;color:inherit}
 
 /* estimate list */
 .t-est .thead, .t-est .tr{grid-template-columns:80px 1fr 130px 110px 80px}
+
+/* quote list */
+.t-quote .thead, .t-quote .tr{grid-template-columns:80px 1fr 130px 110px 100px 110px 80px}
+.q-status{display:inline-block;font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;letter-spacing:.04em;font-weight:500;border:1px solid currentColor}
+.q-status.draft{color:var(--muted)}
+.q-status.sent{color:var(--gold)}
+.q-status.accepted{color:var(--sage)}
+.q-status.declined{color:var(--accent)}
+.t-quote .tr{border-left:3px solid transparent}
+.t-quote .tr.draft{border-left-color:var(--muted)}
+.t-quote .tr.sent{border-left-color:var(--gold)}
+.t-quote .tr.accepted{border-left-color:var(--sage)}
+.t-quote .tr.declined{border-left-color:var(--accent)}
+
+/* est-quotes card on estimate page */
+.eq-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;margin-bottom:12px}
+.eq-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px}
+.eq-title{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.eq-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer;transition:.12s}
+.eq-row:hover{padding-left:6px}
+.eq-num{font-family:var(--mono);font-size:13px;font-weight:600;min-width:60px}
+.eq-meta{flex:1}
+.eq-total{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.eq-date{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+.eq-empty{font-family:var(--mono);font-size:11px;color:var(--muted);padding:6px 0}
 .el-num{font-family:var(--mono);font-size:13px;font-weight:600}
 .el-cname{font-size:14px;font-weight:600;letter-spacing:-.01em}
 .el-caddr{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -277,7 +310,35 @@ input,textarea,select{font-family:inherit;color:inherit}
 .cal-event.other{background:var(--sage);color:#fff}
 .cal-evt-title{font-size:11px;font-weight:600;line-height:1.2;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cal-evt-time{font-family:var(--mono);font-size:9px;opacity:.85;margin-top:2px;white-space:nowrap}
-.cal-evt-crew{font-family:var(--mono);font-size:9px;opacity:.75;margin-top:1px}
+.cal-evt-crew{font-family:var(--mono);font-size:9px;opacity:.75;margin-top:1px;display:flex;align-items:center;gap:4px}
+.cal-evt-crew .ca{width:10px;height:10px;border-radius:50%;font-size:7px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:var(--mono);letter-spacing:0;flex-shrink:0}
+
+/* ── CREW FILTER BAR ── */
+.crew-bar{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);flex-wrap:wrap}
+.crew-bar-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.crew-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.crew-chip{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 6px;border:1px solid var(--line);background:transparent;border-radius:99px;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--ink-2);transition:.15s;letter-spacing:.01em}
+.crew-chip:hover{border-color:var(--ink-2);background:var(--surface-2)}
+.crew-chip.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.crew-chip.active .crew-count{color:var(--bg);opacity:.7}
+.crew-chip .ca{width:18px;height:18px;border-radius:50%;font-size:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:var(--mono);flex-shrink:0}
+.crew-chip.all-chip{padding:5px 12px}
+.crew-chip.all-chip .ca{display:none}
+.crew-count{font-family:var(--mono);font-size:10px;color:var(--muted);font-weight:500;letter-spacing:.04em}
+.crew-bar-meta{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.02em}
+.crew-bar-meta strong{color:var(--ink);font-weight:600}
+.cal.crew-focus .cal-event{opacity:.18;filter:saturate(.4)}
+.cal.crew-focus .cal-event.crew-match{opacity:1;filter:none}
+.cal-evt-crew .crew-names{margin-left:2px}
+
+/* ── CREW MULTI-TOGGLE (event panel) ── */
+.crew-toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:2px}
+.crew-toggle{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:6px;cursor:pointer;font-family:var(--display);font-size:13px;font-weight:500;letter-spacing:-.005em;transition:.15s;text-align:left}
+.crew-toggle:hover{border-color:var(--ink-2);background:var(--surface-2)}
+.crew-toggle.active{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.crew-toggle .ca{width:20px;height:20px;border-radius:50%;font-size:10px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-family:var(--mono);flex-shrink:0}
+.crew-toggle .check{margin-left:auto;font-size:12px;font-weight:600}
+.evp-crew-meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px;letter-spacing:.02em}
 
 /* ── PANELS ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:400;display:none;backdrop-filter:blur(2px)}
@@ -410,8 +471,8 @@ input,textarea,select{font-family:inherit;color:inherit}
   <button class="nav-tab active" data-screen="dashboard">Dashboard</button>
   <button class="nav-tab" data-screen="customers">Customers</button>
   <button class="nav-tab" data-screen="estlist">Estimates</button>
+  <button class="nav-tab" data-screen="quote-list">Quotes</button>
   <button class="nav-tab" data-screen="schedule">Schedule</button>
-  <button class="nav-tab" data-screen="quote">Quote Builder</button>
   <div class="nav-r">
     <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
       <span id="theme-icon">☾</span><span id="theme-label">Dark</span>
@@ -435,13 +496,13 @@ input,textarea,select{font-family:inherit;color:inherit}
       <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
       <span>Estimates</span>
     </button>
+    <button class="bn-btn" data-screen="quote-list">
+      <svg viewBox="0 0 24 24"><path d="M6 4h9l4 4v12a1 1 0 01-1 1H6a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M14 4v5h5"/><path d="M9 14l2 2 4-4"/></svg>
+      <span>Quotes</span>
+    </button>
     <button class="bn-btn" data-screen="schedule">
       <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="1.5"/><path d="M4 9h16M9 3v4M15 3v4"/></svg>
       <span>Schedule</span>
-    </button>
-    <button class="bn-btn" data-screen="quote">
-      <svg viewBox="0 0 24 24"><path d="M6 4h9l4 4v12a1 1 0 01-1 1H6a1 1 0 01-1-1V5a1 1 0 011-1z"/><path d="M14 4v5h5"/><path d="M9 14l2 2 4-4"/></svg>
-      <span>Quote</span>
     </button>
   </div>
 </nav>
@@ -523,6 +584,11 @@ input,textarea,select{font-family:inherit;color:inherit}
     </div>
   </div>
   <div class="filter-bar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input class="search-input" id="clist-search" placeholder="Search name, phone, email, address…" oninput="setCustSearch(this.value)"/>
+      <button class="search-clear" id="clist-search-clear" onclick="clearCustSearch()">×</button>
+    </div>
     <button class="filter active" onclick="setCustFilter('all',this)">All</button>
     <button class="filter" onclick="setCustFilter('phone',this)">Phone</button>
     <button class="filter" onclick="setCustFilter('online',this)">Online</button>
@@ -583,9 +649,51 @@ input,textarea,select{font-family:inherit;color:inherit}
       <button class="btn btn-primary" onclick="newEstimate()">+ New Estimate</button>
     </div>
   </div>
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input class="search-input" id="estlist-search" placeholder="Search by # or customer name…" oninput="setEstSearch(this.value)"/>
+      <button class="search-clear" id="estlist-search-clear" onclick="clearEstSearch()">×</button>
+    </div>
+    <button class="filter active" onclick="setEstFilter('all',this)">All</button>
+    <button class="filter" onclick="setEstFilter('empty',this)">No rooms</button>
+    <button class="filter" onclick="setEstFilter('measured',this)">Measured</button>
+    <button class="filter" onclick="setEstFilter('quoted',this)">Quoted</button>
+    <div class="filter-count" id="estlist-count"></div>
+  </div>
   <div class="table t-est">
     <div class="thead"><div class="th">#</div><div class="th">Customer</div><div class="th">Area</div><div class="th">Date</div><div class="th"></div></div>
     <div id="estlist-rows"></div>
+  </div>
+</div>
+
+<!-- ══ QUOTE LIST ══ -->
+<div id="screen-quote-list" class="screen">
+  <div class="head">
+    <div>
+      <div class="eyebrow">SqFt · Pricing</div>
+      <div class="h1">Quotes</div>
+      <div class="sub" id="qlist-sub">—</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="newQuote()">+ New Quote</button>
+    </div>
+  </div>
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input class="search-input" id="qlist-search" placeholder="Search quote #, customer, estimate…" oninput="setQuoteSearch(this.value)"/>
+      <button class="search-clear" id="qlist-search-clear" onclick="clearQuoteSearch()">×</button>
+    </div>
+    <button class="filter active" onclick="setQuoteFilter('all',this)">All</button>
+    <button class="filter" onclick="setQuoteFilter('draft',this)">Draft</button>
+    <button class="filter" onclick="setQuoteFilter('sent',this)">Sent</button>
+    <button class="filter" onclick="setQuoteFilter('accepted',this)">Accepted</button>
+    <div class="filter-count" id="qlist-count"></div>
+  </div>
+  <div class="table t-quote">
+    <div class="thead"><div class="th">#</div><div class="th">Customer</div><div class="th">Estimate</div><div class="th">Total</div><div class="th">Status</div><div class="th">Date</div><div class="th"></div></div>
+    <div id="qlist-rows"></div>
   </div>
 </div>
 
@@ -599,7 +707,7 @@ input,textarea,select{font-family:inherit;color:inherit}
     </div>
     <div class="actions">
       <button class="btn" onclick="backToList()">← All estimates</button>
-      <button class="btn btn-primary" onclick="showScreen('quote')">Quote builder →</button>
+      <button class="btn btn-primary" onclick="newQuoteForActiveEstimate()">+ Create Quote</button>
     </div>
   </div>
   <div class="cust-bar">
@@ -613,6 +721,7 @@ input,textarea,select{font-family:inherit;color:inherit}
       <button class="btn" onclick="openCpPicker()">Change</button>
     </div>
   </div>
+  <div id="est-quotes-card"></div>
   <div id="estimate-items"></div>
   <div class="add-row">
     <button class="add-btn" onclick="addEstRoom()">+ Add Room</button>
@@ -704,6 +813,11 @@ input,textarea,select{font-family:inherit;color:inherit}
       <button class="btn btn-primary" onclick="openEventPanel({})">+ Add Event</button>
     </div>
   </div>
+  <div class="crew-bar" id="crew-bar">
+    <div class="crew-bar-label">CREW</div>
+    <div class="crew-chips" id="crew-chips"></div>
+    <div class="crew-bar-meta" id="crew-bar-meta"></div>
+  </div>
   <div class="cal">
     <div class="cal-header" id="cal-header"></div>
     <div class="cal-body">
@@ -711,6 +825,14 @@ input,textarea,select{font-family:inherit;color:inherit}
       <div class="cal-days" id="cal-days"></div>
     </div>
   </div>
+</div>
+
+<!-- ══ ESTIMATE PICKER (for new quote) ══ -->
+<div class="overlay" id="ep-overlay" onclick="closeEpPicker()"></div>
+<div class="mini-panel" id="ep-panel" style="width:440px">
+  <div class="mp-head"><div><div class="mp-title">Tie quote to estimate</div><div class="mp-sub">Required · pick one</div></div><button class="btn btn-ghost" onclick="closeEpPicker()" style="padding:2px 8px">✕</button></div>
+  <div class="mp-search"><input id="ep-search" placeholder="Search customer or estimate #…" oninput="renderEpList()"/></div>
+  <div class="mp-body" id="ep-estimate-list"></div>
 </div>
 
 <!-- ══ NEW CUSTOMER PANEL ══ -->
@@ -769,13 +891,13 @@ input,textarea,select{font-family:inherit;color:inherit}
     </div>
     <div class="p-field" id="evp-title-field"><div class="p-label">Title</div><input class="p-input" id="evp-title-input"/></div>
     <div class="p-field" id="evp-customer-field"><div class="p-label" id="evp-customer-label">Customer</div><select class="p-input" id="evp-customer-sel" onchange="onEvpCustomerChange()"></select><a class="evp-jump" id="evp-customer-jump" onclick="jumpToCustomerFromEvent()" style="display:none">View customer →</a></div>
-    <div class="p-field" id="evp-estimate-field" style="display:none"><div class="p-label">Estimate <span style="color:var(--accent)">*</span></div><select class="p-input" id="evp-estimate-sel"></select><a class="evp-jump" id="evp-estimate-jump" onclick="jumpToEstimateFromEvent()" style="display:none">Open estimate →</a></div>
+    <div class="p-field" id="evp-quote-field" style="display:none"><div class="p-label">Quote <span style="color:var(--accent)">*</span></div><select class="p-input" id="evp-quote-sel"></select><a class="evp-jump" id="evp-quote-jump" onclick="jumpToQuoteFromEvent()" style="display:none">Open quote →</a></div>
     <div class="p-field"><div class="p-label">Date</div><input class="p-input" type="date" id="evp-date"/></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="p-field"><div class="p-label">Start</div><input class="p-input" type="time" id="evp-start"/></div>
       <div class="p-field"><div class="p-label">End</div><input class="p-input" type="time" id="evp-end"/></div>
     </div>
-    <div class="p-field"><div class="p-label">Crew</div><select class="p-input" id="evp-crew"><option>Mike</option><option>Carlos</option><option>Dave</option><option>Sarah</option></select></div>
+    <div class="p-field"><div class="p-label">Crew <span style="color:var(--muted);font-weight:400">(tap to assign — multiple OK)</span></div><div class="crew-toggles" id="evp-crew-toggles"></div><div class="evp-crew-meta" id="evp-crew-meta"></div></div>
     <div class="p-field"><div class="p-label">Notes</div><textarea class="p-input" id="evp-notes" rows="2"></textarea></div>
   </div>
   <div class="p-foot">
@@ -785,6 +907,6 @@ input,textarea,select{font-family:inherit;color:inherit}
   </div>
 </div>
 
-<script src="quiet-app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

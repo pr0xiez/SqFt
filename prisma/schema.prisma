@@ -13,71 +13,67 @@ datasource db {
 // ── TENANCY ─────────────────────────────────────────────────────────────────
 
 model Organization {
-  id              String   @id @default(cuid())
-  name            String
-  slug            String   @unique
-  plan            String   @default("free") // free | pro
-  phone           String?
-  address         String?
-  licenseNumber   String?
-  logo            String?
-  nextQuoteNumber Int      @default(1)
-  createdAt       DateTime @default(now())
+  id                 String   @id @default(cuid())
+  name               String
+  slug               String   @unique
+  plan               String   @default("free") // free | pro
+  phone              String?
+  address            String?
+  licenseNumber      String?
+  logo               String?
+  nextEstimateNumber Int      @default(1)
+  nextQuoteNumber    Int      @default(1)
+  createdAt          DateTime @default(now())
 
   users     User[]
   customers Customer[]
   estimates Estimate[]
+  quotes    Quote[]
   events    Event[]
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   name      String
-  email     String   @unique
-  password  String   // bcrypt hash
-  role      String   @default("member") // owner | admin | member
+  email     String       @unique
+  password  String // bcrypt hash
+  role      String       @default("member") // owner | admin | member
   orgId     String
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 }
 
 // ── CORE DATA ────────────────────────────────────────────────────────────────
 
 model Customer {
-  id        Int      @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   orgId     String
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   name      String
   phone     String?
   email     String?
   address   String?
-  source    String   @default("phone") // phone | online | referral | walkin | website
+  source    String       @default("phone") // phone | online | referral | walkin | website
   notes     String?
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
   estimates Estimate[]
   events    Event[]
 }
 
 model Estimate {
-  id          Int      @id @default(autoincrement())
-  orgId       String
-  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  customerId  Int
-  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  title       String   @default("")
-  status      String   @default("quote") // quote | scheduled | in_progress | completed
-  quoteNumber Int?
-  date        DateTime @default(now())
-  taxRate     Float    @default(0.08)
-  markupPct   Float    @default(0)
-  depositPct  Float    @default(0.50)
-  approvalToken String? @unique
-  createdAt   DateTime @default(now())
+  id             Int          @id @default(autoincrement())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId     Int
+  customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title          String       @default("")
+  estimateNumber Int?
+  date           DateTime     @default(now())
+  createdAt      DateTime     @default(now())
 
-  items     EstimateItem[]
-  lineItems LineItem[]
-  events    Event[]
+  items  EstimateItem[]
+  quotes Quote[]
 }
 
 // A room measurement or a text note inside an estimate
@@ -85,52 +81,71 @@ model EstimateItem {
   id         Int      @id @default(autoincrement())
   estimateId Int
   estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
-  type       String   // room | note
+  type       String // room | note
   sortOrder  Int      @default(0)
 
   // Room fields
   name       String?
-  shape      String?  // rect | tri | lshape
+  shape      String? // rect | tri | lshape
   w          Float?
   l          Float?
-  lshapeData Json?    // { sections:[{w,l}], deductions:[{w,l,label}] }
+  lshapeData Json? // { sections:[{w,l}], deductions:[{w,l,label}] }
   note       String?
 
   // Note fields
-  text       String?
+  text String?
 }
 
-// A line item (material/labor) in the bill of materials
-model LineItem {
-  id            Int      @id @default(autoincrement())
+model Quote {
+  id            Int          @id @default(autoincrement())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   estimateId    Int
-  estimate      Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  estimate      Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  quoteNumber   Int
+  status        String       @default("draft") // draft | sent | accepted | declined
+  date          DateTime     @default(now())
+  taxRate       Float        @default(0.08)
+  markupPct     Float        @default(0)
+  depositPct    Float        @default(0.50)
+  approvalToken String?      @unique
+  createdAt     DateTime     @default(now())
+
+  lineItems LineItem[]
+  events    Event[]
+}
+
+// A line item (material/labor) in a quote
+model LineItem {
+  id            Int    @id @default(autoincrement())
+  quoteId       Int
+  quote         Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   name          String
-  rate          Float    @default(0)
-  qtyMode       String   @default("manual") // manual | linked
+  rate          Float  @default(0)
+  qtyMode       String @default("manual") // manual | linked
   qty           Float?
-  wastePct      Float    @default(0)
-  unitLabel     String   @default("ft²")
-  linkedRoomIds Int[]    // EstimateItem ids linked to this line item
-  sortOrder     Int      @default(0)
+  wastePct      Float  @default(0)
+  unitLabel     String @default("ft²")
+  linkedRoomIds Int[] // EstimateItem ids linked to this line item
+  sortOrder     Int    @default(0)
 }
 
 // Calendar events: job installations, measurement visits, etc.
 model Event {
-  id         Int      @id @default(autoincrement())
+  id         Int          @id @default(autoincrement())
   orgId      String
   org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  type       String   // job | visit | other
+  type       String // job | visit | other
   title      String
   customerId Int?
-  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  estimateId Int?
-  estimate   Estimate? @relation(fields: [estimateId], references: [id], onDelete: SetNull)
+  customer   Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  quoteId    Int?
+  quote      Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   date       DateTime
   endDate    DateTime?
-  startTime  String   // "08:00"
-  endTime    String   // "17:00"
+  startTime  String // "08:00"
+  endTime    String // "17:00"
   crew       String?
   notes      String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime     @default(now())
 }

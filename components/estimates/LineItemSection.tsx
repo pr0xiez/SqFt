@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { RoomLinkPicker } from "@/components/quotes/RoomLinkPicker";
 import { cn } from "@/lib/cn";
-import type { Estimate } from "@/lib/hooks/useEstimates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 import {
   fmtDollar,
@@ -13,7 +13,10 @@ import {
 } from "@/lib/utils";
 
 interface Props {
-  estimate: Estimate;
+  lineItems: LineItemCalc[];
+  rooms: RoomItem[];
+  taxRate: number;
+  markupPct: number;
   onSave: (lineItems: LineItemCalc[]) => Promise<void>;
 }
 
@@ -22,11 +25,18 @@ function tempLiId() {
   return ++_liNextId;
 }
 
-export function LineItemSection({ estimate, onSave }: Props) {
-  const [items, setItems] = useState<LineItemCalc[]>(estimate.lineItems ?? []);
-  const rooms = (estimate.items ?? []).filter(
-    (i): i is RoomItem => i.type === "room"
-  );
+export function LineItemSection({
+  lineItems: initialLineItems,
+  rooms,
+  taxRate,
+  markupPct,
+  onSave,
+}: Props) {
+  const [items, setItems] = useState<LineItemCalc[]>(initialLineItems);
+  const [picker, setPicker] = useState<{
+    lineId: number;
+    rect: DOMRect;
+  } | null>(null);
 
   const save = useCallback(
     async (newItems: LineItemCalc[]) => {
@@ -73,9 +83,8 @@ export function LineItemSection({ estimate, onSave }: Props) {
     return sum + (st ?? 0);
   }, 0);
 
-  const taxPct = estimate.taxRate * 100;
-  const markupPct = estimate.markupPct;
-  const taxAmt = subtotal * estimate.taxRate;
+  const taxPct = taxRate * 100;
+  const taxAmt = subtotal * taxRate;
   const markupAmt = (subtotal + taxAmt) * (markupPct / 100);
   const total = subtotal + taxAmt + markupAmt;
 
@@ -146,14 +155,10 @@ export function LineItemSection({ estimate, onSave }: Props) {
                   <div className="px-3 py-2">
                     <button
                       type="button"
-                      onClick={() =>
-                        updateItem(li.id, {
-                          qtyMode:
-                            li.qtyMode === "linked" ? "manual" : "linked",
-                          linkedRoomIds:
-                            li.qtyMode === "linked"
-                              ? []
-                              : rooms.map((r) => r.id),
+                      onClick={(e) =>
+                        setPicker({
+                          lineId: li.id,
+                          rect: e.currentTarget.getBoundingClientRect(),
                         })
                       }
                       className={cn(
@@ -327,6 +332,36 @@ export function LineItemSection({ estimate, onSave }: Props) {
       >
         + Add Line Item
       </button>
+
+      {picker &&
+        (() => {
+          const li = items.find((i) => i.id === picker.lineId);
+          if (!li) return null;
+          return (
+            <RoomLinkPicker
+              rooms={rooms}
+              initialRoomIds={li.linkedRoomIds}
+              initialWastePct={li.wastePct}
+              anchorRect={picker.rect}
+              onApply={(linkedRoomIds, wastePct) =>
+                updateItem(picker.lineId, {
+                  qtyMode: "linked",
+                  linkedRoomIds,
+                  wastePct,
+                })
+              }
+              onClear={() =>
+                updateItem(picker.lineId, {
+                  qtyMode: "manual",
+                  linkedRoomIds: [],
+                  wastePct: 0,
+                  qty: null,
+                })
+              }
+              onClose={() => setPicker(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

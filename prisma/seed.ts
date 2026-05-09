@@ -106,17 +106,18 @@ async function main() {
   }
   console.log(`  ✓ ${customers.length} customers`);
 
-  // ── Estimates (matching prototype) ────────────────────────────────────────
+  // ── Estimates (rooms only) ────────────────────────────────────────────────
 
-  // #1042 — Henderson — 3 rooms, LVP, with line items
+  // Each estimate gets its org-wide estimateNumber allocated explicitly here
+  // (the repository allocates from Organization.nextEstimateNumber in app
+  // code; the seed sets it directly for stable demo numbers).
+
+  // #1042 — Henderson — 3 rooms
   const est1042 = await prisma.estimate.create({
     data: {
       orgId: org.id,
       customerId: customers[0].id,
-      status: "quote",
-      taxRate: 0.075,
-      markupPct: 35,
-      depositPct: 0.5,
+      estimateNumber: 1042,
       items: {
         create: [
           {
@@ -143,15 +144,158 @@ async function main() {
             shape: "lshape",
             w: 12,
             l: 4,
-            lshapeData: {
-              sections: [{ w: 12, l: 4 }],
-              deductions: [],
-            },
+            lshapeData: { sections: [{ w: 12, l: 4 }], deductions: [] },
             note: "L-shape, narrow at door",
             sortOrder: 2,
           },
         ],
       },
+    },
+  });
+
+  // #1043 — Sharma — Tile, 2 rooms
+  const est1043 = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[5].id,
+      estimateNumber: 1043,
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Master Bath",
+            shape: "rect",
+            w: 10,
+            l: 8,
+            note: "",
+            sortOrder: 0,
+          },
+          {
+            type: "room",
+            name: "Powder",
+            shape: "rect",
+            w: 6,
+            l: 5,
+            note: "",
+            sortOrder: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  // #1044 — Park — Living + Dining, L-shape
+  const _est1044 = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[3].id,
+      estimateNumber: 1044,
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Living + Dining",
+            shape: "lshape",
+            w: 14,
+            l: 22,
+            lshapeData: { sections: [{ w: 14, l: 22 }], deductions: [] },
+            note: "open concept",
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  // #1045 — Nguyen — empty (new lead)
+  const _est1045 = await prisma.estimate.create({
+    data: { orgId: org.id, customerId: customers[4].id, estimateNumber: 1045 },
+  });
+
+  // #1040 — Chen — Staircase
+  const est1040 = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[2].id,
+      estimateNumber: 1040,
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Main Staircase",
+            shape: "rect",
+            w: 14,
+            l: 3,
+            note: "13 risers · LVP wrap",
+            sortOrder: 0,
+          },
+          {
+            type: "room",
+            name: "Upper Landing",
+            shape: "rect",
+            w: 8,
+            l: 6,
+            note: "",
+            sortOrder: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  // #1041 — Martinez — Hardwood, 3 rooms
+  const est1041 = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[1].id,
+      estimateNumber: 1041,
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Living Room",
+            shape: "rect",
+            w: 20,
+            l: 16,
+            note: "Hardwood — oak select",
+            sortOrder: 0,
+          },
+          {
+            type: "room",
+            name: "Dining Room",
+            shape: "rect",
+            w: 14,
+            l: 12,
+            note: "",
+            sortOrder: 1,
+          },
+          {
+            type: "room",
+            name: "Front Hall",
+            shape: "rect",
+            w: 10,
+            l: 5,
+            note: "",
+            sortOrder: 2,
+          },
+        ],
+      },
+    },
+  });
+  console.log("  ✓ 6 estimates");
+
+  // ── Quotes ────────────────────────────────────────────────────────────────
+
+  // #5001 — Henderson LVP (sent)
+  const q5001 = await prisma.quote.create({
+    data: {
+      orgId: org.id,
+      estimateId: est1042.id,
+      quoteNumber: 5001,
+      status: "sent",
+      taxRate: 0.075,
+      markupPct: 35,
+      depositPct: 0.5,
       lineItems: {
         create: [
           {
@@ -213,151 +357,43 @@ async function main() {
     },
   });
 
-  // #1043 — Sharma — Tile, 2 rooms
-  const est1043 = await prisma.estimate.create({
+  // #5002 — Martinez HW (accepted) — winning quote, drives the job event
+  const q5002 = await prisma.quote.create({
     data: {
       orgId: org.id,
-      customerId: customers[5].id,
-      status: "quote",
+      estimateId: est1041.id,
+      quoteNumber: 5002,
+      status: "accepted",
       taxRate: 0.075,
       markupPct: 35,
       depositPct: 0.5,
-      items: {
+      lineItems: {
         create: [
           {
-            type: "room",
-            name: "Master Bath",
-            shape: "rect",
-            w: 10,
-            l: 8,
-            note: "",
+            name: "White oak — select grade",
+            rate: 7.2,
+            qtyMode: "linked",
+            wastePct: 10,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
             sortOrder: 0,
           },
           {
-            type: "room",
-            name: "Powder",
-            shape: "rect",
-            w: 6,
-            l: 5,
-            note: "",
-            sortOrder: 1,
-          },
-        ],
-      },
-    },
-  });
-
-  // #1044 — Park — Living + Dining, L-shape
-  const est1044 = await prisma.estimate.create({
-    data: {
-      orgId: org.id,
-      customerId: customers[3].id,
-      status: "quote",
-      taxRate: 0.075,
-      markupPct: 35,
-      depositPct: 0.5,
-      items: {
-        create: [
-          {
-            type: "room",
-            name: "Living + Dining",
-            shape: "lshape",
-            w: 14,
-            l: 22,
-            lshapeData: {
-              sections: [{ w: 14, l: 22 }],
-              deductions: [],
-            },
-            note: "open concept",
-            sortOrder: 0,
-          },
-        ],
-      },
-    },
-  });
-
-  // #1045 — Nguyen — empty (new lead)
-  const _est1045 = await prisma.estimate.create({
-    data: {
-      orgId: org.id,
-      customerId: customers[4].id,
-      status: "quote",
-      taxRate: 0.075,
-      markupPct: 35,
-      depositPct: 0.5,
-    },
-  });
-
-  // #1040 — Chen — Staircase
-  const est1040 = await prisma.estimate.create({
-    data: {
-      orgId: org.id,
-      customerId: customers[2].id,
-      status: "in_progress",
-      taxRate: 0.075,
-      markupPct: 35,
-      depositPct: 0.5,
-      items: {
-        create: [
-          {
-            type: "room",
-            name: "Main Staircase",
-            shape: "rect",
-            w: 14,
-            l: 3,
-            note: "13 risers · LVP wrap",
-            sortOrder: 0,
-          },
-          {
-            type: "room",
-            name: "Upper Landing",
-            shape: "rect",
-            w: 8,
-            l: 6,
-            note: "",
-            sortOrder: 1,
-          },
-        ],
-      },
-    },
-  });
-
-  // #1041 — Martinez — Hardwood, 3 rooms
-  const est1041 = await prisma.estimate.create({
-    data: {
-      orgId: org.id,
-      customerId: customers[1].id,
-      status: "scheduled",
-      taxRate: 0.075,
-      markupPct: 35,
-      depositPct: 0.5,
-      items: {
-        create: [
-          {
-            type: "room",
-            name: "Living Room",
-            shape: "rect",
-            w: 20,
-            l: 16,
-            note: "Hardwood — oak select",
-            sortOrder: 0,
-          },
-          {
-            type: "room",
-            name: "Dining Room",
-            shape: "rect",
-            w: 14,
-            l: 12,
-            note: "",
+            name: "Hardwood install — nail down",
+            rate: 3.8,
+            qtyMode: "linked",
+            wastePct: 0,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
             sortOrder: 1,
           },
           {
-            type: "room",
-            name: "Front Hall",
-            shape: "rect",
-            w: 10,
-            l: 5,
-            note: "",
+            name: "Sand & finish — 3 coats",
+            rate: 2.4,
+            qtyMode: "linked",
+            wastePct: 0,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
             sortOrder: 2,
           },
         ],
@@ -365,7 +401,86 @@ async function main() {
     },
   });
 
-  console.log("  ✓ 6 estimates");
+  // #5003 — Chen Staircase (accepted) — winning quote, drives the job events
+  const q5003 = await prisma.quote.create({
+    data: {
+      orgId: org.id,
+      estimateId: est1040.id,
+      quoteNumber: 5003,
+      status: "accepted",
+      taxRate: 0.075,
+      markupPct: 35,
+      depositPct: 0.5,
+      lineItems: {
+        create: [
+          {
+            name: "LVP stair wrap kit",
+            rate: 48.0,
+            qtyMode: "manual",
+            qty: 13,
+            unitLabel: "tread",
+            linkedRoomIds: [],
+            sortOrder: 0,
+          },
+          {
+            name: "Stair install labor",
+            rate: 65.0,
+            qtyMode: "manual",
+            qty: 13,
+            unitLabel: "tread",
+            linkedRoomIds: [],
+            sortOrder: 1,
+          },
+          {
+            name: "Landing — LVP",
+            rate: 4.85,
+            qtyMode: "linked",
+            wastePct: 10,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
+            sortOrder: 2,
+          },
+        ],
+      },
+    },
+  });
+
+  // #5004 — Sharma Tile (draft)
+  const q5004 = await prisma.quote.create({
+    data: {
+      orgId: org.id,
+      estimateId: est1043.id,
+      quoteNumber: 5004,
+      status: "draft",
+      taxRate: 0.075,
+      markupPct: 35,
+      depositPct: 0.5,
+      lineItems: {
+        create: [
+          {
+            name: "Porcelain tile 12×24",
+            rate: 5.4,
+            qtyMode: "linked",
+            wastePct: 15,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  // Park (#1044) gets no quote yet — demonstrates "no quotes yet" empty state
+  // Nguyen (#1045) is a brand-new lead with no rooms and no quote
+
+  // Bump the org counters past the seeded values so newly created records
+  // start fresh sequences.
+  await prisma.organization.update({
+    where: { id: org.id },
+    data: { nextEstimateNumber: 1046, nextQuoteNumber: 5005 },
+  });
+  console.log("  ✓ 4 quotes");
 
   // ── Calendar events ───────────────────────────────────────────────────────
   const today = new Date();
@@ -377,12 +492,13 @@ async function main() {
 
   await prisma.event.createMany({
     data: [
+      // Job events tie to a quote (the accepted/sent one for that estimate).
       {
         orgId: org.id,
         type: "job",
         title: "Chen Staircase · Day 2",
         customerId: customers[2].id,
-        estimateId: est1040.id,
+        quoteId: q5003.id,
         date: d(0),
         startTime: "08:00",
         endTime: "16:00",
@@ -394,7 +510,7 @@ async function main() {
         type: "job",
         title: "Williams Tile Bath · Day 1",
         customerId: customers[5].id,
-        estimateId: est1043.id,
+        quoteId: q5004.id,
         date: d(0),
         startTime: "08:30",
         endTime: "15:30",
@@ -428,7 +544,7 @@ async function main() {
         type: "job",
         title: "Chen Staircase · Day 3",
         customerId: customers[2].id,
-        estimateId: est1040.id,
+        quoteId: q5003.id,
         date: d(1),
         startTime: "08:00",
         endTime: "15:00",
@@ -440,23 +556,11 @@ async function main() {
         type: "job",
         title: "Martinez HW",
         customerId: customers[1].id,
-        estimateId: est1041.id,
+        quoteId: q5002.id,
         date: d(3),
         startTime: "08:00",
         endTime: "16:00",
         crew: "Carlos",
-        notes: "",
-      },
-      {
-        orgId: org.id,
-        type: "job",
-        title: "Park Living + Dining",
-        customerId: customers[3].id,
-        estimateId: est1044.id,
-        date: d(5),
-        startTime: "08:00",
-        endTime: "15:00",
-        crew: "Dave",
         notes: "",
       },
       {
@@ -475,7 +579,7 @@ async function main() {
         type: "job",
         title: "Henderson — Floor install",
         customerId: customers[0].id,
-        estimateId: est1042.id,
+        quoteId: q5001.id,
         date: d(6),
         startTime: "08:00",
         endTime: "16:00",
@@ -484,7 +588,7 @@ async function main() {
       },
     ],
   });
-  console.log("  ✓ 9 calendar events");
+  console.log("  ✓ 8 calendar events");
 
   console.log("\n✅ Seed complete!");
   console.log("   Login: demo@sqft.app / demo1234");

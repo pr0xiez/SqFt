@@ -1,42 +1,39 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { LineItemCalc, RoomItem } from "@/lib/utils";
+import type { RoomItem } from "@/lib/utils";
+
+export interface EstimateQuoteSummary {
+  id: number;
+  quoteNumber: number;
+  status: string;
+  date: string;
+  createdAt: string;
+  _count: { lineItems: number };
+}
 
 export interface Estimate {
   id: number;
   orgId: string;
   customerId: number;
   title: string;
-  status: string;
-  quoteNumber?: number | null;
+  estimateNumber?: number | null;
   date: string;
-  taxRate: number;
-  markupPct: number;
-  depositPct: number;
-  approvalToken?: string | null;
   createdAt: string;
   customer?: { id: number; name: string; address?: string | null };
   items?: RoomItem[];
-  lineItems?: LineItemCalc[];
-  _count?: { items: number };
+  quotes?: EstimateQuoteSummary[];
+  _count?: { items: number; quotes: number };
 }
 
 export interface CreateEstimateInput {
   customerId: number;
-  taxRate?: number;
-  markupPct?: number;
-  depositPct?: number;
+  title?: string;
 }
 
 export interface UpdateEstimateInput {
   title?: string;
-  status?: string;
-  taxRate?: number;
-  markupPct?: number;
-  depositPct?: number;
   items?: RoomItem[];
-  lineItems?: LineItemCalc[];
 }
 
 async function fetchEstimates(): Promise<Estimate[]> {
@@ -52,10 +49,7 @@ async function fetchEstimate(id: number): Promise<Estimate> {
 }
 
 export function useEstimates() {
-  return useQuery({
-    queryKey: ["estimates"],
-    queryFn: fetchEstimates,
-  });
+  return useQuery({ queryKey: ["estimates"], queryFn: fetchEstimates });
 }
 
 export function useEstimate(id: number) {
@@ -97,20 +91,6 @@ export function useUpdateEstimate(id: number) {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["estimates", id] });
     },
-  });
-}
-
-export function useRotateApprovalToken(id: number) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<{ approvalToken: string }> => {
-      const res = await fetch(`/api/estimates/${id}/approval-token`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Failed to generate approval token");
-      return res.json();
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["estimates", id] }),
   });
 }
 

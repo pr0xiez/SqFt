@@ -1,15 +1,10 @@
-import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-
-function generateToken(): string {
-  return randomBytes(32).toString("base64url");
-}
 
 export type EstimateWithCustomerAndCount = Prisma.EstimateGetPayload<{
   include: {
     customer: { select: { id: true; name: true; address: true } };
-    _count: { select: { items: true } };
+    _count: { select: { items: true; quotes: true } };
   };
 }>;
 
@@ -17,7 +12,17 @@ export type EstimateWithDetails = Prisma.EstimateGetPayload<{
   include: {
     customer: true;
     items: { orderBy: { sortOrder: "asc" } };
-    lineItems: { orderBy: { sortOrder: "asc" } };
+    quotes: {
+      orderBy: { createdAt: "desc" };
+      select: {
+        id: true;
+        quoteNumber: true;
+        status: true;
+        date: true;
+        createdAt: true;
+        _count: { select: { lineItems: true } };
+      };
+    };
   };
 }>;
 
@@ -32,19 +37,9 @@ type EstimateItemInput = Omit<
   lshapeData?: Prisma.InputJsonValue | null;
 };
 
-type LineItemInput = Omit<
-  Prisma.LineItemUncheckedCreateInput,
-  "id" | "estimateId"
-> & { id?: number };
-
 export type EstimatePatch = {
   title?: string;
-  status?: "quote" | "scheduled" | "in_progress" | "completed";
-  taxRate?: number;
-  markupPct?: number;
-  depositPct?: number;
   items?: EstimateItemInput[];
-  lineItems?: LineItemInput[];
 };
 
 export async function listEstimates(
@@ -55,7 +50,7 @@ export async function listEstimates(
     orderBy: { createdAt: "desc" },
     include: {
       customer: { select: { id: true, name: true, address: true } },
-      _count: { select: { items: true } },
+      _count: { select: { items: true, quotes: true } },
     },
   });
 }
@@ -69,26 +64,36 @@ export async function getEstimate(
     include: {
       customer: true,
       items: { orderBy: { sortOrder: "asc" } },
-      lineItems: { orderBy: { sortOrder: "asc" } },
+      quotes: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          quoteNumber: true,
+          status: true,
+          date: true,
+          createdAt: true,
+          _count: { select: { lineItems: true } },
+        },
+      },
     },
   });
 }
 
 export async function createEstimate(
   orgId: string,
-  data: Omit<Prisma.EstimateUncheckedCreateInput, "orgId" | "quoteNumber">
+  data: Omit<Prisma.EstimateUncheckedCreateInput, "orgId" | "estimateNumber">
 ) {
   return prisma.$transaction(async (tx) => {
     const org = await tx.organization.findUnique({
       where: { id: orgId },
-      select: { nextQuoteNumber: true },
+      select: { nextEstimateNumber: true },
     });
-    const quoteNumber = org?.nextQuoteNumber ?? 1;
+    const estimateNumber = org?.nextEstimateNumber ?? 1;
     await tx.organization.update({
       where: { id: orgId },
-      data: { nextQuoteNumber: quoteNumber + 1 },
+      data: { nextEstimateNumber: estimateNumber + 1 },
     });
-    return tx.estimate.create({ data: { ...data, orgId, quoteNumber } });
+    return tx.estimate.create({ data: { ...data, orgId, estimateNumber } });
   });
 }
 
@@ -97,7 +102,7 @@ export async function saveEstimate(
   orgId: string,
   patch: EstimatePatch
 ): Promise<EstimateWithDetails | null> {
-  const { items, lineItems, ...topLevel } = patch;
+  const { items, ...topLevel } = patch;
 
   return prisma.$transaction(async (tx) => {
     if (Object.keys(topLevel).length > 0) {
@@ -118,21 +123,7 @@ export async function saveEstimate(
           data: items.map(({ id: _id, lshapeData, ...item }) => ({
             ...item,
             estimateId: id,
-            // Prisma's NullableJsonNullValueInput rejects raw null; omit the
-            // field entirely so the column ends up as DB NULL.
             ...(lshapeData == null ? {} : { lshapeData }),
-          })),
-        });
-      }
-    }
-
-    if (lineItems !== undefined) {
-      await tx.lineItem.deleteMany({ where: { estimateId: id } });
-      if (lineItems.length > 0) {
-        await tx.lineItem.createMany({
-          data: lineItems.map(({ id: _id, ...li }) => ({
-            ...li,
-            estimateId: id,
           })),
         });
       }
@@ -143,7 +134,17 @@ export async function saveEstimate(
       include: {
         customer: true,
         items: { orderBy: { sortOrder: "asc" } },
-        lineItems: { orderBy: { sortOrder: "asc" } },
+        quotes: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            quoteNumber: true,
+            status: true,
+            date: true,
+            createdAt: true,
+            _count: { select: { lineItems: true } },
+          },
+        },
       },
     });
   });
@@ -155,55 +156,4 @@ export async function deleteEstimate(
 ): Promise<boolean> {
   const result = await prisma.estimate.deleteMany({ where: { id, orgId } });
   return result.count > 0;
-}
-
-/**
- * Generate (or rotate) the public approval token for an estimate.
- * Returns the new token, or null if the estimate isn't found in the org.
- */
-export async function rotateApprovalToken(
-  id: number,
-  orgId: string
-): Promise<string | null> {
-  const token = generateToken();
-  const result = await prisma.estimate.updateMany({
-    where: { id, orgId },
-    data: { approvalToken: token },
-  });
-  return result.count > 0 ? token : null;
-}
-
-/**
- * Look up an estimate by its public approval token (no org scoping —
- * the token itself authorizes access). Returns null on miss.
- */
-export async function getEstimateByToken(token: string): Promise<
-  | (EstimateWithDetails & {
-      org: {
-        name: string;
-        phone: string | null;
-        address: string | null;
-        licenseNumber: string | null;
-        logo: string | null;
-      };
-    })
-  | null
-> {
-  return prisma.estimate.findUnique({
-    where: { approvalToken: token },
-    include: {
-      customer: true,
-      items: { orderBy: { sortOrder: "asc" } },
-      lineItems: { orderBy: { sortOrder: "asc" } },
-      org: {
-        select: {
-          name: true,
-          phone: true,
-          address: true,
-          licenseNumber: true,
-          logo: true,
-        },
-      },
-    },
-  });
 }

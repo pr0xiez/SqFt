@@ -5,11 +5,6 @@ import { withLogging } from "@/lib/with-logging";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-/**
- * POST creates a new approval token (or rotates the existing one).
- * Idempotent at the API surface but always issues a fresh token —
- * callers wanting "create only if missing" should check the estimate first.
- */
 export const POST = withLogging(
   async (_req: NextRequest, { params }: RouteParams) => {
     try {

@@ -2,25 +2,34 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import type { Estimate, UpdateEstimateInput } from "@/lib/hooks/useEstimates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 import { fmtDollar, liSubtotal } from "@/lib/utils";
 
 interface Props {
-  estimate: Estimate;
-  onSave: (data: UpdateEstimateInput) => Promise<void>;
+  lineItems: LineItemCalc[];
+  rooms: RoomItem[];
+  taxRate: number;
+  markupPct: number;
+  depositPct: number;
+  onSave: (data: {
+    taxRate?: number;
+    markupPct?: number;
+    depositPct?: number;
+  }) => Promise<void>;
 }
 
-export function QuoteSummary({ estimate, onSave }: Props) {
-  const [taxRate, setTaxRate] = useState(estimate.taxRate);
-  const [markupPct, setMarkupPct] = useState(estimate.markupPct);
-  const [depositPct, setDepositPct] = useState(estimate.depositPct);
+export function QuoteSummary({
+  lineItems,
+  rooms,
+  taxRate: initialTaxRate,
+  markupPct: initialMarkupPct,
+  depositPct: initialDepositPct,
+  onSave,
+}: Props) {
+  const [taxRate, setTaxRate] = useState(initialTaxRate);
+  const [markupPct, setMarkupPct] = useState(initialMarkupPct);
+  const [depositPct, setDepositPct] = useState(initialDepositPct);
   const [saving, setSaving] = useState(false);
-
-  const rooms = (estimate.items ?? []).filter(
-    (i): i is RoomItem => i.type === "room"
-  );
-  const lineItems = (estimate.lineItems ?? []) as LineItemCalc[];
 
   const subtotal = lineItems.reduce((sum, li) => {
     const st = liSubtotal(li, rooms);

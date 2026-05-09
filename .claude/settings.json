@@ -1,4 +1,11 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(npx biome ci*)",
+      "Bash(npx vitest run*)",
+      "Bash(npx tsc --noEmit*)"
+    ]
+  },
   "hooks": {
     "Stop": [
       {

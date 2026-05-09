@@ -6,15 +6,15 @@ function uniqueEmail() {
 
 // ── 1.4 Public token-authed quote view ────────────────────────────────────────
 //
-// Tests are serial: beforeAll provisions one user + customer + estimate, then
-// generates an approval token. Every test exercises the public /q/[token]
-// route or an interaction with it.
+// Tests are serial: beforeAll provisions one user + customer + estimate, creates
+// a draft quote from that estimate, then generates an approval token. Every test
+// exercises the public /q/[token] route or an interaction with it.
 
 test.describe
   .serial("1.4 Public quote view", () => {
     let userEmail: string;
     const userPassword = "password123";
-    let estimateId: number;
+    let quoteId: number;
     let approvalToken: string;
 
     test.beforeAll(async ({ browser }) => {
@@ -50,10 +50,18 @@ test.describe
         data: { customerId: customer.id },
       });
       const estimate = await estRes.json();
-      estimateId = estimate.id;
+      const estimateId = estimate.id;
 
+      // Create a draft quote from the estimate
+      const quoteRes = await ctx.request.post("/api/quotes", {
+        data: { estimateId },
+      });
+      const quote = await quoteRes.json();
+      quoteId = quote.id;
+
+      // Rotate (and obtain) the quote's approval token
       const tokenRes = await ctx.request.post(
-        `/api/estimates/${estimateId}/approval-token`
+        `/api/quotes/${quoteId}/approval-token`
       );
       const tokenJson = await tokenRes.json();
       approvalToken = tokenJson.approvalToken;
@@ -121,7 +129,7 @@ test.describe
       await login(page);
       // Rotate to a new token via the API
       const rotateRes = await ctx.request.post(
-        `/api/estimates/${estimateId}/approval-token`
+        `/api/quotes/${quoteId}/approval-token`
       );
       const { approvalToken: newToken } = await rotateRes.json();
       expect(newToken).not.toBe(approvalToken);
@@ -148,7 +156,7 @@ test.describe
     }) => {
       const ctx = await browser.newContext();
       const res = await ctx.request.post(
-        `/api/estimates/${estimateId}/approval-token`
+        `/api/quotes/${quoteId}/approval-token`
       );
       expect(res.status()).toBe(401);
       await ctx.close();

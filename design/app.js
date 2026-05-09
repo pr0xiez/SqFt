@@ -52,8 +52,8 @@ const allEstimates = [
     {id:3,name:'Front Hall',length:5,width:10,sqft:50,shape:'rectangle',note:''},
   ],wasteFactor:1.10},
 ];
-const initialQuoteFor = {
-  1042:{lineItems:[
+const quotes = [
+  {id:5001,estimateId:1042,date:'May 1, 2025',status:'sent',lineItems:[
     {id:1,description:'LVP — Mohawk RevWood',scope:{type:'rooms',rooms:[1,2,3],waste:10},rate:4.85,unit:'sqft'},
     {id:2,description:'Underlayment — 6 mil',scope:{type:'rooms',rooms:[1,2,3],waste:0},rate:0.45,unit:'sqft'},
     {id:3,description:'Removal of carpet',scope:{type:'rooms',rooms:[1,2],waste:0},rate:1.20,unit:'sqft'},
@@ -61,10 +61,24 @@ const initialQuoteFor = {
     {id:5,description:'Quarter round trim',scope:{type:'manual',qty:180,unit:'lf'},rate:2.50},
     {id:6,description:'Haul away & disposal',scope:{type:'manual',qty:1,unit:'job'},rate:185.00},
   ],taxPct:7.5,markupPct:35},
-  1043:{lineItems:[],taxPct:7.5,markupPct:35},
-  1044:{lineItems:[],taxPct:7.5,markupPct:35},
-  1045:{lineItems:[],taxPct:7.5,markupPct:35},
-};
+  {id:5002,estimateId:1041,date:'Apr 21, 2025',status:'accepted',lineItems:[
+    {id:1,description:'White oak — select grade',scope:{type:'rooms',rooms:[1,2],waste:10},rate:7.20,unit:'sqft'},
+    {id:2,description:'Hardwood install — nail down',scope:{type:'rooms',rooms:[1,2,3],waste:0},rate:3.80,unit:'sqft'},
+    {id:3,description:'Sand & finish — 3 coats',scope:{type:'rooms',rooms:[1,2],waste:0},rate:2.40,unit:'sqft'},
+  ],taxPct:7.5,markupPct:35},
+  {id:5003,estimateId:1040,date:'Apr 19, 2025',status:'accepted',lineItems:[
+    {id:1,description:'LVP stair wrap kit',scope:{type:'manual',qty:13,unit:'tread'},rate:48.00},
+    {id:2,description:'Stair install labor',scope:{type:'manual',qty:13,unit:'tread'},rate:65.00},
+    {id:3,description:'Landing — LVP',scope:{type:'rooms',rooms:[2],waste:10},rate:4.85,unit:'sqft'},
+  ],taxPct:7.5,markupPct:35},
+  {id:5004,estimateId:1043,date:'Apr 29, 2025',status:'draft',lineItems:[
+    {id:1,description:'Porcelain tile 12×24',scope:{type:'rooms',rooms:[1,2],waste:15},rate:5.40,unit:'sqft'},
+  ],taxPct:7.5,markupPct:35},
+  {id:5005,estimateId:1042,date:'Apr 30, 2025',status:'declined',lineItems:[
+    {id:1,description:'Engineered HW — premium',scope:{type:'rooms',rooms:[1,2,3],waste:10},rate:8.20,unit:'sqft'},
+  ],taxPct:7.5,markupPct:35},
+];
+let nextQuoteId=5006;
 const events = [
   {id:1,title:'Chen Staircase · Day 2',type:'job',customerId:3,estimateId:1040,start:'2025-05-02T08:00',end:'2025-05-02T16:00',crew:'Carlos',notes:''},
   {id:2,title:'Sharma Bath · Day 1',type:'job',customerId:6,estimateId:1043,start:'2025-05-02T08:30',end:'2025-05-02T15:30',crew:'Dave',notes:''},
@@ -77,16 +91,16 @@ const events = [
   {id:9,title:'Henderson — Floor install',type:'job',customerId:1,estimateId:1042,start:'2025-05-08T08:00',end:'2025-05-08T16:00',crew:'Carlos',notes:''},
 ];
 let nextEventId=10, nextCustomerId=7, nextEstimateId=1046;
-let activeEstimateId=1042, activeCustomerId=1;
+let activeEstimateId=1042, activeCustomerId=1, activeQuoteId=5001;
 
 // ══ NAV ══
-const screens=['dashboard','customers','customer-detail','estlist','estimates','quote','schedule'];
+const screens=['dashboard','customers','customer-detail','estlist','estimates','quote-list','quote','schedule'];
 function showScreen(s){
   screens.forEach(x=>document.getElementById('screen-'+x).classList.remove('active'));
   document.getElementById('screen-'+s).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   // map detail screens to tabs
-  const map={dashboard:'dashboard',customers:'customers','customer-detail':'customers',estlist:'estlist',estimates:'estlist',quote:'quote',schedule:'schedule'};
+  const map={dashboard:'dashboard',customers:'customers','customer-detail':'customers',estlist:'estlist',estimates:'estlist','quote-list':'quote-list',quote:'quote-list',schedule:'schedule'};
   const tabName = map[s];
   document.querySelectorAll('.nav-tab').forEach(t=>{ if(t.dataset.screen===tabName) t.classList.add('active'); });
   document.querySelectorAll('.bn-btn').forEach(t=>{ t.classList.toggle('active', t.dataset.screen===tabName); });
@@ -94,6 +108,7 @@ function showScreen(s){
   if (s==='customers') renderCustomerList();
   if (s==='estlist') renderEstimateList();
   if (s==='estimates') renderEstimate();
+  if (s==='quote-list') renderQuoteList();
   if (s==='quote') renderQuote();
   if (s==='schedule') renderCalendar();
   if (s==='customer-detail') renderCustomerDetail();
@@ -145,16 +160,33 @@ function renderRevChart(){
 
 // ══ CUSTOMER LIST ══
 let custFilter='all';
+let custSearch='';
 function setCustFilter(f,btn){
   custFilter=f;
   document.querySelectorAll('#screen-customers .filter').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderCustomerList();
 }
+function setCustSearch(v){
+  custSearch=v;
+  document.getElementById('clist-search-clear').classList.toggle('show', v.length>0);
+  renderCustomerList();
+}
+function clearCustSearch(){
+  custSearch='';
+  const el=document.getElementById('clist-search'); el.value=''; el.focus();
+  document.getElementById('clist-search-clear').classList.remove('show');
+  renderCustomerList();
+}
 function sourceLabel(s){return{phone:'Phone',online:'Online',referral:'Referral',walkin:'Walk-in',website:'Website'}[s]||s;}
 function renderCustomerList(){
   const list=document.getElementById('clist-rows');
-  const filtered=customers.filter(c=>custFilter==='all'||c.source===custFilter);
+  const q=custSearch.trim().toLowerCase();
+  const filtered=customers.filter(c=>{
+    if (custFilter!=='all' && c.source!==custFilter) return false;
+    if (!q) return true;
+    return [c.name,c.phone,c.email,c.address,c.notes].some(v=>(v||'').toLowerCase().includes(q));
+  });
   list.innerHTML = filtered.map(c=>`
     <div class="tr ${c.source}" onclick="openCustomer(${c.id})">
       <div class="td"><div class="cl-name">${c.name}</div><div class="cl-contact">${c.phone}${c.email?' · '+c.email:''}</div></div>
@@ -162,7 +194,7 @@ function renderCustomerList(){
       <div class="td"><div class="cl-est">${c.estimates}</div></div>
       <div class="td" style="font-family:var(--mono);font-size:11px;color:var(--muted)">${c.added.replace(/, 2025/,'')}</div>
       <div class="td"><button class="open-btn">Open →</button></div>
-    </div>`).join('');
+    </div>`).join('') || `<div class="tr"><div class="td" style="grid-column:1/-1;text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:24px">No customers match${q?' "'+custSearch+'"':''}.</div></div>`;
   document.getElementById('clist-sub').textContent = `${customers.length} customers`;
   document.getElementById('clist-count').textContent = filtered.length===customers.length?'':`${filtered.length} shown`;
 }
@@ -216,7 +248,6 @@ function updateCustomerField(k,v){
 function newEstimateForCustomer(){
   const e={id:nextEstimateId++,customerId:activeCustomerId,date:'May 2, 2025',rooms:[],wasteFactor:1.10};
   allEstimates.push(e);
-  initialQuoteFor[e.id]={lineItems:[],taxPct:7.5,markupPct:35};
   const c=customers.find(x=>x.id===activeCustomerId); c.estimates++;
   activeEstimateId=e.id;
   toast('Estimate created', `#${e.id} for ${c.name}`);
@@ -228,9 +259,38 @@ function viewActiveCustomer(){
 }
 
 // ══ ESTIMATE LIST ══
+let estFilter='all';
+let estSearch='';
+function setEstFilter(f,btn){
+  estFilter=f;
+  document.querySelectorAll('#screen-estlist .filter').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderEstimateList();
+}
+function setEstSearch(v){
+  estSearch=v;
+  document.getElementById('estlist-search-clear').classList.toggle('show', v.length>0);
+  renderEstimateList();
+}
+function clearEstSearch(){
+  estSearch='';
+  const el=document.getElementById('estlist-search'); el.value=''; el.focus();
+  document.getElementById('estlist-search-clear').classList.remove('show');
+  renderEstimateList();
+}
 function renderEstimateList(){
   const list=document.getElementById('estlist-rows');
-  list.innerHTML = allEstimates.map(e=>{
+  const q=estSearch.trim().toLowerCase();
+  const filtered = allEstimates.filter(e=>{
+    if (estFilter==='empty' && e.rooms.length>0) return false;
+    if (estFilter==='measured' && e.rooms.length===0) return false;
+    if (estFilter==='quoted' && !quotes.some(qq=>qq.estimateId===e.id)) return false;
+    if (!q) return true;
+    const c=customers.find(x=>x.id===e.customerId);
+    if (('#'+e.id).includes(q) || String(e.id).includes(q)) return true;
+    return [c?.name,c?.address,c?.phone,c?.email,e.date].some(v=>(v||'').toLowerCase().includes(q));
+  });
+  list.innerHTML = filtered.map(e=>{
     const c=customers.find(x=>x.id===e.customerId);
     const total = e.rooms.reduce((s,r)=>s+r.sqft,0);
     return `<div class="tr" onclick="openEstimateById(${e.id})">
@@ -240,13 +300,19 @@ function renderEstimateList(){
       <div class="td" style="font-family:var(--mono);font-size:11px;color:var(--muted)">${e.date}</div>
       <div class="td"><button class="open-btn">Open →</button></div>
     </div>`;
-  }).join('');
+  }).join('') || `<div class="tr"><div class="td" style="grid-column:1/-1;text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:24px">No estimates match${q?' "'+estSearch+'"':''}.</div></div>`;
   document.getElementById('estlist-sub').textContent = `${allEstimates.length} estimates`;
+  document.getElementById('estlist-count').textContent = filtered.length===allEstimates.length?'':`${filtered.length} shown`;
 }
 function openEstimateById(id){ activeEstimateId=id; showScreen('estimates'); }
 function newEstimate(){ openCpPicker('newEstimate'); }
 function backToList(){ showScreen('estlist'); }
-function backToEstimate(){ showScreen('estimates'); }
+function backToEstimate(){
+  const q=quotes.find(x=>x.id===activeQuoteId);
+  if (q) activeEstimateId = q.estimateId;
+  showScreen('estimates');
+}
+function backToQuoteList(){ showScreen('quote-list'); }
 
 // ══ ESTIMATE BUILDER ══
 function renderEstimate(){
@@ -259,6 +325,23 @@ function renderEstimate(){
   document.getElementById('est-cb-detail').textContent = c ? `${c.phone||''}${c.address?' · '+c.address:''}` : 'Pick a customer to begin';
   document.getElementById('est-cb-view-btn').style.display = c?'inline-flex':'none';
   document.getElementById('est-waste-sel').value = e.wasteFactor.toFixed(2);
+  // Quotes tied to this estimate
+  const eqWrap = document.getElementById('est-quotes-card');
+  const tied = quotes.filter(q=>q.estimateId===e.id);
+  eqWrap.innerHTML = `<div class="eq-card">
+    <div class="eq-head"><div class="eq-title">Quotes for this estimate (${tied.length})</div>
+      <button class="btn" onclick="newQuoteForActiveEstimate()" style="font-size:11px">+ Create Quote</button>
+    </div>
+    ${tied.length===0
+      ? '<div class="eq-empty">No quotes yet — create one to start pricing.</div>'
+      : tied.map(q=>`<div class="eq-row" onclick="openQuoteById(${q.id})">
+          <div class="eq-num">#${q.id}</div>
+          <div class="eq-meta"><div class="eq-total">$${quoteTotal(q).toFixed(2)}</div><div class="eq-date">${q.lineItems.length} line item${q.lineItems.length===1?'':'s'} · ${q.date}</div></div>
+          <span class="q-status ${q.status}">${q.status}</span>
+          <span class="t-tag">Open →</span>
+        </div>`).join('')
+    }
+  </div>`;
   const wrap=document.getElementById('estimate-items');
   wrap.innerHTML = e.rooms.map(r=>{
     const showArea = r.length||r.width;
@@ -304,9 +387,11 @@ function addEstRoom(){
 function removeRoom(id){
   const e=allEstimates.find(x=>x.id===activeEstimateId);
   e.rooms = e.rooms.filter(r=>r.id!==id);
-  // also unlink from any line items
-  (initialQuoteFor[e.id]?.lineItems||[]).forEach(li=>{
-    if (li.scope?.type==='rooms') li.scope.rooms=li.scope.rooms.filter(rid=>rid!==id);
+  // also unlink from any line items in any quote tied to this estimate
+  quotes.filter(q=>q.estimateId===e.id).forEach(q=>{
+    q.lineItems.forEach(li=>{
+      if (li.scope?.type==='rooms') li.scope.rooms=li.scope.rooms.filter(rid=>rid!==id);
+    });
   });
   renderEstimate();
 }
@@ -322,10 +407,14 @@ function recalcEstimate(){
 
 // ══ QUOTE BUILDER ══
 function getQuote(){
-  if (!initialQuoteFor[activeEstimateId]) initialQuoteFor[activeEstimateId]={lineItems:[],taxPct:7.5,markupPct:35};
-  return initialQuoteFor[activeEstimateId];
+  return quotes.find(x=>x.id===activeQuoteId);
 }
-function getEstimate(){ return allEstimates.find(x=>x.id===activeEstimateId); }
+function getEstimate(){
+  // For quote builder: prefer the quote's estimate; fallback to activeEstimateId
+  const q=quotes.find(x=>x.id===activeQuoteId);
+  if (q) return allEstimates.find(x=>x.id===q.estimateId);
+  return allEstimates.find(x=>x.id===activeEstimateId);
+}
 function calcQty(li){
   if (!li.scope) return {qty:0,unit:'',linkedRooms:[]};
   if (li.scope.type==='manual') return {qty:li.scope.qty||0,unit:li.scope.unit||'',linkedRooms:[]};
@@ -335,33 +424,52 @@ function calcQty(li){
   const w = (li.scope.waste||0)/100;
   return {qty: base*(1+w), unit:'sqft', linkedRooms, baseQty:base, waste: li.scope.waste||0};
 }
+function quoteTotal(q){
+  const est = allEstimates.find(x=>x.id===q.estimateId);
+  let subtotal = 0;
+  q.lineItems.forEach(li=>{
+    let qty = 0;
+    if (!li.scope) qty = 0;
+    else if (li.scope.type==='manual') qty = li.scope.qty||0;
+    else {
+      const linked = (est?.rooms||[]).filter(r=>li.scope.rooms.includes(r.id));
+      qty = linked.reduce((s,r)=>s+r.sqft,0) * (1 + (li.scope.waste||0)/100);
+    }
+    subtotal += qty * li.rate;
+  });
+  const tax = subtotal*(q.taxPct/100);
+  const markup = (subtotal+tax)*(q.markupPct/100);
+  return subtotal+tax+markup;
+}
 function renderQuote(){
-  const e=getEstimate();
-  if (!e){ showScreen('estlist'); return; }
+  const q=getQuote();
+  if (!q){ showScreen('quote-list'); return; }
+  const e=allEstimates.find(x=>x.id===q.estimateId);
+  if (!e){ showScreen('quote-list'); return; }
+  activeEstimateId = e.id;
   const c=customers.find(x=>x.id===e.customerId);
-  document.getElementById('quote-eyebrow').textContent = `Quote · Estimate #${e.id}`;
-  document.getElementById('quote-topbar-sub').textContent = `${e.rooms.length} rooms · ${e.rooms.reduce((s,r)=>s+r.sqft,0)} sqft · ${e.date}`;
+  document.getElementById('quote-eyebrow').textContent = `Quote #${q.id} · ${q.status} · ${q.date}`;
+  document.getElementById('quote-topbar-sub').textContent = `Tied to Est #${e.id} · ${e.rooms.length} rooms · ${e.rooms.reduce((s,r)=>s+r.sqft,0)} sqft`;
   document.getElementById('quote-cb-name').textContent = c?.name||'—';
   document.getElementById('quote-cb-detail').textContent = c?.phone||'';
-  document.getElementById('quote-est-detail').textContent = c ? ` · Est #${e.id}` : '';
+  document.getElementById('quote-est-detail').textContent = ` · Est #${e.id}`;
   document.getElementById('quote-room-summary').textContent = e.rooms.length ? 'AVAILABLE ROOMS · ' + e.rooms.map(r=>`${r.name} (${r.sqft.toFixed(0)} sqft)`).join(' · ') : 'NO ROOMS — add rooms in the measure step to enable room-linked items';
-  const q=getQuote();
   const wrap=document.getElementById('li-rows');
   wrap.innerHTML = q.lineItems.map(li=>{
-    const c=calcQty(li);
-    const sub = c.qty * li.rate;
-    const linked = li.scope?.type==='rooms' && c.linkedRooms.length>0;
+    const cq=calcQty(li);
+    const sub = cq.qty * li.rate;
+    const linked = li.scope?.type==='rooms' && cq.linkedRooms.length>0;
     return `<div class="li-row ${linked?'linked':''}">
       <div class="li-main">
         <div><input class="li-name" value="${li.description}" oninput="updateLineField(${li.id},'description',this.value)"/></div>
         <div class="li-scope-cell">
           <button class="li-scope-btn ${linked?'linked':''}" onclick="openLineScope(${li.id})">
-            ${linked ? `🔗 ${c.linkedRooms.length} room${c.linkedRooms.length===1?'':'s'}` : (li.scope?.type==='manual' ? `Manual · ${li.scope.unit||''}` : 'Set scope…')}
+            ${linked ? `🔗 ${cq.linkedRooms.length} room${cq.linkedRooms.length===1?'':'s'}` : (li.scope?.type==='manual' ? `Manual · ${li.scope.unit||''}` : 'Set scope…')}
           </button>
         </div>
         <div class="li-qty">
           ${linked
-            ? `<div class="li-qty-linked"><span class="li-qty-num">${c.qty.toFixed(1)}</span><span class="li-qty-unit">sqft</span></div>`
+            ? `<div class="li-qty-linked"><span class="li-qty-num">${cq.qty.toFixed(1)}</span><span class="li-qty-unit">sqft</span></div>`
             : `<input type="number" value="${li.scope?.qty||0}" step="0.1" oninput="updateLineField(${li.id},'manualQty',this.value)"/>`
           }
         </div>
@@ -370,7 +478,7 @@ function renderQuote(){
         <button class="li-x" onclick="removeLineItem(${li.id})">✕</button>
       </div>
       ${linked
-        ? `<div class="li-tags">${c.linkedRooms.map(r=>`<span class="room-tag">${r.name} <span style="opacity:.7">(${r.sqft.toFixed(0)})</span></span>`).join('')}<span class="waste-tag">+${c.waste}% waste</span></div>`
+        ? `<div class="li-tags">${cq.linkedRooms.map(r=>`<span class="room-tag">${r.name} <span style="opacity:.7">(${r.sqft.toFixed(0)})</span></span>`).join('')}<span class="waste-tag">+${cq.waste}% waste</span></div>`
         : ''
       }
     </div>`;
@@ -516,7 +624,6 @@ function saveNewCustomer(){
     activeCustomerId=c.id;
     const e={id:nextEstimateId++,customerId:c.id,date:'May 2, 2025',rooms:[],wasteFactor:1.10};
     allEstimates.push(e);
-    initialQuoteFor[e.id]={lineItems:[],taxPct:7.5,markupPct:35};
     c.estimates=1;
     activeEstimateId=e.id;
     showScreen('estimates');
@@ -556,7 +663,6 @@ function pickCustomer(id){
   if (cpReason==='newEstimate'){
     const e={id:nextEstimateId++,customerId:id,date:'May 2, 2025',rooms:[],wasteFactor:1.10};
     allEstimates.push(e);
-    initialQuoteFor[e.id]={lineItems:[],taxPct:7.5,markupPct:35};
     c.estimates++;
     activeEstimateId=e.id; activeCustomerId=id;
     closeCpPicker();
@@ -564,7 +670,7 @@ function pickCustomer(id){
     showScreen('estimates');
   } else {
     // change customer on active estimate
-    const e=getEstimate();
+    const e=allEstimates.find(x=>x.id===activeEstimateId);
     if (e){ e.customerId=id; activeCustomerId=id; }
     closeCpPicker();
     renderEstimate();
@@ -575,6 +681,49 @@ function pickCustomer(id){
 let calWeekStart=new Date(2025, 3, 28); // Monday Apr 28 (local time)
 const dayMs=86400000;
 const calStartHour=7, calEndHour=19, calPxPerHour=52;
+const CREW = [
+  {name:'Mike',   color:'#c0341a', role:'Owner / Sales'},
+  {name:'Carlos', color:'#3d6b4a', role:'Lead Installer'},
+  {name:'Dave',   color:'#b07a1a', role:'Installer'},
+  {name:'Sarah',  color:'#5a4ba8', role:'Showroom'},
+];
+function crewMeta(name){ return CREW.find(c=>c.name===name) || {name,color:'#6b6b66',role:''}; }
+let crewFilter='all';
+function setCrewFilter(name){
+  crewFilter = name;
+  renderCalendar();
+}
+function renderCrewBar(){
+  const chips = document.getElementById('crew-chips');
+  if (!chips) return;
+  // counts in current week
+  const days = weekDays();
+  const start = days[0], end = new Date(+days[5] + dayMs);
+  const inWeek = events.filter(e=>{
+    const d = new Date(e.start);
+    return d >= start && d < end;
+  });
+  const totalCount = inWeek.length;
+  const allActive = crewFilter==='all';
+  let html = `<button class="crew-chip all-chip ${allActive?'active':''}" onclick="setCrewFilter('all')">All <span class="crew-count">${totalCount}</span></button>`;
+  html += CREW.map(c=>{
+    const n = inWeek.filter(e=>e.crew===c.name).length;
+    const active = crewFilter===c.name;
+    const initial = c.name[0];
+    return `<button class="crew-chip ${active?'active':''}" onclick="setCrewFilter('${c.name}')" title="${c.role}">
+      <span class="ca" style="background:${c.color}">${initial}</span>${c.name} <span class="crew-count">${n}</span>
+    </button>`;
+  }).join('');
+  chips.innerHTML = html;
+  const meta = document.getElementById('crew-bar-meta');
+  if (allActive){
+    meta.innerHTML = `Showing <strong>all crews</strong> · ${totalCount} event${totalCount===1?'':'s'} this week`;
+  } else {
+    const mine = inWeek.filter(e=>e.crew===crewFilter);
+    const c = crewMeta(crewFilter);
+    meta.innerHTML = `<strong>${c.name}'s week</strong> · ${mine.length} event${mine.length===1?'':'s'} · ${c.role}`;
+  }
+}
 function navigateWeek(d){
   if (d===0) calWeekStart=new Date(2025, 3, 28);
   else calWeekStart=new Date(+calWeekStart + d*7*dayMs);
@@ -589,6 +738,9 @@ function weekDays(){
 }
 function isToday(d){ return d.getFullYear()===2025 && d.getMonth()===4 && d.getDate()===2; }
 function renderCalendar(){
+  renderCrewBar();
+  const calRoot = document.querySelector('#screen-schedule .cal');
+  if (calRoot) calRoot.classList.toggle('crew-focus', crewFilter!=='all');
   const days=weekDays();
   const monthLabel = days[0].toLocaleString('en-US',{month:'long',year:'numeric'});
   document.getElementById('cal-week-label').textContent = `Week of ${days[0].toLocaleString('en-US',{month:'short',day:'numeric'})} — ${days[5].toLocaleString('en-US',{month:'short',day:'numeric'})}, ${days[5].getFullYear()}`;
@@ -647,10 +799,12 @@ function renderCalendar(){
       const widthPct = 100/totalLanes;
       const leftPct = lane*widthPct;
       const sLabel=ev.start.slice(11,16), eLabel=ev.end.slice(11,16);
-      return `<div class="cal-event ${ev.type}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);right:auto" onclick="event.stopPropagation();openEventPanel(${JSON.stringify(ev).replace(/"/g,'&quot;')})">
+      const cm = crewMeta(ev.crew);
+      const match = crewFilter==='all' || ev.crew===crewFilter;
+      return `<div class="cal-event ${ev.type} ${match?'crew-match':''}" style="top:${top}px;height:${height}px;left:calc(${leftPct}% + 2px);width:calc(${widthPct}% - 4px);right:auto" onclick="event.stopPropagation();openEventPanel(${JSON.stringify(ev).replace(/"/g,'&quot;')})">
         <div class="cal-evt-title">${ev.title}</div>
         <div class="cal-evt-time">${sLabel}–${eLabel}</div>
-        ${ev.crew?`<div class="cal-evt-crew">${ev.crew}</div>`:''}
+        ${ev.crew?`<div class="cal-evt-crew"><span class="ca" style="background:${cm.color}">${ev.crew[0]}</span>${ev.crew}</div>`:''}
       </div>`;
     }).join('');
     return `<div class="cal-day-col ${today?'today':''}" onclick="openEventPanel({date:'${dayStr}'})">${inner}</div>`;
@@ -786,6 +940,114 @@ function deleteEvent(){
   if (idx>=0){ events.splice(idx,1); toast('Event deleted',evpEditing.title); }
   closeEventPanel();
   renderCalendar();
+}
+
+// ══ QUOTE LIST ══
+let quoteFilter='all';
+let quoteSearch='';
+function setQuoteFilter(f,btn){
+  quoteFilter=f;
+  document.querySelectorAll('#screen-quote-list .filter').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderQuoteList();
+}
+function setQuoteSearch(v){
+  quoteSearch=v;
+  document.getElementById('qlist-search-clear').classList.toggle('show', v.length>0);
+  renderQuoteList();
+}
+function clearQuoteSearch(){
+  quoteSearch='';
+  const el=document.getElementById('qlist-search'); el.value=''; el.focus();
+  document.getElementById('qlist-search-clear').classList.remove('show');
+  renderQuoteList();
+}
+function renderQuoteList(){
+  const list=document.getElementById('qlist-rows');
+  const q=quoteSearch.trim().toLowerCase();
+  const filtered = quotes.filter(qq=>{
+    if (quoteFilter!=='all' && qq.status!==quoteFilter) return false;
+    if (!q) return true;
+    const e=allEstimates.find(x=>x.id===qq.estimateId);
+    const c=customers.find(x=>x.id===e?.customerId);
+    if (String(qq.id).includes(q) || ('#'+qq.id).includes(q)) return true;
+    if (e && (String(e.id).includes(q) || ('#'+e.id).includes(q))) return true;
+    return [c?.name,c?.address,c?.phone,qq.date,qq.status].some(v=>(v||'').toLowerCase().includes(q));
+  })
+    .slice().sort((a,b)=>b.id-a.id);
+  list.innerHTML = filtered.map(qq=>{
+    const e=allEstimates.find(x=>x.id===qq.estimateId);
+    const c=customers.find(x=>x.id===e?.customerId);
+    return `<div class="tr ${qq.status}" onclick="openQuoteById(${qq.id})">
+      <div class="td"><div class="el-num">#${qq.id}</div></div>
+      <div class="td"><div class="el-cname">${c?.name||'—'}</div><div class="el-caddr">${c?.address||''}</div></div>
+      <div class="td"><div class="el-area">#${e?.id||'—'}</div><div class="el-detail">${e?e.rooms.length+' room'+(e.rooms.length===1?'':'s'):'—'}</div></div>
+      <div class="td"><div class="el-area">$${quoteTotal(qq).toFixed(0)}</div><div class="el-detail">${qq.lineItems.length} line item${qq.lineItems.length===1?'':'s'}</div></div>
+      <div class="td"><span class="q-status ${qq.status}">${qq.status}</span></div>
+      <div class="td" style="font-family:var(--mono);font-size:11px;color:var(--muted)">${qq.date}</div>
+      <div class="td"><button class="open-btn">Open →</button></div>
+    </div>`;
+  }).join('') || `<div class="tr"><div class="td" style="grid-column:1/-1;text-align:center;color:var(--muted);font-family:var(--mono);font-size:12px;padding:24px">No quotes match${q?' "'+quoteSearch+'"':' this filter'}.</div></div>`;
+  document.getElementById('qlist-sub').textContent = `${quotes.length} quote${quotes.length===1?'':'s'}`;
+  document.getElementById('qlist-count').textContent = filtered.length===quotes.length?'':`${filtered.length} shown`;
+}
+function openQuoteById(id){ activeQuoteId=id; const q=quotes.find(x=>x.id===id); if(q) activeEstimateId=q.estimateId; showScreen('quote'); }
+
+// ══ NEW QUOTE / ESTIMATE PICKER ══
+let epReason=null;
+function newQuote(){ epReason='fromList'; openEpPicker(); }
+function newQuoteForActiveEstimate(){
+  const e=allEstimates.find(x=>x.id===activeEstimateId);
+  if (!e){ toast('No estimate','Open an estimate first'); return; }
+  createQuoteForEstimate(e.id);
+}
+function createQuoteForEstimate(estimateId){
+  const e=allEstimates.find(x=>x.id===estimateId);
+  if (!e) return;
+  const c=customers.find(x=>x.id===e.customerId);
+  const q={id:nextQuoteId++,estimateId,date:'May 2, 2025',status:'draft',lineItems:[],taxPct:7.5,markupPct:35};
+  quotes.push(q);
+  activeQuoteId=q.id;
+  activeEstimateId=estimateId;
+  if (c) activeCustomerId=c.id;
+  toast('Quote created', `#${q.id} tied to Est #${estimateId}`);
+  showScreen('quote');
+}
+function openEpPicker(){
+  document.getElementById('ep-search').value='';
+  const panel=document.getElementById('ep-panel');
+  panel.style.top='80px';
+  panel.style.left='50%';
+  panel.style.transform='translateX(-50%)';
+  document.getElementById('ep-overlay').classList.add('open');
+  panel.classList.add('open');
+  renderEpList();
+}
+function closeEpPicker(){ document.getElementById('ep-overlay').classList.remove('open'); document.getElementById('ep-panel').classList.remove('open'); }
+function renderEpList(){
+  const q=document.getElementById('ep-search').value.toLowerCase();
+  const list = allEstimates.slice().sort((a,b)=>b.id-a.id).filter(e=>{
+    const c=customers.find(x=>x.id===e.customerId);
+    if (!q) return true;
+    return (''+e.id).includes(q) || (c?.name||'').toLowerCase().includes(q);
+  });
+  document.getElementById('ep-estimate-list').innerHTML = list.map(e=>{
+    const c=customers.find(x=>x.id===e.customerId);
+    const total = e.rooms.reduce((s,r)=>s+r.sqft,0);
+    const tied = quotes.filter(x=>x.estimateId===e.id).length;
+    return `<div class="mp-row radio" onclick="pickEstimate(${e.id})">
+      <div class="mp-check"><svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="2" fill="currentColor"/></svg></div>
+      <div style="flex:1">
+        <div class="mp-name">#${e.id} · ${c?.name||'—'}</div>
+        <div class="mp-mini-sub">${e.rooms.length} room${e.rooms.length===1?'':'s'} · ${total} sqft · ${e.date}</div>
+      </div>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">${tied} quote${tied===1?'':'s'}</span>
+    </div>`;
+  }).join('') || `<div style="padding:24px;text-align:center;color:var(--muted);font-family:var(--mono);font-size:11px">No matches</div>`;
+}
+function pickEstimate(id){
+  closeEpPicker();
+  createQuoteForEstimate(id);
 }
 
 // ══ INIT ══

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quote #5001 · Mike's Flooring Co.</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f3ed;--paper:#fafaf7;--surface:#ffffff;--surface-2:#f0eee5;
+  --ink:#1a1a17;--ink-2:#3a3a35;--muted:#6b6b66;--line:#e6e4dd;--line-2:#d8d6cd;
+  --accent:#c0341a;--accent-l:#e04828;--accent-d:#8a2010;
+  --sage:#3d6b4a;--gold:#b07a1a;
+  --display:'Inter Tight',sans-serif;--mono:'JetBrains Mono',monospace;--hand:'Caveat',cursive;
+  --r:8px;
+  --shadow-paper:0 1px 0 rgba(20,18,12,.04),0 6px 22px rgba(20,18,12,.07),0 32px 80px rgba(20,18,12,.06);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--display);-webkit-font-smoothing:antialiased;min-height:100vh}
+button{font-family:inherit;color:inherit;cursor:pointer}
+input,textarea{font-family:inherit;color:inherit}
+
+/* ── PUBLIC HEADER ── */
+.pub-head{padding:18px 28px;display:flex;align-items:center;gap:14px;max-width:880px;margin:0 auto}
+.brand{font-weight:800;font-size:18px;letter-spacing:-.025em}
+.brand em{color:var(--accent);font-style:normal}
+.pub-head .sep{width:1px;height:18px;background:var(--line-2)}
+.pub-head .biz{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+.pub-head .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.icon-btn{font-family:var(--mono);font-size:11px;padding:7px 12px;border:1px solid var(--line-2);background:transparent;color:var(--ink-2);border-radius:6px;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px}
+.icon-btn:hover{border-color:var(--ink);color:var(--ink);background:var(--surface)}
+
+/* ── STATUS BAR (above paper) ── */
+.status-bar{max-width:880px;margin:0 auto 14px;padding:0 28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:99px;border:1px solid currentColor;display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.sent{color:var(--gold)}
+.pill.accepted{color:var(--sage);background:rgba(61,107,74,.08)}
+.pill.expires{color:var(--muted);border-style:dashed}
+.s-meta{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.02em}
+
+/* ── PAPER ── */
+.paper-wrap{max-width:880px;margin:0 auto 32px;padding:0 28px}
+.paper{background:var(--paper);border-radius:var(--r);box-shadow:var(--shadow-paper);overflow:hidden;position:relative}
+.paper::before{content:'';position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,var(--accent),var(--accent-l))}
+
+/* paper interior padding */
+.p-pad{padding:48px 56px}
+@media(max-width:640px){.p-pad{padding:30px 22px}}
+
+/* ── LETTERHEAD ── */
+.letterhead{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding-bottom:28px;border-bottom:1px solid var(--line);margin-bottom:32px;flex-wrap:wrap}
+.lh-left{display:flex;flex-direction:column;gap:4px}
+.lh-eyebrow{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.lh-title{font-size:42px;font-weight:700;letter-spacing:-.03em;line-height:1;margin-top:8px}
+.lh-num{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;margin-top:8px;letter-spacing:.04em}
+.lh-right{text-align:right}
+.lh-biz{font-size:14px;font-weight:700;letter-spacing:-.01em}
+.lh-biz-detail{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.6;margin-top:4px}
+
+/* ── PARTY BLOCKS ── */
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-bottom:36px}
+.party-eyebrow{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.party-name{font-size:18px;font-weight:600;letter-spacing:-.015em;margin-bottom:6px}
+.party-detail{font-family:var(--mono);font-size:12px;color:var(--ink-2);line-height:1.7}
+
+/* ── PROJECT SUMMARY ── */
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:36px}
+.s-cell{background:var(--paper);padding:16px 18px}
+.s-cell-label{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.s-cell-val{font-size:18px;font-weight:600;letter-spacing:-.015em}
+.s-cell-sub{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+
+/* ── ROOMS ── */
+.section-h{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.rooms-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:36px}
+.room-chip{font-family:var(--mono);font-size:11px;padding:6px 12px;border:1px solid var(--line-2);border-radius:99px;color:var(--ink-2);background:var(--surface);display:inline-flex;align-items:center;gap:6px}
+.room-chip strong{color:var(--ink);font-weight:600}
+.room-chip .sqft{color:var(--muted)}
+
+/* ── LINE ITEMS ── */
+.li-table{margin-bottom:24px}
+.li-head{display:grid;grid-template-columns:1fr 90px 100px 110px;gap:14px;padding:0 0 10px;border-bottom:1.5px solid var(--ink);font-family:var(--mono);font-size:10px;color:var(--ink);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.li-head .c-r{text-align:right}
+.li-row{display:grid;grid-template-columns:1fr 90px 100px 110px;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.li-row:last-child{border-bottom:none}
+.li-desc{font-size:14px;font-weight:500;letter-spacing:-.005em}
+.li-scope{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.02em}
+.li-num{font-family:var(--mono);font-size:13px;text-align:right;color:var(--ink-2);font-weight:500}
+.li-sub{font-size:14px;text-align:right;font-weight:600;letter-spacing:-.01em}
+
+/* ── TOTALS ── */
+.totals{margin-top:24px;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.t-row{display:grid;grid-template-columns:auto 140px;gap:32px;align-items:baseline}
+.t-label{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em;text-align:right}
+.t-val{font-family:var(--mono);font-size:13px;font-weight:600;text-align:right;color:var(--ink-2)}
+.t-divider{height:1.5px;background:var(--ink);width:280px;margin:6px 0}
+.t-total-label{font-family:var(--mono);font-size:11px;color:var(--ink);letter-spacing:.06em;text-transform:uppercase;font-weight:600;text-align:right}
+.t-total-val{font-size:32px;font-weight:700;letter-spacing:-.025em;text-align:right;color:var(--accent)}
+
+/* ── TERMS ── */
+.terms{margin-top:40px;padding-top:24px;border-top:1px solid var(--line)}
+.terms p{font-size:13px;color:var(--ink-2);line-height:1.6;margin-bottom:8px}
+.terms p strong{color:var(--ink);font-weight:600}
+
+/* ── ACCEPTANCE BLOCK ── */
+.accept-block{background:var(--surface);border:1px solid var(--line-2);border-radius:var(--r);padding:32px 40px;margin-top:36px;position:relative}
+.accept-block.signed{background:#fdfcf6;border-color:var(--sage);border-width:1.5px}
+.accept-eyebrow{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.accept-h{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;line-height:1.15}
+.accept-sub{font-size:13px;color:var(--ink-2);line-height:1.5;margin-bottom:24px}
+.accept-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px}
+.accept-field{display:flex;flex-direction:column;gap:6px}
+.accept-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.accept-input{width:100%;font-size:14px;border:none;border-bottom:1.5px solid var(--line-2);background:transparent;padding:6px 0 8px;font-family:inherit;color:var(--ink);transition:border-color .15s}
+.accept-input:focus{outline:none;border-bottom-color:var(--ink)}
+
+.sig-pad-wrap{margin-top:6px}
+.sig-pad{width:100%;height:130px;background:var(--paper);border:1.5px dashed var(--line-2);border-radius:6px;cursor:crosshair;touch-action:none;display:block;position:relative;transition:border-color .15s}
+.sig-pad:hover{border-color:var(--muted)}
+.sig-pad.has-sig{border-style:solid;border-color:var(--ink)}
+.sig-baseline{position:relative;margin-top:4px;display:flex;align-items:center;gap:8px}
+.sig-baseline::before{content:'×';font-family:var(--mono);font-size:14px;color:var(--muted);font-weight:600}
+.sig-baseline-line{flex:1;height:1px;background:var(--line-2)}
+.sig-hint{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-family:var(--hand);font-size:22px;color:var(--line-2);pointer-events:none;font-weight:500;transition:opacity .15s}
+.sig-pad.has-sig .sig-hint{opacity:0}
+.sig-clear{font-family:var(--mono);font-size:10px;color:var(--muted);background:none;border:none;letter-spacing:.04em;cursor:pointer;padding:4px 0;text-transform:uppercase}
+.sig-clear:hover{color:var(--accent)}
+.sig-actions{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+
+.accept-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.btn-accept{flex:1;min-width:200px;padding:14px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;letter-spacing:-.01em;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+.btn-accept:hover{background:var(--accent-l);transform:translateY(-1px);box-shadow:0 6px 16px rgba(192,52,26,.25)}
+.btn-accept:disabled{background:var(--line-2);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none}
+.btn-secondary{padding:14px 18px;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-2);border-radius:6px;font-size:13px;font-weight:500;font-family:var(--mono);letter-spacing:.02em}
+.btn-secondary:hover{background:var(--paper);border-color:var(--ink-2)}
+
+.signed-banner{display:flex;align-items:center;gap:14px;padding:16px 20px;background:rgba(61,107,74,.08);border-radius:6px;margin-bottom:20px}
+.signed-icon{width:36px;height:36px;border-radius:50%;background:var(--sage);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700}
+.signed-text{flex:1}
+.signed-h{font-size:14px;font-weight:600;color:var(--sage)}
+.signed-sub{font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:2px}
+.signed-display{margin-top:14px;padding:14px;background:var(--paper);border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.signed-display .label{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.signed-display .val{font-size:14px;font-weight:500}
+.signed-display .name{font-family:var(--hand);font-size:28px;color:var(--ink);font-weight:600}
+
+/* ── HELP STRIP ── */
+.help{max-width:880px;margin:0 auto;padding:0 28px 48px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.help-text{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.02em}
+.help-text a{color:var(--accent);text-decoration:none;font-weight:600}
+.help-text a:hover{text-decoration:underline}
+.help-foot{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em}
+
+/* ── DECLINE MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(20,18,12,.45);z-index:100;display:none;backdrop-filter:blur(3px)}
+.overlay.open{display:flex;align-items:center;justify-content:center}
+.modal{background:var(--paper);border-radius:var(--r);padding:32px;max-width:440px;width:calc(100% - 32px);box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.modal-h{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.modal-sub{font-size:13px;color:var(--ink-2);margin-bottom:18px}
+.modal textarea{width:100%;font-size:13px;border:1px solid var(--line-2);background:var(--surface);padding:10px 12px;border-radius:6px;font-family:inherit;resize:vertical;min-height:96px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;display:none;box-shadow:0 10px 30px rgba(0,0,0,.2);z-index:200}
+.toast.show{display:block;animation:slideUp .25s ease both}
+@keyframes slideUp{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+
+@media(max-width:640px){
+  .pub-head{padding:14px 18px}
+  .paper-wrap,.status-bar,.help{padding:0 16px}
+  .lh-title{font-size:32px}
+  .parties{grid-template-columns:1fr;gap:18px}
+  .summary-grid{grid-template-columns:1fr 1fr}
+  .li-head,.li-row{grid-template-columns:1fr 70px 80px}
+  .li-head .c-3,.li-row .c-3{display:none}
+  .accept-block{padding:22px 20px}
+  .accept-grid{grid-template-columns:1fr;gap:14px}
+  .t-row{grid-template-columns:auto 100px;gap:18px}
+  .t-divider{width:220px}
+}
+@media print{
+  body{background:#fff}
+  .pub-head .right,.help,.accept-actions,.icon-btn{display:none}
+  .paper{box-shadow:none;border:1px solid #ddd}
+  .paper::before{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="pub-head">
+  <div class="brand"><em>Sq</em>Ft</div>
+  <div class="sep"></div>
+  <div class="biz">MIKE'S FLOORING CO. · COLUMBUS, OH</div>
+  <div class="right">
+    <button class="icon-btn" onclick="window.print()" title="Print or save as PDF">⤓ Download PDF</button>
+  </div>
+</header>
+
+<div class="status-bar">
+  <span class="pill sent" id="status-pill"><span class="dot"></span>Awaiting your response</span>
+  <span class="s-meta" id="status-meta">Sent May 1, 2025 · Expires May 15, 2025 (in 13 days)</span>
+</div>
+
+<div class="paper-wrap">
+  <div class="paper">
+    <div class="p-pad">
+
+      <!-- ── LETTERHEAD ── -->
+      <div class="letterhead">
+        <div class="lh-left">
+          <div class="lh-eyebrow">Estimate &amp; Proposal</div>
+          <div class="lh-title">Quote</div>
+          <div class="lh-num">№ 5001 · MAY 1 2025</div>
+        </div>
+        <div class="lh-right">
+          <div class="lh-biz">Mike's Flooring Co.</div>
+          <div class="lh-biz-detail">
+            842 Industrial Pkwy<br>
+            Columbus, OH 43204<br>
+            (614) 555-0100 · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d3bebab8b693bebab8b6a0b5bfbcbca1babdb4fdb0bc">[email&#160;protected]</a><br>
+            License #OH-FL-44129
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PARTIES ── -->
+      <div class="parties">
+        <div>
+          <div class="party-eyebrow">Prepared for</div>
+          <div class="party-name">Henderson, J.</div>
+          <div class="party-detail">
+            1247 Elm St<br>
+            Columbus, OH 43215<br>
+            (614) 555-0142
+          </div>
+        </div>
+        <div>
+          <div class="party-eyebrow">Project</div>
+          <div class="party-name">LVP install — main floor</div>
+          <div class="party-detail">
+            3 rooms · 495 sqft<br>
+            Mohawk RevWood · Whitewashed Oak<br>
+            Tear-out + install + trim
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PROJECT SUMMARY ── -->
+      <div class="summary-grid">
+        <div class="s-cell">
+          <div class="s-cell-label">Total area</div>
+          <div class="s-cell-val">495 sqft</div>
+          <div class="s-cell-sub">across 3 rooms</div>
+        </div>
+        <div class="s-cell">
+          <div class="s-cell-label">Material order</div>
+          <div class="s-cell-val">545 sqft</div>
+          <div class="s-cell-sub">+10% waste factor</div>
+        </div>
+        <div class="s-cell">
+          <div class="s-cell-label">Estimated install</div>
+          <div class="s-cell-val">3 days</div>
+          <div class="s-cell-sub">Carlos's crew</div>
+        </div>
+      </div>
+
+      <!-- ── ROOMS ── -->
+      <div class="section-h">Rooms included</div>
+      <div class="rooms-list">
+        <div class="room-chip"><strong>Living Room</strong><span class="sqft">14×18 · 252 sqft</span></div>
+        <div class="room-chip"><strong>Master Bedroom</strong><span class="sqft">13×15 · 195 sqft</span></div>
+        <div class="room-chip"><strong>Hallway</strong><span class="sqft">L-shape · 48 sqft</span></div>
+      </div>
+
+      <!-- ── LINE ITEMS ── -->
+      <div class="section-h">Line items</div>
+      <div class="li-table">
+        <div class="li-head">
+          <div>Description</div>
+          <div class="c-r">Qty</div>
+          <div class="c-r c-3">Rate</div>
+          <div class="c-r">Subtotal</div>
+        </div>
+        <div class="li-row">
+          <div><div class="li-desc">LVP — Mohawk RevWood</div><div class="li-scope">3 rooms · whitewashed oak · 7" plank</div></div>
+          <div class="li-num">545.0 sqft</div>
+          <div class="li-num c-3">$4.85</div>
+          <div class="li-sub">$2,643.25</div>
+        </div>
+        <div class="li-row">
+          <div><div class="li-desc">Underlayment — 6 mil moisture barrier</div><div class="li-scope">3 rooms · adhesive seam tape</div></div>
+          <div class="li-num">495.0 sqft</div>
+          <div class="li-num c-3">$0.45</div>
+          <div class="li-sub">$222.75</div>
+        </div>
+        <div class="li-row">
+          <div><div class="li-desc">Removal of existing carpet</div><div class="li-scope">Living &amp; Master Bedroom · pad and tack strips</div></div>
+          <div class="li-num">447.0 sqft</div>
+          <div class="li-num c-3">$1.20</div>
+          <div class="li-sub">$536.40</div>
+        </div>
+        <div class="li-row">
+          <div><div class="li-desc">Floor prep &amp; leveling</div><div class="li-scope">Hallway dip, 2 transitions</div></div>
+          <div class="li-num">495.0 sqft</div>
+          <div class="li-num c-3">$0.65</div>
+          <div class="li-sub">$321.75</div>
+        </div>
+        <div class="li-row">
+          <div><div class="li-desc">Quarter-round trim — paint-grade</div><div class="li-scope">All perimeter walls</div></div>
+          <div class="li-num">180.0 lf</div>
+          <div class="li-num c-3">$2.50</div>
+          <div class="li-sub">$450.00</div>
+        </div>
+        <div class="li-row">
+          <div><div class="li-desc">Haul away &amp; disposal</div><div class="li-scope">Old carpet, pad, debris</div></div>
+          <div class="li-num">1 job</div>
+          <div class="li-num c-3">$185.00</div>
+          <div class="li-sub">$185.00</div>
+        </div>
+      </div>
+
+      <!-- ── TOTALS ── -->
+      <div class="totals">
+        <div class="t-row"><div class="t-label">Subtotal</div><div class="t-val">$4,359.15</div></div>
+        <div class="t-row"><div class="t-label">Sales tax · 7.5%</div><div class="t-val">$326.94</div></div>
+        <div class="t-row"><div class="t-label">Labor &amp; margin · 35%</div><div class="t-val">$1,640.13</div></div>
+        <div class="t-divider"></div>
+        <div class="t-row"><div class="t-total-label">Total due</div><div class="t-total-val">$6,326.22</div></div>
+      </div>
+
+      <!-- ── TERMS ── -->
+      <div class="terms">
+        <div class="section-h">Terms</div>
+        <p><strong>Payment.</strong> 50% deposit on acceptance, balance due on completion. We accept check, ACH, or major credit card (3% surcharge).</p>
+        <p><strong>Schedule.</strong> Install can begin within 7–10 business days of acceptance, scheduled around your availability.</p>
+        <p><strong>Warranty.</strong> 1-year workmanship warranty. Mohawk RevWood carries a limited lifetime residential manufacturer warranty.</p>
+        <p><strong>Validity.</strong> Pricing held for 14 days from the date above. Material costs may change after that.</p>
+      </div>
+
+      <!-- ── ACCEPTANCE ── -->
+      <div class="accept-block" id="accept-block">
+        <div id="accept-pre">
+          <div class="accept-eyebrow">Sign &amp; Accept</div>
+          <div class="accept-h">Approve this quote to get on the schedule.</div>
+          <div class="accept-sub">By signing below you authorize Mike's Flooring Co. to perform the work described above for the total quoted price. A 50% deposit will be invoiced separately.</div>
+
+          <div class="accept-grid">
+            <div class="accept-field">
+              <span class="accept-label">Full name</span>
+              <input class="accept-input" id="sig-name" placeholder="Janet Henderson" oninput="updateAcceptState()"/>
+            </div>
+            <div class="accept-field">
+              <span class="accept-label">Email (for receipt)</span>
+              <input class="accept-input" id="sig-email" type="email" placeholder="janet@example.com" value="henderson@email.com" oninput="updateAcceptState()"/>
+            </div>
+          </div>
+
+          <div class="accept-field">
+            <span class="accept-label">Signature</span>
+            <div class="sig-pad-wrap">
+              <div style="position:relative">
+                <canvas id="sig-pad" class="sig-pad"></canvas>
+                <span class="sig-hint">Sign here</span>
+              </div>
+              <div class="sig-actions">
+                <span style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.04em">Use your finger or mouse</span>
+                <button class="sig-clear" onclick="clearSig()">Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="accept-actions">
+            <button class="btn-accept" id="btn-accept" onclick="acceptQuote()" disabled>
+              <span>✓</span> Accept &amp; sign quote
+            </button>
+            <button class="btn-secondary" onclick="openDecline()">Decline</button>
+            <button class="btn-secondary" onclick="askQuestion()">Ask a question</button>
+          </div>
+        </div>
+
+        <!-- Signed state (hidden initially) -->
+        <div id="accept-post" style="display:none">
+          <div class="signed-banner">
+            <div class="signed-icon">✓</div>
+            <div class="signed-text">
+              <div class="signed-h">Quote accepted &amp; signed</div>
+              <div class="signed-sub" id="signed-meta">—</div>
+            </div>
+          </div>
+          <div class="accept-sub">A confirmation has been sent to your email. We'll be in touch within 1 business day to schedule your install and arrange the deposit invoice.</div>
+          <div class="signed-display">
+            <div>
+              <div class="label">Signed by</div>
+              <div class="name" id="signed-name">—</div>
+            </div>
+            <div>
+              <div class="label">Date</div>
+              <div class="val" id="signed-date">—</div>
+            </div>
+            <div style="margin-left:auto">
+              <img id="signed-sig" alt="signature" style="max-height:60px;max-width:200px;display:block"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="help">
+  <div class="help-text">Questions? Reach Mike at <a href="tel:6145550100">(614) 555-0100</a> or <a href="/cdn-cgi/l/email-protection#80ede9ebe5c0ede9ebe5f3e6ecefeff2e9eee7aee3ef"><span class="__cf_email__" data-cfemail="b9d4d0d2dcf9d4d0d2dccadfd5d6d6cbd0d7de97dad6">[email&#160;protected]</span></a></div>
+  <div class="help-foot">Powered by SqFt · Quote ID 5001 · Secure link</div>
+</div>
+
+<!-- Decline modal -->
+<div class="overlay" id="decline-overlay" onclick="if(event.target===this)closeDecline()">
+  <div class="modal">
+    <div class="modal-h">Decline this quote?</div>
+    <div class="modal-sub">No hard feelings — a quick note helps us improve. Mike will follow up if you'd like to revise.</div>
+    <textarea id="decline-reason" placeholder="Optional — e.g., went with another vendor, scope changed, budget…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeDecline()">Cancel</button>
+      <button class="btn-secondary" onclick="confirmDecline()" style="color:var(--accent);border-color:var(--accent)">Decline quote</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">—</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+// ── Signature pad ─────────────────────────────────────────
+const canvas = document.getElementById('sig-pad');
+const ctx = canvas.getContext('2d');
+let drawing = false, hasInk = false, lastPt = null;
+
+function sizeCanvas(){
+  const ratio = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  canvas.width = r.width * ratio;
+  canvas.height = r.height * ratio;
+  ctx.scale(ratio, ratio);
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1a1a17';
+}
+sizeCanvas();
+window.addEventListener('resize', () => {
+  // preserve drawing on resize: snapshot then redraw scaled
+  const data = canvas.toDataURL();
+  sizeCanvas();
+  if (hasInk) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height);
+    img.src = data;
+  }
+});
+
+function pt(e){
+  const r = canvas.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX - r.left, y: t.clientY - r.top };
+}
+function start(e){ e.preventDefault(); drawing = true; lastPt = pt(e); }
+function move(e){
+  if (!drawing) return;
+  e.preventDefault();
+  const p = pt(e);
+  ctx.beginPath();
+  ctx.moveTo(lastPt.x, lastPt.y);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  lastPt = p;
+  if (!hasInk){ hasInk = true; canvas.classList.add('has-sig'); updateAcceptState(); }
+}
+function end(){ drawing = false; lastPt = null; }
+
+canvas.addEventListener('mousedown', start);
+canvas.addEventListener('mousemove', move);
+window.addEventListener('mouseup', end);
+canvas.addEventListener('touchstart', start, {passive:false});
+canvas.addEventListener('touchmove', move, {passive:false});
+canvas.addEventListener('touchend', end);
+
+function clearSig(){
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasInk = false;
+  canvas.classList.remove('has-sig');
+  updateAcceptState();
+}
+
+// ── Accept state ──────────────────────────────────────────
+function updateAcceptState(){
+  const name = document.getElementById('sig-name').value.trim();
+  const email = document.getElementById('sig-email').value.trim();
+  const valid = name.length > 1 && email.includes('@') && hasInk;
+  document.getElementById('btn-accept').disabled = !valid;
+}
+
+function acceptQuote(){
+  const name = document.getElementById('sig-name').value.trim();
+  const sigData = canvas.toDataURL('image/png');
+  const now = new Date();
+  const dStr = now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const tStr = now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  document.getElementById('accept-pre').style.display = 'none';
+  document.getElementById('accept-post').style.display = 'block';
+  document.getElementById('accept-block').classList.add('signed');
+  document.getElementById('signed-name').textContent = name;
+  document.getElementById('signed-date').textContent = `${dStr} · ${tStr}`;
+  document.getElementById('signed-meta').textContent = `${name} · ${dStr} at ${tStr}`;
+  document.getElementById('signed-sig').src = sigData;
+  // status pill
+  const pill = document.getElementById('status-pill');
+  pill.classList.remove('sent');
+  pill.classList.add('accepted');
+  pill.innerHTML = '<span class="dot"></span>Accepted';
+  document.getElementById('status-meta').textContent = `Signed by ${name} · ${dStr}`;
+  // smooth scroll to top of accept block
+  const r = document.getElementById('accept-block').getBoundingClientRect();
+  window.scrollTo({ top: window.scrollY + r.top - 80, behavior: 'smooth' });
+  toast('Quote accepted — Mike has been notified');
+}
+
+// ── Decline ───────────────────────────────────────────────
+function openDecline(){ document.getElementById('decline-overlay').classList.add('open'); }
+function closeDecline(){ document.getElementById('decline-overlay').classList.remove('open'); }
+function confirmDecline(){
+  closeDecline();
+  const pill = document.getElementById('status-pill');
+  pill.className = 'pill';
+  pill.style.color = 'var(--muted)';
+  pill.innerHTML = '<span class="dot"></span>Declined';
+  document.getElementById('status-meta').textContent = 'You declined this quote · Mike has been notified';
+  document.getElementById('accept-pre').innerHTML = `
+    <div class="accept-eyebrow">Declined</div>
+    <div class="accept-h">Thanks for letting us know.</div>
+    <div class="accept-sub">Mike will reach out if there's room to revise. You can still reach us anytime — number's at the bottom of this page.</div>
+  `;
+  toast('Quote declined — thanks for the note');
+}
+
+// ── Ask question ──────────────────────────────────────────
+function askQuestion(){ toast('Opening message thread with Mike…'); }
+
+// ── Toast ─────────────────────────────────────────────────
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// initial state
+updateAcceptState();
+</script>
+</body>
+</html>

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    $transaction: vi.fn(),
-    estimate: { findFirst: vi.fn() },
-  },
+vi.mock("@/lib/repositories", () => ({
+  getEstimate: vi.fn(),
+  saveEstimate: vi.fn(),
+  deleteEstimate: vi.fn(),
+  listEstimates: vi.fn(),
+  createEstimate: vi.fn(),
 }));
 
 vi.mock("@/lib/tenant", () => ({
@@ -20,41 +21,30 @@ vi.mock("@/lib/logger", () => ({
   logError: vi.fn(),
 }));
 
-const { prisma } = await import("@/lib/prisma");
+const { getEstimate, saveEstimate, deleteEstimate } = await import(
+  "@/lib/repositories"
+);
 const { getOrgId } = await import("@/lib/tenant");
-const { GET, PATCH } = await import("@/app/api/estimates/[id]/route");
+const { GET, PATCH, DELETE } = await import("@/app/api/estimates/[id]/route");
 
 const mockGetOrgId = vi.mocked(getOrgId);
-const mockTransaction = vi.mocked(prisma.$transaction);
+const mockGetEstimate = vi.mocked(getEstimate);
+const mockSaveEstimate = vi.mocked(saveEstimate);
+const mockDeleteEstimate = vi.mocked(deleteEstimate);
 
 const fakeEstimate = {
   id: 5,
   orgId: "org1",
   title: "Updated",
   items: [],
-  lineItems: [],
-};
-
-const mockTx = {
-  estimate: {
-    updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-    count: vi.fn().mockResolvedValue(1),
-    findFirst: vi.fn().mockResolvedValue(fakeEstimate),
-  },
-  estimateItem: {
-    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-    createMany: vi.fn().mockResolvedValue({ count: 0 }),
-  },
-  lineItem: {
-    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
-    createMany: vi.fn().mockResolvedValue({ count: 0 }),
-  },
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // biome-ignore lint/suspicious/noExplicitAny: test callback shim
-  mockTransaction.mockImplementation(async (fn: any) => fn(mockTx));
+  // biome-ignore lint/suspicious/noExplicitAny: test stub
+  mockSaveEstimate.mockResolvedValue(fakeEstimate as any);
+  // biome-ignore lint/suspicious/noExplicitAny: test stub
+  mockGetEstimate.mockResolvedValue(fakeEstimate as any);
 });
 
 function makeRequest(id: string, body: unknown): Request {
@@ -72,9 +62,26 @@ function makeParams(id: string) {
 // ── GET /api/estimates/[id] ───────────────────────────────────────────────────
 
 describe("GET /api/estimates/[id]", () => {
+  it("returns 200 with the estimate", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockGetEstimate.mockResolvedValue({
+      id: 1,
+      orgId: "org1",
+      title: "Job A",
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+    } as any);
+    const res = await GET(
+      // biome-ignore lint/suspicious/noExplicitAny: GET handler no-arg
+      undefined as any,
+      makeParams("1")
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ id: 1, orgId: "org1", title: "Job A" });
+  });
+
   it("returns 404 when estimate not found", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    vi.mocked(prisma.estimate.findFirst).mockResolvedValue(null);
+    mockGetEstimate.mockResolvedValue(null);
 
     // biome-ignore lint/suspicious/noExplicitAny: unused req
     const res = await GET(undefined as any, makeParams("99"));
@@ -93,16 +100,10 @@ describe("GET /api/estimates/[id]", () => {
 // ── PATCH /api/estimates/[id] ─────────────────────────────────────────────────
 
 describe("PATCH /api/estimates/[id]", () => {
-  it("returns 200 and runs all writes in a single transaction", async () => {
+  it("returns 200 when patching title only", async () => {
     mockGetOrgId.mockResolvedValue("org1");
 
-    const req = makeRequest("5", {
-      title: "Updated estimate",
-      items: [{ id: 1, type: "room", sortOrder: 0, name: "Living room" }],
-      lineItems: [
-        { id: 1, name: "Install", rate: 2.5, qtyMode: "manual", qty: 100 },
-      ],
-    });
+    const req = makeRequest("5", { title: "Updated estimate" });
     const res = await PATCH(
       req as Parameters<typeof PATCH>[0],
       makeParams("5")
@@ -111,47 +112,35 @@ describe("PATCH /api/estimates/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(data).toMatchObject({ id: 5, orgId: "org1" });
-
-    expect(mockTransaction).toHaveBeenCalledOnce();
-    expect(mockTx.estimate.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 5, orgId: "org1" } })
+    expect(mockSaveEstimate).toHaveBeenCalledWith(
+      5,
+      "org1",
+      expect.objectContaining({ title: "Updated estimate" })
     );
-    expect(mockTx.estimateItem.deleteMany).toHaveBeenCalledWith({
-      where: { estimateId: 5 },
-    });
-    expect(mockTx.estimateItem.createMany).toHaveBeenCalledOnce();
-    expect(mockTx.lineItem.deleteMany).toHaveBeenCalledWith({
-      where: { estimateId: 5 },
-    });
-    expect(mockTx.lineItem.createMany).toHaveBeenCalledOnce();
   });
 
-  it("returns 500 and the transaction aborts when line-item creation fails", async () => {
+  it("returns 200 when patching items", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    mockTx.lineItem.createMany.mockRejectedValueOnce(
-      new Error("constraint violation")
-    );
 
     const req = makeRequest("5", {
-      items: [{ id: 1, type: "room", sortOrder: 0 }],
-      lineItems: [
-        { id: 1, name: "Install", rate: 2.5, qtyMode: "manual", qty: 100 },
-      ],
+      items: [{ id: 1, type: "room", sortOrder: 0, name: "Living room" }],
     });
     const res = await PATCH(
       req as Parameters<typeof PATCH>[0],
       makeParams("5")
     );
 
-    expect(res.status).toBe(500);
-    expect(mockTransaction).toHaveBeenCalledOnce();
-    // items were deleted inside the callback before the failure — but the
-    // whole callback threw, so prisma rolls back the transaction atomically
-    expect(mockTx.lineItem.deleteMany).toHaveBeenCalledOnce();
-    expect(mockTx.lineItem.createMany).toHaveBeenCalledOnce();
+    expect(res.status).toBe(200);
+    expect(mockSaveEstimate).toHaveBeenCalledWith(
+      5,
+      "org1",
+      expect.objectContaining({
+        items: [expect.objectContaining({ id: 1, type: "room" })],
+      })
+    );
   });
 
-  it("skips item/line-item writes when they are absent from the payload", async () => {
+  it("skips items write when items are absent from payload", async () => {
     mockGetOrgId.mockResolvedValue("org1");
 
     const req = makeRequest("7", { title: "Title only" });
@@ -161,25 +150,31 @@ describe("PATCH /api/estimates/[id]", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(mockTx.estimateItem.deleteMany).not.toHaveBeenCalled();
-    expect(mockTx.lineItem.deleteMany).not.toHaveBeenCalled();
+    expect(mockSaveEstimate).toHaveBeenCalledWith(
+      7,
+      "org1",
+      expect.not.objectContaining({ items: expect.anything() })
+    );
   });
 
-  it("returns 400 for an invalid payload", async () => {
+  it("returns 400 for an invalid payload (item with wrong type)", async () => {
     mockGetOrgId.mockResolvedValue("org1");
 
-    const req = makeRequest("1", { taxRate: 5 }); // taxRate must be ≤ 1
+    const req = makeRequest("1", {
+      items: [{ id: "not-a-number", type: "room" }],
+    });
     const res = await PATCH(
       req as Parameters<typeof PATCH>[0],
       makeParams("1")
     );
 
     expect(res.status).toBe(400);
-    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockSaveEstimate).not.toHaveBeenCalled();
   });
 
-  it("returns 500 when getOrgId throws", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Session error"));
+  it("returns 500 when saveEstimate throws a non-Unauthorized error", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockSaveEstimate.mockRejectedValue(new Error("DB error"));
 
     const req = makeRequest("1", { title: "X" });
     const res = await PATCH(
@@ -188,5 +183,32 @@ describe("PATCH /api/estimates/[id]", () => {
     );
 
     expect(res.status).toBe(500);
+  });
+});
+
+// ── DELETE /api/estimates/[id] ────────────────────────────────────────────────
+
+describe("DELETE /api/estimates/[id]", () => {
+  it("returns 200 on success", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    mockDeleteEstimate.mockResolvedValue(true);
+    const res = await DELETE(
+      // biome-ignore lint/suspicious/noExplicitAny: DELETE handler no-arg
+      undefined as any,
+      makeParams("1")
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(mockDeleteEstimate).toHaveBeenCalledWith(1, "org1");
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+    const res = await DELETE(
+      // biome-ignore lint/suspicious/noExplicitAny: DELETE handler no-arg
+      undefined as any,
+      makeParams("1")
+    );
+    expect(res.status).toBe(401);
   });
 });
