@@ -1,13 +1,33 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  type EstimateStatus,
+  filterEstimates,
+} from "@/components/estimates/filterEstimates";
 import { Button } from "@/components/ui/Button";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { cn } from "@/lib/cn";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { estTotalArea } from "@/lib/utils";
+
+const STATUS_FILTERS: { value: EstimateStatus; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "empty", label: "No rooms" },
+  { value: "measured", label: "Measured" },
+  { value: "quoted", label: "Quoted" },
+];
 
 export function EstimateListView() {
   const router = useRouter();
   const { data: estimates = [], isLoading } = useEstimates();
+  const [query, setQuery] = useState<string>("");
+  const [status, setStatus] = useState<EstimateStatus>("all");
+
+  const filtered = filterEstimates(estimates, query, status);
+  const isNarrowed = filtered.length !== estimates.length;
+  const trimmedQuery = query.trim();
 
   return (
     <>
@@ -27,6 +47,35 @@ export function EstimateListView() {
         <Button variant="primary" onClick={() => router.push("/customers")}>
           + New Estimate
         </Button>
+      </div>
+
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search by # or customer name…"
+        />
+        {STATUS_FILTERS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setStatus(value)}
+            className={cn(
+              "font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[6px] cursor-pointer transition-colors duration-150",
+              status === value
+                ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
+                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+        {isNarrowed && (
+          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] ml-auto">
+            {filtered.length} shown
+          </span>
+        )}
       </div>
 
       {/* Table */}
@@ -56,8 +105,14 @@ export function EstimateListView() {
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             No estimates yet. Create one from a customer record.
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+            {trimmedQuery.length > 0
+              ? `No estimates match "${trimmedQuery}".`
+              : "No estimates match."}
+          </div>
         ) : (
-          estimates.map((est) => {
+          filtered.map((est) => {
             const area = est.items ? estTotalArea(est.items) : 0;
             const roomCount =
               est.items?.filter((i) => i.type === "room").length ?? 0;
