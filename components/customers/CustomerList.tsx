@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { filterCustomers } from "@/components/customers/filterCustomers";
 import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { Button } from "@/components/ui/Button";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { SourceBadge } from "@/components/ui/SourceBadge";
 import { cn } from "@/lib/cn";
 import { useCustomers } from "@/lib/hooks/useCustomers";
@@ -30,10 +32,10 @@ export function CustomerListView() {
   const router = useRouter();
   const { data: customers = [], isLoading } = useCustomers();
   const [filter, setFilter] = useState<string>("all");
+  const [query, setQuery] = useState<string>("");
   const [panelOpen, setPanelOpen] = useState(false);
 
-  const filtered =
-    filter === "all" ? customers : customers.filter((c) => c.source === filter);
+  const filtered = filterCustomers(customers, query, filter);
 
   return (
     <>
@@ -57,6 +59,11 @@ export function CustomerListView() {
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search name, phone, email, address…"
+        />
         {SOURCES.map((src) => (
           <button
             key={src}
@@ -104,7 +111,9 @@ export function CustomerListView() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            No customers found.
+            {query.trim().length > 0
+              ? `No customers match "${query.trim()}".`
+              : "No customers found."}
           </div>
         ) : (
           filtered.map((c) => (
