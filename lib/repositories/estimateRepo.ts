@@ -39,6 +39,7 @@ type EstimateItemInput = Omit<
 
 export type EstimatePatch = {
   title?: string;
+  customerId?: number;
   items?: EstimateItemInput[];
 };
 
