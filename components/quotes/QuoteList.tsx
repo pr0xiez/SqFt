@@ -41,9 +41,6 @@ export function QuoteListView() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            SqFt · Pricing
-          </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Quotes
           </h1>

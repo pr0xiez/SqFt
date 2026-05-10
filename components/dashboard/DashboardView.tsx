@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useEvents } from "@/lib/hooks/useEvents";
 import { getGreeting, todayStr } from "@/lib/utils";
@@ -133,10 +134,9 @@ export function DashboardView() {
                   : ev.type === "job"
                     ? "var(--accent)"
                     : "var(--muted)";
-              const subParts = [
-                ev.crew,
-                ev.customer?.address?.split(",")[0],
-              ].filter(Boolean);
+              const addressLine = ev.customer?.address?.split(",")[0];
+              const hasCrew = ev.crewMembers.length > 0;
+              const hasSubtitle = hasCrew || Boolean(addressLine);
               const isLast = idx === todayEvents.length - 1;
 
               return (
@@ -155,9 +155,21 @@ export function DashboardView() {
                     <div className="text-[13px] font-[600] tracking-[-0.01em] truncate">
                       {ev.title}
                     </div>
-                    {subParts.length > 0 && (
-                      <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
-                        {subParts.join(" · ")}
+                    {hasSubtitle && (
+                      <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 flex items-center gap-1.5 truncate">
+                        {hasCrew && (
+                          <span className="flex items-center gap-[2px] flex-shrink-0">
+                            {ev.crewMembers.slice(0, 3).map((m) => (
+                              <CrewAvatar key={m.id} name={m.name} size="sm" />
+                            ))}
+                          </span>
+                        )}
+                        <span className="truncate">
+                          {hasCrew &&
+                            ev.crewMembers.map((m) => m.name).join(" · ")}
+                          {hasCrew && addressLine && " · "}
+                          {addressLine}
+                        </span>
                       </div>
                     )}
                   </div>

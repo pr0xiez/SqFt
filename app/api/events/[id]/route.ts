@@ -1,7 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logError } from "@/lib/logger";
-import { deleteEvent, updateEvent } from "@/lib/repositories";
+import {
+  deleteEvent,
+  updateEvent,
+  validateCrewMemberIds,
+} from "@/lib/repositories";
 import { EventValidationError } from "@/lib/repositories/eventRepo";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
@@ -28,7 +32,7 @@ const updateSchema = z.object({
     .string()
     .regex(/^\d{2}:\d{2}$/)
     .optional(),
-  crew: z.string().max(200).optional(),
+  crewMemberIds: z.array(z.number().int().positive()).max(20).optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -49,13 +53,25 @@ export const PATCH = withLogging(
         );
       }
 
-      const { date, endDate, ...rest } = parsed.data;
+      const { date, endDate, crewMemberIds, ...rest } = parsed.data;
+
+      if (crewMemberIds && crewMemberIds.length > 0) {
+        const ok = await validateCrewMemberIds(orgId, crewMemberIds);
+        if (!ok) {
+          return NextResponse.json(
+            { error: "Invalid crew member" },
+            { status: 400 }
+          );
+        }
+      }
+
       const data = {
         ...rest,
         ...(date ? { date: new Date(date) } : {}),
         ...(endDate !== undefined
           ? { endDate: endDate ? new Date(endDate) : null }
           : {}),
+        ...(crewMemberIds !== undefined ? { crewMemberIds } : {}),
       };
 
       const event = await updateEvent(parseInt(id, 10), orgId, data);

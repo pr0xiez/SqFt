@@ -1,20 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CrewFilterBar } from "@/components/schedule/CrewFilterBar";
+import {
+  type CrewFilter,
+  eventMatchesCrew,
+} from "@/components/schedule/crewFilters";
+import { EventFormPanel } from "@/components/schedule/EventFormPanel";
 import { Button } from "@/components/ui/Button";
-import { SlidePanel } from "@/components/ui/SlidePanel";
+import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
+import { useCrewMembers } from "@/lib/hooks/useCrewMembers";
 import { useCustomers } from "@/lib/hooks/useCustomers";
-import { useEstimates } from "@/lib/hooks/useEstimates";
 import {
   type CalEvent,
-  type CreateEventInput,
   useCreateEvent,
   useDeleteEvent,
   useEvents,
 } from "@/lib/hooks/useEvents";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useQuotes } from "@/lib/hooks/useQuotes";
 import {
   addDays,
   dateStr,
@@ -97,13 +103,15 @@ export function ScheduleView() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
+  const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
 
   const isMobile = useIsMobile();
   const daysToShow = isMobile ? 3 : 7;
 
   const { data: events = [] } = useEvents();
   const { data: customers = [] } = useCustomers();
-  const { data: estimates = [] } = useEstimates();
+  const { data: quotes = [] } = useQuotes();
+  const { data: crew = [] } = useCrewMembers();
   const createEvent = useCreateEvent();
   const deleteEvent = useDeleteEvent();
   const { showToast } = useToast();
@@ -164,9 +172,6 @@ export function ScheduleView() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            SqFt · Flooring Estimates
-          </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Schedule
           </h1>
@@ -207,8 +212,23 @@ export function ScheduleView() {
         </div>
       </div>
 
+      {/* Crew filter bar */}
+      <CrewFilterBar
+        crew={crew.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+        events={events}
+        weekStart={weekStart ? dateStr(weekStart) : ""}
+        days={daysToShow}
+        active={crewFilter}
+        onChange={setCrewFilter}
+      />
+
       {/* Calendar */}
-      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
+      <div
+        className={cn(
+          "bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden",
+          crewFilter !== "all" && "cal-crew-focus"
+        )}
+      >
         {/* Day headers */}
         <div
           className="grid border-b border-[var(--line)]"
@@ -330,6 +350,7 @@ export function ScheduleView() {
                     );
                     const widthPct = 100 / totalLanes;
                     const leftPct = lane * widthPct;
+                    const matches = eventMatchesCrew(ev, crewFilter);
 
                     return (
                       <button
@@ -347,7 +368,9 @@ export function ScheduleView() {
                           width: `calc(${widthPct}% - 4px)`,
                         }}
                         className={cn(
-                          "rounded-[4px] px-[7px] py-[5px] text-left text-white overflow-hidden cursor-pointer border-l-[3px] border-l-black/20 transition-[filter,box-shadow] duration-[120ms] hover:brightness-105 hover:z-10 hover:shadow-[var(--shadow)]",
+                          "cal-event",
+                          matches && "crew-match",
+                          "rounded-[4px] px-[7px] py-[5px] text-left text-white overflow-hidden cursor-pointer border-l-[3px] border-l-black/20 transition-[filter,box-shadow,opacity] duration-[120ms] hover:brightness-105 hover:z-10 hover:shadow-[var(--shadow)]",
                           EVENT_BG[ev.type] ?? EVENT_BG.other
                         )}
                       >
@@ -359,9 +382,25 @@ export function ScheduleView() {
                             {ev.startTime}–{ev.endTime}
                           </div>
                         )}
-                        {height > 46 && ev.crew && (
-                          <div className="font-[var(--font-mono)] text-[9px] opacity-75 mt-px">
-                            {ev.crew}
+                        {height > 46 && ev.crewMembers.length > 0 && (
+                          <div className="font-[var(--font-mono)] text-[9px] opacity-75 mt-px flex items-center gap-1 truncate">
+                            <span className="flex items-center gap-[2px] flex-shrink-0">
+                              {ev.crewMembers.slice(0, 3).map((m) => (
+                                <CrewAvatar
+                                  key={m.id}
+                                  name={m.name}
+                                  size="sm"
+                                />
+                              ))}
+                              {ev.crewMembers.length > 3 && (
+                                <span className="ml-[2px]">
+                                  +{ev.crewMembers.length - 3}
+                                </span>
+                              )}
+                            </span>
+                            <span className="truncate">
+                              {ev.crewMembers.map((m) => m.name).join(" · ")}
+                            </span>
                           </div>
                         )}
                       </button>
@@ -380,7 +419,7 @@ export function ScheduleView() {
         defaultDate={selectedDate}
         editingEvent={editingEvent}
         customers={customers}
-        estimates={estimates}
+        quotes={quotes}
         onSave={async (data) => {
           try {
             await createEvent.mutateAsync(data);
@@ -401,272 +440,5 @@ export function ScheduleView() {
         }}
       />
     </div>
-  );
-}
-
-interface EventFormPanelProps {
-  open: boolean;
-  onClose: () => void;
-  defaultDate: string;
-  editingEvent: CalEvent | null;
-  customers: { id: number; name: string }[];
-  estimates: { id: number; customerId: number | null; title: string }[];
-  onSave: (data: CreateEventInput) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
-}
-
-function EventFormPanel({
-  open,
-  onClose,
-  defaultDate,
-  editingEvent,
-  customers,
-  estimates,
-  onSave,
-  onDelete,
-}: EventFormPanelProps) {
-  const [type, setType] = useState<"job" | "visit" | "other">("visit");
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState(defaultDate);
-  const [endDate, setEndDate] = useState(defaultDate);
-  const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("09:00");
-  const [customerId, setCustomerId] = useState<number | undefined>();
-  const [estimateId, setEstimateId] = useState<number | undefined>();
-  const [crew, setCrew] = useState("");
-  const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const ev = editingEvent;
-  const customerEstimates = customerId
-    ? estimates.filter((e) => e.customerId === customerId)
-    : [];
-
-  async function handleSave() {
-    if (!title.trim()) return;
-    setSaving(true);
-    try {
-      await onSave({
-        type,
-        title,
-        date,
-        ...(endDate > date ? { endDate } : {}),
-        startTime,
-        endTime,
-        customerId,
-        estimateId,
-        crew,
-        notes,
-      });
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const inputClass =
-    "w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150";
-  const labelClass =
-    "font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]";
-
-  return (
-    <SlidePanel
-      open={open}
-      onClose={onClose}
-      title={ev ? "Edit Event" : "New Event"}
-      sub={ev ? "Update details" : "Add to schedule"}
-      footer={
-        <>
-          {ev && (
-            <Button onClick={() => onDelete(ev.id)} className="justify-center">
-              Delete
-            </Button>
-          )}
-          <Button onClick={onClose} className="flex-1 justify-center">
-            Cancel
-          </Button>
-          <Button
-            variant="accent"
-            onClick={handleSave}
-            disabled={!title.trim() || saving}
-            className="flex-1 justify-center"
-          >
-            {saving ? "Saving…" : ev ? "Update" : "Save"}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        {/* Type selector */}
-        <div className="grid grid-cols-3 gap-px bg-[var(--line)] border border-[var(--line)] rounded-[5px] overflow-hidden mb-4">
-          {(["visit", "job", "other"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setType(t)}
-              className={cn(
-                "py-2 px-1 font-[var(--font-mono)] text-[9px] tracking-[.04em] uppercase cursor-pointer transition-colors duration-150 border-none",
-                type === t
-                  ? "bg-[var(--ink)] text-[var(--bg)]"
-                  : "bg-[var(--surface)] text-[var(--muted)]"
-              )}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {/* Title */}
-        <div className="mb-4">
-          <div className={labelClass}>Title</div>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className={inputClass}
-          />
-        </div>
-
-        {/* Customer */}
-        <div className="mb-4">
-          <div className={labelClass}>
-            Customer{" "}
-            {type !== "other" && (
-              <span className="text-[var(--accent)]">*</span>
-            )}
-            {type === "other" && (
-              <span className="text-[var(--muted)] font-[400]">(optional)</span>
-            )}
-          </div>
-          <select
-            value={customerId ?? ""}
-            onChange={(e) => {
-              setCustomerId(
-                e.target.value ? parseInt(e.target.value, 10) : undefined
-              );
-              setEstimateId(undefined);
-            }}
-            className={inputClass}
-          >
-            <option value="">
-              {type === "other" ? "— No customer —" : "— Select customer —"}
-            </option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Estimate (only for jobs) */}
-        {type === "job" && (
-          <div className="mb-4">
-            <div className={labelClass}>
-              Estimate <span className="text-[var(--accent)]">*</span>
-            </div>
-            <select
-              value={estimateId ?? ""}
-              onChange={(e) =>
-                setEstimateId(
-                  e.target.value ? parseInt(e.target.value, 10) : undefined
-                )
-              }
-              className={inputClass}
-              disabled={!customerId}
-            >
-              {!customerId ? (
-                <option value="">— Pick a customer first —</option>
-              ) : customerEstimates.length === 0 ? (
-                <option value="">— No estimates for this customer —</option>
-              ) : (
-                <>
-                  <option value="">— Select estimate —</option>
-                  {customerEstimates.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.title || `Estimate #${e.id}`}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
-          </div>
-        )}
-
-        {/* Date / End Date */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <div className={labelClass}>Start Date</div>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                if (endDate < e.target.value) setEndDate(e.target.value);
-              }}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <div className={labelClass}>End Date</div>
-            <input
-              type="date"
-              value={endDate}
-              min={date}
-              onChange={(e) => setEndDate(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        {/* Start / End */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <div className={labelClass}>Start</div>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <div className={labelClass}>End</div>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        {/* Crew */}
-        <div className="mb-4">
-          <div className={labelClass}>Crew</div>
-          <select
-            value={crew}
-            onChange={(e) => setCrew(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">—</option>
-            <option value="Mike">Mike</option>
-            <option value="Carlos">Carlos</option>
-            <option value="Dave">Dave</option>
-            <option value="Sarah">Sarah</option>
-          </select>
-        </div>
-
-        {/* Notes */}
-        <div className="mb-4">
-          <div className={labelClass}>Notes</div>
-          <textarea
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className={`${inputClass} resize-none`}
-          />
-        </div>
-      </div>
-    </SlidePanel>
   );
 }

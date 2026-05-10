@@ -5,6 +5,7 @@ import {
   type Page,
   test,
 } from "@playwright/test";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "./fixtures/auth";
 
 // ── 4.1 Quote Builder — Room Link Picker ─────────────────────────────────────
 //
@@ -14,26 +15,11 @@ import {
 // drives the picker UI and asserts both the rendered state and the persisted
 // shape via GET /api/quotes/{id}.
 
-function uniqueEmail() {
-  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
-}
-
-async function signupAndLogin(
-  ctx: BrowserContext,
-  email: string,
-  password: string
-): Promise<Page> {
-  await ctx.request.post("/api/auth/signup", {
-    data: { name: "Quote Builder Test", email, password },
-  });
+async function loginAsDemo(ctx: BrowserContext): Promise<Page> {
   const page = await ctx.newPage();
   await page.goto("/login");
-  await page.fill("#email", email);
-  await page.fill("#password", password);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL("/");
-  await page.goto("/onboarding");
-  await page.fill("#company", "Quote Floors LLC");
+  await page.fill("#email", DEMO_EMAIL);
+  await page.fill("#password", DEMO_PASSWORD);
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL("/");
   return page;
@@ -148,7 +134,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      page = await signupAndLogin(ctx, uniqueEmail(), "password123");
+      page = await loginAsDemo(ctx);
       const seed = await seedEstimateWithRooms(ctx.request);
       kitchenId = seed.kitchenId;
       diningId = seed.diningId;

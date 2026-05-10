@@ -2,18 +2,24 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export interface CrewMemberSummary {
+  id: number;
+  name: string;
+  role: string;
+}
+
 export interface CalEvent {
   id: number;
   orgId: string;
   type: "job" | "visit" | "other";
   title: string;
   customerId?: number | null;
-  estimateId?: number | null;
-  date: string; // ISO date string
-  endDate?: string | null; // ISO date string, null = same day as date
-  startTime: string; // "08:00"
-  endTime: string; // "17:00"
-  crew?: string | null;
+  quoteId?: number | null;
+  date: string;
+  endDate?: string | null;
+  startTime: string;
+  endTime: string;
+  crewMembers: CrewMemberSummary[];
   notes?: string | null;
   createdAt: string;
   customer?: { id: number; name: string; address?: string | null } | null;
@@ -23,12 +29,12 @@ export interface CreateEventInput {
   type: "job" | "visit" | "other";
   title: string;
   customerId?: number;
-  estimateId?: number;
+  quoteId?: number;
   date: string;
   endDate?: string;
   startTime: string;
   endTime: string;
-  crew?: string;
+  crewMemberIds?: number[];
   notes?: string;
 }
 

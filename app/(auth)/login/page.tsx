@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { type FormEvent, useState } from "react";
@@ -129,16 +128,6 @@ export default function LoginPage() {
           )}
         </button>
       </form>
-
-      <div className="mt-8 pt-6 border-t border-[var(--line)] text-center font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.02em]">
-        New to SqFt?{" "}
-        <Link
-          href="/signup"
-          className="text-[var(--ink)] no-underline border-b border-[var(--line-2)] pb-px hover:border-[var(--ink)] transition-[border-color] duration-150"
-        >
-          Request access
-        </Link>
-      </div>
     </div>
   );
 }

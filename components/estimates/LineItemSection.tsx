@@ -2,15 +2,10 @@
 
 import { useCallback, useState } from "react";
 import { RoomLinkPicker } from "@/components/quotes/RoomLinkPicker";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 import { cn } from "@/lib/cn";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
-import {
-  fmtDollar,
-  getEffectiveQty,
-  liSubtotal,
-  parsef,
-  roomSqft,
-} from "@/lib/utils";
+import { fmtDollar, getEffectiveQty, liSubtotal, roomSqft } from "@/lib/utils";
 
 interface Props {
   lineItems: LineItemCalc[];
@@ -188,15 +183,11 @@ export function LineItemSection({
                         </span>
                       </div>
                     ) : (
-                      <input
-                        type="number"
-                        value={li.qty ?? ""}
-                        onChange={(e) =>
-                          updateItem(li.id, { qty: parsef(e.target.value) })
-                        }
-                        onBlur={() => save(items)}
-                        step="0.1"
-                        className="w-full text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      <DecimalInput
+                        value={li.qty}
+                        onCommit={(next) => updateItem(li.id, { qty: next })}
+                        allowEmpty
+                        className="w-full text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none"
                       />
                     )}
                   </div>
@@ -204,17 +195,13 @@ export function LineItemSection({
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none">
                       $
                     </span>
-                    <input
-                      type="number"
-                      value={li.rate.toFixed(2)}
-                      onChange={(e) =>
-                        updateItem(li.id, {
-                          rate: parsef(e.target.value) ?? 0,
-                        })
+                    <DecimalInput
+                      value={li.rate}
+                      onCommit={(next) =>
+                        updateItem(li.id, { rate: next ?? 0 })
                       }
-                      onBlur={() => save(items)}
-                      step="0.01"
-                      className="w-full text-[14px] font-[500] pl-3 border-none bg-transparent p-0 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      formatOnBlur
+                      className="w-full text-[14px] font-[500] pl-3 border-none bg-transparent p-0 focus:outline-none"
                     />
                   </div>
                   <div

@@ -1,43 +1,25 @@
 import { expect, type Page, test } from "@playwright/test";
-
-function uniqueEmail() {
-  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
-}
+import { DEMO_EMAIL, DEMO_PASSWORD } from "./fixtures/auth";
 
 // ── 1.4 Public token-authed quote view ────────────────────────────────────────
 //
-// Tests are serial: beforeAll provisions one user + customer + estimate, creates
-// a draft quote from that estimate, then generates an approval token. Every test
-// exercises the public /q/[token] route or an interaction with it.
+// Tests are serial: beforeAll logs in as the seeded demo user, creates a
+// customer + estimate, creates a draft quote from that estimate, then
+// generates an approval token. Every test exercises the public /q/[token]
+// route or an interaction with it.
 
 test.describe
   .serial("1.4 Public quote view", () => {
-    let userEmail: string;
-    const userPassword = "password123";
     let quoteId: number;
     let approvalToken: string;
 
     test.beforeAll(async ({ browser }) => {
-      userEmail = uniqueEmail();
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
 
-      await ctx.request.post("/api/auth/signup", {
-        data: {
-          name: "Public Quote Test",
-          email: userEmail,
-          password: userPassword,
-        },
-      });
-
       await page.goto("/login");
-      await page.fill("#email", userEmail);
-      await page.fill("#password", userPassword);
-      await page.click('button[type="submit"]');
-      await expect(page).toHaveURL("/");
-
-      await page.goto("/onboarding");
-      await page.fill("#company", "Public Floors LLC");
+      await page.fill("#email", DEMO_EMAIL);
+      await page.fill("#password", DEMO_PASSWORD);
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL("/");
 
@@ -71,8 +53,8 @@ test.describe
 
     async function login(page: Page) {
       await page.goto("/login");
-      await page.fill("#email", userEmail);
-      await page.fill("#password", userPassword);
+      await page.fill("#email", DEMO_EMAIL);
+      await page.fill("#password", DEMO_PASSWORD);
       await page.click('button[type="submit"]');
       await expect(page).toHaveURL("/");
     }
@@ -96,7 +78,7 @@ test.describe
       await expect(page.getByText("QUOTE", { exact: true })).toBeVisible();
       await expect(page.getByText("Carla Customer")).toBeVisible();
       await expect(
-        page.getByText("Public Floors LLC", { exact: true })
+        page.getByText("Johnson Flooring Co.", { exact: true })
       ).toBeVisible();
       await ctx.close();
     });

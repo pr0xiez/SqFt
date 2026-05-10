@@ -5,6 +5,12 @@ import {
   type Page,
   test,
 } from "@playwright/test";
+import {
+  DEMO_EMAIL,
+  DEMO_OTHER_EMAIL,
+  DEMO_OTHER_PASSWORD,
+  DEMO_PASSWORD,
+} from "./fixtures/auth";
 
 // ── 3.1 Estimate Builder ──────────────────────────────────────────────────────
 //
@@ -23,29 +29,26 @@ import {
 // stale cache visible. We clear localStorage before any reload assertion to
 // keep these tests focused on the server round-trip.
 
-function uniqueEmail() {
-  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
-}
-
-async function signupAndLogin(
+async function loginAs(
   ctx: BrowserContext,
   email: string,
   password: string
 ): Promise<Page> {
-  await ctx.request.post("/api/auth/signup", {
-    data: { name: "Estimate Test", email, password },
-  });
   const page = await ctx.newPage();
   await page.goto("/login");
   await page.fill("#email", email);
   await page.fill("#password", password);
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL("/");
-  await page.goto("/onboarding");
-  await page.fill("#company", "Test Floors LLC");
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL("/");
   return page;
+}
+
+async function loginAsDemo(ctx: BrowserContext): Promise<Page> {
+  return loginAs(ctx, DEMO_EMAIL, DEMO_PASSWORD);
+}
+
+async function loginAsOtherDemo(ctx: BrowserContext): Promise<Page> {
+  return loginAs(ctx, DEMO_OTHER_EMAIL, DEMO_OTHER_PASSWORD);
 }
 
 async function reloadFresh(page: Page): Promise<void> {
@@ -80,7 +83,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      await signupAndLogin(ctx, uniqueEmail(), "password123");
+      await loginAsDemo(ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
       estimateId = ids.estimateId;
     });
@@ -220,7 +223,7 @@ test.describe
     }) => {
       // Different user → different org. Their session can't see our estimate.
       const otherCtx = await browser.newContext();
-      await signupAndLogin(otherCtx, uniqueEmail(), "password123");
+      await loginAsOtherDemo(otherCtx);
       const res = await otherCtx.request.patch(`/api/estimates/${estimateId}`, {
         data: { title: "Hacked" },
       });
@@ -248,7 +251,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      page = await signupAndLogin(ctx, uniqueEmail(), "password123");
+      page = await loginAsDemo(ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
       estimateId = ids.estimateId;
     });
@@ -449,7 +452,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      page = await signupAndLogin(ctx, uniqueEmail(), "password123");
+      page = await loginAsDemo(ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
       estimateId = ids.estimateId;
     });

@@ -28,6 +28,23 @@ async function main() {
   });
   console.log(`  ✓ Org: ${org.name}`);
 
+  // ── Crew roster ───────────────────────────────────────────────────────────
+  const [crewMike, crewCarlos, crewDave, crewSarah] = await Promise.all([
+    prisma.crewMember.create({
+      data: { orgId: org.id, name: "Mike", role: "Owner / Sales" },
+    }),
+    prisma.crewMember.create({
+      data: { orgId: org.id, name: "Carlos", role: "Lead Installer" },
+    }),
+    prisma.crewMember.create({
+      data: { orgId: org.id, name: "Dave", role: "Installer" },
+    }),
+    prisma.crewMember.create({
+      data: { orgId: org.id, name: "Sarah", role: "Showroom" },
+    }),
+  ]);
+  console.log("  ✓ 4 crew members");
+
   // ── Demo user ─────────────────────────────────────────────────────────────
   const password = await bcrypt.hash("demo1234", 12);
   const user = await prisma.user.upsert({
@@ -42,6 +59,29 @@ async function main() {
     },
   });
   console.log(`  ✓ User: ${user.email} / password: demo1234`);
+
+  // ── Second org + user (used by tenant-isolation E2E tests) ───────────────
+  const otherOrg = await prisma.organization.upsert({
+    where: { slug: "other-floors-demo" },
+    update: {},
+    create: {
+      name: "Other Floors Co.",
+      slug: "other-floors-demo",
+      plan: "free",
+    },
+  });
+  const otherUser = await prisma.user.upsert({
+    where: { email: "demo2@sqft.app" },
+    update: { password },
+    create: {
+      name: "Other Owner",
+      email: "demo2@sqft.app",
+      password,
+      role: "owner",
+      orgId: otherOrg.id,
+    },
+  });
+  console.log(`  ✓ User: ${otherUser.email} / password: demo1234`);
 
   // ── Customers (matching prototype data) ───────────────────────────────────
   const customerData = [
@@ -490,10 +530,9 @@ async function main() {
     return date;
   };
 
-  await prisma.event.createMany({
-    data: [
-      // Job events tie to a quote (the accepted/sent one for that estimate).
-      {
+  await Promise.all([
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "job",
         title: "Chen Staircase · Day 2",
@@ -502,10 +541,12 @@ async function main() {
         date: d(0),
         startTime: "08:00",
         endTime: "16:00",
-        crew: "Carlos",
         notes: "",
+        crewMembers: { connect: [{ id: crewCarlos.id }] },
       },
-      {
+    }),
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "job",
         title: "Williams Tile Bath · Day 1",
@@ -514,10 +555,12 @@ async function main() {
         date: d(0),
         startTime: "08:30",
         endTime: "15:30",
-        crew: "Dave",
         notes: "",
+        crewMembers: { connect: [{ id: crewDave.id }] },
       },
-      {
+    }),
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "visit",
         title: "Measure — Nguyen Residence",
@@ -525,10 +568,12 @@ async function main() {
         date: d(0),
         startTime: "10:00",
         endTime: "11:00",
-        crew: "Mike",
         notes: "",
+        crewMembers: { connect: [{ id: crewMike.id }] },
       },
-      {
+    }),
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "other",
         title: "Showroom — Park Family",
@@ -536,10 +581,12 @@ async function main() {
         date: d(0),
         startTime: "14:00",
         endTime: "15:00",
-        crew: "Sarah",
         notes: "Material selection",
+        crewMembers: { connect: [{ id: crewSarah.id }] },
       },
-      {
+    }),
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "job",
         title: "Chen Staircase · Day 3",
@@ -548,10 +595,14 @@ async function main() {
         date: d(1),
         startTime: "08:00",
         endTime: "15:00",
-        crew: "Carlos",
         notes: "",
+        crewMembers: {
+          connect: [{ id: crewCarlos.id }, { id: crewDave.id }],
+        },
       },
-      {
+    }),
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "job",
         title: "Martinez HW",
@@ -560,10 +611,12 @@ async function main() {
         date: d(3),
         startTime: "08:00",
         endTime: "16:00",
-        crew: "Carlos",
         notes: "",
+        crewMembers: { connect: [{ id: crewCarlos.id }] },
       },
-      {
+    }),
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "visit",
         title: "Henderson follow-up",
@@ -571,10 +624,12 @@ async function main() {
         date: d(4),
         startTime: "10:00",
         endTime: "11:00",
-        crew: "Mike",
         notes: "",
+        crewMembers: { connect: [{ id: crewMike.id }] },
       },
-      {
+    }),
+    prisma.event.create({
+      data: {
         orgId: org.id,
         type: "job",
         title: "Henderson — Floor install",
@@ -583,11 +638,11 @@ async function main() {
         date: d(6),
         startTime: "08:00",
         endTime: "16:00",
-        crew: "Carlos",
         notes: "",
+        crewMembers: { connect: [{ id: crewCarlos.id }] },
       },
-    ],
-  });
+    }),
+  ]);
   console.log("  ✓ 8 calendar events");
 
   console.log("\n✅ Seed complete!");
