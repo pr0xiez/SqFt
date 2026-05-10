@@ -36,7 +36,7 @@ const BODY_HEIGHT = (END_HOUR - START_HOUR) * PX_PER_HOUR;
 const PX_PER_MIN = PX_PER_HOUR / 60;
 const HOURS = Array.from(
   { length: END_HOUR - START_HOUR + 1 },
-  (_, i) => i + START_HOUR,
+  (_, i) => i + START_HOUR
 );
 
 const EVENT_BG: Record<string, string> = {
@@ -121,7 +121,7 @@ export function ScheduleView() {
       weekStart
         ? Array.from({ length: daysToShow }, (_, i) => addDays(weekStart, i))
         : [],
-    [weekStart, daysToShow],
+    [weekStart, daysToShow]
   );
 
   const [today, setToday] = useState("");
@@ -226,7 +226,7 @@ export function ScheduleView() {
       <div
         className={cn(
           "bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden",
-          crewFilter !== "all" && "cal-crew-focus",
+          crewFilter !== "all" && "cal-crew-focus"
         )}
       >
         {/* Day headers */}
@@ -252,7 +252,7 @@ export function ScheduleView() {
                 className={cn(
                   "px-2.5 py-2 text-center border-l border-[var(--line)] bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-2)] transition-colors w-full",
                   isToday &&
-                    "bg-[rgba(192,52,26,0.04)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.06)]",
+                    "bg-[rgba(192,52,26,0.04)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.06)]"
                 )}
                 onClick={() => openNewEvent(ds)}
               >
@@ -262,7 +262,7 @@ export function ScheduleView() {
                 <div
                   className={cn(
                     "text-[18px] font-[600] leading-tight tracking-[-0.01em]",
-                    isToday ? "text-[var(--accent)]" : "text-[var(--ink)]",
+                    isToday ? "text-[var(--accent)]" : "text-[var(--ink)]"
                   )}
                 >
                   {d.getDate()}
@@ -316,7 +316,7 @@ export function ScheduleView() {
                   className={cn(
                     "relative border-l border-[var(--line)] cursor-pointer",
                     isToday &&
-                      "bg-[rgba(192,52,26,0.02)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.04)]",
+                      "bg-[rgba(192,52,26,0.02)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.04)]"
                   )}
                   style={{ minHeight: BODY_HEIGHT }}
                   onClick={() => openNewEvent(ds)}
@@ -346,7 +346,7 @@ export function ScheduleView() {
                     const top = startMin * PX_PER_MIN;
                     const height = Math.max(
                       (endMin - startMin) * PX_PER_MIN - 2,
-                      22,
+                      22
                     );
                     const widthPct = 100 / totalLanes;
                     const leftPct = lane * widthPct;
@@ -371,7 +371,7 @@ export function ScheduleView() {
                           "cal-event",
                           matches && "crew-match",
                           "rounded-[4px] px-[7px] py-[5px] text-left text-white overflow-hidden cursor-pointer border-l-[3px] border-l-black/20 transition-[filter,box-shadow,opacity] duration-[120ms] hover:brightness-105 hover:z-10 hover:shadow-[var(--shadow)]",
-                          EVENT_BG[ev.type] ?? EVENT_BG.other,
+                          EVENT_BG[ev.type] ?? EVENT_BG.other
                         )}
                       >
                         <div className="text-[11px] font-[600] leading-[1.2] tracking-[-0.01em] truncate">

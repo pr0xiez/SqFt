@@ -70,7 +70,7 @@ export function CustomerListView() {
               "font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[6px] cursor-pointer transition-colors duration-150",
               filter === src
                 ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]",
+                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
             )}
           >
             {src === "all" ? "All" : sourceName(src)}
@@ -123,7 +123,7 @@ export function CustomerListView() {
                 "items-center border-b border-[var(--line)] last:border-b-0",
                 "cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]",
                 "border-l-[3px]",
-                SOURCE_ROW_BORDERS[c.source] ?? "border-l-transparent",
+                SOURCE_ROW_BORDERS[c.source] ?? "border-l-transparent"
               )}
             >
               <div className="px-3.5 py-3.5">

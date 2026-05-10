@@ -62,7 +62,7 @@ export function EstimateListView() {
               "font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[6px] cursor-pointer transition-colors duration-150",
               status === value
                 ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]",
+                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
             )}
           >
             {label}
