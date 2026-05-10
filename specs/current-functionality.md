@@ -32,8 +32,8 @@ SqFt is a multi-tenant SaaS application for flooring contractors to create estim
 | Route | Purpose |
 |---|---|
 | `/login` | Email + password sign-in. Error banner on failure. Redirects to `/` on success. |
-| `/signup` | Registration form (name, email, password ≥8 chars). Redirects to `/onboarding` on success. |
-| `/onboarding` | One-field form to set company name. Slugifies the name and updates the Organization record. Redirects to `/` on success. |
+
+Self-service signup and onboarding have been removed; users and organizations are provisioned out-of-band (e.g. via the seed script).
 
 ### App pages
 
@@ -60,9 +60,7 @@ All routes:
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/api/auth/signup` | Create user + org. Validates with Zod. Hashes password (bcrypt, 12 rounds). Returns `{ ok: true }` 201. |
 | `GET/POST` | `/api/auth/[...nextauth]` | NextAuth handlers (JWT session, credentials provider). |
-| `POST` | `/api/org/setup` | Update org name + generate unique slug (name + last 6 chars of orgId). |
 
 ### Customers
 

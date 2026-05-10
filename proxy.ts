@@ -16,10 +16,7 @@ export default auth((req) => {
   }
 
   const isAuth = !!req.auth;
-  const isAuthRoute =
-    req.nextUrl.pathname.startsWith("/login") ||
-    req.nextUrl.pathname.startsWith("/signup") ||
-    req.nextUrl.pathname.startsWith("/onboarding");
+  const isAuthRoute = req.nextUrl.pathname.startsWith("/login");
   const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");
   const isPublicQuote = req.nextUrl.pathname.startsWith("/q/");
 
@@ -39,12 +36,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Redirect authenticated users away from auth pages
-  if (
-    isAuth &&
-    isAuthRoute &&
-    !req.nextUrl.pathname.startsWith("/onboarding")
-  ) {
+  // Redirect authenticated users away from the login page
+  if (isAuth && isAuthRoute) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 

@@ -25,11 +25,11 @@ Run against a dedicated test database (separate `DATABASE_URL_TEST` env var). Th
 
 ### Authentication fixture
 Create a shared Playwright fixture (`tests/e2e/fixtures/auth.ts`) that:
-1. Signs up a fresh org via the UI once per worker
+1. Logs in as the seeded demo user once per worker
 2. Stores the session cookie in `storageState`
 3. Reuses it across tests in the same file to avoid re-logging-in
 
-For tests that explicitly test auth flows (login, signup, onboarding), bypass this fixture and start from a fresh page.
+For tests that explicitly test the login form, bypass this fixture and start from a fresh page.
 
 ### Seed fixtures
 Define a small set of known seed records used across tests:
@@ -48,35 +48,19 @@ Define a small set of known seed records used across tests:
 
 **File:** `tests/e2e/auth.spec.ts`
 
-#### 1.1 Signup
+#### 1.1 Login
 | # | Test | Steps | Assert |
 |---|---|---|---|
-| 1.1.1 | Happy path | Fill name, email, unique password ≥8 chars; submit | Redirects to `/onboarding` |
-| 1.1.2 | Password too short | Enter 7-char password; submit | Inline error "at least 8 characters" visible; no redirect |
-| 1.1.3 | Missing name | Leave name blank; submit | Inline/browser validation fires; form not submitted |
-| 1.1.4 | Duplicate email | Use already-registered email; submit | Error banner "email already in use" (409 response) |
-| 1.1.5 | Invalid email | Enter "notanemail"; submit | Validation error visible |
+| 1.1.1 | Happy path | Enter valid credentials; submit | Redirects to `/` |
+| 1.1.2 | Wrong password | Enter correct email, wrong password | Error banner visible; stays on `/login` |
+| 1.1.3 | Non-existent email | Enter unknown email | Error banner visible |
+| 1.1.4 | Password toggle | Click show/hide icon | Input type toggles between `password` and `text` |
 
-#### 1.2 Onboarding
+#### 1.2 Auth guards
 | # | Test | Steps | Assert |
 |---|---|---|---|
-| 1.2.1 | Happy path | Submit company name "Acme Floors" | Redirects to `/`; user is on dashboard |
-| 1.2.2 | Empty company name | Leave field blank; submit | Validation error; no redirect |
-| 1.2.3 | Redirect if already set | Visit `/onboarding` when org already configured | Redirects to `/` |
-
-#### 1.3 Login
-| # | Test | Steps | Assert |
-|---|---|---|---|
-| 1.3.1 | Happy path | Enter valid credentials; submit | Redirects to `/` |
-| 1.3.2 | Wrong password | Enter correct email, wrong password | Error banner visible; stays on `/login` |
-| 1.3.3 | Non-existent email | Enter unknown email | Error banner visible |
-| 1.3.4 | Password toggle | Click show/hide icon | Input type toggles between `password` and `text` |
-
-#### 1.4 Auth guards
-| # | Test | Steps | Assert |
-|---|---|---|---|
-| 1.4.1 | Unauthenticated access | Navigate to `/customers` without session | Redirects to `/login` |
-| 1.4.2 | Direct API access | Call `GET /api/customers` without session cookie | Returns 401 |
+| 1.2.1 | Unauthenticated access | Navigate to `/customers` without session | Redirects to `/login` |
+| 1.2.2 | Direct API access | Call `GET /api/customers` without session cookie | Returns 401 |
 
 ---
 

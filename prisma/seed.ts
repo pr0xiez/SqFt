@@ -60,6 +60,29 @@ async function main() {
   });
   console.log(`  ✓ User: ${user.email} / password: demo1234`);
 
+  // ── Second org + user (used by tenant-isolation E2E tests) ───────────────
+  const otherOrg = await prisma.organization.upsert({
+    where: { slug: "other-floors-demo" },
+    update: {},
+    create: {
+      name: "Other Floors Co.",
+      slug: "other-floors-demo",
+      plan: "free",
+    },
+  });
+  const otherUser = await prisma.user.upsert({
+    where: { email: "demo2@sqft.app" },
+    update: { password },
+    create: {
+      name: "Other Owner",
+      email: "demo2@sqft.app",
+      password,
+      role: "owner",
+      orgId: otherOrg.id,
+    },
+  });
+  console.log(`  ✓ User: ${otherUser.email} / password: demo1234`);
+
   // ── Customers (matching prototype data) ───────────────────────────────────
   const customerData = [
     {

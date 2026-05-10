@@ -7,8 +7,8 @@
  *   test("does something", async ({ authedPage }) => { ... });
  *
  * `authedPage` is a browser page with an active session. The session is
- * created once per worker (signup → login → onboarding) and reused across
- * tests in the same worker via storageState.
+ * created once per worker by logging in as the seeded demo user and reused
+ * across tests in the same worker via storageState.
  */
 
 import * as fs from "node:fs";
@@ -17,9 +17,10 @@ import { test as base } from "@playwright/test";
 
 export const authDir = path.join(process.cwd(), "tests/e2e/.auth");
 
-function uniqueEmail() {
-  return `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`;
-}
+export const DEMO_EMAIL = "demo@sqft.app";
+export const DEMO_PASSWORD = "demo1234";
+export const DEMO_OTHER_EMAIL = "demo2@sqft.app";
+export const DEMO_OTHER_PASSWORD = "demo1234";
 
 type AuthFixtures = {
   authedPage: import("@playwright/test").Page;
@@ -41,36 +42,19 @@ export const test = base.extend<AuthFixtures, AuthWorkerFixtures>({
         (workerInfo.project.use.baseURL as string | undefined) ??
         "http://localhost:3000";
 
-      if (!fs.existsSync(stateFile)) {
-        const email = uniqueEmail();
-        const password = "TestPassword1!";
+      // Always refresh the worker session — the seeded user is shared, so
+      // re-logging in is cheap and avoids stale cookies between runs.
+      const ctx = await browser.newContext({ baseURL });
+      const page = await ctx.newPage();
 
-        // Create account via API (faster than driving the signup form)
-        await fetch(`${baseURL}/api/auth/signup`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "Test User", email, password }),
-        });
+      await page.goto("/login");
+      await page.fill("#email", DEMO_EMAIL);
+      await page.fill("#password", DEMO_PASSWORD);
+      await page.click('button[type="submit"]');
+      await page.waitForURL("/");
 
-        const ctx = await browser.newContext({ baseURL });
-        const page = await ctx.newPage();
-
-        await page.goto("/login");
-        await page.fill("#email", email);
-        await page.fill("#password", password);
-        await page.click('button[type="submit"]');
-        await page.waitForURL("/");
-
-        // Complete onboarding if the app redirects there after login
-        if (page.url().includes("/onboarding")) {
-          await page.fill("#company", "Test Co");
-          await page.click('button[type="submit"]');
-          await page.waitForURL("/");
-        }
-
-        await ctx.storageState({ path: stateFile });
-        await ctx.close();
-      }
+      await ctx.storageState({ path: stateFile });
+      await ctx.close();
 
       await use(stateFile);
     },
