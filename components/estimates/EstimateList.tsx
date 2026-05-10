@@ -34,9 +34,6 @@ export function EstimateListView() {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            SqFt · Flooring Estimates
-          </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Estimates
           </h1>
@@ -65,7 +62,7 @@ export function EstimateListView() {
               "font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[6px] cursor-pointer transition-colors duration-150",
               status === value
                 ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
+                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]",
             )}
           >
             {label}

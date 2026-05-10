@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
+const SIGNUP_ENABLED = false;
+
 export default function SignupPage() {
+  if (!SIGNUP_ENABLED) notFound();
+  return <SignupPageImpl />;
+}
+
+function SignupPageImpl() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

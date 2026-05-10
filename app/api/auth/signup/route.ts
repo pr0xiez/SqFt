@@ -5,6 +5,8 @@ import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { withLogging } from "@/lib/with-logging";
 
+const SIGNUP_ENABLED = false;
+
 const signupSchema = z.object({
   name: z.string().min(1).max(100),
   email: z.string().email(),
@@ -12,6 +14,9 @@ const signupSchema = z.object({
 });
 
 export const POST = withLogging(async (req: NextRequest) => {
+  if (!SIGNUP_ENABLED) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   try {
     const body = await req.json();
     const parsed = signupSchema.safeParse(body);

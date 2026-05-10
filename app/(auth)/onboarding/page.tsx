@@ -1,15 +1,22 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { OnboardingForm } from "./OnboardingForm";
 
 export const metadata = { title: "Getting Started — SqFt" };
 
+const ONBOARDING_ENABLED = false;
+
 // Signup creates orgs with this placeholder name. Once the user picks a real
 // name the org is considered configured and /onboarding should redirect away.
 const PLACEHOLDER_NAME = "My Company";
 
 export default async function OnboardingPage() {
+  if (!ONBOARDING_ENABLED) notFound();
+  return <OnboardingPageImpl />;
+}
+
+async function OnboardingPageImpl() {
   const session = await auth();
 
   // Only redirect authenticated users whose org is already configured.

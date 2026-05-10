@@ -8,7 +8,7 @@ type BaseProps = Omit<
 >;
 
 interface Props extends BaseProps {
-  value: number | null;
+  value: number | null | undefined;
   onCommit: (next: number | null) => void;
   /** Maximum decimal places allowed during input (default 2). */
   maxDecimals?: number;

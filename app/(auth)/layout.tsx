@@ -14,7 +14,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       <footer className="text-center py-4 font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-        © 2025 SqFt · v0.9
+        © 2026 SqFt
       </footer>
     </div>
   );
