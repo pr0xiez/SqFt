@@ -5,31 +5,14 @@ import { deleteEstimate, getEstimate, saveEstimate } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
 import { withLogging } from "@/lib/with-logging";
 
-const lshapeSectionSchema = z.object({
-  w: z.union([z.string(), z.number()]),
-  l: z.union([z.string(), z.number()]),
-});
-
-const lshapeDeductSchema = z.object({
-  w: z.union([z.string(), z.number()]),
-  l: z.union([z.string(), z.number()]),
-  label: z.string().optional(),
-});
-
 const estimateItemSchema = z.object({
   id: z.number().int(),
   type: z.enum(["room", "note"]),
   sortOrder: z.number().int().default(0),
   name: z.string().nullish(),
-  shape: z.enum(["rect", "tri", "lshape"]).nullish(),
+  shape: z.enum(["rect", "tri"]).nullish(),
   w: z.number().nullish(),
   l: z.number().nullish(),
-  lshapeData: z
-    .object({
-      sections: z.array(lshapeSectionSchema),
-      deductions: z.array(lshapeDeductSchema),
-    })
-    .nullish(),
   note: z.string().nullish(),
   text: z.string().nullish(),
 });

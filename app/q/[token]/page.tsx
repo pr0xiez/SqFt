@@ -4,7 +4,6 @@ import {
   PublicQuoteView,
 } from "@/components/estimates/PublicQuoteView";
 import { getQuoteByToken } from "@/lib/repositories";
-import type { LShapeData } from "@/lib/utils";
 
 export const metadata = {
   title: "Quote — SqFt",
@@ -47,13 +46,9 @@ export default async function PublicQuotePage({ params }: Props) {
     items: quote.estimate.items.map((i) => ({
       id: i.id,
       type: i.type === "room" ? "room" : "note",
-      shape:
-        i.shape === "rect" || i.shape === "tri" || i.shape === "lshape"
-          ? i.shape
-          : null,
+      shape: i.shape === "rect" || i.shape === "tri" ? i.shape : null,
       w: i.w,
       l: i.l,
-      lshapeData: i.lshapeData as LShapeData | null,
       name: i.name,
       note: i.note,
       text: i.text,

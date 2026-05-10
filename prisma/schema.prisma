@@ -86,12 +86,11 @@ model EstimateItem {
   sortOrder  Int      @default(0)
 
   // Room fields
-  name       String?
-  shape      String? // rect | tri | lshape
-  w          Float?
-  l          Float?
-  lshapeData Json? // { sections:[{w,l}], deductions:[{w,l,label}] }
-  note       String?
+  name  String?
+  shape String? // rect | tri
+  w     Float?
+  l     Float?
+  note  String?
 
   // Note fields
   text String?
