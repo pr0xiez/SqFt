@@ -334,6 +334,46 @@ export async function markQuoteSent(
   });
 }
 
+export interface MarkQuoteViewedInput {
+  ip: string | null;
+  userAgent: string | null;
+}
+
+/**
+ * Mark a quote as viewed by the customer. Idempotent w.r.t. status (only flips
+ * sent → viewed) but always appends a QuoteEvent of type 'viewed' so we can
+ * count opens. No-op when the quote is already accepted/declined.
+ */
+export async function markQuoteViewed(
+  quoteId: number,
+  input: MarkQuoteViewedInput
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const q = await tx.quote.findFirst({
+      where: { id: quoteId },
+      select: { status: true },
+    });
+    if (!q) return;
+    if (q.status === "accepted" || q.status === "declined") return;
+
+    if (q.status === "sent") {
+      await tx.quote.updateMany({
+        where: { id: quoteId, status: "sent" },
+        data: { status: "viewed", viewedAt: new Date() },
+      });
+    }
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId,
+        type: "viewed",
+        ip: input.ip ?? undefined,
+        userAgent: input.userAgent ?? undefined,
+      },
+    });
+  });
+}
+
 /**
  * Look up a quote by its public approval token (no org scoping — the token
  * itself authorizes access). Returns null on miss.

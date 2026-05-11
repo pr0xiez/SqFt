@@ -357,3 +357,49 @@ describe("markQuoteSent", () => {
     expect(result).toBe(false);
   });
 });
+
+describe("markQuoteViewed", () => {
+  it("flips sent → viewed and writes a viewed event", async () => {
+    quoteUpdateMany.mockResolvedValue({ count: 1 });
+    const eventCreate = vi.fn().mockResolvedValue({ id: 5 });
+    txMock.quoteEvent = { create: eventCreate };
+    quoteFindFirst.mockResolvedValue({ id: 1, status: "sent" });
+    const { markQuoteViewed } = await import("@/lib/repositories/quoteRepo");
+
+    await markQuoteViewed(1, { ip: "1.2.3.4", userAgent: "UA" });
+
+    expect(quoteUpdateMany).toHaveBeenCalledWith({
+      where: { id: 1, status: "sent" },
+      data: { status: "viewed", viewedAt: expect.any(Date) },
+    });
+    expect(eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          quoteId: 1,
+          type: "viewed",
+          ip: "1.2.3.4",
+          userAgent: "UA",
+        }),
+      })
+    );
+  });
+
+  it("writes only an event (no status update) when status is already viewed", async () => {
+    quoteFindFirst.mockResolvedValue({ id: 1, status: "viewed" });
+    const eventCreate = vi.fn();
+    txMock.quoteEvent = { create: eventCreate };
+    const { markQuoteViewed } = await import("@/lib/repositories/quoteRepo");
+    await markQuoteViewed(1, { ip: null, userAgent: null });
+    expect(quoteUpdateMany).not.toHaveBeenCalled();
+    expect(eventCreate).toHaveBeenCalled();
+  });
+
+  it("does nothing when status is accepted or declined", async () => {
+    const eventCreate = vi.fn();
+    txMock.quoteEvent = { create: eventCreate };
+    quoteFindFirst.mockResolvedValue({ id: 1, status: "accepted" });
+    const { markQuoteViewed } = await import("@/lib/repositories/quoteRepo");
+    await markQuoteViewed(1, { ip: null, userAgent: null });
+    expect(eventCreate).not.toHaveBeenCalled();
+  });
+});

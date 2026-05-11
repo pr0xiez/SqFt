@@ -1,9 +1,10 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   type PublicQuote,
   PublicQuoteView,
 } from "@/components/estimates/PublicQuoteView";
-import { getQuoteByToken } from "@/lib/repositories";
+import { getQuoteByToken, markQuoteViewed } from "@/lib/repositories";
 
 export const metadata = {
   title: "Quote — SqFt",
@@ -23,6 +24,13 @@ export default async function PublicQuotePage({ params }: Props) {
 
   const quote = await getQuoteByToken(token);
   if (!quote) notFound();
+
+  if (quote.status !== "accepted" && quote.status !== "declined") {
+    const h = await headers();
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const userAgent = h.get("user-agent") ?? null;
+    void markQuoteViewed(quote.id, { ip, userAgent });
+  }
 
   const view: PublicQuote = {
     id: quote.id,
