@@ -90,6 +90,14 @@ export function QuoteBuilderView({ quoteId }: Props) {
               day: "numeric",
               year: "numeric",
             })}
+            {quote.status === "accepted" && (
+              <Link
+                href={`/quotes/${quote.id}/signed`}
+                className="ml-3 font-[var(--font-mono)] text-[11px] text-[var(--accent)] underline"
+              >
+                View signed quote →
+              </Link>
+            )}
           </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Line Items &amp; Pricing
