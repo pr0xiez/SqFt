@@ -75,7 +75,7 @@ test.describe
       const page = await ctx.newPage();
       const res = await page.goto(`/q/${approvalToken}`);
       expect(res?.status()).toBe(200);
-      await expect(page.getByText("QUOTE", { exact: true })).toBeVisible();
+      await expect(page.getByText(/^Quote$/i).first()).toBeVisible();
       await expect(page.getByText("Carla Customer")).toBeVisible();
       await expect(
         page.getByText("Johnson Flooring Co.", { exact: true })

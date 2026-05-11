@@ -27,7 +27,7 @@ export default async function PublicQuotePage({ params }: Props) {
   const view: PublicQuote = {
     id: quote.id,
     quoteNumber: quote.quoteNumber,
-    status: quote.status,
+    status: quote.status as PublicQuote["status"],
     date: quote.date,
     taxRate: quote.taxRate,
     markupPct: quote.markupPct,
@@ -65,6 +65,19 @@ export default async function PublicQuotePage({ params }: Props) {
       sortOrder: li.sortOrder,
     })),
     org: quote.org,
+    sentAt: quote.sentAt,
+    viewedAt: quote.viewedAt,
+    acceptedAt: quote.acceptedAt,
+    declinedAt: quote.declinedAt,
+    declineReason: quote.declineReason,
+    signature: quote.signature
+      ? {
+          signedByName: quote.signature.signedByName,
+          signedByEmail: quote.signature.signedByEmail,
+          signedAt: quote.signature.signedAt,
+          signatureData: quote.signature.signatureData,
+        }
+      : null,
   };
 
   return <PublicQuoteView quote={view} />;

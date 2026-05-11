@@ -68,6 +68,7 @@ export type QuoteWithPublicView = Prisma.QuoteGetPayload<{
         logo: true;
       };
     };
+    signature: true;
   };
 }>;
 
@@ -359,6 +360,7 @@ export async function getQuoteByToken(
           logo: true,
         },
       },
+      signature: true,
     },
   });
 }
