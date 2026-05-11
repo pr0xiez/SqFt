@@ -33,6 +33,7 @@
     "@fontsource-variable/playfair-display": "^5.2.8",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@react-email/components": "^1.0.12",
     "@react-pdf/renderer": "^4.5.1",
     "@tanstack/query-sync-storage-persister": "^5.100.9",
     "@tanstack/react-query": "^5.100.8",
@@ -48,6 +49,8 @@
     "react": "19.2.4",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.4",
+    "react-email": "^6.1.1",
+    "resend": "^6.12.3",
     "zod": "^4.4.2",
     "zustand": "^5.0.12"
   },
