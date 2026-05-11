@@ -374,6 +374,59 @@ export async function markQuoteViewed(
   });
 }
 
+export interface DeclineQuoteInput {
+  reason: string | null;
+  ip: string | null;
+  userAgent: string | null;
+}
+
+export type DeclineResult =
+  | "ok"
+  | "already_signed"
+  | "already_declined"
+  | "not_found";
+
+/**
+ * Decline a quote (public-token initiated). Atomic: status guard → flip
+ * status to "declined" → append a QuoteEvent of type "declined" with the
+ * optional reason in metadata.
+ */
+export async function declineQuoteByToken(
+  quoteId: number,
+  input: DeclineQuoteInput
+): Promise<DeclineResult> {
+  return prisma.$transaction(async (tx) => {
+    const q = await tx.quote.findFirst({
+      where: { id: quoteId },
+      select: { status: true },
+    });
+    if (!q) return "not_found";
+    if (q.status === "accepted") return "already_signed";
+    if (q.status === "declined") return "already_declined";
+
+    await tx.quote.updateMany({
+      where: { id: quoteId, status: { in: ["draft", "sent", "viewed"] } },
+      data: {
+        status: "declined",
+        declinedAt: new Date(),
+        declineReason: input.reason,
+      },
+    });
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId,
+        type: "declined",
+        ip: input.ip ?? undefined,
+        userAgent: input.userAgent ?? undefined,
+        metadata: input.reason ? { reason: input.reason } : undefined,
+      },
+    });
+
+    return "ok";
+  });
+}
+
 /**
  * Look up a quote by its public approval token (no org scoping — the token
  * itself authorizes access). Returns null on miss.

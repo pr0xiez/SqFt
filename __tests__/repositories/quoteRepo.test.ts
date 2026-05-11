@@ -403,3 +403,51 @@ describe("markQuoteViewed", () => {
     expect(eventCreate).not.toHaveBeenCalled();
   });
 });
+
+describe("declineQuoteByToken", () => {
+  it("flips draft|sent|viewed → declined and writes event", async () => {
+    quoteFindFirst.mockResolvedValue({ id: 1, status: "viewed" });
+    quoteUpdateMany.mockResolvedValue({ count: 1 });
+    const eventCreate = vi.fn();
+    txMock.quoteEvent = { create: eventCreate };
+    const { declineQuoteByToken } = await import(
+      "@/lib/repositories/quoteRepo"
+    );
+
+    const result = await declineQuoteByToken(1, {
+      reason: "went with another vendor",
+      ip: "1.2.3.4",
+      userAgent: "UA",
+    });
+    expect(result).toBe("ok");
+    expect(quoteUpdateMany).toHaveBeenCalledWith({
+      where: { id: 1, status: { in: ["draft", "sent", "viewed"] } },
+      data: {
+        status: "declined",
+        declinedAt: expect.any(Date),
+        declineReason: "went with another vendor",
+      },
+    });
+    expect(eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: "declined",
+          metadata: { reason: "went with another vendor" },
+        }),
+      })
+    );
+  });
+
+  it("returns 'already_signed' on accepted; 'already_declined' on declined", async () => {
+    quoteFindFirst.mockResolvedValueOnce({ id: 1, status: "accepted" });
+    let r = await (
+      await import("@/lib/repositories/quoteRepo")
+    ).declineQuoteByToken(1, { reason: null, ip: null, userAgent: null });
+    expect(r).toBe("already_signed");
+    quoteFindFirst.mockResolvedValueOnce({ id: 1, status: "declined" });
+    r = await (
+      await import("@/lib/repositories/quoteRepo")
+    ).declineQuoteByToken(1, { reason: null, ip: null, userAgent: null });
+    expect(r).toBe("already_declined");
+  });
+});
