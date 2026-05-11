@@ -31,62 +31,25 @@ export function deepCopy<T>(x: T): T {
 
 // ── Room area calculations ────────────────────────────────────────────────
 
-export interface LShapeSection {
-  w: string | number;
-  l: string | number;
-}
-
-export interface LShapeDeduction {
-  w: string | number;
-  l: string | number;
-  label?: string;
-}
-
-export interface LShapeData {
-  sections: LShapeSection[];
-  deductions: LShapeDeduction[];
-}
-
 export interface RoomItem {
   id: number;
   type: "room" | "note";
-  shape?: "rect" | "tri" | "lshape" | null;
+  shape?: "rect" | "tri" | null;
   w?: string | number | null;
   l?: string | number | null;
-  lshapeData?: LShapeData | null;
   name?: string | null;
   note?: string | null;
   text?: string | null;
 }
 
-/** Calculate net square footage for an L-shape room */
-export function lshapeNet(data: LShapeData | null | undefined): number {
-  if (!data) return 0;
-  const sectionTotal = (data.sections || []).reduce((sum, s) => {
-    const w = parsef(s.w);
-    const l = parsef(s.l);
-    return sum + (w !== null && l !== null ? w * l : 0);
-  }, 0);
-  const deductTotal = (data.deductions || []).reduce((sum, d) => {
-    const w = parsef(d.w);
-    const l = parsef(d.l);
-    return sum + (w !== null && l !== null ? w * l : 0);
-  }, 0);
-  return Math.max(0, sectionTotal - deductTotal);
-}
-
 /** Calculate net square footage for a single room item */
 export function roomSqft(room: RoomItem): number {
   if (room.type !== "room") return 0;
-  const shape = room.shape || "rect";
-  if (shape === "lshape") {
-    return lshapeNet(room.lshapeData as LShapeData | null);
-  }
   const w = parsef(room.w);
   const l = parsef(room.l);
   if (w === null || l === null) return 0;
-  if (shape === "tri") return (w * l) / 2;
-  return w * l; // rect
+  if ((room.shape || "rect") === "tri") return (w * l) / 2;
+  return w * l;
 }
 
 /** Sum square footage of all room items in an estimate */

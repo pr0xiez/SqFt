@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { cn } from "@/lib/cn";
 import type { Estimate } from "@/lib/hooks/useEstimates";
 import type { RoomItem } from "@/lib/utils";
 import { roomSqft } from "@/lib/utils";
@@ -18,7 +17,6 @@ function tempId() {
 
 export function RoomSection({ estimate, onSave }: Props) {
   const [items, setItems] = useState<RoomItem[]>(estimate.items ?? []);
-  const [wasteFactor, setWasteFactor] = useState(1.1);
 
   const save = useCallback(
     async (newItems: RoomItem[]) => {
@@ -37,7 +35,6 @@ export function RoomSection({ estimate, onSave }: Props) {
         shape: "rect",
         w: null,
         l: null,
-        lshapeData: null,
         note: "",
       },
     ];
@@ -61,7 +58,6 @@ export function RoomSection({ estimate, onSave }: Props) {
 
   const rooms = items.filter((i) => i.type === "room");
   const grossArea = rooms.reduce((s, r) => s + roomSqft(r), 0);
-  const orderQty = Math.ceil(grossArea * wasteFactor);
 
   return (
     <div className="space-y-2.5 mb-3.5">
@@ -75,11 +71,7 @@ export function RoomSection({ estimate, onSave }: Props) {
         item.type === "room" ? (
           <div
             key={item.id}
-            className={cn(
-              "bg-[var(--surface)] border border-[var(--line)] rounded-lg p-[18px_20px]",
-              "transition-colors duration-150",
-              item.shape === "lshape" && "border-l-[3px] border-l-[var(--gold)]"
-            )}
+            className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-[18px_20px] transition-colors duration-150"
           >
             {/* Room header */}
             <div className="flex items-center gap-2.5 mb-3.5">
@@ -140,30 +132,6 @@ export function RoomSection({ estimate, onSave }: Props) {
                   <span className="text-[var(--muted)] font-[400]">—</span>
                 )}
               </div>
-            </div>
-
-            {/* Shape row */}
-            <div className="flex items-center gap-2 mb-2.5">
-              <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] min-w-[80px]">
-                Shape
-              </span>
-              {(["rect", "lshape"] as const).map((shape) => (
-                <button
-                  key={shape}
-                  type="button"
-                  onClick={() => updateRoom(item.id, { shape })}
-                  className={cn(
-                    "font-[var(--font-mono)] text-[10px] px-2.5 py-1 border rounded-[4px] cursor-pointer tracking-[.04em] transition-colors duration-150",
-                    item.shape === shape
-                      ? shape === "lshape"
-                        ? "bg-[var(--gold)] text-white border-[var(--gold)]"
-                        : "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-                      : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
-                  )}
-                >
-                  {shape === "rect" ? "Rectangle" : "L-shape"}
-                </button>
-              ))}
             </div>
 
             {/* Note */}
@@ -236,29 +204,6 @@ export function RoomSection({ estimate, onSave }: Props) {
             <div className="text-[28px] font-[700] tracking-[-0.025em]">
               {grossArea > 0 ? `${Math.round(grossArea)} sqft` : "—"}
             </div>
-          </div>
-          <div>
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1">
-              Order qty
-            </div>
-            <div className="text-[28px] font-[700] tracking-[-0.025em] text-[var(--gold-l)]">
-              {grossArea > 0 ? `${orderQty} sqft` : "—"}
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em]">
-              Waste
-            </span>
-            <select
-              value={wasteFactor.toFixed(2)}
-              onChange={(e) => setWasteFactor(parseFloat(e.target.value))}
-              className="font-[var(--font-mono)] text-[11px] px-2.5 py-1.5 border border-white/20 bg-transparent text-[var(--bg)] rounded-[5px] cursor-pointer [html[data-theme=dark]_&]:text-[var(--ink)] [html[data-theme=dark]_&]:border-[var(--line)]"
-            >
-              <option value="1.05">+5%</option>
-              <option value="1.10">+10%</option>
-              <option value="1.15">+15%</option>
-              <option value="1.20">+20%</option>
-            </select>
           </div>
         </div>
       )}

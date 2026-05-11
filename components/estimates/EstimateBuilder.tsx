@@ -189,11 +189,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
       )}
 
       {/* Quotes card */}
-      <EstimateQuotesCard
-        quotes={estimate.quotes ?? []}
-        onCreateQuote={handleCreateQuote}
-        isCreating={createQuote.isPending}
-      />
+      <EstimateQuotesCard quotes={estimate.quotes ?? []} />
 
       {/* Rooms */}
       <RoomSection

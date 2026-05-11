@@ -1,34 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
 import type { EstimateQuoteSummary } from "@/lib/hooks/useEstimates";
 
 interface Props {
   quotes: EstimateQuoteSummary[];
-  onCreateQuote: () => void;
-  isCreating: boolean;
 }
 
-export function EstimateQuotesCard({
-  quotes,
-  onCreateQuote,
-  isCreating,
-}: Props) {
+export function EstimateQuotesCard({ quotes }: Props) {
   return (
     <section className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-5 mb-4">
       <header className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold tracking-tight">
           Quotes for this estimate ({quotes.length})
         </h2>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={onCreateQuote}
-          disabled={isCreating}
-        >
-          {isCreating ? "Creating…" : "+ Create Quote"}
-        </Button>
       </header>
 
       {quotes.length === 0 ? (
