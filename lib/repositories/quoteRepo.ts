@@ -46,6 +46,7 @@ export type QuoteWithDetails = Prisma.QuoteGetPayload<{
       };
     };
     lineItems: { orderBy: { sortOrder: "asc" } };
+    org: { select: { name: true } };
   };
 }>;
 
@@ -140,6 +141,7 @@ export async function getQuote(
         },
       },
       lineItems: { orderBy: { sortOrder: "asc" } },
+      org: { select: { name: true } },
     },
   });
 }
@@ -187,6 +189,7 @@ export async function createQuote(
           },
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
+        org: { select: { name: true } },
       },
     });
   });
@@ -233,6 +236,7 @@ export async function saveQuote(
           },
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
+        org: { select: { name: true } },
       },
     });
   });
