@@ -10,9 +10,7 @@ import {
   getEffectiveQty,
   getWeekStart,
   type LineItemCalc,
-  type LShapeData,
   liSubtotal,
-  lshapeNet,
   parsef,
   type RoomItem,
   roomSqft,
@@ -64,52 +62,6 @@ describe("deepCopy", () => {
   });
 });
 
-// ── lshapeNet ────────────────────────────────────────────────────────────────
-
-describe("lshapeNet", () => {
-  it("returns 0 for null input", () => expect(lshapeNet(null)).toBe(0));
-  it("returns 0 for undefined input", () =>
-    expect(lshapeNet(undefined)).toBe(0));
-
-  it("sums two rectangular sections", () => {
-    const data: LShapeData = {
-      sections: [
-        { w: "10", l: "5" },
-        { w: "4", l: "3" },
-      ],
-      deductions: [],
-    };
-    expect(lshapeNet(data)).toBe(62); // 50 + 12
-  });
-
-  it("subtracts deductions from section total", () => {
-    const data: LShapeData = {
-      sections: [{ w: "10", l: "10" }],
-      deductions: [{ w: "2", l: "3" }],
-    };
-    expect(lshapeNet(data)).toBe(94); // 100 - 6
-  });
-
-  it("clamps to 0 when deductions exceed sections", () => {
-    const data: LShapeData = {
-      sections: [{ w: "2", l: "2" }],
-      deductions: [{ w: "10", l: "10" }],
-    };
-    expect(lshapeNet(data)).toBe(0);
-  });
-
-  it("ignores sections with invalid dimensions", () => {
-    const data: LShapeData = {
-      sections: [
-        { w: "10", l: "5" },
-        { w: "", l: "5" },
-      ],
-      deductions: [],
-    };
-    expect(lshapeNet(data)).toBe(50);
-  });
-});
-
 // ── roomSqft ──────────────────────────────────────────────────────────────────
 
 describe("roomSqft", () => {
@@ -127,25 +79,11 @@ describe("roomSqft", () => {
     w: "10",
     l: "8",
   };
-  const lRoom: RoomItem = {
-    id: 3,
-    type: "room",
-    shape: "lshape",
-    lshapeData: {
-      sections: [
-        { w: "10", l: "5" },
-        { w: "4", l: "3" },
-      ],
-      deductions: [],
-    },
-  };
   const noteItem: RoomItem = { id: 4, type: "note", text: "See spec" };
 
   it("calculates rectangular area", () => expect(roomSqft(rectRoom)).toBe(120));
   it("calculates triangular area as half of w*l", () =>
     expect(roomSqft(triRoom)).toBe(40));
-  it("delegates to lshapeNet for l-shape rooms", () =>
-    expect(roomSqft(lRoom)).toBe(62));
   it("returns 0 for note items", () => expect(roomSqft(noteItem)).toBe(0));
   it("returns 0 when dimensions are missing", () => {
     const empty: RoomItem = { id: 5, type: "room", shape: "rect" };
@@ -184,37 +122,13 @@ describe("estTotalArea", () => {
     expect(estTotalArea(items)).toBe(40); // 10*8/2
   });
 
-  it("counts L-shape rooms using net section area", () => {
-    const items: RoomItem[] = [
-      {
-        id: 1,
-        type: "room",
-        shape: "lshape",
-        lshapeData: {
-          sections: [{ w: "10", l: "10" }],
-          deductions: [{ w: "3", l: "2" }],
-        },
-      },
-    ];
-    expect(estTotalArea(items)).toBe(94); // 100 - 6
-  });
-
-  it("sums mixed rect, triangle, and L-shape rooms", () => {
+  it("sums mixed rect and triangle rooms", () => {
     const items: RoomItem[] = [
       { id: 1, type: "room", shape: "rect", w: "10", l: "10" }, // 100
       { id: 2, type: "room", shape: "tri", w: "10", l: "8" }, // 40
-      {
-        id: 3,
-        type: "room",
-        shape: "lshape",
-        lshapeData: {
-          sections: [{ w: "10", l: "10" }],
-          deductions: [{ w: "3", l: "2" }],
-        },
-      }, // 94
-      { id: 4, type: "note", text: "note" }, // ignored
+      { id: 3, type: "note", text: "note" }, // ignored
     ];
-    expect(estTotalArea(items)).toBe(234); // 100 + 40 + 94
+    expect(estTotalArea(items)).toBe(140); // 100 + 40
   });
 });
 
