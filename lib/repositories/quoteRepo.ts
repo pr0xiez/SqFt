@@ -277,6 +277,58 @@ export async function rotateApprovalToken(
   return result.count > 0 ? token : null;
 }
 
+export interface MarkQuoteSentInput {
+  to: string;
+  subject: string;
+  sentByEmail: string;
+  sentByName: string;
+}
+
+/**
+ * Mark a quote as sent (or resent). Updates Quote.status/sentAt/etc. and
+ * appends a QuoteEvent of type 'sent' (first send) or 'resent' (subsequent).
+ * Returns false if the quote isn't in the org.
+ */
+export async function markQuoteSent(
+  id: number,
+  orgId: string,
+  input: MarkQuoteSentInput
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.quote.findFirst({
+      where: { id, orgId },
+      select: { id: true, status: true, sentAt: true },
+    });
+    if (!existing) return false;
+
+    await tx.quote.updateMany({
+      where: { id, orgId },
+      data: {
+        status:
+          existing.status === "accepted" || existing.status === "declined"
+            ? existing.status
+            : "sent",
+        sentAt: new Date(),
+        sentToEmail: input.to,
+        sentByEmail: input.sentByEmail,
+        sentByName: input.sentByName,
+      },
+    });
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId: id,
+        type: existing.sentAt ? "resent" : "sent",
+        actorEmail: input.sentByEmail,
+        actorName: input.sentByName,
+        metadata: { to: input.to, subject: input.subject },
+      },
+    });
+
+    return true;
+  });
+}
+
 /**
  * Look up a quote by its public approval token (no org scoping — the token
  * itself authorizes access). Returns null on miss.

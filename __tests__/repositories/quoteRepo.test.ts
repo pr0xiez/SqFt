@@ -15,7 +15,26 @@ const organizationFindUnique = vi.fn();
 const organizationUpdate = vi.fn();
 const eventCount = vi.fn();
 
-const txMock = {
+const txMock: {
+  quote: {
+    updateMany: typeof quoteUpdateMany;
+    count: typeof quoteCount;
+    findFirst: typeof quoteFindFirst;
+    create: typeof txQuoteCreate;
+    deleteMany: typeof quoteDeleteMany;
+  };
+  lineItem: {
+    deleteMany: typeof lineItemDeleteMany;
+    createMany: typeof lineItemCreateMany;
+  };
+  estimate: { findFirst: typeof estimateFindFirst };
+  organization: {
+    findUnique: typeof organizationFindUnique;
+    update: typeof organizationUpdate;
+  };
+  event: { count: typeof eventCount };
+  quoteEvent: { create: ReturnType<typeof vi.fn> };
+} = {
   quote: {
     updateMany: quoteUpdateMany,
     count: quoteCount,
@@ -33,6 +52,7 @@ const txMock = {
     update: organizationUpdate,
   },
   event: { count: eventCount },
+  quoteEvent: { create: vi.fn() },
 };
 
 const $transaction = vi.fn(
@@ -256,5 +276,84 @@ describe("getQuoteByToken", () => {
         }),
       })
     );
+  });
+});
+
+describe("markQuoteSent", () => {
+  it("updates Quote send fields and writes a 'sent' event when first send", async () => {
+    quoteFindFirst.mockResolvedValue({ id: 1, status: "draft", sentAt: null });
+    quoteUpdateMany.mockResolvedValue({ count: 1 });
+    const { markQuoteSent } = await import("@/lib/repositories/quoteRepo");
+    const eventCreate = vi.fn().mockResolvedValue({ id: 9 });
+    txMock.quoteEvent = { create: eventCreate };
+
+    const result = await markQuoteSent(1, "org1", {
+      to: "buyer@example.com",
+      subject: "Quote #5001 from Acme",
+      sentByEmail: "alex@org.com",
+      sentByName: "Alex",
+    });
+
+    expect(result).toBe(true);
+    expect(quoteUpdateMany).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      data: {
+        status: "sent",
+        sentAt: expect.any(Date),
+        sentToEmail: "buyer@example.com",
+        sentByEmail: "alex@org.com",
+        sentByName: "Alex",
+      },
+    });
+    expect(eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          quoteId: 1,
+          type: "sent",
+          actorEmail: "alex@org.com",
+          actorName: "Alex",
+          metadata: {
+            to: "buyer@example.com",
+            subject: "Quote #5001 from Acme",
+          },
+        }),
+      })
+    );
+  });
+
+  it("writes a 'resent' event when sentAt was already set", async () => {
+    quoteFindFirst.mockResolvedValue({
+      id: 1,
+      status: "viewed",
+      sentAt: new Date(),
+    });
+    quoteUpdateMany.mockResolvedValue({ count: 1 });
+    const { markQuoteSent } = await import("@/lib/repositories/quoteRepo");
+    const eventCreate = vi.fn().mockResolvedValue({ id: 10 });
+    txMock.quoteEvent = { create: eventCreate };
+
+    await markQuoteSent(1, "org1", {
+      to: "buyer@example.com",
+      subject: "Resend",
+      sentByEmail: "alex@org.com",
+      sentByName: "Alex",
+    });
+    expect(eventCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "resent" }),
+      })
+    );
+  });
+
+  it("returns false when quote not in org", async () => {
+    quoteFindFirst.mockResolvedValue(null);
+    const { markQuoteSent } = await import("@/lib/repositories/quoteRepo");
+    const result = await markQuoteSent(99, "org1", {
+      to: "x@x.com",
+      subject: "x",
+      sentByEmail: "a@a.com",
+      sentByName: "A",
+    });
+    expect(result).toBe(false);
   });
 });
