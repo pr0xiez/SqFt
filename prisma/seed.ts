@@ -512,13 +512,158 @@ async function main() {
   // Park (#1044) gets no quote yet — demonstrates "no quotes yet" empty state
   // Nguyen (#1045) is a brand-new lead with no rooms and no quote
 
+  // ── Sent quote: emailed but not yet viewed ────────────────────────────────
+  const sentQuote = await prisma.quote.create({
+    data: {
+      orgId: org.id,
+      estimateId: est1042.id,
+      quoteNumber: 5005,
+      status: "sent",
+      taxRate: 0.08,
+      markupPct: 0,
+      depositPct: 0.5,
+      approvalToken: "seed-token-sent-quote-aaaaaaaaaaaaaaaaaaaa",
+      sentAt: new Date("2026-05-08T15:30:00Z"),
+      sentToEmail: "buyer@example.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      lineItems: {
+        create: [
+          {
+            name: "LVP install",
+            rate: 4.85,
+            qtyMode: "manual",
+            qty: 545,
+            unitLabel: "ft²",
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+  await prisma.quoteEvent.create({
+    data: {
+      quoteId: sentQuote.id,
+      type: "sent",
+      actorEmail: user.email,
+      actorName: user.name,
+      metadata: {
+        to: "buyer@example.com",
+        subject: `Quote #${sentQuote.quoteNumber} from ${org.name}`,
+      },
+    },
+  });
+  console.log(`  ✓ Sent quote: #${sentQuote.quoteNumber}`);
+
+  // ── Accepted quote: signed by customer ────────────────────────────────────
+  const acceptedQuote = await prisma.quote.create({
+    data: {
+      orgId: org.id,
+      estimateId: est1042.id,
+      quoteNumber: 5006,
+      status: "accepted",
+      taxRate: 0.08,
+      markupPct: 0,
+      depositPct: 0.5,
+      approvalToken: "seed-token-accepted-quote-bbbbbbbbbbbbbbbb",
+      sentAt: new Date("2026-05-01T14:00:00Z"),
+      sentToEmail: "henderson@example.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      viewedAt: new Date("2026-05-01T16:12:00Z"),
+      acceptedAt: new Date("2026-05-02T10:45:00Z"),
+      lineItems: {
+        create: [
+          {
+            name: "LVP install",
+            rate: 4.85,
+            qtyMode: "manual",
+            qty: 545,
+            unitLabel: "ft²",
+            sortOrder: 0,
+          },
+          {
+            name: "Underlayment",
+            rate: 0.45,
+            qtyMode: "manual",
+            qty: 495,
+            unitLabel: "ft²",
+            sortOrder: 1,
+          },
+        ],
+      },
+    },
+  });
+
+  // 1×1 transparent PNG as a placeholder signature:
+  const placeholderSig =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
+  await prisma.quoteSignature.create({
+    data: {
+      quoteId: acceptedQuote.id,
+      signedByName: "Janet Henderson",
+      signedByEmail: "henderson@example.com",
+      signatureData: placeholderSig,
+      signedAt: new Date("2026-05-02T10:45:00Z"),
+      signedIp: "203.0.113.42",
+      signedUserAgent: "Mozilla/5.0 (seed fixture)",
+      consentText:
+        "By typing my name and signing below, I consent to use an electronic signature, and agree this signature has the same legal effect as a handwritten signature on this quote.",
+      quoteSnapshot: {
+        quoteNumber: acceptedQuote.quoteNumber,
+        seedFixture: true,
+      },
+      snapshotHash:
+        "0000000000000000000000000000000000000000000000000000000000000000",
+    },
+  });
+  for (const evt of [
+    {
+      type: "sent",
+      actorEmail: user.email,
+      actorName: user.name,
+      createdAt: new Date("2026-05-01T14:00:00Z"),
+    },
+    {
+      type: "viewed",
+      actorEmail: null,
+      actorName: null,
+      createdAt: new Date("2026-05-01T16:12:00Z"),
+    },
+    {
+      type: "accepted",
+      actorEmail: "henderson@example.com",
+      actorName: "Janet Henderson",
+      createdAt: new Date("2026-05-02T10:45:00Z"),
+    },
+  ] as const) {
+    await prisma.quoteEvent.create({
+      data: {
+        quoteId: acceptedQuote.id,
+        type: evt.type,
+        actorEmail: evt.actorEmail,
+        actorName: evt.actorName,
+        ip:
+          evt.type === "viewed" || evt.type === "accepted"
+            ? "203.0.113.42"
+            : null,
+        userAgent:
+          evt.type === "viewed" || evt.type === "accepted"
+            ? "Mozilla/5.0 (seed fixture)"
+            : null,
+        createdAt: evt.createdAt,
+      },
+    });
+  }
+  console.log(`  ✓ Accepted quote: #${acceptedQuote.quoteNumber}`);
+
   // Bump the org counters past the seeded values so newly created records
   // start fresh sequences.
   await prisma.organization.update({
     where: { id: org.id },
-    data: { nextEstimateNumber: 1046, nextQuoteNumber: 5005 },
+    data: { nextEstimateNumber: 1046, nextQuoteNumber: 5007 },
   });
-  console.log("  ✓ 4 quotes");
+  console.log("  ✓ 6 quotes");
 
   // ── Calendar events ───────────────────────────────────────────────────────
   const today = new Date();
