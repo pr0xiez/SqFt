@@ -16,7 +16,7 @@ interface Props {
 export function PublicQuoteAcceptBlock({
   token,
   customerEmail,
-  onDeclineClick: _onDeclineClick,
+  onDeclineClick,
 }: Props) {
   const router = useRouter();
   const sigRef = useRef<SignaturePadHandle>(null);
@@ -142,9 +142,8 @@ export function PublicQuoteAcceptBlock({
         </button>
         <button
           type="button"
-          disabled
-          title="Decline option coming in the next slice"
-          className="py-3.5 px-4 bg-[var(--surface-2)] text-[var(--ink)] border border-[var(--line-2)] rounded-md text-[13px] font-[500] font-[var(--font-mono)] tracking-[.02em] opacity-40 cursor-not-allowed"
+          onClick={onDeclineClick}
+          className="py-3.5 px-4 bg-[var(--surface-2)] text-[var(--ink)] border border-[var(--line-2)] rounded-md text-[13px] font-[500] font-[var(--font-mono)] tracking-[.02em]"
         >
           Decline
         </button>

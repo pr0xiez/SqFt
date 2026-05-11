@@ -3,7 +3,7 @@ import { liSubtotal, type RoomItem } from "@/lib/utils";
 import { Letterhead } from "./public-quote/Letterhead";
 import { LineItemsTable } from "./public-quote/LineItemsTable";
 import { PartiesBlock } from "./public-quote/PartiesBlock";
-import { PublicQuoteAcceptBlock } from "./public-quote/PublicQuoteAcceptBlock";
+import { PublicQuoteAcceptBlockWithDecline } from "./public-quote/PublicQuoteAcceptBlockWithDecline";
 import { PublicQuoteHeader } from "./public-quote/PublicQuoteHeader";
 import { PublicQuoteSignedView } from "./public-quote/PublicQuoteSignedView";
 import { PublicQuoteStatusBar } from "./public-quote/PublicQuoteStatusBar";
@@ -107,12 +107,9 @@ export function PublicQuoteView({ quote, token }: Props) {
                 signatureData={quote.signature.signatureData}
               />
             ) : quote.status === "declined" ? null : (
-              <PublicQuoteAcceptBlock
+              <PublicQuoteAcceptBlockWithDecline
                 token={token}
                 customerEmail={quote.customer?.email ?? null}
-                onDeclineClick={() => {
-                  /* re-wired to DeclineModal in Phase 9 */
-                }}
               />
             )}
             {quote.status === "declined" && (
