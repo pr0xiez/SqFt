@@ -1,7 +1,7 @@
 # Quote → Email → Signature Flow — Design
 
 **Date:** 2026-05-10
-**Status:** Approved (awaiting plan)
+**Status:** Implemented
 **Related:** [specs/floorzap-competitor-roadmap.md](../../../specs/floorzap-competitor-roadmap.md) §1.2 + §1.3
 
 ## Goal
