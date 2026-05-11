@@ -4,3 +4,4 @@ export * from "./estimateRepo";
 export * from "./eventRepo";
 export * from "./quoteEventRepo";
 export * from "./quoteRepo";
+export * from "./quoteSignatureRepo";

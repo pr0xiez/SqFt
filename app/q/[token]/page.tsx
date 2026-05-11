@@ -49,6 +49,7 @@ export default async function PublicQuotePage({ params }: Props) {
       ? {
           name: quote.estimate.customer.name,
           address: quote.estimate.customer.address,
+          email: quote.estimate.customer.email,
         }
       : null,
     items: quote.estimate.items.map((i) => ({
@@ -88,5 +89,5 @@ export default async function PublicQuotePage({ params }: Props) {
       : null,
   };
 
-  return <PublicQuoteView quote={view} />;
+  return <PublicQuoteView quote={view} token={token} />;
 }
