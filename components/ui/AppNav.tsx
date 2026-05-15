@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
+import { useState } from "react";
+import { MobileSessionSheet } from "@/components/ui/MobileSessionSheet";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/cn";
 
@@ -15,6 +18,10 @@ const NAV_TABS = [
 
 export function AppNav() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const initials = getInitials(session?.user?.name, session?.user?.email);
 
   function isActive(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -58,16 +65,22 @@ export function AppNav() {
 
           <div className="ml-auto flex items-center gap-2.5">
             <ThemeToggle />
-            <div
+            <button
+              type="button"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              title="Sign out"
+              aria-label="Sign out"
               className={cn(
                 "w-[30px] h-[30px] rounded-full",
                 "bg-[var(--surface-2)] border border-[var(--line)]",
-                "flex items-center justify-center",
-                "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink)]"
+                "flex items-center justify-center cursor-pointer",
+                "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--ink)]",
+                "hover:border-[var(--accent)] hover:text-[var(--accent)]",
+                "transition-colors"
               )}
             >
-              MJ
-            </div>
+              {initials}
+            </button>
           </div>
         </div>
       </nav>
@@ -82,6 +95,28 @@ export function AppNav() {
         )}
         aria-label="Main navigation"
       >
+        {/* ── Session seal — floats above the nav like a stamped mark ── */}
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          aria-label="Open session menu"
+          aria-haspopup="dialog"
+          aria-expanded={sheetOpen}
+          className={cn(
+            "absolute bottom-full right-3 mb-2",
+            "w-[34px] h-[34px] rounded-full",
+            "bg-[var(--surface)] border border-[var(--line)]",
+            "shadow-[var(--shadow)]",
+            "flex items-center justify-center cursor-pointer",
+            "font-[var(--font-mono)] text-[10.5px] font-[600]",
+            "text-[var(--accent)] tracking-[.02em]",
+            "transition-[transform,border-color,box-shadow] duration-150",
+            "active:scale-95 hover:border-[var(--accent)]"
+          )}
+        >
+          {initials}
+        </button>
+
         <div className="grid grid-cols-5 gap-0.5 max-w-[520px] mx-auto">
           {NAV_TABS.map(({ href, label }) => {
             const active = isActive(href);
@@ -107,8 +142,27 @@ export function AppNav() {
           })}
         </div>
       </nav>
+
+      <MobileSessionSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+      />
     </>
   );
+}
+
+function getInitials(name?: string | null, email?: string | null) {
+  if (name?.trim()) {
+    const parts = name.trim().split(/\s+/);
+    const first = parts[0]?.[0] ?? "";
+    const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+    const out = (first + last).toUpperCase();
+    if (out) return out;
+  }
+  if (email?.trim()) {
+    return email.trim()[0]?.toUpperCase() ?? "·";
+  }
+  return "··";
 }
 
 function NavIcon({ label, active }: { label: string; active: boolean }) {
