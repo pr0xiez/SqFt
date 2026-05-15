@@ -48,11 +48,11 @@ async function main() {
   // ── Demo user ─────────────────────────────────────────────────────────────
   const password = await bcrypt.hash("demo1234", 12);
   const user = await prisma.user.upsert({
-    where: { email: "demo@sqft.app" },
+    where: { email: "demo@sqft.dev" },
     update: { password },
     create: {
       name: "Mike Johnson",
-      email: "demo@sqft.app",
+      email: "demo@sqft.dev",
       password,
       role: "owner",
       orgId: org.id,
@@ -71,11 +71,11 @@ async function main() {
     },
   });
   const otherUser = await prisma.user.upsert({
-    where: { email: "demo2@sqft.app" },
+    where: { email: "demo2@sqft.dev" },
     update: { password },
     create: {
       name: "Other Owner",
-      email: "demo2@sqft.app",
+      email: "demo2@sqft.dev",
       password,
       role: "owner",
       orgId: otherOrg.id,
@@ -789,7 +789,7 @@ async function main() {
   console.log("  ✓ 8 calendar events");
 
   console.log("\n✅ Seed complete!");
-  console.log("   Login: demo@sqft.app / demo1234");
+  console.log("   Login: demo@sqft.dev / demo1234");
 }
 
 main()

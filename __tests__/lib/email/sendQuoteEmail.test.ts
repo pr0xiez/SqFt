@@ -13,7 +13,7 @@ describe("sendQuoteEmail", () => {
       to: "buyer@example.com",
       subject: "Quote #5001 from Acme",
       message: "Hi Janet — please review.",
-      publicUrl: "https://app.sqft.app/q/abc123",
+      publicUrl: "https://app.sqft.dev/q/abc123",
       customerName: "Janet",
       org: { name: "Acme Floors", phone: "555-1234", logo: null },
       quoteNumber: 5001,

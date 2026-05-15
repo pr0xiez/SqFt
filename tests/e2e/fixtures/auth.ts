@@ -17,9 +17,9 @@ import { test as base } from "@playwright/test";
 
 export const authDir = path.join(process.cwd(), "tests/e2e/.auth");
 
-export const DEMO_EMAIL = "demo@sqft.app";
+export const DEMO_EMAIL = "demo@sqft.dev";
 export const DEMO_PASSWORD = "demo1234";
-export const DEMO_OTHER_EMAIL = "demo2@sqft.app";
+export const DEMO_OTHER_EMAIL = "demo2@sqft.dev";
 export const DEMO_OTHER_PASSWORD = "demo1234";
 
 type AuthFixtures = {

@@ -16,7 +16,7 @@ export interface SendEmailResult {
   error?: string;
 }
 
-const FROM = process.env.EMAIL_FROM ?? "SqFt Quotes <quotes@sqft.app>";
+const FROM = process.env.EMAIL_FROM ?? "SqFt Quotes <quotes@sqft.dev>";
 
 let _client: Resend | null = null;
 function getClient(): Resend | null {

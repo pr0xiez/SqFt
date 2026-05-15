@@ -57,7 +57,7 @@ function params(id: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.PUBLIC_BASE_URL = "https://app.sqft.app";
+  process.env.PUBLIC_BASE_URL = "https://app.sqft.dev";
 });
 
 describe("POST /api/quotes/[id]/send", () => {
@@ -109,7 +109,7 @@ describe("POST /api/quotes/[id]/send", () => {
         to: "henderson@example.com",
         subject: "Q5001",
         replyTo: "alex@org.com",
-        publicUrl: "https://app.sqft.app/q/token-xyz",
+        publicUrl: "https://app.sqft.dev/q/token-xyz",
       })
     );
     expect(mockMarkSent).toHaveBeenCalledWith(1, "org1", expect.any(Object));
@@ -151,7 +151,7 @@ describe("POST /api/quotes/[id]/send", () => {
     );
     expect(mockSendQuoteEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        publicUrl: "https://app.sqft.app/q/new-token-aaa",
+        publicUrl: "https://app.sqft.dev/q/new-token-aaa",
       })
     );
   });
