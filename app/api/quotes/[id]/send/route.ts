@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { sendQuoteEmail } from "@/lib/email/sendQuoteEmail";
 import { logError } from "@/lib/logger";
 import {
@@ -72,8 +73,7 @@ export const POST = withLogging(
         });
       }
 
-      const baseUrl = process.env.PUBLIC_BASE_URL ?? "http://localhost:3000";
-      const publicUrl = `${baseUrl}/q/${token}`;
+      const publicUrl = `${getPublicBaseUrl()}/q/${token}`;
 
       const total =
         quoteTotal({

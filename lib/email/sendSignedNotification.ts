@@ -1,3 +1,4 @@
+import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { fmtDollar } from "@/lib/utils";
 import { type SendEmailResult, sendEmail } from "./client";
 import { SignedNotificationEmail } from "./SignedNotificationEmail";
@@ -21,7 +22,7 @@ export function sendSignedNotification(
   if (input.to.length === 0) {
     return Promise.resolve({ ok: true, id: "no-recipients" });
   }
-  const baseUrl = process.env.PUBLIC_BASE_URL ?? "http://localhost:3000";
+  const baseUrl = getPublicBaseUrl();
   const builderUrl =
     input.variant === "accepted"
       ? `${baseUrl}/quotes/${input.quoteId}/signed`
