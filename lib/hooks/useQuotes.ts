@@ -160,6 +160,7 @@ export function useSendQuote(quoteId: number) {
       return res.json();
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["quotes", quoteId] });
     },
   });
