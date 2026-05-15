@@ -42,10 +42,16 @@ export interface QuoteDetail {
     id: number;
     estimateNumber?: number | null;
     title: string;
-    customer?: { id: number; name: string; address?: string | null };
+    customer?: {
+      id: number;
+      name: string;
+      address?: string | null;
+      email?: string | null;
+    };
     items: RoomItem[];
   };
   lineItems: LineItemCalc[];
+  org?: { name: string } | null;
 }
 
 export interface UpdateQuoteInput {
@@ -128,6 +134,35 @@ export function useRotateQuoteToken(id: number) {
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["quotes", id] }),
+  });
+}
+
+export interface SendQuoteVariables {
+  to: string;
+  subject: string;
+  message?: string;
+  regenerateLink?: boolean;
+}
+
+export function useSendQuote(quoteId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: SendQuoteVariables): Promise<{ ok: true }> => {
+      const res = await fetch(`/api/quotes/${quoteId}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vars),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Send failed (${res.status})`);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["quotes", quoteId] });
+    },
   });
 }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { QuoteSummary } from "@/components/estimates/QuoteSummary";
+import { SendQuoteDialog } from "@/components/quotes/SendQuoteDialog";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -23,6 +24,7 @@ export function QuoteBuilderView({ quoteId }: Props) {
   const rotateToken = useRotateQuoteToken(quoteId);
   const { showToast } = useToast();
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,6 +90,14 @@ export function QuoteBuilderView({ quoteId }: Props) {
               day: "numeric",
               year: "numeric",
             })}
+            {quote.status === "accepted" && (
+              <Link
+                href={`/quotes/${quote.id}/signed`}
+                className="ml-3 font-[var(--font-mono)] text-[11px] text-[var(--accent)] underline"
+              >
+                View signed quote →
+              </Link>
+            )}
           </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Line Items &amp; Pricing
@@ -103,12 +113,20 @@ export function QuoteBuilderView({ quoteId }: Props) {
           <Link href={`/estimates/${quote.estimateId}`}>
             <Button variant="ghost">← Back to estimate</Button>
           </Link>
+          <Button variant="primary" onClick={() => setSendDialogOpen(true)}>
+            Send to customer →
+          </Button>
           <div className="relative" ref={actionsRef}>
-            <Button variant="primary" onClick={() => setActionsOpen((v) => !v)}>
-              Send to customer →
+            <Button
+              variant="ghost"
+              onClick={() => setActionsOpen((v) => !v)}
+              aria-label="More actions"
+              type="button"
+            >
+              ⋮
             </Button>
             {actionsOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[160px] py-1">
+              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[180px] py-1">
                 <button
                   type="button"
                   className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
@@ -183,6 +201,16 @@ export function QuoteBuilderView({ quoteId }: Props) {
             showToast("Save failed");
           }
         }}
+      />
+
+      <SendQuoteDialog
+        quoteId={quote.id}
+        quoteNumber={quote.quoteNumber}
+        orgName={quote.org?.name ?? ""}
+        customerEmail={quote.estimate.customer?.email ?? null}
+        hasToken={Boolean(quote.approvalToken)}
+        open={sendDialogOpen}
+        onClose={() => setSendDialogOpen(false)}
       />
     </>
   );

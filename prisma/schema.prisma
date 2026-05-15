@@ -103,16 +103,26 @@ model Quote {
   estimateId    Int
   estimate      Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   quoteNumber   Int
-  status        String       @default("draft") // draft | sent | accepted | declined
+  status        String       @default("draft") // draft | sent | viewed | accepted | declined
   date          DateTime     @default(now())
   taxRate       Float        @default(0.08)
   markupPct     Float        @default(0)
   depositPct    Float        @default(0.50)
   approvalToken String?      @unique
+  sentAt        DateTime?
+  sentToEmail   String?
+  sentByEmail   String?
+  sentByName    String?
+  viewedAt      DateTime?
+  acceptedAt    DateTime?
+  declinedAt    DateTime?
+  declineReason String?
   createdAt     DateTime     @default(now())
 
   lineItems LineItem[]
   events    Event[]
+  signature QuoteSignature?
+  quoteEvents QuoteEvent[]
 }
 
 // A line item (material/labor) in a quote
@@ -128,6 +138,36 @@ model LineItem {
   unitLabel     String @default("ft²")
   linkedRoomIds Int[] // EstimateItem ids linked to this line item
   sortOrder     Int    @default(0)
+}
+
+model QuoteSignature {
+  id              Int      @id @default(autoincrement())
+  quoteId         Int      @unique
+  quote           Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  signedByName    String
+  signedByEmail   String
+  signatureData   String // base64 PNG data URL, ~5-30KB
+  signedAt        DateTime @default(now())
+  signedIp        String
+  signedUserAgent String
+  consentText     String
+  quoteSnapshot   Json
+  snapshotHash    String
+}
+
+model QuoteEvent {
+  id         Int      @id @default(autoincrement())
+  quoteId    Int
+  quote      Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  type       String // sent | viewed | accepted | declined | link_rotated | resent
+  actorEmail String?
+  actorName  String?
+  ip         String?
+  userAgent  String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([quoteId, createdAt])
 }
 
 // Calendar events: job installations, measurement visits, etc.

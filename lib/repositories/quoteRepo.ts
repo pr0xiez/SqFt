@@ -46,6 +46,7 @@ export type QuoteWithDetails = Prisma.QuoteGetPayload<{
       };
     };
     lineItems: { orderBy: { sortOrder: "asc" } };
+    org: { select: { name: true } };
   };
 }>;
 
@@ -67,6 +68,7 @@ export type QuoteWithPublicView = Prisma.QuoteGetPayload<{
         logo: true;
       };
     };
+    signature: true;
   };
 }>;
 
@@ -140,6 +142,7 @@ export async function getQuote(
         },
       },
       lineItems: { orderBy: { sortOrder: "asc" } },
+      org: { select: { name: true } },
     },
   });
 }
@@ -187,6 +190,7 @@ export async function createQuote(
           },
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
+        org: { select: { name: true } },
       },
     });
   });
@@ -233,6 +237,7 @@ export async function saveQuote(
           },
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
+        org: { select: { name: true } },
       },
     });
   });
@@ -277,6 +282,151 @@ export async function rotateApprovalToken(
   return result.count > 0 ? token : null;
 }
 
+export interface MarkQuoteSentInput {
+  to: string;
+  subject: string;
+  sentByEmail: string;
+  sentByName: string;
+}
+
+/**
+ * Mark a quote as sent (or resent). Updates Quote.status/sentAt/etc. and
+ * appends a QuoteEvent of type 'sent' (first send) or 'resent' (subsequent).
+ * Returns false if the quote isn't in the org.
+ */
+export async function markQuoteSent(
+  id: number,
+  orgId: string,
+  input: MarkQuoteSentInput
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.quote.findFirst({
+      where: { id, orgId },
+      select: { id: true, status: true, sentAt: true },
+    });
+    if (!existing) return false;
+
+    await tx.quote.updateMany({
+      where: { id, orgId },
+      data: {
+        status:
+          existing.status === "accepted" || existing.status === "declined"
+            ? existing.status
+            : "sent",
+        sentAt: new Date(),
+        sentToEmail: input.to,
+        sentByEmail: input.sentByEmail,
+        sentByName: input.sentByName,
+      },
+    });
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId: id,
+        type: existing.sentAt ? "resent" : "sent",
+        actorEmail: input.sentByEmail,
+        actorName: input.sentByName,
+        metadata: { to: input.to, subject: input.subject },
+      },
+    });
+
+    return true;
+  });
+}
+
+export interface MarkQuoteViewedInput {
+  ip: string | null;
+  userAgent: string | null;
+}
+
+/**
+ * Mark a quote as viewed by the customer. Idempotent w.r.t. status (only flips
+ * sent → viewed) but always appends a QuoteEvent of type 'viewed' so we can
+ * count opens. No-op when the quote is already accepted/declined.
+ */
+export async function markQuoteViewed(
+  quoteId: number,
+  input: MarkQuoteViewedInput
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const q = await tx.quote.findFirst({
+      where: { id: quoteId },
+      select: { status: true },
+    });
+    if (!q) return;
+    if (q.status === "accepted" || q.status === "declined") return;
+
+    if (q.status === "sent") {
+      await tx.quote.updateMany({
+        where: { id: quoteId, status: "sent" },
+        data: { status: "viewed", viewedAt: new Date() },
+      });
+    }
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId,
+        type: "viewed",
+        ip: input.ip ?? undefined,
+        userAgent: input.userAgent ?? undefined,
+      },
+    });
+  });
+}
+
+export interface DeclineQuoteInput {
+  reason: string | null;
+  ip: string | null;
+  userAgent: string | null;
+}
+
+export type DeclineResult =
+  | "ok"
+  | "already_signed"
+  | "already_declined"
+  | "not_found";
+
+/**
+ * Decline a quote (public-token initiated). Atomic: status guard → flip
+ * status to "declined" → append a QuoteEvent of type "declined" with the
+ * optional reason in metadata.
+ */
+export async function declineQuoteByToken(
+  quoteId: number,
+  input: DeclineQuoteInput
+): Promise<DeclineResult> {
+  return prisma.$transaction(async (tx) => {
+    const q = await tx.quote.findFirst({
+      where: { id: quoteId },
+      select: { status: true },
+    });
+    if (!q) return "not_found";
+    if (q.status === "accepted") return "already_signed";
+    if (q.status === "declined") return "already_declined";
+
+    await tx.quote.updateMany({
+      where: { id: quoteId, status: { in: ["draft", "sent", "viewed"] } },
+      data: {
+        status: "declined",
+        declinedAt: new Date(),
+        declineReason: input.reason,
+      },
+    });
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId,
+        type: "declined",
+        ip: input.ip ?? undefined,
+        userAgent: input.userAgent ?? undefined,
+        metadata: input.reason ? { reason: input.reason } : undefined,
+      },
+    });
+
+    return "ok";
+  });
+}
+
 /**
  * Look up a quote by its public approval token (no org scoping — the token
  * itself authorizes access). Returns null on miss.
@@ -303,6 +453,7 @@ export async function getQuoteByToken(
           logo: true,
         },
       },
+      signature: true,
     },
   });
 }

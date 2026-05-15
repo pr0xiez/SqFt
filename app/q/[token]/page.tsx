@@ -1,9 +1,10 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   type PublicQuote,
   PublicQuoteView,
 } from "@/components/estimates/PublicQuoteView";
-import { getQuoteByToken } from "@/lib/repositories";
+import { getQuoteByToken, markQuoteViewed } from "@/lib/repositories";
 
 export const metadata = {
   title: "Quote — SqFt",
@@ -24,10 +25,17 @@ export default async function PublicQuotePage({ params }: Props) {
   const quote = await getQuoteByToken(token);
   if (!quote) notFound();
 
+  if (quote.status !== "accepted" && quote.status !== "declined") {
+    const h = await headers();
+    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const userAgent = h.get("user-agent") ?? null;
+    void markQuoteViewed(quote.id, { ip, userAgent });
+  }
+
   const view: PublicQuote = {
     id: quote.id,
     quoteNumber: quote.quoteNumber,
-    status: quote.status,
+    status: quote.status as PublicQuote["status"],
     date: quote.date,
     taxRate: quote.taxRate,
     markupPct: quote.markupPct,
@@ -41,6 +49,7 @@ export default async function PublicQuotePage({ params }: Props) {
       ? {
           name: quote.estimate.customer.name,
           address: quote.estimate.customer.address,
+          email: quote.estimate.customer.email,
         }
       : null,
     items: quote.estimate.items.map((i) => ({
@@ -65,7 +74,20 @@ export default async function PublicQuotePage({ params }: Props) {
       sortOrder: li.sortOrder,
     })),
     org: quote.org,
+    sentAt: quote.sentAt,
+    viewedAt: quote.viewedAt,
+    acceptedAt: quote.acceptedAt,
+    declinedAt: quote.declinedAt,
+    declineReason: quote.declineReason,
+    signature: quote.signature
+      ? {
+          signedByName: quote.signature.signedByName,
+          signedByEmail: quote.signature.signedByEmail,
+          signedAt: quote.signature.signedAt,
+          signatureData: quote.signature.signatureData,
+        }
+      : null,
   };
 
-  return <PublicQuoteView quote={view} />;
+  return <PublicQuoteView quote={view} token={token} />;
 }
