@@ -32,7 +32,7 @@ export function AppNav() {
       {/* ── Desktop Top Nav ── */}
       <nav
         className={cn(
-          "hidden md:block sticky top-0 z-50",
+          "hidden md:block order-1 shrink-0",
           "bg-[var(--surface)] border-b border-[var(--line)]",
           "transition-[background,border-color] duration-[250ms]"
         )}
@@ -88,7 +88,7 @@ export function AppNav() {
       {/* ── Mobile Bottom Nav ── */}
       <nav
         className={cn(
-          "md:hidden fixed bottom-0 left-0 right-0 z-[60]",
+          "md:hidden order-3 shrink-0 relative z-[60]",
           "bg-[var(--surface)] border-t border-[var(--line)]",
           "transition-[background,border-color] duration-[250ms]",
           "py-1.5 px-1 pb-[calc(6px+env(safe-area-inset-bottom,0px))]"
