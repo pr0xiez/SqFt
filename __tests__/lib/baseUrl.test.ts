@@ -5,6 +5,7 @@ const SAVED = {
   PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL,
   VERCEL_ENV: process.env.VERCEL_ENV,
   VERCEL_PROJECT_PRODUCTION_URL: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  VERCEL_BRANCH_URL: process.env.VERCEL_BRANCH_URL,
   VERCEL_URL: process.env.VERCEL_URL,
 };
 
@@ -12,6 +13,7 @@ beforeEach(() => {
   delete process.env.PUBLIC_BASE_URL;
   delete process.env.VERCEL_ENV;
   delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  delete process.env.VERCEL_BRANCH_URL;
   delete process.env.VERCEL_URL;
 });
 
@@ -36,11 +38,18 @@ describe("getPublicBaseUrl", () => {
     expect(getPublicBaseUrl()).toBe("https://sqft.dev");
   });
 
-  it("on a preview deployment, links to the preview itself", () => {
+  it("on a preview deployment, prefers VERCEL_BRANCH_URL (the stable branch alias)", () => {
     process.env.VERCEL_ENV = "preview";
     process.env.VERCEL_PROJECT_PRODUCTION_URL = "sqft.dev";
-    process.env.VERCEL_URL = "sqft-git-feat-pr0xiez.vercel.app";
-    expect(getPublicBaseUrl()).toBe("https://sqft-git-feat-pr0xiez.vercel.app");
+    process.env.VERCEL_BRANCH_URL = "sqft-git-feat-foo.vercel.app";
+    process.env.VERCEL_URL = "sqft-abc123-pr0xiez.vercel.app";
+    expect(getPublicBaseUrl()).toBe("https://sqft-git-feat-foo.vercel.app");
+  });
+
+  it("on a preview deployment, falls back to VERCEL_URL when branch URL is missing", () => {
+    process.env.VERCEL_ENV = "preview";
+    process.env.VERCEL_URL = "sqft-abc123-pr0xiez.vercel.app";
+    expect(getPublicBaseUrl()).toBe("https://sqft-abc123-pr0xiez.vercel.app");
   });
 
   it("on a production deployment, links to the stable production hostname", () => {

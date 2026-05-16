@@ -123,9 +123,19 @@ export function QuoteListView() {
                 className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_120px_120px_110px_110px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
               >
                 <div className="px-3.5 py-3.5 hidden md:block">
-                  <span className="font-[var(--font-mono)] text-[13px] font-[600]">
-                    #{q.quoteNumber}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-[var(--font-mono)] text-[13px] font-[600]">
+                      #{q.quoteNumber}
+                    </span>
+                    {q.revisedFromId && (
+                      <span
+                        className="ml-1.5 font-[var(--font-mono)] text-[10px] uppercase tracking-[.04em] text-[var(--muted)] border border-[var(--line-2)] rounded-sm px-1"
+                        title="Revised quote"
+                      >
+                        ↶ rev
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="px-3.5 py-3.5">
                   <div className="text-[14px] font-[600] tracking-[-0.01em]">

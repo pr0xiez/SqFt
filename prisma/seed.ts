@@ -545,6 +545,7 @@ async function main() {
     data: {
       quoteId: sentQuote.id,
       type: "sent",
+      source: "builder",
       actorEmail: user.email,
       actorName: user.name,
       metadata: {
@@ -620,18 +621,21 @@ async function main() {
   for (const evt of [
     {
       type: "sent",
+      source: "builder",
       actorEmail: user.email,
       actorName: user.name,
       createdAt: new Date("2026-05-01T14:00:00Z"),
     },
     {
       type: "viewed",
+      source: "builder",
       actorEmail: null,
       actorName: null,
       createdAt: new Date("2026-05-01T16:12:00Z"),
     },
     {
       type: "accepted",
+      source: "customer",
       actorEmail: "henderson@example.com",
       actorName: "Janet Henderson",
       createdAt: new Date("2026-05-02T10:45:00Z"),
@@ -641,6 +645,7 @@ async function main() {
       data: {
         quoteId: acceptedQuote.id,
         type: evt.type,
+        source: evt.source,
         actorEmail: evt.actorEmail,
         actorName: evt.actorName,
         ip:

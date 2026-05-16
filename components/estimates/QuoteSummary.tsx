@@ -11,6 +11,7 @@ interface Props {
   taxRate: number;
   markupPct: number;
   depositPct: number;
+  readOnly?: boolean;
   onSave: (data: {
     taxRate?: number;
     markupPct?: number;
@@ -24,6 +25,7 @@ export function QuoteSummary({
   taxRate: initialTaxRate,
   markupPct: initialMarkupPct,
   depositPct: initialDepositPct,
+  readOnly = false,
   onSave,
 }: Props) {
   const [taxRate, setTaxRate] = useState(initialTaxRate);
@@ -44,6 +46,7 @@ export function QuoteSummary({
   const margin = total > 0 ? ((total - subtotal) / total) * 100 : 0;
 
   async function handleSave() {
+    if (readOnly) return;
     setSaving(true);
     try {
       await onSave({ taxRate, markupPct, depositPct });
@@ -95,7 +98,8 @@ export function QuoteSummary({
                 step="0.1"
                 value={value}
                 onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-                className="w-[60px] text-[13px] font-[600] text-center border border-[var(--line)] rounded-[4px] bg-[var(--surface)] py-1 px-1 focus:outline-none focus:border-[var(--ink-2)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                disabled={readOnly}
+                className="w-[60px] text-[13px] font-[600] text-center border border-[var(--line)] rounded-[4px] bg-[var(--surface)] py-1 px-1 focus:outline-none focus:border-[var(--ink-2)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:cursor-default disabled:opacity-70"
               />
               <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
                 {suffix}
@@ -151,11 +155,18 @@ export function QuoteSummary({
       </div>
 
       {/* Save button */}
-      <div className="px-5 py-3 border-t border-[var(--line)] bg-[var(--surface-2)]">
-        <Button variant="sage" onClick={handleSave} disabled={saving} size="sm">
-          {saving ? "Saving…" : "Save quote settings"}
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="px-5 py-3 border-t border-[var(--line)] bg-[var(--surface-2)]">
+          <Button
+            variant="sage"
+            onClick={handleSave}
+            disabled={saving}
+            size="sm"
+          >
+            {saving ? "Saving…" : "Save quote settings"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

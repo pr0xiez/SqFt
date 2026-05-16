@@ -62,7 +62,18 @@ export const PATCH = withLogging(
         );
       }
 
-      const quote = await saveQuote(parseInt(id, 10), orgId, parsed.data);
+      const quoteId = parseInt(id, 10);
+      const existing = await getQuote(quoteId, orgId);
+      if (!existing)
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      if (existing.status === "accepted" || existing.status === "declined") {
+        return NextResponse.json(
+          { error: `Quote is locked (status: ${existing.status})` },
+          { status: 409 }
+        );
+      }
+
+      const quote = await saveQuote(quoteId, orgId, parsed.data);
       if (!quote)
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json(quote);

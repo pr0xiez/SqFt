@@ -3,12 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const quoteSignatureCreate = vi.fn();
 const quoteUpdateMany = vi.fn();
 const quoteFindFirst = vi.fn();
+const quoteFindMany = vi.fn().mockResolvedValue([]);
 const quoteEventCreate = vi.fn();
+const quoteEventCreateMany = vi.fn();
 const $transaction = vi.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
   cb({
-    quote: { findFirst: quoteFindFirst, updateMany: quoteUpdateMany },
+    quote: {
+      findFirst: quoteFindFirst,
+      findMany: quoteFindMany,
+      updateMany: quoteUpdateMany,
+    },
     quoteSignature: { create: quoteSignatureCreate },
-    quoteEvent: { create: quoteEventCreate },
+    quoteEvent: { create: quoteEventCreate, createMany: quoteEventCreateMany },
   })
 );
 
@@ -36,7 +42,12 @@ describe("acceptQuoteByToken", () => {
   };
 
   it("creates signature, updates quote, writes event in one transaction", async () => {
-    quoteFindFirst.mockResolvedValue({ id: 1, status: "viewed" });
+    quoteFindFirst.mockResolvedValue({
+      id: 1,
+      status: "viewed",
+      estimateId: 10,
+      quoteNumber: 5001,
+    });
     quoteUpdateMany.mockResolvedValue({ count: 1 });
     quoteSignatureCreate.mockResolvedValue({ id: 1 });
 
