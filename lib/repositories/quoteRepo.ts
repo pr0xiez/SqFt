@@ -47,6 +47,12 @@ export type QuoteWithDetails = Prisma.QuoteGetPayload<{
     };
     lineItems: { orderBy: { sortOrder: "asc" } };
     org: { select: { name: true } };
+    signature: { select: { signedByName: true } };
+    quoteEvents: {
+      where: { type: "declined" };
+      orderBy: { createdAt: "desc" };
+      take: 1;
+    };
   };
 }>;
 
@@ -143,6 +149,12 @@ export async function getQuote(
       },
       lineItems: { orderBy: { sortOrder: "asc" } },
       org: { select: { name: true } },
+      signature: { select: { signedByName: true } },
+      quoteEvents: {
+        where: { type: "declined" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
     },
   });
 }
@@ -191,6 +203,12 @@ export async function createQuote(
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
         org: { select: { name: true } },
+        signature: { select: { signedByName: true } },
+        quoteEvents: {
+          where: { type: "declined" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
     });
   });
@@ -247,6 +265,12 @@ export async function saveQuote(
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
         org: { select: { name: true } },
+        signature: { select: { signedByName: true } },
+        quoteEvents: {
+          where: { type: "declined" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
       },
     });
   });

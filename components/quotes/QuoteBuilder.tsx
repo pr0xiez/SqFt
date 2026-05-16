@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { QuoteSummary } from "@/components/estimates/QuoteSummary";
+import { QuoteLockBanner } from "@/components/quotes/QuoteLockBanner";
 import { SendQuoteDialog } from "@/components/quotes/SendQuoteDialog";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -156,6 +157,26 @@ export function QuoteBuilderView({ quoteId }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Lock banner — shown when quote is accepted or declined */}
+      {locked && (
+        <QuoteLockBanner
+          status={quote.status as "accepted" | "declined"}
+          acceptedByName={quote.signature?.signedByName ?? null}
+          acceptedAt={quote.acceptedAt ?? null}
+          declinedAt={quote.declinedAt ?? null}
+          declineReason={quote.declineReason ?? null}
+          declineSource={quote.quoteEvents?.[0]?.source ?? null}
+          supersededByQuoteNumber={
+            (
+              quote.quoteEvents?.[0]?.metadata as {
+                supersededByQuoteNumber?: number;
+              } | null
+            )?.supersededByQuoteNumber ?? null
+          }
+          signedHref={`/quotes/${quote.id}/signed`}
+        />
+      )}
 
       {/* Customer bar */}
       {quote.estimate.customer && (
