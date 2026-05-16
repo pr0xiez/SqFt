@@ -104,6 +104,8 @@ describe("PATCH /api/quotes/[id]", () => {
   it("forwards a valid patch to saveQuote", async () => {
     mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockGetQuote.mockResolvedValue({ id: 1, status: "draft" } as any);
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockSaveQuote.mockResolvedValue({ id: 1, status: "sent" } as any);
     const req = makeRequest({ status: "sent" });
     const res = await PATCH(
@@ -112,6 +114,32 @@ describe("PATCH /api/quotes/[id]", () => {
     );
     expect(res.status).toBe(200);
     expect(mockSaveQuote).toHaveBeenCalledWith(1, "org1", { status: "sent" });
+  });
+
+  it("returns 409 when patching a locked (accepted) quote", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockGetQuote.mockResolvedValue({ id: 1, status: "accepted" } as any);
+    const req = makeRequest({ status: "sent" });
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
+    expect(res.status).toBe(409);
+    expect(mockSaveQuote).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when patching a locked (declined) quote", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockGetQuote.mockResolvedValue({ id: 1, status: "declined" } as any);
+    const req = makeRequest({ status: "sent" });
+    const res = await PATCH(
+      req as Parameters<typeof PATCH>[0],
+      makeParams("1")
+    );
+    expect(res.status).toBe(409);
+    expect(mockSaveQuote).not.toHaveBeenCalled();
   });
 });
 
