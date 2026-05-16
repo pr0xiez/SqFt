@@ -404,6 +404,7 @@ export async function markQuoteSent(
       data: {
         quoteId: id,
         type: existing.sentAt ? "resent" : "sent",
+        source: "builder",
         actorEmail: input.sentByEmail,
         actorName: input.sentByName,
         metadata: { to: input.to, subject: input.subject },
@@ -447,6 +448,7 @@ export async function markQuoteViewed(
       data: {
         quoteId,
         type: "viewed",
+        source: "customer",
         ip: input.ip ?? undefined,
         userAgent: input.userAgent ?? undefined,
       },
@@ -497,6 +499,7 @@ export async function declineQuoteByToken(
       data: {
         quoteId,
         type: "declined",
+        source: "customer",
         ip: input.ip ?? undefined,
         userAgent: input.userAgent ?? undefined,
         metadata: input.reason ? { reason: input.reason } : undefined,
