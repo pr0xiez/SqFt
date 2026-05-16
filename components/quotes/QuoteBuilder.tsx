@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { QuoteSummary } from "@/components/estimates/QuoteSummary";
 import { QuoteLockBanner } from "@/components/quotes/QuoteLockBanner";
+import { ReviseButton } from "@/components/quotes/ReviseButton";
 import { SendQuoteDialog } from "@/components/quotes/SendQuoteDialog";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -121,6 +122,7 @@ export function QuoteBuilderView({ quoteId }: Props) {
               Send to customer →
             </Button>
           )}
+          {locked && <ReviseButton quoteId={quote.id} />}
           <div className="relative" ref={actionsRef}>
             <Button
               variant="ghost"
