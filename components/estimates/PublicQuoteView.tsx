@@ -32,6 +32,7 @@ export interface PublicQuote {
     address: string | null;
     licenseNumber: string | null;
     logo: string | null;
+    ownerEmail: string | null;
   };
   sentAt?: Date | string | null;
   viewedAt?: Date | string | null;
@@ -113,14 +114,39 @@ export function PublicQuoteView({ quote, token }: Props) {
               />
             )}
             {quote.status === "declined" && (
-              <div className="mt-9 pt-6 border-t border-[var(--line)] text-[14px] text-[var(--ink-2)]">
-                This quote was declined on{" "}
-                {new Date(quote.declinedAt ?? Date.now()).toLocaleDateString()}.
+              <div className="mt-9 pt-6 border-t border-[var(--line)]">
+                <div className="text-[14px] text-[var(--ink-2)]">
+                  This quote was declined on{" "}
+                  {new Date(
+                    quote.declinedAt ?? Date.now()
+                  ).toLocaleDateString()}
+                  .
+                </div>
                 {quote.declineReason ? (
-                  <div className="mt-2 italic text-[var(--muted)]">
+                  <div className="mt-2 italic text-[var(--muted)] text-[14px]">
                     "{quote.declineReason}"
                   </div>
                 ) : null}
+                {(quote.org.phone || quote.org.ownerEmail) && (
+                  <div className="mt-5 text-[13px] text-[var(--ink-2)]">
+                    Changed your mind or have questions? Contact{" "}
+                    <span className="font-[600]">{quote.org.name}</span>:
+                    <div className="mt-1 font-[var(--font-mono)] text-[12px]">
+                      {quote.org.phone && <span>{quote.org.phone}</span>}
+                      {quote.org.phone && quote.org.ownerEmail && (
+                        <span> · </span>
+                      )}
+                      {quote.org.ownerEmail && (
+                        <a
+                          href={`mailto:${quote.org.ownerEmail}`}
+                          className="text-[var(--accent)] underline"
+                        >
+                          {quote.org.ownerEmail}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
