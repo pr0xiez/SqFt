@@ -204,6 +204,15 @@ export async function saveQuote(
   const { lineItems, ...topLevel } = patch;
 
   return prisma.$transaction(async (tx) => {
+    const existing = await tx.quote.findFirst({
+      where: { id, orgId },
+      select: { id: true, status: true },
+    });
+    if (!existing) return null;
+    if (existing.status === "accepted" || existing.status === "declined") {
+      return null;
+    }
+
     if (Object.keys(topLevel).length > 0) {
       const result = await tx.quote.updateMany({
         where: { id, orgId },

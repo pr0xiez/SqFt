@@ -1,7 +1,7 @@
-import { auth } from "@/lib/auth";
-import { reviseQuote, getQuote } from "@/lib/repositories/quoteRepo";
-import { getOrgId } from "@/lib/tenant";
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { getQuote, reviseQuote } from "@/lib/repositories/quoteRepo";
+import { getOrgId } from "@/lib/tenant";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
