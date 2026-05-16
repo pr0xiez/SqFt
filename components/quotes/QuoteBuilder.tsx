@@ -73,6 +73,8 @@ export function QuoteBuilderView({ quoteId }: Props) {
     );
   }
 
+  const locked = quote.status === "accepted" || quote.status === "declined";
+
   const rooms = (quote.estimate.items ?? []).filter(
     (i): i is RoomItem => i.type === "room"
   );
@@ -113,9 +115,11 @@ export function QuoteBuilderView({ quoteId }: Props) {
           <Link href={`/estimates/${quote.estimateId}`}>
             <Button variant="ghost">← Back to estimate</Button>
           </Link>
-          <Button variant="primary" onClick={() => setSendDialogOpen(true)}>
-            Send to customer →
-          </Button>
+          {!locked && (
+            <Button variant="primary" onClick={() => setSendDialogOpen(true)}>
+              Send to customer →
+            </Button>
+          )}
           <div className="relative" ref={actionsRef}>
             <Button
               variant="ghost"
@@ -176,6 +180,7 @@ export function QuoteBuilderView({ quoteId }: Props) {
         rooms={rooms}
         taxRate={quote.taxRate}
         markupPct={quote.markupPct}
+        readOnly={locked}
         onSave={async (lineItems) => {
           try {
             await updateQuote.mutateAsync({ lineItems });
@@ -193,6 +198,7 @@ export function QuoteBuilderView({ quoteId }: Props) {
         taxRate={quote.taxRate}
         markupPct={quote.markupPct}
         depositPct={quote.depositPct}
+        readOnly={locked}
         onSave={async (data) => {
           try {
             await updateQuote.mutateAsync(data);
