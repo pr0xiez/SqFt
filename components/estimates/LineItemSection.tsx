@@ -12,6 +12,7 @@ interface Props {
   rooms: RoomItem[];
   taxRate: number;
   markupPct: number;
+  readOnly?: boolean;
   onSave: (lineItems: LineItemCalc[]) => Promise<void>;
 }
 
@@ -25,6 +26,7 @@ export function LineItemSection({
   rooms,
   taxRate,
   markupPct,
+  readOnly = false,
   onSave,
 }: Props) {
   const [items, setItems] = useState<LineItemCalc[]>(initialLineItems);
@@ -41,6 +43,7 @@ export function LineItemSection({
   );
 
   function addItem() {
+    if (readOnly) return;
     const newItems: LineItemCalc[] = [
       ...items,
       {
@@ -60,12 +63,14 @@ export function LineItemSection({
   }
 
   function removeItem(id: number) {
+    if (readOnly) return;
     const newItems = items.filter((i) => i.id !== id);
     setItems(newItems);
     save(newItems);
   }
 
   function updateItem(id: number, patch: Partial<LineItemCalc>) {
+    if (readOnly) return;
     const newItems = items.map((item) =>
       item.id === id ? { ...item, ...patch } : item
     );
@@ -144,20 +149,26 @@ export function LineItemSection({
                         updateItem(li.id, { name: e.target.value })
                       }
                       onBlur={() => save(items)}
-                      className="text-[14px] font-[500] w-full border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)]"
+                      disabled={readOnly}
+                      className="text-[14px] font-[500] w-full border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default"
                     />
                   </div>
                   <div className="px-3 py-2">
                     <button
                       type="button"
                       onClick={(e) =>
+                        !readOnly &&
                         setPicker({
                           lineId: li.id,
                           rect: e.currentTarget.getBoundingClientRect(),
                         })
                       }
+                      disabled={readOnly}
                       className={cn(
-                        "font-[var(--font-mono)] text-[10px] px-2.5 py-1 border rounded-[4px] cursor-pointer transition-colors duration-150 inline-flex items-center gap-[5px]",
+                        "font-[var(--font-mono)] text-[10px] px-2.5 py-1 border rounded-[4px] transition-colors duration-150 inline-flex items-center gap-[5px]",
+                        readOnly
+                          ? "cursor-default opacity-70"
+                          : "cursor-pointer",
                         linked
                           ? "border-[var(--sage)] text-[var(--sage)] bg-[rgba(61,107,74,0.08)]"
                           : "border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
@@ -187,7 +198,8 @@ export function LineItemSection({
                         value={li.qty}
                         onCommit={(next) => updateItem(li.id, { qty: next })}
                         allowEmpty
-                        className="w-full text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none"
+                        disabled={readOnly}
+                        className="w-full text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
                       />
                     )}
                   </div>
@@ -201,7 +213,8 @@ export function LineItemSection({
                         updateItem(li.id, { rate: next ?? 0 })
                       }
                       formatOnBlur
-                      className="w-full text-[14px] font-[500] pl-3 border-none bg-transparent p-0 focus:outline-none"
+                      disabled={readOnly}
+                      className="w-full text-[14px] font-[500] pl-3 border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
                     />
                   </div>
                   <div
@@ -212,13 +225,16 @@ export function LineItemSection({
                   >
                     ${(sub ?? 0).toFixed(2)}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(li.id)}
-                    className="px-[11px] py-[11px] bg-transparent border-none text-[var(--muted)] cursor-pointer text-[14px] leading-none hover:text-[var(--accent)]"
-                  >
-                    ✕
-                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(li.id)}
+                      className="px-[11px] py-[11px] bg-transparent border-none text-[var(--muted)] cursor-pointer text-[14px] leading-none hover:text-[var(--accent)]"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  {readOnly && <div />}
                 </div>
 
                 {/* Room tags */}
@@ -312,13 +328,15 @@ export function LineItemSection({
       </div>
 
       {/* Add line item button */}
-      <button
-        type="button"
-        onClick={addItem}
-        className="w-full py-[11px] font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border border-dashed border-[var(--line-2)] rounded-[6px] cursor-pointer transition-colors duration-150 hover:border-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
-      >
-        + Add Line Item
-      </button>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={addItem}
+          className="w-full py-[11px] font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border border-dashed border-[var(--line-2)] rounded-[6px] cursor-pointer transition-colors duration-150 hover:border-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
+        >
+          + Add Line Item
+        </button>
+      )}
 
       {picker &&
         (() => {

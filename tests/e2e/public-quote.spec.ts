@@ -78,7 +78,7 @@ test.describe
       await expect(page.getByText(/^Quote$/i).first()).toBeVisible();
       await expect(page.getByText("Carla Customer")).toBeVisible();
       await expect(
-        page.getByText("Johnson Flooring Co.", { exact: true })
+        page.getByText("Johnson Flooring Co.", { exact: true }).first()
       ).toBeVisible();
       await ctx.close();
     });

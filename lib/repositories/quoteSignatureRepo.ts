@@ -31,7 +31,7 @@ export async function acceptQuoteByToken(
   return prisma.$transaction(async (tx) => {
     const q = await tx.quote.findFirst({
       where: { id: input.quoteId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, estimateId: true, quoteNumber: true },
     });
     if (!q) return "not_found" as const;
     if (q.status === "accepted") return "already_signed" as const;
@@ -52,7 +52,6 @@ export async function acceptQuoteByToken(
         },
       });
     } catch (err) {
-      // Unique constraint on quoteId — another request beat us
       if (err instanceof Error && err.message.includes("Unique")) {
         return "already_signed" as const;
       }
@@ -71,12 +70,51 @@ export async function acceptQuoteByToken(
       data: {
         quoteId: input.quoteId,
         type: "accepted",
+        source: "customer",
         actorEmail: input.signedByEmail,
         actorName: input.signedByName,
         ip: input.signedIp,
         userAgent: input.signedUserAgent,
       },
     });
+
+    // Identify open siblings, then sweep them to declined.
+    const openSiblings = await tx.quote.findMany({
+      where: {
+        estimateId: q.estimateId,
+        id: { not: q.id },
+        status: { in: ["draft", "sent", "viewed"] },
+      },
+      select: { id: true, quoteNumber: true },
+    });
+
+    const declineReason = `Superseded — customer accepted Quote #${q.quoteNumber}`;
+    await tx.quote.updateMany({
+      where: {
+        estimateId: q.estimateId,
+        id: { not: q.id },
+        status: { in: ["draft", "sent", "viewed"] },
+      },
+      data: {
+        status: "declined",
+        declinedAt: new Date(),
+        declineReason,
+      },
+    });
+
+    if (openSiblings.length > 0) {
+      await tx.quoteEvent.createMany({
+        data: openSiblings.map((s) => ({
+          quoteId: s.id,
+          type: "declined",
+          source: "system_supersede",
+          metadata: {
+            supersededByQuoteId: q.id,
+            supersededByQuoteNumber: q.quoteNumber,
+          },
+        })),
+      });
+    }
 
     return "ok" as const;
   });

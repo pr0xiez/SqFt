@@ -24,6 +24,15 @@ export interface QuoteListItem {
   estimate: QuoteEstimateSummary;
   _count: { lineItems: number };
   total: number | null;
+  revisedFromId: number | null;
+}
+
+export interface QuoteDeclineEvent {
+  id: number;
+  type: string;
+  source: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }
 
 export interface QuoteDetail {
@@ -37,6 +46,9 @@ export interface QuoteDetail {
   markupPct: number;
   depositPct: number;
   approvalToken?: string | null;
+  acceptedAt?: string | null;
+  declinedAt?: string | null;
+  declineReason?: string | null;
   createdAt: string;
   estimate: {
     id: number;
@@ -52,6 +64,10 @@ export interface QuoteDetail {
   };
   lineItems: LineItemCalc[];
   org?: { name: string } | null;
+  signature?: { signedByName: string } | null;
+  quoteEvents?: QuoteDeclineEvent[];
+  revisedFrom?: { id: number; quoteNumber: number } | null;
+  revisedBy?: { id: number; quoteNumber: number }[];
 }
 
 export interface UpdateQuoteInput {

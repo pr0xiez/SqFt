@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { QuoteSummary } from "@/components/estimates/QuoteSummary";
+import { QuoteLockBanner } from "@/components/quotes/QuoteLockBanner";
+import { ReviseButton } from "@/components/quotes/ReviseButton";
 import { SendQuoteDialog } from "@/components/quotes/SendQuoteDialog";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
@@ -73,6 +75,8 @@ export function QuoteBuilderView({ quoteId }: Props) {
     );
   }
 
+  const locked = quote.status === "accepted" || quote.status === "declined";
+
   const rooms = (quote.estimate.items ?? []).filter(
     (i): i is RoomItem => i.type === "room"
   );
@@ -80,6 +84,30 @@ export function QuoteBuilderView({ quoteId }: Props) {
 
   return (
     <>
+      {/* Revision chain links */}
+      {(quote.revisedFrom ||
+        (quote.revisedBy && quote.revisedBy.length > 0)) && (
+        <div className="mb-3 font-[var(--font-mono)] text-[11px] text-[var(--muted)] flex gap-3 flex-wrap">
+          {quote.revisedFrom && (
+            <a
+              href={`/quotes/${quote.revisedFrom.id}`}
+              className="text-[var(--accent)] underline"
+            >
+              ← Revision of Q#{quote.revisedFrom.quoteNumber}
+            </a>
+          )}
+          {quote.revisedBy?.map((rev) => (
+            <a
+              key={rev.id}
+              href={`/quotes/${rev.id}`}
+              className="text-[var(--accent)] underline"
+            >
+              Revised by Q#{rev.quoteNumber} →
+            </a>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
@@ -113,9 +141,12 @@ export function QuoteBuilderView({ quoteId }: Props) {
           <Link href={`/estimates/${quote.estimateId}`}>
             <Button variant="ghost">← Back to estimate</Button>
           </Link>
-          <Button variant="primary" onClick={() => setSendDialogOpen(true)}>
-            Send to customer →
-          </Button>
+          {!locked && (
+            <Button variant="primary" onClick={() => setSendDialogOpen(true)}>
+              Send to customer →
+            </Button>
+          )}
+          {locked && <ReviseButton quoteId={quote.id} />}
           <div className="relative" ref={actionsRef}>
             <Button
               variant="ghost"
@@ -153,6 +184,26 @@ export function QuoteBuilderView({ quoteId }: Props) {
         </div>
       </div>
 
+      {/* Lock banner — shown when quote is accepted or declined */}
+      {locked && (
+        <QuoteLockBanner
+          status={quote.status as "accepted" | "declined"}
+          acceptedByName={quote.signature?.signedByName ?? null}
+          acceptedAt={quote.acceptedAt ?? null}
+          declinedAt={quote.declinedAt ?? null}
+          declineReason={quote.declineReason ?? null}
+          declineSource={quote.quoteEvents?.[0]?.source ?? null}
+          supersededByQuoteNumber={
+            (
+              quote.quoteEvents?.[0]?.metadata as {
+                supersededByQuoteNumber?: number;
+              } | null
+            )?.supersededByQuoteNumber ?? null
+          }
+          signedHref={`/quotes/${quote.id}/signed`}
+        />
+      )}
+
       {/* Customer bar */}
       {quote.estimate.customer && (
         <div className="flex items-center gap-3.5 px-[18px] py-[14px] bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--accent)] rounded-lg mb-4">
@@ -176,6 +227,7 @@ export function QuoteBuilderView({ quoteId }: Props) {
         rooms={rooms}
         taxRate={quote.taxRate}
         markupPct={quote.markupPct}
+        readOnly={locked}
         onSave={async (lineItems) => {
           try {
             await updateQuote.mutateAsync({ lineItems });
@@ -193,6 +245,7 @@ export function QuoteBuilderView({ quoteId }: Props) {
         taxRate={quote.taxRate}
         markupPct={quote.markupPct}
         depositPct={quote.depositPct}
+        readOnly={locked}
         onSave={async (data) => {
           try {
             await updateQuote.mutateAsync(data);

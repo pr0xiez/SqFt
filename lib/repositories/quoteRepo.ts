@@ -47,6 +47,14 @@ export type QuoteWithDetails = Prisma.QuoteGetPayload<{
     };
     lineItems: { orderBy: { sortOrder: "asc" } };
     org: { select: { name: true } };
+    signature: { select: { signedByName: true } };
+    quoteEvents: {
+      where: { type: "declined" };
+      orderBy: { createdAt: "desc" };
+      take: 1;
+    };
+    revisedFrom: { select: { id: true; quoteNumber: true } };
+    revisedBy: { select: { id: true; quoteNumber: true } };
   };
 }>;
 
@@ -66,6 +74,12 @@ export type QuoteWithPublicView = Prisma.QuoteGetPayload<{
         address: true;
         licenseNumber: true;
         logo: true;
+        users: {
+          where: { role: "owner" };
+          orderBy: { id: "asc" };
+          take: 1;
+          select: { email: true };
+        };
       };
     };
     signature: true;
@@ -143,6 +157,14 @@ export async function getQuote(
       },
       lineItems: { orderBy: { sortOrder: "asc" } },
       org: { select: { name: true } },
+      signature: { select: { signedByName: true } },
+      quoteEvents: {
+        where: { type: "declined" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+      revisedFrom: { select: { id: true, quoteNumber: true } },
+      revisedBy: { select: { id: true, quoteNumber: true } },
     },
   });
 }
@@ -191,6 +213,14 @@ export async function createQuote(
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
         org: { select: { name: true } },
+        signature: { select: { signedByName: true } },
+        quoteEvents: {
+          where: { type: "declined" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+        revisedFrom: { select: { id: true, quoteNumber: true } },
+        revisedBy: { select: { id: true, quoteNumber: true } },
       },
     });
   });
@@ -204,6 +234,15 @@ export async function saveQuote(
   const { lineItems, ...topLevel } = patch;
 
   return prisma.$transaction(async (tx) => {
+    const existing = await tx.quote.findFirst({
+      where: { id, orgId },
+      select: { id: true, status: true },
+    });
+    if (!existing) return null;
+    if (existing.status === "accepted" || existing.status === "declined") {
+      return null;
+    }
+
     if (Object.keys(topLevel).length > 0) {
       const result = await tx.quote.updateMany({
         where: { id, orgId },
@@ -238,6 +277,14 @@ export async function saveQuote(
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
         org: { select: { name: true } },
+        signature: { select: { signedByName: true } },
+        quoteEvents: {
+          where: { type: "declined" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+        revisedFrom: { select: { id: true, quoteNumber: true } },
+        revisedBy: { select: { id: true, quoteNumber: true } },
       },
     });
   });
@@ -282,6 +329,77 @@ export async function rotateApprovalToken(
   return result.count > 0 ? token : null;
 }
 
+/**
+ * Clone an accepted or declined quote into a new draft quote on the
+ * same estimate. The new quote is linked back via `revisedFromId`.
+ * Returns null if the source quote isn't found / not in the org.
+ */
+export async function reviseQuote(
+  quoteId: number,
+  orgId: string
+): Promise<{ id: number } | null> {
+  return prisma.$transaction(async (tx) => {
+    const original = await tx.quote.findFirst({
+      where: { id: quoteId, orgId },
+      include: { lineItems: true },
+    });
+    if (!original) return null;
+
+    const org = await tx.organization.update({
+      where: { id: orgId },
+      data: { nextQuoteNumber: { increment: 1 } },
+      select: { nextQuoteNumber: true },
+    });
+    const newQuoteNumber = org.nextQuoteNumber - 1;
+
+    const created = await tx.quote.create({
+      data: {
+        orgId: original.orgId,
+        estimateId: original.estimateId,
+        quoteNumber: newQuoteNumber,
+        status: "draft",
+        date: new Date(),
+        taxRate: original.taxRate,
+        markupPct: original.markupPct,
+        depositPct: original.depositPct,
+        approvalToken: generateToken(),
+        revisedFromId: original.id,
+      },
+      select: { id: true },
+    });
+
+    if (original.lineItems.length > 0) {
+      await tx.lineItem.createMany({
+        data: original.lineItems.map((li) => ({
+          quoteId: created.id,
+          name: li.name,
+          unitLabel: li.unitLabel,
+          rate: li.rate,
+          qtyMode: li.qtyMode,
+          qty: li.qty,
+          wastePct: li.wastePct,
+          linkedRoomIds: li.linkedRoomIds ?? [],
+          sortOrder: li.sortOrder,
+        })),
+      });
+    }
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId: created.id,
+        type: "revised_from",
+        source: "builder",
+        metadata: {
+          revisedFromId: original.id,
+          revisedFromQuoteNumber: original.quoteNumber,
+        },
+      },
+    });
+
+    return { id: created.id };
+  });
+}
+
 export interface MarkQuoteSentInput {
   to: string;
   subject: string;
@@ -324,6 +442,7 @@ export async function markQuoteSent(
       data: {
         quoteId: id,
         type: existing.sentAt ? "resent" : "sent",
+        source: "builder",
         actorEmail: input.sentByEmail,
         actorName: input.sentByName,
         metadata: { to: input.to, subject: input.subject },
@@ -367,6 +486,7 @@ export async function markQuoteViewed(
       data: {
         quoteId,
         type: "viewed",
+        source: "customer",
         ip: input.ip ?? undefined,
         userAgent: input.userAgent ?? undefined,
       },
@@ -417,6 +537,7 @@ export async function declineQuoteByToken(
       data: {
         quoteId,
         type: "declined",
+        source: "customer",
         ip: input.ip ?? undefined,
         userAgent: input.userAgent ?? undefined,
         metadata: input.reason ? { reason: input.reason } : undefined,
@@ -451,6 +572,12 @@ export async function getQuoteByToken(
           address: true,
           licenseNumber: true,
           logo: true,
+          users: {
+            where: { role: "owner" },
+            orderBy: { id: "asc" },
+            take: 1,
+            select: { email: true },
+          },
         },
       },
       signature: true,
