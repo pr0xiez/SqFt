@@ -53,6 +53,8 @@ export type QuoteWithDetails = Prisma.QuoteGetPayload<{
       orderBy: { createdAt: "desc" };
       take: 1;
     };
+    revisedFrom: { select: { id: true; quoteNumber: true } };
+    revisedBy: { select: { id: true; quoteNumber: true } };
   };
 }>;
 
@@ -155,6 +157,8 @@ export async function getQuote(
         orderBy: { createdAt: "desc" },
         take: 1,
       },
+      revisedFrom: { select: { id: true, quoteNumber: true } },
+      revisedBy: { select: { id: true, quoteNumber: true } },
     },
   });
 }
@@ -209,6 +213,8 @@ export async function createQuote(
           orderBy: { createdAt: "desc" },
           take: 1,
         },
+        revisedFrom: { select: { id: true, quoteNumber: true } },
+        revisedBy: { select: { id: true, quoteNumber: true } },
       },
     });
   });
@@ -271,6 +277,8 @@ export async function saveQuote(
           orderBy: { createdAt: "desc" },
           take: 1,
         },
+        revisedFrom: { select: { id: true, quoteNumber: true } },
+        revisedBy: { select: { id: true, quoteNumber: true } },
       },
     });
   });

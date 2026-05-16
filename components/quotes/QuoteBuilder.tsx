@@ -84,6 +84,30 @@ export function QuoteBuilderView({ quoteId }: Props) {
 
   return (
     <>
+      {/* Revision chain links */}
+      {(quote.revisedFrom ||
+        (quote.revisedBy && quote.revisedBy.length > 0)) && (
+        <div className="mb-3 font-[var(--font-mono)] text-[11px] text-[var(--muted)] flex gap-3 flex-wrap">
+          {quote.revisedFrom && (
+            <a
+              href={`/quotes/${quote.revisedFrom.id}`}
+              className="text-[var(--accent)] underline"
+            >
+              ← Revision of Q#{quote.revisedFrom.quoteNumber}
+            </a>
+          )}
+          {quote.revisedBy?.map((rev) => (
+            <a
+              key={rev.id}
+              href={`/quotes/${rev.id}`}
+              className="text-[var(--accent)] underline"
+            >
+              Revised by Q#{rev.quoteNumber} →
+            </a>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>

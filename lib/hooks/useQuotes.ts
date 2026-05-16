@@ -65,6 +65,8 @@ export interface QuoteDetail {
   org?: { name: string } | null;
   signature?: { signedByName: string } | null;
   quoteEvents?: QuoteDeclineEvent[];
+  revisedFrom?: { id: number; quoteNumber: number } | null;
+  revisedBy?: { id: number; quoteNumber: number }[];
 }
 
 export interface UpdateQuoteInput {
