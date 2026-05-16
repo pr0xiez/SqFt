@@ -7,7 +7,8 @@ export type QuoteEventType =
   | "accepted"
   | "declined"
   | "link_rotated"
-  | "resent";
+  | "resent"
+  | "revised_from";
 
 export interface WriteQuoteEventInput {
   quoteId: number;

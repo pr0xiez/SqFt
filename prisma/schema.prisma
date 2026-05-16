@@ -165,7 +165,7 @@ model QuoteEvent {
   id         Int      @id @default(autoincrement())
   quoteId    Int
   quote      Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  type       String // sent | viewed | accepted | declined | link_rotated | resent
+  type       String // sent | viewed | accepted | declined | link_rotated | resent | revised_from
   actorEmail String?
   actorName  String?
   ip         String?

@@ -282,6 +282,77 @@ export async function rotateApprovalToken(
   return result.count > 0 ? token : null;
 }
 
+/**
+ * Clone an accepted or declined quote into a new draft quote on the
+ * same estimate. The new quote is linked back via `revisedFromId`.
+ * Returns null if the source quote isn't found / not in the org.
+ */
+export async function reviseQuote(
+  quoteId: number,
+  orgId: string
+): Promise<{ id: number } | null> {
+  return prisma.$transaction(async (tx) => {
+    const original = await tx.quote.findFirst({
+      where: { id: quoteId, orgId },
+      include: { lineItems: true },
+    });
+    if (!original) return null;
+
+    const org = await tx.organization.update({
+      where: { id: orgId },
+      data: { nextQuoteNumber: { increment: 1 } },
+      select: { nextQuoteNumber: true },
+    });
+    const newQuoteNumber = org.nextQuoteNumber - 1;
+
+    const created = await tx.quote.create({
+      data: {
+        orgId: original.orgId,
+        estimateId: original.estimateId,
+        quoteNumber: newQuoteNumber,
+        status: "draft",
+        date: new Date(),
+        taxRate: original.taxRate,
+        markupPct: original.markupPct,
+        depositPct: original.depositPct,
+        approvalToken: generateToken(),
+        revisedFromId: original.id,
+      },
+      select: { id: true },
+    });
+
+    if (original.lineItems.length > 0) {
+      await tx.lineItem.createMany({
+        data: original.lineItems.map((li) => ({
+          quoteId: created.id,
+          name: li.name,
+          unitLabel: li.unitLabel,
+          rate: li.rate,
+          qtyMode: li.qtyMode,
+          qty: li.qty,
+          wastePct: li.wastePct,
+          linkedRoomIds: li.linkedRoomIds ?? [],
+          sortOrder: li.sortOrder,
+        })),
+      });
+    }
+
+    await tx.quoteEvent.create({
+      data: {
+        quoteId: created.id,
+        type: "revised_from",
+        source: "builder",
+        metadata: {
+          revisedFromId: original.id,
+          revisedFromQuoteNumber: original.quoteNumber,
+        },
+      },
+    });
+
+    return { id: created.id };
+  });
+}
+
 export interface MarkQuoteSentInput {
   to: string;
   subject: string;
