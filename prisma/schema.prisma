@@ -123,6 +123,12 @@ model Quote {
   events    Event[]
   signature QuoteSignature?
   quoteEvents QuoteEvent[]
+
+  // Revision chain — Revise on an accepted/declined quote clones it
+  // into a new draft with this field set to the predecessor's id.
+  revisedFromId Int?
+  revisedFrom   Quote?  @relation("QuoteRevisions", fields: [revisedFromId], references: [id], onDelete: SetNull)
+  revisedBy     Quote[] @relation("QuoteRevisions")
 }
 
 // A line item (material/labor) in a quote
@@ -165,6 +171,7 @@ model QuoteEvent {
   ip         String?
   userAgent  String?
   metadata   Json?
+  source     String?  // "customer" | "builder" | "system_supersede" — null = legacy
   createdAt  DateTime @default(now())
 
   @@index([quoteId, createdAt])
