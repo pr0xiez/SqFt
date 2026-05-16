@@ -24,6 +24,7 @@ export interface QuoteListItem {
   estimate: QuoteEstimateSummary;
   _count: { lineItems: number };
   total: number | null;
+  revisedFromId: number | null;
 }
 
 export interface QuoteDeclineEvent {
