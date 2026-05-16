@@ -557,6 +557,7 @@ async function main() {
   for (const evt of [
     {
       type: "sent",
+      source: "builder",
       actorEmail: user.email,
       actorName: user.name,
       createdAt: new Date("2026-04-20T15:00:00Z"),
@@ -565,6 +566,7 @@ async function main() {
     },
     {
       type: "viewed",
+      source: "builder",
       actorEmail: null,
       actorName: null,
       createdAt: new Date("2026-04-21T09:30:00Z"),
@@ -573,6 +575,7 @@ async function main() {
     },
     {
       type: "accepted",
+      source: "customer",
       actorEmail: "rmartinez@email.com",
       actorName: "Roberto Martinez",
       createdAt: new Date("2026-04-21T17:42:00Z"),
@@ -584,6 +587,7 @@ async function main() {
       data: {
         quoteId: q5002.id,
         type: evt.type,
+        source: evt.source,
         actorEmail: evt.actorEmail,
         actorName: evt.actorName,
         ip: evt.ip,
@@ -614,6 +618,7 @@ async function main() {
   for (const evt of [
     {
       type: "sent",
+      source: "builder",
       actorEmail: user.email,
       actorName: user.name,
       createdAt: new Date("2026-04-18T13:15:00Z"),
@@ -622,6 +627,7 @@ async function main() {
     },
     {
       type: "viewed",
+      source: "builder",
       actorEmail: null,
       actorName: null,
       createdAt: new Date("2026-04-18T20:05:00Z"),
@@ -630,6 +636,7 @@ async function main() {
     },
     {
       type: "accepted",
+      source: "customer",
       actorEmail: "lchen@email.com",
       actorName: "Linda Chen",
       createdAt: new Date("2026-04-19T08:21:00Z"),
@@ -641,6 +648,7 @@ async function main() {
       data: {
         quoteId: q5003.id,
         type: evt.type,
+        source: evt.source,
         actorEmail: evt.actorEmail,
         actorName: evt.actorName,
         ip: evt.ip,
