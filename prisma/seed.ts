@@ -16,6 +16,34 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("🌱 Seeding demo data…");
 
+  // ── Reset demo data so the seed is safely re-runnable ─────────────────────
+  // The seed populates demo orgs (johnson-flooring-demo, other-floors-demo)
+  // via `create`, not upsert, for child rows — quotes, line items, events,
+  // estimates, etc. Without a wipe step, re-running duplicates everything and
+  // trips unique constraints (e.g. approvalToken). Clear the demo orgs' data
+  // first; cascades take care of LineItem/QuoteSignature/QuoteEvent/
+  // EstimateItem rows automatically.
+  const demoOrgSlugs = ["johnson-flooring-demo", "other-floors-demo"];
+  const demoOrgs = await prisma.organization.findMany({
+    where: { slug: { in: demoOrgSlugs } },
+    select: { id: true },
+  });
+  if (demoOrgs.length > 0) {
+    const demoOrgIds = demoOrgs.map((o) => o.id);
+    await prisma.event.deleteMany({ where: { orgId: { in: demoOrgIds } } });
+    await prisma.customer.deleteMany({ where: { orgId: { in: demoOrgIds } } });
+    await prisma.crewMember.deleteMany({
+      where: { orgId: { in: demoOrgIds } },
+    });
+    // Reset per-org counters so the seed's explicit estimate/quote numbers
+    // don't drift relative to nextEstimateNumber / nextQuoteNumber.
+    await prisma.organization.updateMany({
+      where: { id: { in: demoOrgIds } },
+      data: { nextEstimateNumber: 1, nextQuoteNumber: 1 },
+    });
+    console.log(`  ✓ Cleared prior demo data (${demoOrgs.length} org(s))`);
+  }
+
   // ── Organization ──────────────────────────────────────────────────────────
   const org = await prisma.organization.upsert({
     where: { slug: "johnson-flooring-demo" },
@@ -395,6 +423,12 @@ async function main() {
     },
   });
 
+  // 1×1 transparent PNG used as a placeholder signature for seeded accepts:
+  const placeholderSig =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
+  const seedConsentText =
+    "By typing my name and signing below, I consent to use an electronic signature, and agree this signature has the same legal effect as a handwritten signature on this quote.";
+
   // #5002 — Martinez HW (accepted) — winning quote, drives the job event
   const q5002 = await prisma.quote.create({
     data: {
@@ -405,6 +439,13 @@ async function main() {
       taxRate: 0.075,
       markupPct: 35,
       depositPct: 0.5,
+      approvalToken: "seed-token-q5002-cccccccccccccccccccccccc",
+      sentAt: new Date("2026-04-20T15:00:00Z"),
+      sentToEmail: "rmartinez@email.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      viewedAt: new Date("2026-04-21T09:30:00Z"),
+      acceptedAt: new Date("2026-04-21T17:42:00Z"),
       lineItems: {
         create: [
           {
@@ -449,6 +490,13 @@ async function main() {
       taxRate: 0.075,
       markupPct: 35,
       depositPct: 0.5,
+      approvalToken: "seed-token-q5003-dddddddddddddddddddddddd",
+      sentAt: new Date("2026-04-18T13:15:00Z"),
+      sentToEmail: "lchen@email.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      viewedAt: new Date("2026-04-18T20:05:00Z"),
+      acceptedAt: new Date("2026-04-19T08:21:00Z"),
       lineItems: {
         create: [
           {
@@ -482,6 +530,133 @@ async function main() {
       },
     },
   });
+
+  // Signatures + accept-flow events for the two winning quotes above. The app
+  // only flips a quote to `accepted` inside `acceptQuoteByToken`, which writes
+  // a QuoteSignature in the same transaction — so accepted quotes in seed data
+  // need matching signatures to preserve that invariant (and to keep the
+  // /quotes/[id]/signed audit page reachable).
+  await prisma.quoteSignature.create({
+    data: {
+      quoteId: q5002.id,
+      signedByName: "Roberto Martinez",
+      signedByEmail: "rmartinez@email.com",
+      signatureData: placeholderSig,
+      signedAt: new Date("2026-04-21T17:42:00Z"),
+      signedIp: "198.51.100.22",
+      signedUserAgent: "Mozilla/5.0 (seed fixture)",
+      consentText: seedConsentText,
+      quoteSnapshot: {
+        quoteNumber: q5002.quoteNumber,
+        seedFixture: true,
+      },
+      snapshotHash:
+        "0000000000000000000000000000000000000000000000000000000000000000",
+    },
+  });
+  for (const evt of [
+    {
+      type: "sent",
+      source: "builder",
+      actorEmail: user.email,
+      actorName: user.name,
+      createdAt: new Date("2026-04-20T15:00:00Z"),
+      ip: null as string | null,
+      userAgent: null as string | null,
+    },
+    {
+      type: "viewed",
+      source: "builder",
+      actorEmail: null,
+      actorName: null,
+      createdAt: new Date("2026-04-21T09:30:00Z"),
+      ip: "198.51.100.22",
+      userAgent: "Mozilla/5.0 (seed fixture)",
+    },
+    {
+      type: "accepted",
+      source: "customer",
+      actorEmail: "rmartinez@email.com",
+      actorName: "Roberto Martinez",
+      createdAt: new Date("2026-04-21T17:42:00Z"),
+      ip: "198.51.100.22",
+      userAgent: "Mozilla/5.0 (seed fixture)",
+    },
+  ] as const) {
+    await prisma.quoteEvent.create({
+      data: {
+        quoteId: q5002.id,
+        type: evt.type,
+        source: evt.source,
+        actorEmail: evt.actorEmail,
+        actorName: evt.actorName,
+        ip: evt.ip,
+        userAgent: evt.userAgent,
+        createdAt: evt.createdAt,
+      },
+    });
+  }
+
+  await prisma.quoteSignature.create({
+    data: {
+      quoteId: q5003.id,
+      signedByName: "Linda Chen",
+      signedByEmail: "lchen@email.com",
+      signatureData: placeholderSig,
+      signedAt: new Date("2026-04-19T08:21:00Z"),
+      signedIp: "198.51.100.51",
+      signedUserAgent: "Mozilla/5.0 (seed fixture)",
+      consentText: seedConsentText,
+      quoteSnapshot: {
+        quoteNumber: q5003.quoteNumber,
+        seedFixture: true,
+      },
+      snapshotHash:
+        "0000000000000000000000000000000000000000000000000000000000000000",
+    },
+  });
+  for (const evt of [
+    {
+      type: "sent",
+      source: "builder",
+      actorEmail: user.email,
+      actorName: user.name,
+      createdAt: new Date("2026-04-18T13:15:00Z"),
+      ip: null as string | null,
+      userAgent: null as string | null,
+    },
+    {
+      type: "viewed",
+      source: "builder",
+      actorEmail: null,
+      actorName: null,
+      createdAt: new Date("2026-04-18T20:05:00Z"),
+      ip: "198.51.100.51",
+      userAgent: "Mozilla/5.0 (seed fixture)",
+    },
+    {
+      type: "accepted",
+      source: "customer",
+      actorEmail: "lchen@email.com",
+      actorName: "Linda Chen",
+      createdAt: new Date("2026-04-19T08:21:00Z"),
+      ip: "198.51.100.51",
+      userAgent: "Mozilla/5.0 (seed fixture)",
+    },
+  ] as const) {
+    await prisma.quoteEvent.create({
+      data: {
+        quoteId: q5003.id,
+        type: evt.type,
+        source: evt.source,
+        actorEmail: evt.actorEmail,
+        actorName: evt.actorName,
+        ip: evt.ip,
+        userAgent: evt.userAgent,
+        createdAt: evt.createdAt,
+      },
+    });
+  }
 
   // #5004 — Sharma Tile (draft)
   const q5004 = await prisma.quote.create({
@@ -596,9 +771,6 @@ async function main() {
     },
   });
 
-  // 1×1 transparent PNG as a placeholder signature:
-  const placeholderSig =
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
   await prisma.quoteSignature.create({
     data: {
       quoteId: acceptedQuote.id,
@@ -608,8 +780,7 @@ async function main() {
       signedAt: new Date("2026-05-02T10:45:00Z"),
       signedIp: "203.0.113.42",
       signedUserAgent: "Mozilla/5.0 (seed fixture)",
-      consentText:
-        "By typing my name and signing below, I consent to use an electronic signature, and agree this signature has the same legal effect as a handwritten signature on this quote.",
+      consentText: seedConsentText,
       quoteSnapshot: {
         quoteNumber: acceptedQuote.quoteNumber,
         seedFixture: true,

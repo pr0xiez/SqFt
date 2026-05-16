@@ -61,12 +61,12 @@ export default async function SignedQuotePage({ params }: Props) {
               })}
             </div>
           </div>
-          <div>
+          <div className="ml-auto bg-white border border-[var(--line)] rounded-md p-2">
             {/* biome-ignore lint/performance/noImgElement: data URL */}
             <img
               src={signature.signatureData}
               alt="signature"
-              className="max-h-[60px] max-w-[200px]"
+              className="h-[90px] w-auto max-w-[320px] block"
             />
           </div>
         </div>

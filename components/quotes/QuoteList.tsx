@@ -111,7 +111,7 @@ export function QuoteListView() {
           filtered.map((q) => {
             const customer = q.estimate.customer;
             const estimateLabel = `#${q.estimate.estimateNumber ?? q.estimate.id}`;
-            const totalLabel = q.total === null ? "—" : `$${fmtBig(q.total)}`;
+            const totalLabel = q.total === null ? "—" : `${fmtBig(q.total)}`;
             const pillColor =
               STATUS_PILL_COLOR[q.status] ?? "text-[var(--muted)]";
 
