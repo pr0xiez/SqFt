@@ -148,8 +148,6 @@ test.describe("6.2 Public decline", () => {
     await expect(page.getByText(/declined/i).first()).toBeVisible();
     await anon.close();
     await ctx.close();
-
-    void quoteId;
   });
 
   test("6.2.3 second decline returns 409", async ({ browser }) => {
@@ -170,7 +168,5 @@ test.describe("6.2 Public decline", () => {
     expect(second.status()).toBe(409);
     await anon.close();
     await ctx.close();
-
-    void quoteId;
   });
 });

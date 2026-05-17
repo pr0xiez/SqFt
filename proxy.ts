@@ -21,6 +21,7 @@ export default auth((req) => {
   const isPublicQuote = req.nextUrl.pathname.startsWith("/q/");
   // /api/q/[token]/accept and /api/q/[token]/decline are unauthenticated — the
   // token itself is the credential, so let them through just like the page route.
+  // Any new route under /api/q/ must enforce its own auth inside the handler.
   const isPublicQuoteApi = req.nextUrl.pathname.startsWith("/api/q/");
 
   // Allow auth API routes and public token-authed quote pages through unconditionally
