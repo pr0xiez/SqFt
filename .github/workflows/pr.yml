@@ -80,6 +80,7 @@ jobs:
         id: vercel
         uses: patrickedqvist/wait-for-vercel-preview@v1.3.3
         with:
+          vercel_protection_bypass_header: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           token: ${{ secrets.GITHUB_TOKEN }}
           max_timeout: 600 # 10 min — bump if your builds are longer
           check_interval: 5
