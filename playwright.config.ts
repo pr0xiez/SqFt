@@ -17,6 +17,11 @@ loadDotenv({
   override: true,
 });
 
+// When BASE_URL is set, point tests at that deployment and skip the local
+// dev server. Otherwise default to http://localhost:3000 with a local server.
+const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
+const useExternalServer = !!process.env.BASE_URL;
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -25,18 +30,25 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL,
     trace: "on-first-retry",
     actionTimeout: 10_000,
+    extraHTTPHeaders: {
+      "x-vercel-protection-bypass":
+        process.env.VERCEL_AUTOMATION_BYPASS_SECRET!,
+      "x-vercel-set-bypass-cookie": "samesitenone",
+    },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    // Pass the resolved env to the spawned dev server process so
-    // AUTH_SECRET and DATABASE_URL are available even without a local .env.
-    env: process.env as Record<string, string>,
-  },
+  webServer: useExternalServer
+    ? undefined
+    : {
+        command: "npm run dev",
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        // Pass the resolved env to the spawned dev server process so
+        // AUTH_SECRET and DATABASE_URL are available even without a local .env.
+        env: process.env as Record<string, string>,
+      },
 });
