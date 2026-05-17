@@ -3,24 +3,29 @@ import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { config as loadDotenv } from "dotenv";
 
-// Worktrees live at .claude/worktrees/<name>/ — the main project .env is 3
-// levels up. Load it so the dev server starts with DATABASE_URL + AUTH_SECRET.
-const localEnv = resolve(process.cwd(), ".env");
-const parentEnv = resolve(process.cwd(), "../../..", ".env");
-loadDotenv({ path: existsSync(localEnv) ? localEnv : parentEnv });
-
-// .env.test overrides DATABASE_URL (and anything else) for E2E runs.
-const localTestEnv = resolve(process.cwd(), ".env.test");
-const parentTestEnv = resolve(process.cwd(), "../../..", ".env.test");
-loadDotenv({
-  path: existsSync(localTestEnv) ? localTestEnv : parentTestEnv,
-  override: true,
-});
-
 // When BASE_URL is set, point tests at that deployment and skip the local
 // dev server. Otherwise default to http://localhost:3000 with a local server.
 const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
 const useExternalServer = !!process.env.BASE_URL;
+
+// Only load .env files when starting a local dev server. Remote runs (CI
+// against a Vercel preview) get their config from the deployment + workflow
+// env, so loading dotenv here just spams the log with "tip" messages.
+if (!useExternalServer) {
+  // Worktrees live at .claude/worktrees/<name>/ — the main project .env is 3
+  // levels up. Load it so the dev server starts with DATABASE_URL + AUTH_SECRET.
+  const localEnv = resolve(process.cwd(), ".env");
+  const parentEnv = resolve(process.cwd(), "../../..", ".env");
+  loadDotenv({ path: existsSync(localEnv) ? localEnv : parentEnv });
+
+  // .env.test overrides DATABASE_URL (and anything else) for E2E runs.
+  const localTestEnv = resolve(process.cwd(), ".env.test");
+  const parentTestEnv = resolve(process.cwd(), "../../..", ".env.test");
+  loadDotenv({
+    path: existsSync(localTestEnv) ? localTestEnv : parentTestEnv,
+    override: true,
+  });
+}
 
 export default defineConfig({
   testDir: "./tests/e2e",
