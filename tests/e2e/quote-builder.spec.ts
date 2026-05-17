@@ -1,11 +1,9 @@
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import {
-  type APIRequestContext,
-  type BrowserContext,
-  expect,
-  type Page,
-  test,
-} from "@playwright/test";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "./fixtures/auth";
+  loginAsDemo,
+  seedEstimateWithRooms,
+  seedQuoteWithLineItem,
+} from "./fixtures/seed";
 
 // ── 4.1 Quote Builder — Room Link Picker ─────────────────────────────────────
 //
@@ -14,113 +12,6 @@ import { DEMO_EMAIL, DEMO_PASSWORD } from "./fixtures/auth";
 // Dining 10×8 = 80 sqft), 1 draft quote with one manual line item. Each test
 // drives the picker UI and asserts both the rendered state and the persisted
 // shape via GET /api/quotes/{id}.
-
-async function loginAsDemo(ctx: BrowserContext): Promise<Page> {
-  const page = await ctx.newPage();
-  await page.goto("/login");
-  await page.fill("#email", DEMO_EMAIL);
-  await page.fill("#password", DEMO_PASSWORD);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL("/");
-  return page;
-}
-
-async function seedEstimateWithRooms(
-  request: APIRequestContext
-): Promise<{ estimateId: number; kitchenId: number; diningId: number }> {
-  const custRes = await request.post("/api/customers", {
-    data: { name: "Quote Customer", source: "phone" },
-  });
-  const customer = await custRes.json();
-
-  const estRes = await request.post("/api/estimates", {
-    data: { customerId: customer.id },
-  });
-  const estimate = await estRes.json();
-
-  // Two rect rooms: 120 sqft + 80 sqft = 200 base sqft.
-  await request.patch(`/api/estimates/${estimate.id}`, {
-    data: {
-      items: [
-        {
-          id: 1,
-          type: "room",
-          name: "Kitchen",
-          shape: "rect",
-          w: 10,
-          l: 12,
-          note: "",
-          sortOrder: 0,
-        },
-        {
-          id: 2,
-          type: "room",
-          name: "Dining",
-          shape: "rect",
-          w: 8,
-          l: 10,
-          note: "",
-          sortOrder: 1,
-        },
-      ],
-    },
-  });
-
-  // The PATCH renumbers item ids server-side. Read them back so tests can
-  // assert against the actual EstimateItem ids.
-  const get = await request.get(`/api/estimates/${estimate.id}`);
-  const fetched = await get.json();
-  const rooms = (
-    fetched.items as Array<{ id: number; name: string; type: string }>
-  ).filter((i) => i.type === "room");
-  const kitchen = rooms.find((r) => r.name === "Kitchen");
-  const dining = rooms.find((r) => r.name === "Dining");
-  if (!kitchen || !dining) {
-    throw new Error("seed estimate missing expected rooms");
-  }
-  return {
-    estimateId: estimate.id,
-    kitchenId: kitchen.id,
-    diningId: dining.id,
-  };
-}
-
-async function seedQuoteWithLineItem(
-  request: APIRequestContext,
-  estimateId: number
-): Promise<{ quoteId: number; lineItemId: number }> {
-  const quoteRes = await request.post("/api/quotes", {
-    data: { estimateId },
-  });
-  const quote = await quoteRes.json();
-
-  await request.patch(`/api/quotes/${quote.id}`, {
-    data: {
-      lineItems: [
-        {
-          id: 9001,
-          name: "Engineered hardwood",
-          rate: 8.5,
-          qtyMode: "manual",
-          qty: null,
-          wastePct: 0,
-          unitLabel: "ft²",
-          linkedRoomIds: [],
-          sortOrder: 0,
-        },
-      ],
-    },
-  });
-
-  // Read back the persisted line item id (server may renumber).
-  const get = await request.get(`/api/quotes/${quote.id}`);
-  const fetched = await get.json();
-  const li = (fetched.lineItems as Array<{ id: number; name: string }>).find(
-    (i) => i.name === "Engineered hardwood"
-  );
-  if (!li) throw new Error("seed quote missing expected line item");
-  return { quoteId: quote.id, lineItemId: li.id };
-}
 
 test.describe
   .serial("4.1 Quote Builder — room link picker", () => {

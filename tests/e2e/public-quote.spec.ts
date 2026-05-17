@@ -1,5 +1,5 @@
-import { expect, type Page, test } from "@playwright/test";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "./fixtures/auth";
+import { expect, test } from "@playwright/test";
+import { loginAsDemo } from "./fixtures/seed";
 
 // ── 1.4 Public token-authed quote view ────────────────────────────────────────
 //
@@ -15,13 +15,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       const ctx = await browser.newContext();
-      const page = await ctx.newPage();
-
-      await page.goto("/login");
-      await page.fill("#email", DEMO_EMAIL);
-      await page.fill("#password", DEMO_PASSWORD);
-      await page.click('button[type="submit"]');
-      await expect(page).toHaveURL("/");
+      await loginAsDemo(ctx);
 
       const custRes = await ctx.request.post("/api/customers", {
         data: { name: "Carla Customer", source: "phone" },
@@ -50,14 +44,6 @@ test.describe
 
       await ctx.close();
     });
-
-    async function login(page: Page) {
-      await page.goto("/login");
-      await page.fill("#email", DEMO_EMAIL);
-      await page.fill("#password", DEMO_PASSWORD);
-      await page.click('button[type="submit"]');
-      await expect(page).toHaveURL("/");
-    }
 
     // ── token shape ────────────────────────────────────────────────────────────
 
@@ -107,8 +93,7 @@ test.describe
       browser,
     }) => {
       const ctx = await browser.newContext();
-      const page = await ctx.newPage();
-      await login(page);
+      await loginAsDemo(ctx);
       // Rotate to a new token via the API
       const rotateRes = await ctx.request.post(
         `/api/quotes/${quoteId}/approval-token`

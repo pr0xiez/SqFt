@@ -54,6 +54,12 @@ export default defineConfig({
         timeout: 120_000,
         // Pass the resolved env to the spawned dev server process so
         // AUTH_SECRET and DATABASE_URL are available even without a local .env.
-        env: process.env as Record<string, string>,
+        // RESEND_API_KEY is force-cleared so lib/email/client.ts takes the
+        // in-memory recordEmail path — out-of-process Playwright can't read
+        // that buffer, but tests assert on sentAt / status, not email body.
+        env: {
+          ...(process.env as Record<string, string>),
+          RESEND_API_KEY: "",
+        },
       },
 });
