@@ -1,16 +1,10 @@
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import {
-  type APIRequestContext,
-  type BrowserContext,
-  expect,
-  type Page,
-  test,
-} from "@playwright/test";
-import {
-  DEMO_EMAIL,
-  DEMO_OTHER_EMAIL,
-  DEMO_OTHER_PASSWORD,
-  DEMO_PASSWORD,
-} from "./fixtures/auth";
+  createCustomerAndEstimate,
+  loginAsDemo,
+  loginAsOtherDemo,
+  reloadFresh,
+} from "./fixtures/seed";
 
 // ── 3.1 Estimate Builder ──────────────────────────────────────────────────────
 //
@@ -28,51 +22,6 @@ import {
 // initialize once and never re-sync from updated props, which makes that
 // stale cache visible. We clear localStorage before any reload assertion to
 // keep these tests focused on the server round-trip.
-
-async function loginAs(
-  ctx: BrowserContext,
-  email: string,
-  password: string
-): Promise<Page> {
-  const page = await ctx.newPage();
-  await page.goto("/login");
-  await page.fill("#email", email);
-  await page.fill("#password", password);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL("/");
-  return page;
-}
-
-async function loginAsDemo(ctx: BrowserContext): Promise<Page> {
-  return loginAs(ctx, DEMO_EMAIL, DEMO_PASSWORD);
-}
-
-async function loginAsOtherDemo(ctx: BrowserContext): Promise<Page> {
-  return loginAs(ctx, DEMO_OTHER_EMAIL, DEMO_OTHER_PASSWORD);
-}
-
-async function reloadFresh(page: Page): Promise<void> {
-  // Drop the persisted React Query cache so the reload renders from server
-  // data. See top-of-file comment.
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-}
-
-async function createCustomerAndEstimate(
-  request: APIRequestContext
-): Promise<{ customerId: number; estimateId: number }> {
-  const custRes = await request.post("/api/customers", {
-    data: { name: "Test Customer", source: "phone" },
-  });
-  expect(custRes.ok()).toBeTruthy();
-  const customer = await custRes.json();
-  const estRes = await request.post("/api/estimates", {
-    data: { customerId: customer.id },
-  });
-  expect(estRes.ok()).toBeTruthy();
-  const estimate = await estRes.json();
-  return { customerId: customer.id, estimateId: estimate.id };
-}
 
 // ── 3.1 PATCH /api/estimates/[id] — wire contract ───────────────────────────
 
