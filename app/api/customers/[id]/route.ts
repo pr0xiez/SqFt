@@ -73,7 +73,10 @@ export const DELETE = withLogging(
     try {
       const orgId = await getOrgId();
       const { id } = await params;
-      await deleteCustomer(parseInt(id, 10), orgId);
+      const deleted = await deleteCustomer(parseInt(id, 10), orgId);
+      if (!deleted) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
       return NextResponse.json({ ok: true });
     } catch (err) {
       if (err instanceof Error && err.message === "Unauthorized") {
