@@ -71,10 +71,10 @@ test.describe("6.1 Public accept", () => {
       "/api/q/totally-not-a-real-token-1234567890/accept",
       {
         data: {
-          name: "X",
+          name: "Real Customer",
           email: "x@example.com",
           signatureDataUrl: TEST_SIGNATURE_PNG,
-          consentText: "ok",
+          consentText: "I agree.",
         },
       }
     );
@@ -88,10 +88,10 @@ test.describe("6.1 Public accept", () => {
     const anon = await browser.newContext();
     const res = await anon.request.post("/api/q/abc/accept", {
       data: {
-        name: "X",
+        name: "Real Customer",
         email: "x@example.com",
         signatureDataUrl: TEST_SIGNATURE_PNG,
-        consentText: "ok",
+        consentText: "I agree.",
       },
     });
     expect(res.status()).toBe(404);
