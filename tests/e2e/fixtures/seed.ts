@@ -37,8 +37,7 @@ export const loginAsOtherDemo = (ctx: BrowserContext): Promise<Page> =>
 
 /**
  * Drop persisted React Query cache before reloading so the page hydrates from
- * server data, not stale localStorage. See top-of-file comment in
- * estimate-builder.spec.ts for the underlying reason.
+ * server data, not stale localStorage.
  */
 export async function reloadFresh(page: Page): Promise<void> {
   await page.evaluate(() => localStorage.clear());
@@ -115,9 +114,8 @@ export async function seedEstimateWithRooms(
     },
   });
 
-  const fetched = await (
-    await request.get(`/api/estimates/${estimate.id}`)
-  ).json();
+  const res = await request.get(`/api/estimates/${estimate.id}`);
+  const fetched = await res.json();
   const rooms = (
     fetched.items as Array<{ id: number; name: string; type: string }>
   ).filter((i) => i.type === "room");
@@ -169,7 +167,8 @@ export async function seedQuoteWithLineItem(
       ],
     },
   });
-  const fetched = await (await request.get(`/api/quotes/${quote.id}`)).json();
+  const res = await request.get(`/api/quotes/${quote.id}`);
+  const fetched = await res.json();
   const li = (fetched.lineItems as Array<{ id: number; name: string }>).find(
     (i) => i.name === "Engineered hardwood"
   );
