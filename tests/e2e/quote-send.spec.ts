@@ -28,7 +28,7 @@ test.describe
       await ctx.close();
     });
 
-    test("5.1.1 happy path: 200, sentAt set, QuoteEvent written", async () => {
+    test("5.1.1 happy path: 200, status=sent, sentAt set", async () => {
       const res = await ctx.request.post(`/api/quotes/${quoteId}/send`, {
         data: {
           to: "customer@example.com",
