@@ -81,7 +81,7 @@ jobs:
         uses: patrickedqvist/wait-for-vercel-preview@v1.3.3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          max_timeout: 600 # 10 min — bump if your builds run long
+          max_timeout: 600 # 10 min — bump if your builds are longer
           check_interval: 5
       - name: Run Playwright
         run: npx playwright test
