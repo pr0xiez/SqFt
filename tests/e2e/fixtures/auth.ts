@@ -38,9 +38,7 @@ export const test = base.extend<AuthFixtures, AuthWorkerFixtures>({
         authDir,
         `worker-${workerInfo.workerIndex}.json`
       );
-      const baseURL =
-        (workerInfo.project.use.baseURL as string | undefined) ??
-        "http://localhost:3000";
+      const baseURL = workerInfo.project.use.baseURL as string;
 
       // Always refresh the worker session — the seeded user is shared, so
       // re-logging in is cheap and avoids stale cookies between runs.
@@ -62,9 +60,7 @@ export const test = base.extend<AuthFixtures, AuthWorkerFixtures>({
   ],
 
   authedPage: async ({ browser, authStateFile }, use, testInfo) => {
-    const baseURL =
-      (testInfo.project.use.baseURL as string | undefined) ??
-      "http://localhost:3000";
+    const baseURL = testInfo.project.use.baseURL as string;
     const ctx = await browser.newContext({
       baseURL,
       storageState: authStateFile,

@@ -32,7 +32,7 @@ export default async function SignedQuotePage({ params }: Props) {
       </h1>
       <p className="text-[13px] text-[var(--muted)] mb-6">
         This is the legal record — a snapshot of the quote at the moment the
-        customer signed. The live quote may have been edited since.
+        customer signed.
       </p>
 
       <section className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-6 mb-4">
