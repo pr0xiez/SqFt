@@ -86,7 +86,7 @@ export function CustomerListView() {
       {/* Table */}
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
         {/* Header row */}
-        <div className="hidden md:grid grid-cols-[1fr_130px_100px_90px_80px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+        <div className="hidden md:grid grid-cols-[1fr_130px_100px_90px_100px] bg-[var(--surface-2)] border-b border-[var(--line)]">
           <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]">
             Customer
           </div>
@@ -119,7 +119,7 @@ export function CustomerListView() {
               type="button"
               onClick={() => router.push(`/customers/${c.id}`)}
               className={cn(
-                "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_130px_100px_90px_80px]",
+                "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_130px_100px_90px_100px]",
                 "items-center border-b border-[var(--line)] last:border-b-0",
                 "cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]",
                 "border-l-[3px]",
@@ -148,7 +148,7 @@ export function CustomerListView() {
                 })}
               </div>
               <div className="px-3.5 py-3.5 hidden md:block">
-                <span className="font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
+                <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
                   Open →
                 </span>
               </div>
