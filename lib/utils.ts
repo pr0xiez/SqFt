@@ -52,6 +52,18 @@ export function roomSqft(room: RoomItem): number {
   return w * l;
 }
 
+/** Calculate the perimeter (linear feet) of a room. For rectangles 2(w+l);
+ *  for right-triangle rooms w + l + hypotenuse(w,l). Used to drive linear
+ *  measurements like shoe mold, quarter-round, or transition strips. */
+export function roomPerimeter(room: RoomItem): number {
+  if (room.type !== "room") return 0;
+  const w = parsef(room.w);
+  const l = parsef(room.l);
+  if (w === null || l === null) return 0;
+  if ((room.shape || "rect") === "tri") return w + l + Math.hypot(w, l);
+  return 2 * (w + l);
+}
+
 /** Sum square footage of all room items in an estimate */
 export function estTotalArea(items: RoomItem[]): number {
   return items
@@ -66,7 +78,8 @@ export interface LineItemCalc {
   name: string;
   description?: string | null;
   rate: number;
-  qtyMode: "manual" | "linked";
+  /** "manual" — qty set by user; "linked" — sum of room sqft; "linked_perimeter" — sum of room perimeter (lf). */
+  qtyMode: "manual" | "linked" | "linked_perimeter";
   qty?: number | null;
   wastePct: number;
   unitLabel: string;
@@ -74,17 +87,23 @@ export interface LineItemCalc {
   sortOrder?: number;
 }
 
-/** Get effective quantity for a line item, resolving linked room sq footage */
+/** Get effective quantity for a line item, resolving linked room measurements.
+ *  - "linked" sums room sqft
+ *  - "linked_perimeter" sums room perimeter (lf) — for shoe mold, trim, transitions
+ *  - "manual" returns the user-entered qty
+ *  Waste % is applied to both linked modes. */
 export function getEffectiveQty(
   li: LineItemCalc,
   rooms: RoomItem[]
 ): number | null {
-  if (li.qtyMode === "linked") {
+  if (li.qtyMode === "linked" || li.qtyMode === "linked_perimeter") {
     const linked = rooms.filter(
       (r) => r.type === "room" && li.linkedRoomIds.includes(r.id)
     );
     if (linked.length === 0) return null;
-    const base = linked.reduce((sum, r) => sum + roomSqft(r), 0);
+    const measure =
+      li.qtyMode === "linked_perimeter" ? roomPerimeter : roomSqft;
+    const base = linked.reduce((sum, r) => sum + measure(r), 0);
     return base * (1 + (li.wastePct || 0) / 100);
   }
   return li.qty ?? null;

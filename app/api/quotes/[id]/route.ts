@@ -15,7 +15,7 @@ const lineItemSchema = z.object({
   name: z.string(),
   description: z.string().nullish(),
   rate: z.number(),
-  qtyMode: z.enum(["manual", "linked"]).default("manual"),
+  qtyMode: z.enum(["manual", "linked", "linked_perimeter"]).default("manual"),
   qty: z.number().nullish(),
   wastePct: z.number().default(0),
   unitLabel: z.string().default("ft²"),

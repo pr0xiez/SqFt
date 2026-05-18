@@ -174,7 +174,10 @@ export function LineItemSection({
             const effectiveQty = getEffectiveQty(li, rooms);
             const sub = liSubtotal(li, rooms);
             const linked =
-              li.qtyMode === "linked" && li.linkedRoomIds.length > 0;
+              (li.qtyMode === "linked" || li.qtyMode === "linked_perimeter") &&
+              li.linkedRoomIds.length > 0;
+            const linkedUnit =
+              li.qtyMode === "linked_perimeter" ? "lf" : "sqft";
             const linkedRooms = rooms.filter((r) =>
               li.linkedRoomIds.includes(r.id)
             );
@@ -260,7 +263,7 @@ export function LineItemSection({
                       )}
                     >
                       {linked
-                        ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"}`
+                        ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"} · ${linkedUnit}`
                         : li.qtyMode === "manual"
                           ? `Manual · ${li.unitLabel || ""}`
                           : "Set scope…"}
@@ -275,7 +278,7 @@ export function LineItemSection({
                             : "—"}
                         </span>
                         <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] opacity-80">
-                          sqft
+                          {linkedUnit}
                         </span>
                       </div>
                     ) : (
@@ -480,9 +483,10 @@ export function LineItemSection({
               initialRoomIds={li.linkedRoomIds}
               initialWastePct={li.wastePct}
               anchorRect={picker.rect}
-              onApply={(linkedRoomIds, wastePct) =>
+              onApply={(linkedRoomIds, wastePct, measure) =>
                 updateItem(picker.lineId, {
-                  qtyMode: "linked",
+                  qtyMode:
+                    measure === "perimeter" ? "linked_perimeter" : "linked",
                   linkedRoomIds,
                   wastePct,
                 })

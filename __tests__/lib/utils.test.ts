@@ -13,6 +13,7 @@ import {
   liSubtotal,
   parsef,
   type RoomItem,
+  roomPerimeter,
   roomSqft,
   sourceName,
   timeToMinutes,
@@ -101,6 +102,53 @@ describe("roomSqft", () => {
   });
 });
 
+// ── roomPerimeter ─────────────────────────────────────────────────────────────
+
+describe("roomPerimeter", () => {
+  it("calculates rectangular perimeter as 2(w+l)", () => {
+    const rect: RoomItem = {
+      id: 1,
+      type: "room",
+      shape: "rect",
+      w: "10",
+      l: "15",
+    };
+    expect(roomPerimeter(rect)).toBe(50);
+  });
+
+  it("calculates triangle perimeter as w + l + hypotenuse", () => {
+    const tri: RoomItem = {
+      id: 2,
+      type: "room",
+      shape: "tri",
+      w: "3",
+      l: "4",
+    };
+    expect(roomPerimeter(tri)).toBe(12); // 3 + 4 + 5
+  });
+
+  it("returns 0 for note items", () => {
+    const note: RoomItem = { id: 3, type: "note", text: "See spec" };
+    expect(roomPerimeter(note)).toBe(0);
+  });
+
+  it("returns 0 when w is missing", () => {
+    const room: RoomItem = { id: 4, type: "room", shape: "rect", l: "10" };
+    expect(roomPerimeter(room)).toBe(0);
+  });
+
+  it("returns 0 when l is null", () => {
+    const room: RoomItem = {
+      id: 5,
+      type: "room",
+      shape: "rect",
+      w: "10",
+      l: null,
+    };
+    expect(roomPerimeter(room)).toBe(0);
+  });
+});
+
 // ── estTotalArea ──────────────────────────────────────────────────────────────
 
 describe("estTotalArea", () => {
@@ -179,6 +227,40 @@ describe("getEffectiveQty", () => {
       linkedRoomIds: [99],
     };
     expect(getEffectiveQty(li, rooms)).toBeNull();
+  });
+
+  it("sums linked room perimeters when mode is linked_perimeter (single room)", () => {
+    const singleRoom: RoomItem[] = [
+      { id: 1, type: "room", shape: "rect", w: "10", l: "10" }, // perimeter 40
+    ];
+    const li: LineItemCalc = {
+      id: 10,
+      name: "Shoe mold",
+      rate: 2,
+      qtyMode: "linked_perimeter",
+      wastePct: 0,
+      unitLabel: "lf",
+      linkedRoomIds: [1],
+    };
+    expect(getEffectiveQty(li, singleRoom)).toBe(40);
+  });
+
+  it("sums linked room perimeters and applies waste% when mode is linked_perimeter (two rooms)", () => {
+    const twoRooms: RoomItem[] = [
+      { id: 1, type: "room", shape: "rect", w: "10", l: "10" }, // perimeter 40
+      { id: 2, type: "room", shape: "rect", w: "10", l: "10" }, // perimeter 40
+    ];
+    const li: LineItemCalc = {
+      id: 11,
+      name: "Shoe mold",
+      rate: 2,
+      qtyMode: "linked_perimeter",
+      wastePct: 10,
+      unitLabel: "lf",
+      linkedRoomIds: [1, 2],
+    };
+    // (40 + 40) * 1.10 = 88
+    expect(getEffectiveQty(li, twoRooms)).toBeCloseTo(88);
   });
 
   it("returns null when manual qty is null", () => {
