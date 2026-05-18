@@ -29,4 +29,19 @@ describe("sendEmail (test mode)", () => {
     });
     expect(sentEmails()[0].to).toEqual(["a@example.com", "b@example.com"]);
   });
+
+  it("short-circuits to recordEmail for RFC 2606 test domains even when RESEND_API_KEY is set", async () => {
+    process.env.RESEND_API_KEY = "re_fake_key_for_test";
+    try {
+      const result = await sendEmail({
+        to: "customer@example.com",
+        subject: "Quote",
+        react: { type: "div", props: {} } as never,
+      });
+      expect(result).toEqual({ ok: true, id: "test-mode" });
+      expect(sentEmails()).toHaveLength(1);
+    } finally {
+      delete process.env.RESEND_API_KEY;
+    }
+  });
 });
