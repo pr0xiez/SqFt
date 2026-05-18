@@ -2,10 +2,37 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export type QuoteStatus = "draft" | "sent" | "viewed" | "accepted" | "declined";
+
+export interface CustomerQuoteSummary {
+  id: number;
+  quoteNumber: number;
+  status: QuoteStatus;
+  date: string;
+  sentAt: string | null;
+  viewedAt: string | null;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  createdAt: string;
+  _count: { lineItems: number };
+}
+
+export interface CustomerListQuoteSummary {
+  status: QuoteStatus;
+  sentAt: string | null;
+  viewedAt: string | null;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  createdAt: string;
+}
+
 export interface CustomerEstimateSummary {
   id: number;
+  estimateNumber: number | null;
+  title: string;
   date: string;
-  status: string;
+  createdAt: string;
+  quotes: CustomerQuoteSummary[];
 }
 
 export interface Customer {
@@ -18,7 +45,10 @@ export interface Customer {
   source: string;
   notes?: string | null;
   createdAt: string;
-  estimates?: CustomerEstimateSummary[];
+  estimates?: (
+    | CustomerEstimateSummary
+    | { quotes: CustomerListQuoteSummary[] }
+  )[];
   _count?: { estimates: number };
 }
 
