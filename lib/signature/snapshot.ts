@@ -9,7 +9,7 @@ import {
 export interface QuoteSnapshotInput {
   quoteNumber: number;
   date: Date | string;
-  taxRate: number;
+  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   estimate: {
@@ -34,7 +34,7 @@ export interface QuoteSnapshotInput {
 export interface QuoteSnapshot {
   quoteNumber: number;
   date: string;
-  taxRate: number;
+  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   customer: {
@@ -55,7 +55,7 @@ export interface QuoteSnapshot {
   totals: {
     subtotal: number;
     markup: number;
-    tax: number;
+    convenienceFee: number;
     total: number;
     deposit: number;
   };
@@ -70,16 +70,16 @@ export function snapshotQuote(input: QuoteSnapshotInput): QuoteSnapshot {
     0
   );
   const markup = subtotal * (input.markupPct / 100);
-  const beforeTax = subtotal + markup;
-  const tax = beforeTax * input.taxRate;
-  const total = beforeTax + tax;
+  const beforeFee = subtotal + markup;
+  const convenienceFee = beforeFee * input.convenienceFeeRate;
+  const total = beforeFee + convenienceFee;
   const deposit = total * input.depositPct;
 
   return {
     quoteNumber: input.quoteNumber,
     date:
       typeof input.date === "string" ? input.date : input.date.toISOString(),
-    taxRate: input.taxRate,
+    convenienceFeeRate: input.convenienceFeeRate,
     markupPct: input.markupPct,
     depositPct: input.depositPct,
     customer: input.estimate.customer,
@@ -107,7 +107,7 @@ export function snapshotQuote(input: QuoteSnapshotInput): QuoteSnapshot {
       effectiveQty: getEffectiveQty(li, rooms),
       subtotal: liSubtotal(li, rooms),
     })),
-    totals: { subtotal, markup, tax, total, deposit },
+    totals: { subtotal, markup, convenienceFee, total, deposit },
   };
 }
 

@@ -24,7 +24,7 @@ const lineItemSchema = z.object({
 
 const updateSchema = z.object({
   status: z.enum(["draft", "sent", "accepted", "declined"]).optional(),
-  taxRate: z.number().min(0).max(1).optional(),
+  convenienceFeeRate: z.number().min(0).max(1).optional(),
   markupPct: z.number().min(0).optional(),
   depositPct: z.number().min(0).max(1).optional(),
   lineItems: z.array(lineItemSchema).optional(),

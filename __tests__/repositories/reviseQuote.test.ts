@@ -41,7 +41,7 @@ describe("reviseQuote", () => {
       orgId: "org_1",
       estimateId: 42,
       quoteNumber: 5001,
-      taxRate: 0.08,
+      convenienceFeeRate: 0.03,
       markupPct: 35,
       depositPct: 0.5,
       items: [{ id: "r1", type: "room", name: "Kitchen", area: 200 }],

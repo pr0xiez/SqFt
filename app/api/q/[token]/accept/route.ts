@@ -63,7 +63,7 @@ export const POST = withLogging(
       const snap = snapshotQuote({
         quoteNumber: quote.quoteNumber,
         date: quote.date,
-        taxRate: quote.taxRate,
+        convenienceFeeRate: quote.convenienceFeeRate,
         markupPct: quote.markupPct,
         depositPct: quote.depositPct,
         estimate: {

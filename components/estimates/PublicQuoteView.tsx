@@ -15,7 +15,7 @@ export interface PublicQuote {
   quoteNumber: number;
   status: "draft" | "sent" | "viewed" | "accepted" | "declined";
   date: string | Date;
-  taxRate: number;
+  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   estimate: { id: number; estimateNumber: number | null; title: string };
@@ -59,9 +59,9 @@ export function PublicQuoteView({ quote, token }: Props) {
     0
   );
   const markup = subtotal * (quote.markupPct / 100);
-  const beforeTax = subtotal + markup;
-  const tax = beforeTax * quote.taxRate;
-  const total = beforeTax + tax;
+  const beforeFee = subtotal + markup;
+  const convenienceFee = beforeFee * quote.convenienceFeeRate;
+  const total = beforeFee + convenienceFee;
   const deposit = total * quote.depositPct;
 
   return (
@@ -95,8 +95,8 @@ export function PublicQuoteView({ quote, token }: Props) {
               subtotal={subtotal}
               markup={markup}
               markupPct={quote.markupPct}
-              tax={tax}
-              taxRate={quote.taxRate}
+              convenienceFee={convenienceFee}
+              convenienceFeeRate={quote.convenienceFeeRate}
               total={total}
               deposit={deposit}
               depositPct={quote.depositPct}

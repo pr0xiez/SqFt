@@ -37,7 +37,7 @@ describe("GET /api/quotes", () => {
       {
         id: 1,
         markupPct: 0,
-        taxRate: 0.08,
+        convenienceFeeRate: 0.03,
         lineItems: [],
         estimate: { id: 10, title: "Est", items: [] },
         _count: { lineItems: 0 },

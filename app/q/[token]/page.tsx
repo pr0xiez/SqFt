@@ -37,7 +37,7 @@ export default async function PublicQuotePage({ params }: Props) {
     quoteNumber: quote.quoteNumber,
     status: quote.status as PublicQuote["status"],
     date: quote.date,
-    taxRate: quote.taxRate,
+    convenienceFeeRate: quote.convenienceFeeRate,
     markupPct: quote.markupPct,
     depositPct: quote.depositPct,
     estimate: {

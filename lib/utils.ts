@@ -101,7 +101,7 @@ export function computeEstimateTotal(est: {
   lineItems?: LineItemCalc[];
   items?: RoomItem[];
   markupPct: number;
-  taxRate: number;
+  convenienceFeeRate: number;
 }): string | null {
   if (!est.lineItems?.length) return null;
   const rooms = (est.items ?? []).filter(
@@ -111,8 +111,8 @@ export function computeEstimateTotal(est: {
     (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
     0
   );
-  const beforeTax = subtotal * (1 + est.markupPct / 100);
-  const total = beforeTax * (1 + est.taxRate);
+  const beforeFee = subtotal * (1 + est.markupPct / 100);
+  const total = beforeFee * (1 + est.convenienceFeeRate);
   return fmtBig(total);
 }
 
@@ -123,7 +123,7 @@ export function quoteTotal(input: {
   lineItems: LineItemCalc[];
   estimate: { items: RoomItem[] };
   markupPct: number;
-  taxRate: number;
+  convenienceFeeRate: number;
 }): number | null {
   if (input.lineItems.length === 0) return null;
   const rooms = input.estimate.items.filter(
@@ -133,8 +133,8 @@ export function quoteTotal(input: {
     (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
     0
   );
-  const beforeTax = subtotal * (1 + input.markupPct / 100);
-  return beforeTax * (1 + input.taxRate);
+  const beforeFee = subtotal * (1 + input.markupPct / 100);
+  return beforeFee * (1 + input.convenienceFeeRate);
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────

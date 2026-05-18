@@ -22,7 +22,7 @@ export const GET = withLogging(async () => {
           lineItems: lineItems as LineItemCalc[],
           estimate: { items: items as RoomItem[] },
           markupPct: rest.markupPct,
-          taxRate: rest.taxRate,
+          convenienceFeeRate: rest.convenienceFeeRate,
         }),
       };
     });

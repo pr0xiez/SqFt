@@ -17,7 +17,7 @@ export interface QuoteListItem {
   quoteNumber: number;
   status: string;
   date: string;
-  taxRate: number;
+  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   createdAt: string;
@@ -42,7 +42,7 @@ export interface QuoteDetail {
   quoteNumber: number;
   status: string;
   date: string;
-  taxRate: number;
+  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   approvalToken?: string | null;
@@ -72,7 +72,7 @@ export interface QuoteDetail {
 
 export interface UpdateQuoteInput {
   status?: "draft" | "sent" | "accepted" | "declined";
-  taxRate?: number;
+  convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemCalc[];

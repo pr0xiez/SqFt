@@ -80,7 +80,7 @@ export const POST = withLogging(
           lineItems: quote.lineItems as LineItemCalc[],
           estimate: { items: quote.estimate.items as RoomItem[] },
           markupPct: quote.markupPct,
-          taxRate: quote.taxRate,
+          convenienceFeeRate: quote.convenienceFeeRate,
         }) ?? 0;
 
       const org = await getOrgForEmail(orgId);

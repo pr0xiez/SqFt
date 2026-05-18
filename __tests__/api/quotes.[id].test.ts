@@ -91,9 +91,9 @@ describe("PATCH /api/quotes/[id]", () => {
     expect(res.status).toBe(400);
   });
 
-  it("validates taxRate range", async () => {
+  it("validates convenienceFeeRate range", async () => {
     mockGetOrgId.mockResolvedValue("org1");
-    const req = makeRequest({ taxRate: 2 });
+    const req = makeRequest({ convenienceFeeRate: 2 });
     const res = await PATCH(
       req as Parameters<typeof PATCH>[0],
       makeParams("1")
