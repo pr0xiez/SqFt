@@ -6,7 +6,14 @@ import { DecimalInput } from "@/components/ui/DecimalInput";
 import { cn } from "@/lib/cn";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
-import { fmtDollar, getEffectiveQty, liSubtotal, roomSqft } from "@/lib/utils";
+import {
+  fmtDollar,
+  getEffectiveQty,
+  isLinkedQtyMode,
+  liSubtotal,
+  QtyMode,
+  roomSqft,
+} from "@/lib/utils";
 
 export interface QuoteSavePatch {
   lineItems?: LineItemCalc[];
@@ -75,7 +82,7 @@ export function LineItemSection({
         name: "New line item",
         description: null,
         rate: 0,
-        qtyMode: "manual",
+        qtyMode: QtyMode.Manual,
         qty: null,
         wastePct: 0,
         unitLabel: "sqft",
@@ -174,10 +181,9 @@ export function LineItemSection({
             const effectiveQty = getEffectiveQty(li, rooms);
             const sub = liSubtotal(li, rooms);
             const linked =
-              (li.qtyMode === "linked" || li.qtyMode === "linked_perimeter") &&
-              li.linkedRoomIds.length > 0;
+              isLinkedQtyMode(li.qtyMode) && li.linkedRoomIds.length > 0;
             const linkedUnit =
-              li.qtyMode === "linked_perimeter" ? "lf" : "sqft";
+              li.qtyMode === QtyMode.LinkedPerimeter ? "lf" : "sqft";
             const linkedRooms = rooms.filter((r) =>
               li.linkedRoomIds.includes(r.id)
             );
@@ -264,7 +270,7 @@ export function LineItemSection({
                     >
                       {linked
                         ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"} · ${linkedUnit}`
-                        : li.qtyMode === "manual"
+                        : li.qtyMode === QtyMode.Manual
                           ? `Manual · ${li.unitLabel || ""}`
                           : "Set scope…"}
                     </button>
@@ -486,14 +492,16 @@ export function LineItemSection({
               onApply={(linkedRoomIds, wastePct, measure) =>
                 updateItem(picker.lineId, {
                   qtyMode:
-                    measure === "perimeter" ? "linked_perimeter" : "linked",
+                    measure === "perimeter"
+                      ? QtyMode.LinkedPerimeter
+                      : QtyMode.LinkedArea,
                   linkedRoomIds,
                   wastePct,
                 })
               }
               onClear={() =>
                 updateItem(picker.lineId, {
-                  qtyMode: "manual",
+                  qtyMode: QtyMode.Manual,
                   linkedRoomIds: [],
                   wastePct: 0,
                   qty: null,

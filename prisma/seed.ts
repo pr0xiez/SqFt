@@ -427,7 +427,7 @@ async function main() {
           {
             name: "LVP — Mohawk RevWood",
             rate: 4.85,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 10,
             unitLabel: "sqft",
             linkedRoomIds: [],
@@ -436,7 +436,7 @@ async function main() {
           {
             name: "Underlayment — 6 mil",
             rate: 0.45,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 0,
             unitLabel: "sqft",
             linkedRoomIds: [],
@@ -445,7 +445,7 @@ async function main() {
           {
             name: "Removal of carpet",
             rate: 1.2,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 0,
             unitLabel: "sqft",
             linkedRoomIds: [],
@@ -511,7 +511,7 @@ async function main() {
           {
             name: "White oak — select grade",
             rate: 7.2,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 10,
             unitLabel: "sqft",
             linkedRoomIds: [],
@@ -520,7 +520,7 @@ async function main() {
           {
             name: "Hardwood install — nail down",
             rate: 3.8,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 0,
             unitLabel: "sqft",
             linkedRoomIds: [],
@@ -529,7 +529,7 @@ async function main() {
           {
             name: "Sand & finish — 3 coats",
             rate: 2.4,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 0,
             unitLabel: "sqft",
             linkedRoomIds: [],
@@ -580,7 +580,7 @@ async function main() {
           {
             name: "Landing — LVP",
             rate: 4.85,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 10,
             unitLabel: "sqft",
             linkedRoomIds: [],
@@ -733,7 +733,7 @@ async function main() {
           {
             name: "Porcelain tile 12×24",
             rate: 5.4,
-            qtyMode: "linked",
+            qtyMode: "linked_area",
             wastePct: 15,
             unitLabel: "sqft",
             linkedRoomIds: [],

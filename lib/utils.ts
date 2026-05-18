@@ -73,13 +73,34 @@ export function estTotalArea(items: RoomItem[]): number {
 
 // ── Quote calculations ────────────────────────────────────────────────────
 
+/** Source of truth for LineItem.qtyMode string values. Persisted as plain
+ *  strings in the DB and over the wire, so renaming a value requires a data
+ *  migration. Use the constants (e.g. `QtyMode.LinkedArea`) instead of bare
+ *  string literals everywhere. */
+export const QtyMode = {
+  /** User enters the quantity by hand. */
+  Manual: "manual",
+  /** Quantity = sum of linked room areas (sqft), × (1 + waste%). */
+  LinkedArea: "linked_area",
+  /** Quantity = sum of linked room perimeters (lf), × (1 + waste%).
+   *  For shoe mold, quarter-round, transition strips. */
+  LinkedPerimeter: "linked_perimeter",
+} as const;
+
+export type QtyMode = (typeof QtyMode)[keyof typeof QtyMode];
+
+/** All valid `qtyMode` values — used by zod and any other enum consumer. */
+export const QTY_MODE_VALUES = Object.values(QtyMode) as [
+  QtyMode,
+  ...QtyMode[],
+];
+
 export interface LineItemCalc {
   id: number;
   name: string;
   description?: string | null;
   rate: number;
-  /** "manual" — qty set by user; "linked" — sum of room sqft; "linked_perimeter" — sum of room perimeter (lf). */
-  qtyMode: "manual" | "linked" | "linked_perimeter";
+  qtyMode: QtyMode;
   qty?: number | null;
   wastePct: number;
   unitLabel: string;
@@ -87,22 +108,35 @@ export interface LineItemCalc {
   sortOrder?: number;
 }
 
+/** True iff the qty mode pulls its quantity from linked rooms (vs. manual). */
+export function isLinkedQtyMode(mode: QtyMode): boolean {
+  return mode === QtyMode.LinkedArea || mode === QtyMode.LinkedPerimeter;
+}
+
+/** Narrow a raw DB string to a known QtyMode, falling back to Manual for
+ *  unrecognized legacy values. Use at trust boundaries (DB rows, JSON input). */
+export function parseQtyMode(raw: string): QtyMode {
+  return (QTY_MODE_VALUES as readonly string[]).includes(raw)
+    ? (raw as QtyMode)
+    : QtyMode.Manual;
+}
+
 /** Get effective quantity for a line item, resolving linked room measurements.
- *  - "linked" sums room sqft
- *  - "linked_perimeter" sums room perimeter (lf) — for shoe mold, trim, transitions
- *  - "manual" returns the user-entered qty
+ *  - `LinkedArea` sums room sqft
+ *  - `LinkedPerimeter` sums room perimeter (lf) — for shoe mold, trim, transitions
+ *  - `Manual` returns the user-entered qty
  *  Waste % is applied to both linked modes. */
 export function getEffectiveQty(
   li: LineItemCalc,
   rooms: RoomItem[]
 ): number | null {
-  if (li.qtyMode === "linked" || li.qtyMode === "linked_perimeter") {
+  if (isLinkedQtyMode(li.qtyMode)) {
     const linked = rooms.filter(
       (r) => r.type === "room" && li.linkedRoomIds.includes(r.id)
     );
     if (linked.length === 0) return null;
     const measure =
-      li.qtyMode === "linked_perimeter" ? roomPerimeter : roomSqft;
+      li.qtyMode === QtyMode.LinkedPerimeter ? roomPerimeter : roomSqft;
     const base = linked.reduce((sum, r) => sum + measure(r), 0);
     return base * (1 + (li.wastePct || 0) / 100);
   }

@@ -8,6 +8,7 @@ import {
   saveQuote,
 } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
+import { QTY_MODE_VALUES, QtyMode } from "@/lib/utils";
 import { withLogging } from "@/lib/with-logging";
 
 const lineItemSchema = z.object({
@@ -15,7 +16,7 @@ const lineItemSchema = z.object({
   name: z.string(),
   description: z.string().nullish(),
   rate: z.number(),
-  qtyMode: z.enum(["manual", "linked", "linked_perimeter"]).default("manual"),
+  qtyMode: z.enum(QTY_MODE_VALUES).default(QtyMode.Manual),
   qty: z.number().nullish(),
   wastePct: z.number().default(0),
   unitLabel: z.string().default("ft²"),

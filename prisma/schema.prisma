@@ -140,7 +140,7 @@ model LineItem {
   name          String
   description   String?
   rate          Float   @default(0)
-  qtyMode       String  @default("manual") // manual | linked
+  qtyMode       String  @default("manual") // manual | linked_area | linked_perimeter — see lib/utils.ts QtyMode
   qty           Float?
   wastePct      Float   @default(0)
   unitLabel     String  @default("ft²")

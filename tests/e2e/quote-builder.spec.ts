@@ -105,7 +105,7 @@ test.describe
           wastePct: number;
         }>
       )[0];
-      expect(li.qtyMode).toBe("linked");
+      expect(li.qtyMode).toBe("linked_area");
       expect(li.wastePct).toBe(10);
       expect([...li.linkedRoomIds].sort()).toEqual(
         [kitchenId, diningId].sort()

@@ -5,6 +5,7 @@ import {
   PublicQuoteView,
 } from "@/components/estimates/PublicQuoteView";
 import { getQuoteByToken, markQuoteViewed } from "@/lib/repositories";
+import { parseQtyMode } from "@/lib/utils";
 
 export const metadata = {
   title: "Quote — SqFt",
@@ -66,7 +67,7 @@ export default async function PublicQuotePage({ params }: Props) {
       id: li.id,
       name: li.name,
       rate: li.rate,
-      qtyMode: li.qtyMode === "linked" ? "linked" : "manual",
+      qtyMode: parseQtyMode(li.qtyMode),
       qty: li.qty,
       wastePct: li.wastePct,
       unitLabel: li.unitLabel,
