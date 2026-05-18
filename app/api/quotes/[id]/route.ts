@@ -13,6 +13,7 @@ import { withLogging } from "@/lib/with-logging";
 const lineItemSchema = z.object({
   id: z.number().int().optional(),
   name: z.string(),
+  description: z.string().nullish(),
   rate: z.number(),
   qtyMode: z.enum(["manual", "linked"]).default("manual"),
   qty: z.number().nullish(),

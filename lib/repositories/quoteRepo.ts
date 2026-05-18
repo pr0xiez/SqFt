@@ -373,6 +373,7 @@ export async function reviseQuote(
         data: original.lineItems.map((li) => ({
           quoteId: created.id,
           name: li.name,
+          description: li.description,
           unitLabel: li.unitLabel,
           rate: li.rate,
           qtyMode: li.qtyMode,

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { RoomLinkPicker } from "@/components/quotes/RoomLinkPicker";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { cn } from "@/lib/cn";
+import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 import { fmtDollar, getEffectiveQty, liSubtotal, roomSqft } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ interface Props {
   markupPct: number;
   depositPct: number;
   readOnly?: boolean;
+  templates?: LineItemTemplate[];
   onSave: (patch: QuoteSavePatch) => Promise<void>;
 }
 
@@ -43,6 +45,7 @@ export function LineItemSection({
   markupPct: initialMarkup,
   depositPct: initialDeposit,
   readOnly = false,
+  templates = [],
   onSave,
 }: Props) {
   const [items, setItems] = useState<LineItemCalc[]>(initialLineItems);
@@ -70,6 +73,7 @@ export function LineItemSection({
       {
         id: tempLiId(),
         name: "New line item",
+        description: null,
         rate: 0,
         qtyMode: "manual",
         qty: null,
@@ -81,6 +85,18 @@ export function LineItemSection({
     ];
     setItems(newItems);
     save({ lineItems: newItems });
+  }
+
+  function applyTemplate(id: number, templateId: number) {
+    if (readOnly) return;
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    updateItem(id, {
+      name: tpl.name,
+      description: tpl.description ?? null,
+      rate: tpl.rate,
+      unitLabel: tpl.unitLabel,
+    });
   }
 
   function removeItem(id: number) {
@@ -175,17 +191,51 @@ export function LineItemSection({
                 )}
               >
                 {/* Main row */}
-                <div className="grid grid-cols-1 md:grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center">
-                  <div className="px-3.5 py-[11px]">
-                    <input
-                      type="text"
-                      value={li.name}
+                <div className="grid grid-cols-1 md:grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-start">
+                  <div className="px-3.5 py-[11px] space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={li.name}
+                        onChange={(e) =>
+                          updateItem(li.id, { name: e.target.value })
+                        }
+                        onBlur={() => save({ lineItems: items })}
+                        disabled={readOnly}
+                        className="text-[14px] font-[500] flex-1 min-w-0 border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default"
+                      />
+                      {!readOnly && templates.length > 0 && (
+                        <select
+                          aria-label="Apply template"
+                          value=""
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) applyTemplate(li.id, Number(val));
+                            e.target.value = "";
+                          }}
+                          className="font-[var(--font-mono)] text-[10px] px-1.5 py-1 border border-[var(--line)] rounded-[4px] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)] cursor-pointer"
+                        >
+                          <option value="">Use template…</option>
+                          {templates.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    <textarea
+                      value={li.description ?? ""}
                       onChange={(e) =>
-                        updateItem(li.id, { name: e.target.value })
+                        updateItem(li.id, {
+                          description: e.target.value || null,
+                        })
                       }
                       onBlur={() => save({ lineItems: items })}
                       disabled={readOnly}
-                      className="text-[14px] font-[500] w-full border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default"
+                      placeholder={readOnly ? "" : "Description (optional)"}
+                      rows={1}
+                      className="text-[12px] text-[var(--muted)] w-full border-none bg-transparent p-0 resize-y focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default placeholder:text-[var(--muted)] placeholder:opacity-60"
                     />
                   </div>
                   <div className="px-3 py-2">
