@@ -35,6 +35,9 @@ async function main() {
     await prisma.crewMember.deleteMany({
       where: { orgId: { in: demoOrgIds } },
     });
+    await prisma.lineItemTemplate.deleteMany({
+      where: { orgId: { in: demoOrgIds } },
+    });
     // Reset per-org counters so the seed's explicit estimate/quote numbers
     // don't drift relative to nextEstimateNumber / nextQuoteNumber.
     await prisma.organization.updateMany({
@@ -72,6 +75,63 @@ async function main() {
     }),
   ]);
   console.log("  ✓ 4 crew members");
+
+  // ── Line item templates (reusable presets for quote builder) ──────────────
+  await prisma.lineItemTemplate.createMany({
+    data: [
+      {
+        orgId: org.id,
+        name: "LVP — Mohawk RevWood",
+        description:
+          "Luxury vinyl plank, 5.5mm wear layer. Includes click-lock install over prepped subfloor.",
+        rate: 4.85,
+        unitLabel: "sqft",
+        sortOrder: 0,
+      },
+      {
+        orgId: org.id,
+        name: "White oak — select grade",
+        description:
+          '3/4" solid hardwood, select grade. Material only — site-finished separately.',
+        rate: 7.2,
+        unitLabel: "sqft",
+        sortOrder: 1,
+      },
+      {
+        orgId: org.id,
+        name: "Hardwood install — nail down",
+        description: 'Nail-down install over 3/4" plywood subfloor.',
+        rate: 3.8,
+        unitLabel: "sqft",
+        sortOrder: 2,
+      },
+      {
+        orgId: org.id,
+        name: "Carpet removal & disposal",
+        description: "Includes haul-away and dump fees.",
+        rate: 1.2,
+        unitLabel: "sqft",
+        sortOrder: 3,
+      },
+      {
+        orgId: org.id,
+        name: "Quarter round trim",
+        description: "Stain-grade pine quarter round, cut and installed.",
+        rate: 2.5,
+        unitLabel: "lf",
+        sortOrder: 4,
+      },
+      {
+        orgId: org.id,
+        name: "Floor prep & leveling",
+        description: "Self-leveling compound where needed.",
+        rate: 0.65,
+        unitLabel: "sqft",
+        sortOrder: 5,
+      },
+    ],
+  });
+  console.log("  ✓ 6 line item templates");
 
   // ── Demo user ─────────────────────────────────────────────────────────────
   const password = await bcrypt.hash("demo1234", 12);

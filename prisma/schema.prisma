@@ -25,12 +25,13 @@ model Organization {
   nextQuoteNumber    Int      @default(1)
   createdAt          DateTime @default(now())
 
-  users       User[]
-  customers   Customer[]
-  estimates   Estimate[]
-  quotes      Quote[]
-  events      Event[]
-  crewMembers CrewMember[]
+  users             User[]
+  customers         Customer[]
+  estimates         Estimate[]
+  quotes            Quote[]
+  events            Event[]
+  crewMembers       CrewMember[]
+  lineItemTemplates LineItemTemplate[]
 }
 
 model User {
@@ -133,17 +134,37 @@ model Quote {
 
 // A line item (material/labor) in a quote
 model LineItem {
-  id            Int    @id @default(autoincrement())
+  id            Int     @id @default(autoincrement())
   quoteId       Int
-  quote         Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quote         Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   name          String
-  rate          Float  @default(0)
-  qtyMode       String @default("manual") // manual | linked
+  description   String?
+  rate          Float   @default(0)
+  qtyMode       String  @default("manual") // manual | linked
   qty           Float?
-  wastePct      Float  @default(0)
-  unitLabel     String @default("ft²")
+  wastePct      Float   @default(0)
+  unitLabel     String  @default("ft²")
   linkedRoomIds Int[] // EstimateItem ids linked to this line item
-  sortOrder     Int    @default(0)
+  sortOrder     Int     @default(0)
+}
+
+// Reusable line-item presets, scoped to an Organization. When the user picks
+// a template from the LineItemSection dropdown, its name/description/rate/
+// unitLabel are copied onto a new LineItem — there is no FK back to the
+// template, so editing a template never mutates historical quotes.
+model LineItemTemplate {
+  id          Int          @id @default(autoincrement())
+  orgId       String
+  org         Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  rate        Float        @default(0)
+  unitLabel   String       @default("ft²")
+  archived    Boolean      @default(false)
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now())
+
+  @@index([orgId, archived])
 }
 
 model QuoteSignature {

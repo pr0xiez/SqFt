@@ -64,6 +64,7 @@ export function estTotalArea(items: RoomItem[]): number {
 export interface LineItemCalc {
   id: number;
   name: string;
+  description?: string | null;
   rate: number;
   qtyMode: "manual" | "linked";
   qty?: number | null;

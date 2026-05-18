@@ -14,6 +14,7 @@ const NAV_TABS = [
   { href: "/estimates", label: "Estimates", screen: "estimates" },
   { href: "/quotes", label: "Quotes", screen: "quote-list" },
   { href: "/schedule", label: "Schedule", screen: "schedule" },
+  { href: "/settings", label: "Settings", screen: "settings" },
 ];
 
 export function AppNav() {
@@ -117,7 +118,7 @@ export function AppNav() {
           {initials}
         </button>
 
-        <div className="grid grid-cols-5 gap-0.5 max-w-[520px] mx-auto">
+        <div className="grid grid-cols-6 gap-0.5 max-w-[640px] mx-auto">
           {NAV_TABS.map(({ href, label }) => {
             const active = isActive(href);
             return (
@@ -214,6 +215,13 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
         <title>{label}</title>
         <rect x="4" y="5" width="16" height="15" rx="1.5" />
         <path d="M4 9h16M9 3v4M15 3v4" />
+      </svg>
+    ),
+    Settings: (
+      <svg {...props}>
+        <title>{label}</title>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
       </svg>
     ),
   };

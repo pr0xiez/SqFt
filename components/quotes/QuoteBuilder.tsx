@@ -9,6 +9,7 @@ import { ReviseButton } from "@/components/quotes/ReviseButton";
 import { SendQuoteDialog } from "@/components/quotes/SendQuoteDialog";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { useLineItemTemplates } from "@/lib/hooks/useLineItemTemplates";
 import {
   useQuote,
   useRotateQuoteToken,
@@ -22,6 +23,7 @@ interface Props {
 
 export function QuoteBuilderView({ quoteId }: Props) {
   const { data: quote, isLoading } = useQuote(quoteId);
+  const { data: templates = [] } = useLineItemTemplates();
   const updateQuote = useUpdateQuote(quoteId);
   const rotateToken = useRotateQuoteToken(quoteId);
   const { showToast } = useToast();
@@ -228,6 +230,7 @@ export function QuoteBuilderView({ quoteId }: Props) {
         taxRate={quote.taxRate}
         markupPct={quote.markupPct}
         readOnly={locked}
+        templates={templates}
         onSave={async (lineItems) => {
           try {
             await updateQuote.mutateAsync({ lineItems });
