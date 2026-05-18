@@ -98,6 +98,7 @@ export function snapshotQuote(input: QuoteSnapshotInput): QuoteSnapshot {
       id: li.id,
       sortOrder: li.sortOrder ?? 0,
       name: li.name,
+      description: li.description ?? null,
       rate: li.rate,
       qtyMode: li.qtyMode,
       qty: li.qty ?? null,

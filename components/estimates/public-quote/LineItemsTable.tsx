@@ -33,6 +33,11 @@ export function LineItemsTable({ lineItems, rooms }: Props) {
                 <div className="text-[14px] font-[500] tracking-[-0.005em]">
                   {li.name}
                 </div>
+                {li.description ? (
+                  <div className="mt-1 text-[12px] text-[var(--muted)] whitespace-pre-wrap">
+                    {li.description}
+                  </div>
+                ) : null}
               </div>
               <div className="text-[14px] text-right font-[600] tracking-[-0.01em]">
                 {sub != null ? fmtDollar(sub) : "—"}
