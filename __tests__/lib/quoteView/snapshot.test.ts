@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { canonicalize, sha256, snapshotQuote } from "@/lib/signature/snapshot";
+import type { QuoteInput } from "@/lib/quoteView";
+import {
+  canonicalize,
+  type QuoteSnapshotMeta,
+  sha256,
+  snapshotQuote,
+} from "@/lib/quoteView/snapshot";
 
 describe("canonicalize", () => {
   it("produces deterministic JSON regardless of key insertion order", () => {
@@ -34,45 +40,45 @@ describe("sha256", () => {
 });
 
 describe("snapshotQuote", () => {
-  const quote = {
-    quoteNumber: 5001,
-    date: new Date("2026-05-01T00:00:00Z"),
+  const input: QuoteInput = {
     convenienceFeeRate: 0.075,
     markupPct: 35,
     depositPct: 0.5,
-    estimate: {
-      customer: {
-        name: "J. Henderson",
-        address: "1247 Elm St",
-        email: "h@example.com",
-        phone: "555",
+    items: [
+      {
+        id: 1,
+        type: "room",
+        name: "Living",
+        w: 14,
+        l: 18,
+        shape: "rect",
+        note: null,
+        text: null,
       },
-      items: [
-        {
-          id: 1,
-          type: "room" as const,
-          name: "Living",
-          w: 14,
-          l: 18,
-          shape: "rect" as const,
-          note: null,
-          text: null,
-        },
-      ],
-    },
+    ],
     lineItems: [
       {
         id: 1,
         sortOrder: 0,
         name: "LVP",
         rate: 4.85,
-        qtyMode: "manual" as const,
+        qtyMode: "manual",
         qty: 545,
         wastePct: 0,
         unitLabel: "ft²",
         linkedRoomIds: [],
       },
     ],
+  };
+  const meta: QuoteSnapshotMeta = {
+    quoteNumber: 5001,
+    date: new Date("2026-05-01T00:00:00Z"),
+    customer: {
+      name: "J. Henderson",
+      address: "1247 Elm St",
+      email: "h@example.com",
+      phone: "555",
+    },
     org: {
       name: "Mike's Flooring",
       address: "842 Industrial Pkwy",
@@ -83,7 +89,7 @@ describe("snapshotQuote", () => {
   };
 
   it("produces a snapshot containing all required top-level keys", () => {
-    const snap = snapshotQuote(quote);
+    const snap = snapshotQuote(input, meta);
     expect(snap).toMatchObject({
       quoteNumber: 5001,
       convenienceFeeRate: 0.075,
@@ -102,18 +108,43 @@ describe("snapshotQuote", () => {
   });
 
   it("produces a stable hash for the same input", () => {
-    const a = sha256(canonicalize(snapshotQuote(quote)));
-    const b = sha256(canonicalize(snapshotQuote(quote)));
+    const a = sha256(canonicalize(snapshotQuote(input, meta)));
+    const b = sha256(canonicalize(snapshotQuote(input, meta)));
     expect(a).toBe(b);
   });
 
   it("changes the hash when a line item rate changes", () => {
-    const a = sha256(canonicalize(snapshotQuote(quote)));
-    const modified = {
-      ...quote,
-      lineItems: [{ ...quote.lineItems[0], rate: 4.86 }],
+    const a = sha256(canonicalize(snapshotQuote(input, meta)));
+    const modified: QuoteInput = {
+      ...input,
+      lineItems: [{ ...input.lineItems[0], rate: 4.86 }],
     };
-    const b = sha256(canonicalize(snapshotQuote(modified)));
+    const b = sha256(canonicalize(snapshotQuote(modified, meta)));
     expect(a).not.toBe(b);
+  });
+
+  it("preserves note items in the snapshot's items array", () => {
+    const withNote: QuoteInput = {
+      ...input,
+      items: [
+        ...input.items,
+        { id: 2, type: "note", text: "see spec", name: null },
+      ],
+    };
+    const snap = snapshotQuote(withNote, meta);
+    expect(snap.items).toHaveLength(2);
+    expect(snap.items[1]).toMatchObject({
+      id: 2,
+      type: "note",
+      text: "see spec",
+    });
+  });
+
+  it("includes per-line effectiveQty and subtotal in the snapshot", () => {
+    const snap = snapshotQuote(input, meta);
+    expect(snap.lineItems[0]).toMatchObject({
+      effectiveQty: 545,
+      subtotal: 545 * 4.85,
+    });
   });
 });

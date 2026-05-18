@@ -3,9 +3,9 @@ import { z } from "zod";
 import { sendSignedNotification } from "@/lib/email/sendSignedNotification";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { fromPrismaQuote } from "@/lib/quoteView";
+import { canonicalize, sha256, snapshotQuote } from "@/lib/quoteView/snapshot";
 import { acceptQuoteByToken, getQuoteByToken } from "@/lib/repositories";
-import { canonicalize, sha256, snapshotQuote } from "@/lib/signature/snapshot";
-import { parseQtyMode, type RoomItem } from "@/lib/utils";
 import { withLogging } from "@/lib/with-logging";
 
 const bodySchema = z.object({
@@ -60,34 +60,17 @@ export const POST = withLogging(
       }
 
       // Build snapshot from the live quote
-      const snap = snapshotQuote({
+      const snap = snapshotQuote(fromPrismaQuote(quote), {
         quoteNumber: quote.quoteNumber,
         date: quote.date,
-        convenienceFeeRate: quote.convenienceFeeRate,
-        markupPct: quote.markupPct,
-        depositPct: quote.depositPct,
-        estimate: {
-          customer: quote.estimate.customer
-            ? {
-                name: quote.estimate.customer.name,
-                address: quote.estimate.customer.address,
-                email: quote.estimate.customer.email,
-                phone: quote.estimate.customer.phone,
-              }
-            : null,
-          items: quote.estimate.items as RoomItem[],
-        },
-        lineItems: quote.lineItems.map((li) => ({
-          id: li.id,
-          name: li.name,
-          rate: li.rate,
-          qtyMode: parseQtyMode(li.qtyMode),
-          qty: li.qty,
-          wastePct: li.wastePct,
-          unitLabel: li.unitLabel,
-          linkedRoomIds: li.linkedRoomIds,
-          sortOrder: li.sortOrder,
-        })),
+        customer: quote.estimate.customer
+          ? {
+              name: quote.estimate.customer.name,
+              address: quote.estimate.customer.address,
+              email: quote.estimate.customer.email,
+              phone: quote.estimate.customer.phone,
+            }
+          : null,
         org: quote.org,
       });
       const snapshotHash = sha256(canonicalize(snap));

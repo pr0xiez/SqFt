@@ -1,16 +1,12 @@
-import {
-  fmtDollar,
-  type LineItemCalc,
-  liSubtotal,
-  type RoomItem,
-} from "@/lib/utils";
+import { fmtDollar, type LineItemCalc } from "@/lib/utils";
 
 interface Props {
   lineItems: LineItemCalc[];
-  rooms: RoomItem[];
+  /** Per-line resolved subtotal keyed by `LineItem.id`. `null` = unresolvable. */
+  subtotals: Map<number, number | null>;
 }
 
-export function LineItemsTable({ lineItems, rooms }: Props) {
+export function LineItemsTable({ lineItems, subtotals }: Props) {
   if (lineItems.length === 0) return null;
   return (
     <>
@@ -23,7 +19,7 @@ export function LineItemsTable({ lineItems, rooms }: Props) {
           <div className="text-right">Subtotal</div>
         </div>
         {lineItems.map((li) => {
-          const sub = liSubtotal(li, rooms);
+          const sub = subtotals.get(li.id) ?? null;
           return (
             <div
               key={li.id}

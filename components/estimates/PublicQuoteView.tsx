@@ -1,5 +1,9 @@
-import type { RoomItem as _RoomItem, LineItemCalc } from "@/lib/utils";
-import { liSubtotal, type RoomItem } from "@/lib/utils";
+import { computeQuoteView } from "@/lib/quoteView";
+import type {
+  RoomItem as _RoomItem,
+  LineItemCalc,
+  RoomItem,
+} from "@/lib/utils";
 import { Letterhead } from "./public-quote/Letterhead";
 import { LineItemsTable } from "./public-quote/LineItemsTable";
 import { PartiesBlock } from "./public-quote/PartiesBlock";
@@ -54,15 +58,14 @@ interface Props {
 
 export function PublicQuoteView({ quote, token }: Props) {
   const rooms = quote.items.filter((i): i is RoomItem => i.type === "room");
-  const subtotal = quote.lineItems.reduce(
-    (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
-    0
-  );
-  const markup = subtotal * (quote.markupPct / 100);
-  const beforeFee = subtotal + markup;
-  const convenienceFee = beforeFee * quote.convenienceFeeRate;
-  const total = beforeFee + convenienceFee;
-  const deposit = total * quote.depositPct;
+  const view = computeQuoteView({
+    lineItems: quote.lineItems,
+    items: quote.items,
+    markupPct: quote.markupPct,
+    convenienceFeeRate: quote.convenienceFeeRate,
+    depositPct: quote.depositPct,
+  });
+  const { subtotal, markup, convenienceFee, total, deposit } = view;
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -90,7 +93,10 @@ export function PublicQuoteView({ quote, token }: Props) {
               projectTitle={quote.estimate.title}
             />
             <RoomsList rooms={rooms} />
-            <LineItemsTable lineItems={quote.lineItems} rooms={rooms} />
+            <LineItemsTable
+              lineItems={quote.lineItems}
+              subtotals={new Map(view.lines.map((l) => [l.id, l.subtotal]))}
+            />
             <TotalsBlock
               subtotal={subtotal}
               markup={markup}

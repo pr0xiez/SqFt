@@ -1,19 +1,13 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { RoomLinkPicker } from "@/components/quotes/RoomLinkPicker";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { cn } from "@/lib/cn";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
+import { computeQuoteView } from "@/lib/quoteView";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
-import {
-  fmtDollar,
-  getEffectiveQty,
-  isLinkedQtyMode,
-  liSubtotal,
-  QtyMode,
-  roomSqft,
-} from "@/lib/utils";
+import { fmtDollar, isLinkedQtyMode, QtyMode, roomSqft } from "@/lib/utils";
 
 export interface QuoteSavePatch {
   lineItems?: LineItemCalc[];
@@ -122,26 +116,40 @@ export function LineItemSection({
     save({ lineItems: newItems });
   }
 
+  const view = useMemo(
+    () =>
+      computeQuoteView({
+        lineItems: items,
+        items: rooms,
+        markupPct,
+        convenienceFeeRate: feePct / 100,
+        depositPct: depositPctState / 100,
+      }),
+    [items, rooms, markupPct, feePct, depositPctState]
+  );
+  const lineById = useMemo(
+    () => new Map(view.lines.map((l) => [l.id, l])),
+    [view.lines]
+  );
+
   /** Commit a new subtotal value by back-calculating rate from effective qty.
    *  Preserves full precision on rate so qty * rate equals the entered subtotal
    *  exactly; the rate cell renders via toFixed(2) for display. */
   function commitSubtotal(li: LineItemCalc, next: number | null) {
     if (readOnly) return;
     if (next === null || next < 0) return;
-    const qty = getEffectiveQty(li, rooms);
+    const qty = lineById.get(li.id)?.effectiveQty ?? null;
     if (qty === null || qty === 0) return; // can't back-calculate
     updateItem(li.id, { rate: next / qty });
   }
 
-  const subtotal = items.reduce((sum, li) => {
-    const st = liSubtotal(li, rooms);
-    return sum + (st ?? 0);
-  }, 0);
-
-  const feeAmt = subtotal * (feePct / 100);
-  const markupAmt = (subtotal + feeAmt) * (markupPct / 100);
-  const total = subtotal + feeAmt + markupAmt;
-  const deposit = total * (depositPctState / 100);
+  const {
+    subtotal,
+    markup: markupAmt,
+    convenienceFee: feeAmt,
+    total,
+    deposit,
+  } = view;
   const margin = total > 0 ? ((total - subtotal) / total) * 100 : 0;
 
   return (
@@ -179,8 +187,9 @@ export function LineItemSection({
           </div>
         ) : (
           items.map((li) => {
-            const effectiveQty = getEffectiveQty(li, rooms);
-            const sub = liSubtotal(li, rooms);
+            const lineView = lineById.get(li.id);
+            const effectiveQty = lineView?.effectiveQty ?? null;
+            const sub = lineView?.subtotal ?? null;
             const linked =
               isLinkedQtyMode(li.qtyMode) && li.linkedRoomIds.length > 0;
             const linkedUnit =

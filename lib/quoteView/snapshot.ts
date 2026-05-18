@@ -1,27 +1,20 @@
 import { createHash } from "node:crypto";
-import {
-  getEffectiveQty,
-  type LineItemCalc,
-  liSubtotal,
-  type RoomItem,
-} from "@/lib/utils";
+import { computeQuoteView } from "./compute";
+import type { LineItemCalc, QuoteInput, RoomItem } from "./types";
 
-export interface QuoteSnapshotInput {
+/** Side-channel metadata attached to a snapshot but not part of the math.
+ *  These fields are copied into the canonicalized snapshot verbatim and
+ *  contribute to the hash, so renaming or restructuring them is a breaking
+ *  change for already-signed quotes. */
+export interface QuoteSnapshotMeta {
   quoteNumber: number;
   date: Date | string;
-  convenienceFeeRate: number;
-  markupPct: number;
-  depositPct: number;
-  estimate: {
-    customer: {
-      name: string | null;
-      address: string | null;
-      email: string | null;
-      phone: string | null;
-    } | null;
-    items: RoomItem[];
-  };
-  lineItems: LineItemCalc[];
+  customer: {
+    name: string | null;
+    address: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
   org: {
     name: string;
     address: string | null;
@@ -37,19 +30,8 @@ export interface QuoteSnapshot {
   convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
-  customer: {
-    name: string | null;
-    address: string | null;
-    email: string | null;
-    phone: string | null;
-  } | null;
-  org: {
-    name: string;
-    address: string | null;
-    phone: string | null;
-    licenseNumber: string | null;
-    logo: string | null;
-  };
+  customer: QuoteSnapshotMeta["customer"];
+  org: QuoteSnapshotMeta["org"];
   items: Array<Record<string, unknown>>;
   lineItems: Array<Record<string, unknown>>;
   totals: {
@@ -61,30 +43,24 @@ export interface QuoteSnapshot {
   };
 }
 
-export function snapshotQuote(input: QuoteSnapshotInput): QuoteSnapshot {
-  const rooms = input.estimate.items.filter(
-    (i): i is RoomItem => i.type === "room"
-  );
-  const subtotal = input.lineItems.reduce(
-    (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
-    0
-  );
-  const markup = subtotal * (input.markupPct / 100);
-  const beforeFee = subtotal + markup;
-  const convenienceFee = beforeFee * input.convenienceFeeRate;
-  const total = beforeFee + convenienceFee;
-  const deposit = total * input.depositPct;
+/** Build a serializable, hashable snapshot of a quote — the customer-signed
+ *  artifact. Computes the view internally so totals can never diverge from
+ *  what the editor or public page showed. */
+export function snapshotQuote(
+  input: QuoteInput,
+  meta: QuoteSnapshotMeta
+): QuoteSnapshot {
+  const view = computeQuoteView(input);
 
   return {
-    quoteNumber: input.quoteNumber,
-    date:
-      typeof input.date === "string" ? input.date : input.date.toISOString(),
+    quoteNumber: meta.quoteNumber,
+    date: typeof meta.date === "string" ? meta.date : meta.date.toISOString(),
     convenienceFeeRate: input.convenienceFeeRate,
     markupPct: input.markupPct,
     depositPct: input.depositPct,
-    customer: input.estimate.customer,
-    org: input.org,
-    items: input.estimate.items.map((i) => ({
+    customer: meta.customer,
+    org: meta.org,
+    items: input.items.map((i: RoomItem) => ({
       id: i.id,
       type: i.type,
       name: i.name ?? null,
@@ -94,7 +70,7 @@ export function snapshotQuote(input: QuoteSnapshotInput): QuoteSnapshot {
       note: i.note ?? null,
       text: i.text ?? null,
     })),
-    lineItems: input.lineItems.map((li) => ({
+    lineItems: input.lineItems.map((li: LineItemCalc, idx: number) => ({
       id: li.id,
       sortOrder: li.sortOrder ?? 0,
       name: li.name,
@@ -105,10 +81,16 @@ export function snapshotQuote(input: QuoteSnapshotInput): QuoteSnapshot {
       wastePct: li.wastePct,
       unitLabel: li.unitLabel,
       linkedRoomIds: li.linkedRoomIds,
-      effectiveQty: getEffectiveQty(li, rooms),
-      subtotal: liSubtotal(li, rooms),
+      effectiveQty: view.lines[idx]?.effectiveQty ?? null,
+      subtotal: view.lines[idx]?.subtotal ?? null,
     })),
-    totals: { subtotal, markup, convenienceFee, total, deposit },
+    totals: {
+      subtotal: view.subtotal,
+      markup: view.markup,
+      convenienceFee: view.convenienceFee,
+      total: view.total,
+      deposit: view.deposit,
+    },
   };
 }
 

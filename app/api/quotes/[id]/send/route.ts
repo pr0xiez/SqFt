@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { sendQuoteEmail } from "@/lib/email/sendQuoteEmail";
 import { logError } from "@/lib/logger";
+import { computeQuoteView, fromPrismaQuote } from "@/lib/quoteView";
 import {
   getQuote,
   markQuoteSent,
@@ -11,7 +12,6 @@ import {
   writeQuoteEvent,
 } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
-import { type LineItemCalc, quoteTotal, type RoomItem } from "@/lib/utils";
 import { withLogging } from "@/lib/with-logging";
 
 const bodySchema = z.object({
@@ -76,12 +76,9 @@ export const POST = withLogging(
       const publicUrl = `${getPublicBaseUrl()}/q/${token}`;
 
       const total =
-        quoteTotal({
-          lineItems: quote.lineItems as LineItemCalc[],
-          estimate: { items: quote.estimate.items as RoomItem[] },
-          markupPct: quote.markupPct,
-          convenienceFeeRate: quote.convenienceFeeRate,
-        }) ?? 0;
+        quote.lineItems.length === 0
+          ? 0
+          : computeQuoteView(fromPrismaQuote(quote)).total;
 
       const org = await getOrgForEmail(orgId);
 
