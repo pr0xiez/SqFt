@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { computeQuoteView, fromPrismaQuote } from "@/lib/quoteView";
 import { createQuote, listQuotes } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
-import { type LineItemCalc, quoteTotal, type RoomItem } from "@/lib/utils";
 import { withLogging } from "@/lib/with-logging";
 
 const createSchema = z.object({
@@ -13,17 +13,14 @@ export const GET = withLogging(async () => {
   try {
     const orgId = await getOrgId();
     const quotes = await listQuotes(orgId);
-    const out = quotes.map(({ lineItems, estimate, ...rest }) => {
-      const { items, ...estimateRest } = estimate;
+    const out = quotes.map((quote) => {
+      const { lineItems: _lineItems, estimate, ...rest } = quote;
+      const { items: _items, ...estimateRest } = estimate;
+      const view = computeQuoteView(fromPrismaQuote(quote));
       return {
         ...rest,
         estimate: estimateRest,
-        total: quoteTotal({
-          lineItems: lineItems as LineItemCalc[],
-          estimate: { items: items as RoomItem[] },
-          markupPct: rest.markupPct,
-          convenienceFeeRate: rest.convenienceFeeRate,
-        }),
+        total: quote._count.lineItems === 0 ? null : view.total,
       };
     });
     return NextResponse.json(out);
