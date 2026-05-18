@@ -2,12 +2,45 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export interface CustomerEstimateSummary {
+export type QuoteStatus = "draft" | "sent" | "viewed" | "accepted" | "declined";
+
+export interface CustomerQuoteSummary {
   id: number;
+  quoteNumber: number;
+  status: QuoteStatus;
   date: string;
-  status: string;
+  sentAt: string | null;
+  viewedAt: string | null;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  createdAt: string;
+  _count: { lineItems: number };
 }
 
+export interface CustomerListQuoteSummary {
+  status: QuoteStatus;
+  sentAt: string | null;
+  viewedAt: string | null;
+  acceptedAt: string | null;
+  declinedAt: string | null;
+  createdAt: string;
+}
+
+export interface CustomerEstimateSummary {
+  id: number;
+  estimateNumber: number | null;
+  title: string;
+  date: string;
+  createdAt: string;
+  quotes: CustomerQuoteSummary[];
+}
+
+/**
+ * Base customer record — the bare row shape, no relations.
+ * Returned by POST /api/customers and PATCH /api/customers/:id, and
+ * accepted by consumers that only need contact info (e.g. the customer
+ * picker).
+ */
 export interface Customer {
   id: number;
   orgId: string;
@@ -18,8 +51,24 @@ export interface Customer {
   source: string;
   notes?: string | null;
   createdAt: string;
-  estimates?: CustomerEstimateSummary[];
+}
+
+/**
+ * Shape returned by GET /api/customers — each estimate carries only a
+ * slim quote summary used to derive pipeline state on the list view.
+ */
+export interface CustomerListItem extends Customer {
   _count?: { estimates: number };
+  estimates?: { quotes: CustomerListQuoteSummary[] }[];
+}
+
+/**
+ * Shape returned by GET /api/customers/:id — full estimate + quote
+ * details for the customer detail page.
+ */
+export interface CustomerDetail extends Customer {
+  _count?: { estimates: number };
+  estimates?: CustomerEstimateSummary[];
 }
 
 export interface CreateCustomerInput {
@@ -31,13 +80,13 @@ export interface CreateCustomerInput {
   notes?: string;
 }
 
-async function fetchCustomers(): Promise<Customer[]> {
+async function fetchCustomers(): Promise<CustomerListItem[]> {
   const res = await fetch("/api/customers");
   if (!res.ok) throw new Error("Failed to fetch customers");
   return res.json();
 }
 
-async function fetchCustomer(id: number): Promise<Customer> {
+async function fetchCustomer(id: number): Promise<CustomerDetail> {
   const res = await fetch(`/api/customers/${id}`);
   if (!res.ok) throw new Error("Failed to fetch customer");
   return res.json();
