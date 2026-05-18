@@ -2,14 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { type RoomItem, roomSqft } from "@/lib/utils";
+import { type RoomItem, roomPerimeter, roomSqft } from "@/lib/utils";
+
+type Measure = "area" | "perimeter";
 
 interface Props {
   rooms: RoomItem[];
   initialRoomIds: number[];
   initialWastePct: number;
   anchorRect: DOMRect;
-  onApply: (roomIds: number[], wastePct: number) => void;
+  onApply: (roomIds: number[], wastePct: number, measure: Measure) => void;
   onClear: () => void;
   onClose: () => void;
 }
@@ -33,6 +35,7 @@ export function RoomLinkPicker({
     () => new Set(initialRoomIds)
   );
   const [wastePct, setWastePct] = useState<number>(initialWastePct);
+  const [measure, setMeasure] = useState<Measure>("area");
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
@@ -68,13 +71,16 @@ export function RoomLinkPicker({
     [rooms]
   );
 
-  const baseSqft = useMemo(() => {
+  const measureFn = measure === "perimeter" ? roomPerimeter : roomSqft;
+  const unitLabel = measure === "perimeter" ? "lf" : "sqft";
+
+  const baseAmount = useMemo(() => {
     return roomItems
       .filter((r) => draftIds.has(r.id))
-      .reduce((sum, r) => sum + roomSqft(r), 0);
-  }, [roomItems, draftIds]);
+      .reduce((sum, r) => sum + measureFn(r), 0);
+  }, [roomItems, draftIds, measureFn]);
 
-  const totalSqft = baseSqft * (1 + wastePct / 100);
+  const totalAmount = baseAmount * (1 + wastePct / 100);
   const selectedCount = draftIds.size;
   const hasRooms = roomItems.length > 0;
 
@@ -89,7 +95,7 @@ export function RoomLinkPicker({
 
   function handleApply() {
     if (selectedCount === 0) return;
-    onApply(Array.from(draftIds), wastePct);
+    onApply(Array.from(draftIds), wastePct, measure);
     onClose();
   }
 
@@ -126,7 +132,11 @@ export function RoomLinkPicker({
         {hasRooms ? (
           roomItems.map((r) => {
             const checked = draftIds.has(r.id);
-            const sqft = Math.round(roomSqft(r));
+            const amount = measureFn(r);
+            const displayAmount =
+              measure === "perimeter"
+                ? amount.toFixed(1)
+                : Math.round(amount).toString();
             return (
               <button
                 key={r.id}
@@ -150,7 +160,7 @@ export function RoomLinkPicker({
                   {r.name || "Untitled room"}
                 </span>
                 <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-                  {sqft} sqft
+                  {displayAmount} {unitLabel}
                 </span>
               </button>
             );
@@ -184,6 +194,44 @@ export function RoomLinkPicker({
         </select>
       </div>
 
+      {/* Measure toggle */}
+      <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-t border-[var(--line)] bg-[var(--surface-2)]">
+        <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em]">
+          Measure
+        </span>
+        <fieldset
+          aria-label="Measure mode"
+          className="inline-flex border border-[var(--line)] rounded-[4px] overflow-hidden bg-[var(--surface)] p-0 m-0"
+        >
+          <button
+            type="button"
+            onClick={() => setMeasure("area")}
+            aria-pressed={measure === "area"}
+            className={cn(
+              "font-[var(--font-mono)] text-[11px] px-2.5 py-1 cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sage)]",
+              measure === "area"
+                ? "bg-[var(--sage)] text-white"
+                : "bg-transparent text-[var(--muted)] hover:text-[var(--ink)]"
+            )}
+          >
+            Area (sqft)
+          </button>
+          <button
+            type="button"
+            onClick={() => setMeasure("perimeter")}
+            aria-pressed={measure === "perimeter"}
+            className={cn(
+              "font-[var(--font-mono)] text-[11px] px-2.5 py-1 cursor-pointer transition-colors duration-150 border-l border-[var(--line)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sage)]",
+              measure === "perimeter"
+                ? "bg-[var(--sage)] text-white"
+                : "bg-transparent text-[var(--muted)] hover:text-[var(--ink)]"
+            )}
+          >
+            Perimeter (lf)
+          </button>
+        </fieldset>
+      </div>
+
       {/* Preview */}
       <div className="px-3.5 py-2.5 border-t border-[var(--line)] font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
         {selectedCount === 0 ? (
@@ -192,16 +240,20 @@ export function RoomLinkPicker({
           <>
             <span className="text-[var(--ink)]">{selectedCount}</span> room
             {selectedCount === 1 ? "" : "s"} ·{" "}
-            <span className="text-[var(--ink)]">{Math.round(baseSqft)}</span>{" "}
-            sqft
+            <span className="text-[var(--ink)]">
+              {measure === "perimeter"
+                ? baseAmount.toFixed(1)
+                : Math.round(baseAmount)}
+            </span>{" "}
+            {unitLabel}
             {wastePct > 0 ? (
               <>
                 {" "}
                 × {wastePct}% ={" "}
                 <span className="text-[var(--sage)] font-[600]">
-                  {totalSqft.toFixed(1)}
+                  {totalAmount.toFixed(1)}
                 </span>{" "}
-                sqft
+                {unitLabel}
               </>
             ) : null}
           </>

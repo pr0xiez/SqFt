@@ -6,16 +6,31 @@ import { DecimalInput } from "@/components/ui/DecimalInput";
 import { cn } from "@/lib/cn";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
-import { fmtDollar, getEffectiveQty, liSubtotal, roomSqft } from "@/lib/utils";
+import {
+  fmtDollar,
+  getEffectiveQty,
+  isLinkedQtyMode,
+  liSubtotal,
+  QtyMode,
+  roomSqft,
+} from "@/lib/utils";
+
+export interface QuoteSavePatch {
+  lineItems?: LineItemCalc[];
+  convenienceFeeRate?: number;
+  markupPct?: number;
+  depositPct?: number;
+}
 
 interface Props {
   lineItems: LineItemCalc[];
   rooms: RoomItem[];
-  taxRate: number;
+  convenienceFeeRate: number;
   markupPct: number;
+  depositPct: number;
   readOnly?: boolean;
   templates?: LineItemTemplate[];
-  onSave: (lineItems: LineItemCalc[]) => Promise<void>;
+  onSave: (patch: QuoteSavePatch) => Promise<void>;
 }
 
 let _liNextId = Date.now() + 100000;
@@ -23,24 +38,37 @@ function tempLiId() {
   return ++_liNextId;
 }
 
+/** Normalize legacy "ft²" unit label to "sqft" for toggle UI. */
+function normalizeUnit(label: string): "sqft" | "lf" | "other" {
+  if (label === "sqft" || label === "ft²") return "sqft";
+  if (label === "lf") return "lf";
+  return "other";
+}
+
 export function LineItemSection({
   lineItems: initialLineItems,
   rooms,
-  taxRate,
-  markupPct,
+  convenienceFeeRate: initialFee,
+  markupPct: initialMarkup,
+  depositPct: initialDeposit,
   readOnly = false,
   templates = [],
   onSave,
 }: Props) {
   const [items, setItems] = useState<LineItemCalc[]>(initialLineItems);
+  const [feePct, setFeePct] = useState(Math.round(initialFee * 1000) / 10);
+  const [markupPct, setMarkupPct] = useState(initialMarkup);
+  const [depositPctState, setDepositPctState] = useState(
+    Math.round(initialDeposit * 1000) / 10
+  );
   const [picker, setPicker] = useState<{
     lineId: number;
     rect: DOMRect;
   } | null>(null);
 
   const save = useCallback(
-    async (newItems: LineItemCalc[]) => {
-      await onSave(newItems);
+    async (patch: QuoteSavePatch) => {
+      await onSave(patch);
     },
     [onSave]
   );
@@ -54,7 +82,7 @@ export function LineItemSection({
         name: "New line item",
         description: null,
         rate: 0,
-        qtyMode: "manual",
+        qtyMode: QtyMode.Manual,
         qty: null,
         wastePct: 0,
         unitLabel: "sqft",
@@ -63,7 +91,7 @@ export function LineItemSection({
       },
     ];
     setItems(newItems);
-    save(newItems);
+    save({ lineItems: newItems });
   }
 
   function applyTemplate(id: number, templateId: number) {
@@ -82,7 +110,7 @@ export function LineItemSection({
     if (readOnly) return;
     const newItems = items.filter((i) => i.id !== id);
     setItems(newItems);
-    save(newItems);
+    save({ lineItems: newItems });
   }
 
   function updateItem(id: number, patch: Partial<LineItemCalc>) {
@@ -91,7 +119,17 @@ export function LineItemSection({
       item.id === id ? { ...item, ...patch } : item
     );
     setItems(newItems);
-    save(newItems);
+    save({ lineItems: newItems });
+  }
+
+  /** Commit a new subtotal value by back-calculating rate from effective qty. */
+  function commitSubtotal(li: LineItemCalc, next: number | null) {
+    if (readOnly) return;
+    if (next === null || next < 0) return;
+    const qty = getEffectiveQty(li, rooms);
+    if (qty === null || qty === 0) return; // can't back-calculate
+    const newRate = Math.round((next / qty) * 100) / 100;
+    updateItem(li.id, { rate: newRate });
   }
 
   const subtotal = items.reduce((sum, li) => {
@@ -99,10 +137,11 @@ export function LineItemSection({
     return sum + (st ?? 0);
   }, 0);
 
-  const taxPct = taxRate * 100;
-  const taxAmt = subtotal * taxRate;
-  const markupAmt = (subtotal + taxAmt) * (markupPct / 100);
-  const total = subtotal + taxAmt + markupAmt;
+  const feeAmt = subtotal * (feePct / 100);
+  const markupAmt = (subtotal + feeAmt) * (markupPct / 100);
+  const total = subtotal + feeAmt + markupAmt;
+  const deposit = total * (depositPctState / 100);
+  const margin = total > 0 ? ((total - subtotal) / total) * 100 : 0;
 
   return (
     <div className="space-y-3.5">
@@ -142,10 +181,15 @@ export function LineItemSection({
             const effectiveQty = getEffectiveQty(li, rooms);
             const sub = liSubtotal(li, rooms);
             const linked =
-              li.qtyMode === "linked" && li.linkedRoomIds.length > 0;
+              isLinkedQtyMode(li.qtyMode) && li.linkedRoomIds.length > 0;
+            const linkedUnit =
+              li.qtyMode === QtyMode.LinkedPerimeter ? "lf" : "sqft";
             const linkedRooms = rooms.filter((r) =>
               li.linkedRoomIds.includes(r.id)
             );
+            const unitKind = normalizeUnit(li.unitLabel);
+            const canEditSubtotal =
+              !readOnly && effectiveQty !== null && effectiveQty > 0;
 
             return (
               <div
@@ -165,7 +209,7 @@ export function LineItemSection({
                         onChange={(e) =>
                           updateItem(li.id, { name: e.target.value })
                         }
-                        onBlur={() => save(items)}
+                        onBlur={() => save({ lineItems: items })}
                         disabled={readOnly}
                         className="text-[14px] font-[500] flex-1 min-w-0 border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default"
                       />
@@ -196,7 +240,7 @@ export function LineItemSection({
                           description: e.target.value || null,
                         })
                       }
-                      onBlur={() => save(items)}
+                      onBlur={() => save({ lineItems: items })}
                       disabled={readOnly}
                       placeholder={readOnly ? "" : "Description (optional)"}
                       rows={1}
@@ -225,8 +269,8 @@ export function LineItemSection({
                       )}
                     >
                       {linked
-                        ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"}`
-                        : li.qtyMode === "manual"
+                        ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"} · ${linkedUnit}`
+                        : li.qtyMode === QtyMode.Manual
                           ? `Manual · ${li.unitLabel || ""}`
                           : "Set scope…"}
                     </button>
@@ -240,17 +284,36 @@ export function LineItemSection({
                             : "—"}
                         </span>
                         <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] opacity-80">
-                          sqft
+                          {linkedUnit}
                         </span>
                       </div>
                     ) : (
-                      <DecimalInput
-                        value={li.qty}
-                        onCommit={(next) => updateItem(li.id, { qty: next })}
-                        allowEmpty
-                        disabled={readOnly}
-                        className="w-full text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
-                      />
+                      <div className="flex items-baseline gap-2">
+                        <DecimalInput
+                          value={li.qty}
+                          onCommit={(next) => updateItem(li.id, { qty: next })}
+                          allowEmpty
+                          disabled={readOnly}
+                          className="w-[64px] text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
+                        />
+                        {unitKind === "other" ? (
+                          <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                            {li.unitLabel}
+                          </span>
+                        ) : (
+                          <select
+                            value={unitKind}
+                            onChange={(e) =>
+                              updateItem(li.id, { unitLabel: e.target.value })
+                            }
+                            disabled={readOnly}
+                            className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] bg-transparent border-none focus:outline-none disabled:cursor-default cursor-pointer hover:text-[var(--ink)]"
+                          >
+                            <option value="sqft">sqft</option>
+                            <option value="lf">lf</option>
+                          </select>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="px-3.5 py-[11px] relative">
@@ -267,13 +330,33 @@ export function LineItemSection({
                       className="w-full text-[14px] font-[500] pl-3 border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
                     />
                   </div>
-                  <div
-                    className={cn(
-                      "px-3.5 py-[11px] text-[14px] font-[600] tracking-[-0.01em]",
-                      sub && sub > 0 ? "text-[var(--accent)]" : ""
+                  <div className="px-3.5 py-[11px] relative">
+                    {canEditSubtotal ? (
+                      <>
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none">
+                          $
+                        </span>
+                        <DecimalInput
+                          value={sub ?? 0}
+                          onCommit={(next) => commitSubtotal(li, next)}
+                          formatOnBlur
+                          title="Edit subtotal — rate will be recalculated from quantity"
+                          className={cn(
+                            "w-full text-[14px] font-[600] tracking-[-0.01em] pl-3 border-none bg-transparent p-0 focus:outline-none",
+                            sub && sub > 0 ? "text-[var(--accent)]" : ""
+                          )}
+                        />
+                      </>
+                    ) : (
+                      <span
+                        className={cn(
+                          "text-[14px] font-[600] tracking-[-0.01em]",
+                          sub && sub > 0 ? "text-[var(--accent)]" : ""
+                        )}
+                      >
+                        ${(sub ?? 0).toFixed(2)}
+                      </span>
                     )}
-                  >
-                    ${(sub ?? 0).toFixed(2)}
                   </div>
                   {!readOnly && (
                     <button
@@ -321,48 +404,34 @@ export function LineItemSection({
               <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
                 Subtotal
               </div>
+              <div />
               <div className="px-3.5 py-2.5 text-[14px] font-[600]">
                 {fmtDollar(subtotal)}
               </div>
               <div />
-              <div />
             </div>
-            {/* Tax */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-                Tax
-              </div>
-              <div className="px-2 py-2 flex items-center gap-1.5">
-                <span className="font-[var(--font-mono)] text-[13px] font-[600]">
-                  {taxPct.toFixed(1)}
-                </span>
-                <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-                  %
-                </span>
-              </div>
-              <div className="px-3.5 py-2.5 text-[14px] font-[600]">
-                {fmtDollar(taxAmt)}
-              </div>
-              <div />
-            </div>
+            {/* Convenience fee */}
+            <PctRow
+              label="Convenience fee"
+              valuePct={feePct}
+              suffix={fmtDollar(feeAmt)}
+              readOnly={readOnly}
+              onCommit={(next) => {
+                setFeePct(next);
+                save({ convenienceFeeRate: next / 100 });
+              }}
+            />
             {/* Markup */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-                Markup (on subtotal + tax)
-              </div>
-              <div className="px-2 py-2 flex items-center gap-1.5">
-                <span className="font-[var(--font-mono)] text-[13px] font-[600]">
-                  {markupPct}
-                </span>
-                <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-                  %
-                </span>
-              </div>
-              <div className="px-3.5 py-2.5 text-[14px] font-[600]">
-                {fmtDollar(markupAmt)}
-              </div>
-              <div />
-            </div>
+            <PctRow
+              label="Markup (on subtotal + fee)"
+              valuePct={markupPct}
+              suffix={fmtDollar(markupAmt)}
+              readOnly={readOnly}
+              onCommit={(next) => {
+                setMarkupPct(next);
+                save({ markupPct: next });
+              }}
+            />
             {/* Total */}
             <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center bg-[var(--ink)] text-[var(--bg)] [html[data-theme=dark]_&]:bg-[var(--surface-2)] [html[data-theme=dark]_&]:border-t [html[data-theme=dark]_&]:border-[var(--line)]">
               <div className="px-3.5 py-3.5 font-[var(--font-mono)] text-[11px] uppercase tracking-[.04em] opacity-80 col-span-4">
@@ -370,6 +439,28 @@ export function LineItemSection({
               </div>
               <div className="px-3.5 py-3.5 text-[22px] font-[700] tracking-[-0.025em]">
                 {fmtDollar(total)}
+              </div>
+              <div />
+            </div>
+            {/* Deposit + margin footer */}
+            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-t border-[var(--line)]">
+              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-2 flex items-center gap-2">
+                <span>Deposit</span>
+                <PctInline
+                  value={depositPctState}
+                  readOnly={readOnly}
+                  onCommit={(next) => {
+                    setDepositPctState(next);
+                    save({ depositPct: next / 100 });
+                  }}
+                />
+              </div>
+              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em]">
+                Margin {margin.toFixed(1)}%
+              </div>
+              <div />
+              <div className="px-3.5 py-2.5 text-[13px] font-[600] text-[var(--sage)]">
+                {fmtDollar(deposit)}
               </div>
               <div />
             </div>
@@ -398,16 +489,19 @@ export function LineItemSection({
               initialRoomIds={li.linkedRoomIds}
               initialWastePct={li.wastePct}
               anchorRect={picker.rect}
-              onApply={(linkedRoomIds, wastePct) =>
+              onApply={(linkedRoomIds, wastePct, measure) =>
                 updateItem(picker.lineId, {
-                  qtyMode: "linked",
+                  qtyMode:
+                    measure === "perimeter"
+                      ? QtyMode.LinkedPerimeter
+                      : QtyMode.LinkedArea,
                   linkedRoomIds,
                   wastePct,
                 })
               }
               onClear={() =>
                 updateItem(picker.lineId, {
-                  qtyMode: "manual",
+                  qtyMode: QtyMode.Manual,
                   linkedRoomIds: [],
                   wastePct: 0,
                   qty: null,
@@ -418,5 +512,55 @@ export function LineItemSection({
           );
         })()}
     </div>
+  );
+}
+
+interface PctRowProps {
+  label: string;
+  valuePct: number;
+  suffix: string;
+  readOnly: boolean;
+  onCommit: (nextPct: number) => void;
+}
+
+function PctRow({ label, valuePct, suffix, readOnly, onCommit }: PctRowProps) {
+  return (
+    <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
+      <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
+        {label}
+      </div>
+      <div className="px-2 py-2 flex items-center gap-1.5">
+        <PctInline value={valuePct} readOnly={readOnly} onCommit={onCommit} />
+      </div>
+      <div className="px-3.5 py-2.5 text-[14px] font-[600]">{suffix}</div>
+      <div />
+    </div>
+  );
+}
+
+interface PctInlineProps {
+  value: number;
+  readOnly: boolean;
+  onCommit: (next: number) => void;
+}
+
+function PctInline({ value, readOnly, onCommit }: PctInlineProps) {
+  return (
+    <>
+      <DecimalInput
+        value={value}
+        onCommit={(next) => {
+          if (next === null) return;
+          const clamped = Math.max(0, Math.min(100, next));
+          if (clamped !== value) onCommit(clamped);
+        }}
+        formatOnBlur={false}
+        disabled={readOnly}
+        className="w-[50px] font-[var(--font-mono)] text-[13px] font-[600] text-right bg-transparent border-none p-0 focus:outline-none focus:bg-[var(--surface)] disabled:cursor-default"
+      />
+      <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+        %
+      </span>
+    </>
   );
 }

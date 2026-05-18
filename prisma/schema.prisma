@@ -106,7 +106,7 @@ model Quote {
   quoteNumber   Int
   status        String       @default("draft") // draft | sent | viewed | accepted | declined
   date          DateTime     @default(now())
-  taxRate       Float        @default(0.08)
+  convenienceFeeRate Float   @default(0.03)
   markupPct     Float        @default(0)
   depositPct    Float        @default(0.50)
   approvalToken String?      @unique
@@ -140,7 +140,7 @@ model LineItem {
   name          String
   description   String?
   rate          Float   @default(0)
-  qtyMode       String  @default("manual") // manual | linked
+  qtyMode       String  @default("manual") // manual | linked_area | linked_perimeter — see lib/utils.ts QtyMode
   qty           Float?
   wastePct      Float   @default(0)
   unitLabel     String  @default("ft²")

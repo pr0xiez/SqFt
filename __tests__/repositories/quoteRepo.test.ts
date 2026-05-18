@@ -157,7 +157,7 @@ describe("createQuote", () => {
         estimateId: 1,
         quoteNumber: 5005,
         status: "draft",
-        taxRate: 0.08,
+        convenienceFeeRate: 0.03,
         markupPct: 0,
         depositPct: 0.5,
       }),

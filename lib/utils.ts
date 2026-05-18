@@ -52,6 +52,18 @@ export function roomSqft(room: RoomItem): number {
   return w * l;
 }
 
+/** Calculate the perimeter (linear feet) of a room. For rectangles 2(w+l);
+ *  for right-triangle rooms w + l + hypotenuse(w,l). Used to drive linear
+ *  measurements like shoe mold, quarter-round, or transition strips. */
+export function roomPerimeter(room: RoomItem): number {
+  if (room.type !== "room") return 0;
+  const w = parsef(room.w);
+  const l = parsef(room.l);
+  if (w === null || l === null) return 0;
+  if ((room.shape || "rect") === "tri") return w + l + Math.hypot(w, l);
+  return 2 * (w + l);
+}
+
 /** Sum square footage of all room items in an estimate */
 export function estTotalArea(items: RoomItem[]): number {
   return items
@@ -61,12 +73,34 @@ export function estTotalArea(items: RoomItem[]): number {
 
 // ── Quote calculations ────────────────────────────────────────────────────
 
+/** Source of truth for LineItem.qtyMode string values. Persisted as plain
+ *  strings in the DB and over the wire, so renaming a value requires a data
+ *  migration. Use the constants (e.g. `QtyMode.LinkedArea`) instead of bare
+ *  string literals everywhere. */
+export const QtyMode = {
+  /** User enters the quantity by hand. */
+  Manual: "manual",
+  /** Quantity = sum of linked room areas (sqft), × (1 + waste%). */
+  LinkedArea: "linked_area",
+  /** Quantity = sum of linked room perimeters (lf), × (1 + waste%).
+   *  For shoe mold, quarter-round, transition strips. */
+  LinkedPerimeter: "linked_perimeter",
+} as const;
+
+export type QtyMode = (typeof QtyMode)[keyof typeof QtyMode];
+
+/** All valid `qtyMode` values — used by zod and any other enum consumer. */
+export const QTY_MODE_VALUES = Object.values(QtyMode) as [
+  QtyMode,
+  ...QtyMode[],
+];
+
 export interface LineItemCalc {
   id: number;
   name: string;
   description?: string | null;
   rate: number;
-  qtyMode: "manual" | "linked";
+  qtyMode: QtyMode;
   qty?: number | null;
   wastePct: number;
   unitLabel: string;
@@ -74,17 +108,36 @@ export interface LineItemCalc {
   sortOrder?: number;
 }
 
-/** Get effective quantity for a line item, resolving linked room sq footage */
+/** True iff the qty mode pulls its quantity from linked rooms (vs. manual). */
+export function isLinkedQtyMode(mode: QtyMode): boolean {
+  return mode === QtyMode.LinkedArea || mode === QtyMode.LinkedPerimeter;
+}
+
+/** Narrow a raw DB string to a known QtyMode, falling back to Manual for
+ *  unrecognized legacy values. Use at trust boundaries (DB rows, JSON input). */
+export function parseQtyMode(raw: string): QtyMode {
+  return (QTY_MODE_VALUES as readonly string[]).includes(raw)
+    ? (raw as QtyMode)
+    : QtyMode.Manual;
+}
+
+/** Get effective quantity for a line item, resolving linked room measurements.
+ *  - `LinkedArea` sums room sqft
+ *  - `LinkedPerimeter` sums room perimeter (lf) — for shoe mold, trim, transitions
+ *  - `Manual` returns the user-entered qty
+ *  Waste % is applied to both linked modes. */
 export function getEffectiveQty(
   li: LineItemCalc,
   rooms: RoomItem[]
 ): number | null {
-  if (li.qtyMode === "linked") {
+  if (isLinkedQtyMode(li.qtyMode)) {
     const linked = rooms.filter(
       (r) => r.type === "room" && li.linkedRoomIds.includes(r.id)
     );
     if (linked.length === 0) return null;
-    const base = linked.reduce((sum, r) => sum + roomSqft(r), 0);
+    const measure =
+      li.qtyMode === QtyMode.LinkedPerimeter ? roomPerimeter : roomSqft;
+    const base = linked.reduce((sum, r) => sum + measure(r), 0);
     return base * (1 + (li.wastePct || 0) / 100);
   }
   return li.qty ?? null;
@@ -102,7 +155,7 @@ export function computeEstimateTotal(est: {
   lineItems?: LineItemCalc[];
   items?: RoomItem[];
   markupPct: number;
-  taxRate: number;
+  convenienceFeeRate: number;
 }): string | null {
   if (!est.lineItems?.length) return null;
   const rooms = (est.items ?? []).filter(
@@ -112,8 +165,8 @@ export function computeEstimateTotal(est: {
     (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
     0
   );
-  const beforeTax = subtotal * (1 + est.markupPct / 100);
-  const total = beforeTax * (1 + est.taxRate);
+  const beforeFee = subtotal * (1 + est.markupPct / 100);
+  const total = beforeFee * (1 + est.convenienceFeeRate);
   return fmtBig(total);
 }
 
@@ -124,7 +177,7 @@ export function quoteTotal(input: {
   lineItems: LineItemCalc[];
   estimate: { items: RoomItem[] };
   markupPct: number;
-  taxRate: number;
+  convenienceFeeRate: number;
 }): number | null {
   if (input.lineItems.length === 0) return null;
   const rooms = input.estimate.items.filter(
@@ -134,8 +187,8 @@ export function quoteTotal(input: {
     (sum, li) => sum + (liSubtotal(li, rooms) ?? 0),
     0
   );
-  const beforeTax = subtotal * (1 + input.markupPct / 100);
-  return beforeTax * (1 + input.taxRate);
+  const beforeFee = subtotal * (1 + input.markupPct / 100);
+  return beforeFee * (1 + input.convenienceFeeRate);
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────

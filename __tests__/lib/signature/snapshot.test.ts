@@ -37,7 +37,7 @@ describe("snapshotQuote", () => {
   const quote = {
     quoteNumber: 5001,
     date: new Date("2026-05-01T00:00:00Z"),
-    taxRate: 0.075,
+    convenienceFeeRate: 0.075,
     markupPct: 35,
     depositPct: 0.5,
     estimate: {
@@ -86,7 +86,7 @@ describe("snapshotQuote", () => {
     const snap = snapshotQuote(quote);
     expect(snap).toMatchObject({
       quoteNumber: 5001,
-      taxRate: 0.075,
+      convenienceFeeRate: 0.075,
       markupPct: 35,
       depositPct: 0.5,
       customer: expect.objectContaining({ name: "J. Henderson" }),
@@ -95,7 +95,7 @@ describe("snapshotQuote", () => {
       lineItems: expect.any(Array),
       totals: expect.objectContaining({
         subtotal: expect.any(Number),
-        tax: expect.any(Number),
+        convenienceFee: expect.any(Number),
         total: expect.any(Number),
       }),
     });

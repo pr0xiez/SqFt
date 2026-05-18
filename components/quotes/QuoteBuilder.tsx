@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
-import { QuoteSummary } from "@/components/estimates/QuoteSummary";
 import { QuoteLockBanner } from "@/components/quotes/QuoteLockBanner";
 import { ReviseButton } from "@/components/quotes/ReviseButton";
 import { SendQuoteDialog } from "@/components/quotes/SendQuoteDialog";
@@ -223,36 +222,19 @@ export function QuoteBuilderView({ quoteId }: Props) {
         </div>
       )}
 
-      {/* Line Items */}
+      {/* Line Items + inline totals/settings */}
       <LineItemSection
         lineItems={quote.lineItems ?? []}
         rooms={rooms}
-        taxRate={quote.taxRate}
-        markupPct={quote.markupPct}
-        readOnly={locked}
-        templates={templates}
-        onSave={async (lineItems) => {
-          try {
-            await updateQuote.mutateAsync({ lineItems });
-            showToast("Saved");
-          } catch {
-            showToast("Save failed");
-          }
-        }}
-      />
-
-      {/* Quote Summary */}
-      <QuoteSummary
-        lineItems={quote.lineItems ?? []}
-        rooms={rooms}
-        taxRate={quote.taxRate}
+        convenienceFeeRate={quote.convenienceFeeRate}
         markupPct={quote.markupPct}
         depositPct={quote.depositPct}
         readOnly={locked}
-        onSave={async (data) => {
+        templates={templates}
+        onSave={async (patch) => {
           try {
-            await updateQuote.mutateAsync(data);
-            showToast("Quote settings saved");
+            await updateQuote.mutateAsync(patch);
+            showToast("Saved");
           } catch {
             showToast("Save failed");
           }

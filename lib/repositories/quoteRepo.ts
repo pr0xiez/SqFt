@@ -93,7 +93,7 @@ type LineItemInput = Omit<
 
 export type QuotePatch = {
   status?: "draft" | "sent" | "accepted" | "declined";
-  taxRate?: number;
+  convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemInput[];
@@ -196,7 +196,7 @@ export async function createQuote(
         estimateId: input.estimateId,
         quoteNumber,
         status: "draft",
-        taxRate: 0.08,
+        convenienceFeeRate: 0.03,
         markupPct: 0,
         depositPct: 0.5,
       },
@@ -359,7 +359,7 @@ export async function reviseQuote(
         quoteNumber: newQuoteNumber,
         status: "draft",
         date: new Date(),
-        taxRate: original.taxRate,
+        convenienceFeeRate: original.convenienceFeeRate,
         markupPct: original.markupPct,
         depositPct: original.depositPct,
         approvalToken: generateToken(),

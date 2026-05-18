@@ -62,7 +62,7 @@ describe("POST /api/q/[token]/accept", () => {
       orgId: "org1",
       quoteNumber: 5001,
       status: "viewed",
-      taxRate: 0.08,
+      convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
       lineItems: [],

@@ -4,8 +4,8 @@ interface Props {
   subtotal: number;
   markup: number;
   markupPct: number;
-  tax: number;
-  taxRate: number;
+  convenienceFee: number;
+  convenienceFeeRate: number;
   total: number;
   deposit: number;
   depositPct: number;
@@ -16,8 +16,8 @@ export function TotalsBlock(props: Props) {
     <div className="mt-6 flex flex-col items-end gap-2">
       <Row label="Subtotal" value={fmtDollar(props.subtotal)} />
       <Row
-        label={`Tax · ${(props.taxRate * 100).toFixed(1)}%`}
-        value={fmtDollar(props.tax)}
+        label={`Convenience fee · ${(props.convenienceFeeRate * 100).toFixed(1)}%`}
+        value={fmtDollar(props.convenienceFee)}
       />
       {props.markupPct > 0 && (
         <Row

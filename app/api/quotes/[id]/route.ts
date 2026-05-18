@@ -8,6 +8,7 @@ import {
   saveQuote,
 } from "@/lib/repositories";
 import { getOrgId } from "@/lib/tenant";
+import { QTY_MODE_VALUES, QtyMode } from "@/lib/utils";
 import { withLogging } from "@/lib/with-logging";
 
 const lineItemSchema = z.object({
@@ -15,7 +16,7 @@ const lineItemSchema = z.object({
   name: z.string(),
   description: z.string().nullish(),
   rate: z.number(),
-  qtyMode: z.enum(["manual", "linked"]).default("manual"),
+  qtyMode: z.enum(QTY_MODE_VALUES).default(QtyMode.Manual),
   qty: z.number().nullish(),
   wastePct: z.number().default(0),
   unitLabel: z.string().default("ft²"),
@@ -25,7 +26,7 @@ const lineItemSchema = z.object({
 
 const updateSchema = z.object({
   status: z.enum(["draft", "sent", "accepted", "declined"]).optional(),
-  taxRate: z.number().min(0).max(1).optional(),
+  convenienceFeeRate: z.number().min(0).max(1).optional(),
   markupPct: z.number().min(0).optional(),
   depositPct: z.number().min(0).max(1).optional(),
   lineItems: z.array(lineItemSchema).optional(),

@@ -5,7 +5,7 @@ import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { acceptQuoteByToken, getQuoteByToken } from "@/lib/repositories";
 import { canonicalize, sha256, snapshotQuote } from "@/lib/signature/snapshot";
-import type { RoomItem } from "@/lib/utils";
+import { parseQtyMode, type RoomItem } from "@/lib/utils";
 import { withLogging } from "@/lib/with-logging";
 
 const bodySchema = z.object({
@@ -63,7 +63,7 @@ export const POST = withLogging(
       const snap = snapshotQuote({
         quoteNumber: quote.quoteNumber,
         date: quote.date,
-        taxRate: quote.taxRate,
+        convenienceFeeRate: quote.convenienceFeeRate,
         markupPct: quote.markupPct,
         depositPct: quote.depositPct,
         estimate: {
@@ -81,7 +81,7 @@ export const POST = withLogging(
           id: li.id,
           name: li.name,
           rate: li.rate,
-          qtyMode: li.qtyMode === "linked" ? "linked" : "manual",
+          qtyMode: parseQtyMode(li.qtyMode),
           qty: li.qty,
           wastePct: li.wastePct,
           unitLabel: li.unitLabel,

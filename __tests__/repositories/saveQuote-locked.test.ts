@@ -30,14 +30,14 @@ beforeEach(() => vi.clearAllMocks());
 describe("saveQuote lockdown", () => {
   it("returns null and does not mutate when quote is accepted", async () => {
     tx.quote.findFirst.mockResolvedValue({ id: 7, status: "accepted" });
-    const result = await saveQuote(7, "org_1", { taxRate: 0.1 });
+    const result = await saveQuote(7, "org_1", { convenienceFeeRate: 0.1 });
     expect(result).toBeNull();
     expect(tx.quote.update).not.toHaveBeenCalled();
   });
 
   it("returns null and does not mutate when quote is declined", async () => {
     tx.quote.findFirst.mockResolvedValue({ id: 7, status: "declined" });
-    const result = await saveQuote(7, "org_1", { taxRate: 0.1 });
+    const result = await saveQuote(7, "org_1", { convenienceFeeRate: 0.1 });
     expect(result).toBeNull();
     expect(tx.quote.update).not.toHaveBeenCalled();
   });
