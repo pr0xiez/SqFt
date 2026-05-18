@@ -122,14 +122,15 @@ export function LineItemSection({
     save({ lineItems: newItems });
   }
 
-  /** Commit a new subtotal value by back-calculating rate from effective qty. */
+  /** Commit a new subtotal value by back-calculating rate from effective qty.
+   *  Preserves full precision on rate so qty * rate equals the entered subtotal
+   *  exactly; the rate cell renders via toFixed(2) for display. */
   function commitSubtotal(li: LineItemCalc, next: number | null) {
     if (readOnly) return;
     if (next === null || next < 0) return;
     const qty = getEffectiveQty(li, rooms);
     if (qty === null || qty === 0) return; // can't back-calculate
-    const newRate = Math.round((next / qty) * 100) / 100;
-    updateItem(li.id, { rate: newRate });
+    updateItem(li.id, { rate: next / qty });
   }
 
   const subtotal = items.reduce((sum, li) => {

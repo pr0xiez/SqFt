@@ -54,7 +54,14 @@ export function DecimalInput({
         }
       }}
       onFocus={(e) => {
-        setDraft(value === null || value === undefined ? "" : String(value));
+        // With formatOnBlur, leave draft null so the formatted toFixed(maxDecimals)
+        // value remains visible — prevents float artifacts (e.g. 99.99000000000001)
+        // or hidden sub-cent precision from leaking on focus. Typing still sets
+        // draft via onChange; if the user blurs without editing, draft stays null
+        // and no commit fires, preserving the underlying value.
+        if (!formatOnBlur) {
+          setDraft(value === null || value === undefined ? "" : String(value));
+        }
         onFocus?.(e);
       }}
       onBlur={(e) => {

@@ -18,6 +18,19 @@ export interface SendEmailResult {
 
 const FROM = process.env.EMAIL_FROM ?? "SqFt Quotes <quotes@sqft.dev>";
 
+// RFC 2606 reserved-for-testing domains. Never resolve to real mailboxes,
+// so e2e tests can use them to exercise the send flow without burning Resend
+// quota on a real send.
+const TEST_DOMAINS = new Set(["example.com", "example.net", "example.org"]);
+
+function isTestRecipient(to: string | string[]): boolean {
+  const addrs = Array.isArray(to) ? to : [to];
+  return addrs.some((a) => {
+    const domain = a.split("@")[1]?.toLowerCase();
+    return domain ? TEST_DOMAINS.has(domain) : false;
+  });
+}
+
 let _client: Resend | null = null;
 function getClient(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -27,14 +40,15 @@ function getClient(): Resend | null {
 }
 
 /**
- * Send a transactional email. In test mode (NODE_ENV=test or RESEND_API_KEY
- * unset) records the call into an in-memory list instead of hitting the network.
+ * Send a transactional email. In test mode (NODE_ENV=test, RESEND_API_KEY
+ * unset, or a recipient on an RFC 2606 reserved-for-testing domain) records
+ * the call into an in-memory list instead of hitting the network.
  */
 export async function sendEmail(
   input: SendEmailInput
 ): Promise<SendEmailResult> {
   const client = getClient();
-  if (!client || process.env.NODE_ENV === "test") {
+  if (!client || process.env.NODE_ENV === "test" || isTestRecipient(input.to)) {
     recordEmail({
       to: input.to,
       subject: input.subject,
