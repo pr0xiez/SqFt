@@ -95,8 +95,8 @@ export function CustomerDetailView({ customerId }: Props) {
   const createEstimate = useCreateEstimate();
   const { showToast } = useToast();
 
-  const estimates = useMemo<CustomerEstimateSummary[]>(
-    () => (customer?.estimates as CustomerEstimateSummary[] | undefined) ?? [],
+  const estimates: CustomerEstimateSummary[] = useMemo(
+    () => customer?.estimates ?? [],
     [customer?.estimates]
   );
 

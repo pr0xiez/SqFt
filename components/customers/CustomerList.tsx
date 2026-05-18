@@ -9,7 +9,7 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { SourceBadge } from "@/components/ui/SourceBadge";
 import { cn } from "@/lib/cn";
 import {
-  type Customer,
+  type CustomerListItem,
   type CustomerListQuoteSummary,
   useCustomers,
 } from "@/lib/hooks/useCustomers";
@@ -49,12 +49,9 @@ interface CustomerSummary {
   lastActivity: string | null;
 }
 
-function summarize(customer: Customer): CustomerSummary {
-  const ests = (customer.estimates ?? []) as Array<{
-    quotes?: CustomerListQuoteSummary[];
-  }>;
-  const quotes: CustomerListQuoteSummary[] = ests.flatMap(
-    (e) => e.quotes ?? []
+function summarize(customer: CustomerListItem): CustomerSummary {
+  const quotes: CustomerListQuoteSummary[] = (customer.estimates ?? []).flatMap(
+    (e) => e.quotes
   );
   const open = quotes.filter(isOpenQuote).length;
   const accepted = quotes.filter((q) => q.status === "accepted").length;
