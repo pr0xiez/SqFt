@@ -15,9 +15,23 @@ test.describe("15.1 Estimates list page", () => {
     // Row buttons show customer name; the estimate # is in a hidden-md:block
     // span. Wait for loading to finish then match the row button by its #{id}.
     //
-    // Clear the persisted React Query cache first: the Dashboard at "/" already
-    // hydrated useEstimates with a 60s staleTime, so without this the page
-    // would render the cached (pre-POST) list and never see the new estimate.
+    // Two robustness steps before the visibility check:
+    //   1. Poll /api/estimates until the just-created row is observable. The
+    //      preview deploy sometimes races: POST commits, but the next GET on a
+    //      different pooled connection still returns the prior snapshot.
+    //   2. Clear localStorage so the persisted React Query cache (Dashboard at
+    //      "/" hydrated useEstimates with a 60s staleTime) doesn't replay a
+    //      stale list on /estimates.
+    await expect
+      .poll(
+        async () => {
+          const res = await ctx.request.get("/api/estimates");
+          const list = (await res.json()) as Array<{ id: number }>;
+          return list.some((e) => e.id === estimateId);
+        },
+        { timeout: 10000 }
+      )
+      .toBe(true);
     await page.evaluate(() => localStorage.clear());
     await page.goto("/estimates");
     // Wait for loading indicator to disappear.
