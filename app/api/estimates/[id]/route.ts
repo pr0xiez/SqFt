@@ -1,89 +1,27 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { logError } from "@/lib/logger";
+import { NotFoundError } from "@/lib/api/errors";
+import { apiRoute } from "@/lib/api/route";
+import { estimateIdParams, estimateUpdateSchema } from "@/lib/estimates/schema";
 import { deleteEstimate, getEstimate, saveEstimate } from "@/lib/repositories";
-import { getOrgId } from "@/lib/tenant";
-import { withLogging } from "@/lib/with-logging";
 
-const estimateItemSchema = z.object({
-  id: z.number().int(),
-  type: z.enum(["room", "note"]),
-  sortOrder: z.number().int().default(0),
-  name: z.string().nullish(),
-  shape: z.enum(["rect", "tri"]).nullish(),
-  w: z.number().nullish(),
-  l: z.number().nullish(),
-  note: z.string().nullish(),
-  text: z.string().nullish(),
+export const GET = apiRoute(async ({ orgId, params }) => {
+  const { id } = estimateIdParams.parse(params);
+  const estimate = await getEstimate(id, orgId);
+  if (!estimate) throw new NotFoundError();
+  return estimate;
 });
 
-const updateSchema = z.object({
-  title: z.string().max(200).optional(),
-  customerId: z.number().int().positive().optional(),
-  items: z.array(estimateItemSchema).optional(),
+export const PATCH = apiRoute(
+  { input: estimateUpdateSchema },
+  async ({ orgId, input, params }) => {
+    const { id } = estimateIdParams.parse(params);
+    const estimate = await saveEstimate(id, orgId, input);
+    if (!estimate) throw new NotFoundError();
+    return estimate;
+  }
+);
+
+export const DELETE = apiRoute(async ({ orgId, params }) => {
+  const { id } = estimateIdParams.parse(params);
+  await deleteEstimate(id, orgId);
+  return null;
 });
-
-type RouteParams = { params: Promise<{ id: string }> };
-
-export const GET = withLogging(
-  async (_req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const estimate = await getEstimate(parseInt(id, 10), orgId);
-      if (!estimate)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json(estimate);
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
-);
-
-export const PATCH = withLogging(
-  async (req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const body = await req.json();
-      const parsed = updateSchema.safeParse(body);
-
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: parsed.error.issues[0]?.message },
-          { status: 400 }
-        );
-      }
-
-      const estimate = await saveEstimate(parseInt(id, 10), orgId, parsed.data);
-      if (!estimate)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json(estimate);
-    } catch (err) {
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      logError({
-        errorMessage: err instanceof Error ? err.message : "Unknown error",
-        err,
-      });
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);
-
-export const DELETE = withLogging(
-  async (_req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      await deleteEstimate(parseInt(id, 10), orgId);
-      return NextResponse.json({ ok: true });
-    } catch (err) {
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);

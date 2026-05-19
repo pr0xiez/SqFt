@@ -1,69 +1,24 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { NotFoundError } from "@/lib/api/errors";
+import { apiRoute } from "@/lib/api/route";
 import {
-  CrewMemberInUseError,
-  deleteCrewMember,
-  updateCrewMember,
-} from "@/lib/repositories";
-import { getOrgId } from "@/lib/tenant";
-import { withLogging } from "@/lib/with-logging";
+  crewMemberIdParams,
+  crewMemberUpdateSchema,
+} from "@/lib/crewMembers/schema";
+import { deleteCrewMember, updateCrewMember } from "@/lib/repositories";
 
-const updateSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  role: z.string().max(100).optional(),
-  archived: z.boolean().optional(),
+export const PATCH = apiRoute(
+  { input: crewMemberUpdateSchema },
+  async ({ orgId, input, params }) => {
+    const { id } = crewMemberIdParams.parse(params);
+    const member = await updateCrewMember(id, orgId, input);
+    if (!member) throw new NotFoundError();
+    return member;
+  }
+);
+
+export const DELETE = apiRoute(async ({ orgId, params }) => {
+  const { id } = crewMemberIdParams.parse(params);
+  const result = await deleteCrewMember(id, orgId);
+  if (!result.ok) throw new NotFoundError();
+  return null;
 });
-
-type RouteParams = { params: Promise<{ id: string }> };
-
-export const PATCH = withLogging(
-  async (req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const body = await req.json();
-      const parsed = updateSchema.safeParse(body);
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: parsed.error.issues[0]?.message },
-          { status: 400 }
-        );
-      }
-      const member = await updateCrewMember(
-        parseInt(id, 10),
-        orgId,
-        parsed.data
-      );
-      if (!member)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json(member);
-    } catch (err) {
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);
-
-export const DELETE = withLogging(
-  async (_req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const result = await deleteCrewMember(parseInt(id, 10), orgId);
-      if (!result.ok) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
-      return NextResponse.json({ ok: true });
-    } catch (err) {
-      if (err instanceof CrewMemberInUseError) {
-        return NextResponse.json({ error: err.message }, { status: 409 });
-      }
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);

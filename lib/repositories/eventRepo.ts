@@ -1,12 +1,8 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import { EventValidationError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
 
-export class EventValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "EventValidationError";
-  }
-}
+export { EventValidationError };
 
 export type EventWithRelations = Prisma.EventGetPayload<{
   include: {

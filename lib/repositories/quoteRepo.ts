@@ -1,6 +1,9 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
+import { QuoteHasEventsError, QuoteLockedError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
+
+export { QuoteHasEventsError };
 
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
@@ -240,7 +243,7 @@ export async function saveQuote(
     });
     if (!existing) return null;
     if (existing.status === "accepted" || existing.status === "declined") {
-      return null;
+      throw new QuoteLockedError(existing.status);
     }
 
     if (Object.keys(topLevel).length > 0) {
@@ -288,13 +291,6 @@ export async function saveQuote(
       },
     });
   });
-}
-
-export class QuoteHasEventsError extends Error {
-  constructor(public readonly eventCount: number) {
-    super(`Quote has ${eventCount} scheduled event(s)`);
-    this.name = "QuoteHasEventsError";
-  }
 }
 
 /**

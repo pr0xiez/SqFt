@@ -15,9 +15,9 @@ export function ReviseButton({ quoteId }: { quoteId: number }) {
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
+          error?: { message?: string };
         };
-        throw new Error(body.error ?? `Failed (${res.status})`);
+        throw new Error(body.error?.message ?? `Failed (${res.status})`);
       }
       const body = (await res.json()) as { id: number };
       router.push(`/quotes/${body.id}`);

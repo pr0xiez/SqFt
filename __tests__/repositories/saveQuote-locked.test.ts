@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { QuoteLockedError } from "@/lib/api/errors";
 import { saveQuote } from "@/lib/repositories/quoteRepo";
 
 vi.mock("@/lib/prisma", () => {
@@ -28,17 +29,19 @@ const tx = (prisma as any).__tx;
 beforeEach(() => vi.clearAllMocks());
 
 describe("saveQuote lockdown", () => {
-  it("returns null and does not mutate when quote is accepted", async () => {
+  it("throws QuoteLockedError and does not mutate when quote is accepted", async () => {
     tx.quote.findFirst.mockResolvedValue({ id: 7, status: "accepted" });
-    const result = await saveQuote(7, "org_1", { convenienceFeeRate: 0.1 });
-    expect(result).toBeNull();
+    await expect(
+      saveQuote(7, "org_1", { convenienceFeeRate: 0.1 })
+    ).rejects.toBeInstanceOf(QuoteLockedError);
     expect(tx.quote.update).not.toHaveBeenCalled();
   });
 
-  it("returns null and does not mutate when quote is declined", async () => {
+  it("throws QuoteLockedError and does not mutate when quote is declined", async () => {
     tx.quote.findFirst.mockResolvedValue({ id: 7, status: "declined" });
-    const result = await saveQuote(7, "org_1", { convenienceFeeRate: 0.1 });
-    expect(result).toBeNull();
+    await expect(
+      saveQuote(7, "org_1", { convenienceFeeRate: 0.1 })
+    ).rejects.toBeInstanceOf(QuoteLockedError);
     expect(tx.quote.update).not.toHaveBeenCalled();
   });
 });

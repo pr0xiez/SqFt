@@ -170,8 +170,10 @@ export function useSendQuote(quoteId: number) {
         body: JSON.stringify(vars),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `Send failed (${res.status})`);
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: { message?: string };
+        };
+        throw new Error(body.error?.message ?? `Send failed (${res.status})`);
       }
       return res.json();
     },
@@ -190,10 +192,13 @@ export function useDeleteQuote() {
     ): Promise<{ ok?: boolean; error?: string }> => {
       const res = await fetch(`/api/quotes/${id}`, { method: "DELETE" });
       if (res.status === 409) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Quote has scheduled events");
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: { message?: string };
+        };
+        throw new Error(body.error?.message ?? "Quote has scheduled events");
       }
       if (!res.ok) throw new Error("Failed to delete quote");
+      if (res.status === 204) return { ok: true };
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["quotes"] }),

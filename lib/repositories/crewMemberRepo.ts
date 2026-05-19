@@ -1,5 +1,8 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import { CrewMemberInUseError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
+
+export { CrewMemberInUseError };
 
 export type CrewMemberWithCount = Prisma.CrewMemberGetPayload<{
   include: { _count: { select: { events: true } } };
@@ -10,13 +13,6 @@ export type CrewMemberSummary = {
   name: string;
   role: string;
 };
-
-export class CrewMemberInUseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "CrewMemberInUseError";
-  }
-}
 
 export async function listCrewMembers(
   orgId: string,

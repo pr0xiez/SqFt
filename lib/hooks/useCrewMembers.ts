@@ -80,8 +80,10 @@ export function useDeleteCrewMember() {
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/crew-members/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? "Failed to delete crew member");
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: { message?: string };
+        };
+        throw new Error(body?.error?.message ?? "Failed to delete crew member");
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["crew-members"] }),

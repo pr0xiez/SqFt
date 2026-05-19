@@ -1,88 +1,32 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { NotFoundError } from "@/lib/api/errors";
+import { apiRoute } from "@/lib/api/route";
+import { customerIdParams, customerUpdateSchema } from "@/lib/customers/schema";
 import {
   deleteCustomer,
   getCustomer,
   updateCustomer,
 } from "@/lib/repositories";
-import { getOrgId } from "@/lib/tenant";
-import { withLogging } from "@/lib/with-logging";
 
-const updateSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  phone: z.string().max(30).optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  address: z.string().max(400).optional(),
-  source: z
-    .enum(["phone", "online", "referral", "walkin", "website"])
-    .optional(),
-  notes: z.string().max(2000).optional(),
+export const GET = apiRoute(async ({ orgId, params }) => {
+  const { id } = customerIdParams.parse(params);
+  const customer = await getCustomer(id, orgId);
+  if (!customer) throw new NotFoundError();
+  return customer;
 });
 
-type RouteParams = { params: Promise<{ id: string }> };
-
-export const GET = withLogging(
-  async (_req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const customer = await getCustomer(parseInt(id, 10), orgId);
-      if (!customer)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json(customer);
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+export const PATCH = apiRoute(
+  { input: customerUpdateSchema },
+  async ({ orgId, input, params }) => {
+    const { id } = customerIdParams.parse(params);
+    const customer = await updateCustomer(id, orgId, input);
+    if (!customer) throw new NotFoundError();
+    return customer;
   }
 );
 
-export const PATCH = withLogging(
-  async (req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const body = await req.json();
-      const parsed = updateSchema.safeParse(body);
-
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: parsed.error.issues[0]?.message },
-          { status: 400 }
-        );
-      }
-
-      const customer = await updateCustomer(
-        parseInt(id, 10),
-        orgId,
-        parsed.data
-      );
-      if (!customer)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json(customer);
-    } catch (err) {
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);
-
-export const DELETE = withLogging(
-  async (_req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const deleted = await deleteCustomer(parseInt(id, 10), orgId);
-      if (!deleted) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
-      return NextResponse.json({ ok: true });
-    } catch (err) {
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);
+export const DELETE = apiRoute(async ({ orgId, params }) => {
+  const { id } = customerIdParams.parse(params);
+  const deleted = await deleteCustomer(id, orgId);
+  if (!deleted) throw new NotFoundError();
+  return null;
+});

@@ -1,80 +1,29 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { EventValidationError } from "@/lib/api/errors";
+import { apiRoute } from "@/lib/api/route";
+import { eventCreateSchema } from "@/lib/events/schema";
 import {
   createEvent,
   listEvents,
   validateCrewMemberIds,
 } from "@/lib/repositories";
-import { EventValidationError } from "@/lib/repositories/eventRepo";
-import { getOrgId } from "@/lib/tenant";
-import { withLogging } from "@/lib/with-logging";
 
-const createSchema = z.object({
-  type: z.enum(["job", "visit", "other"]),
-  title: z.string().min(1).max(200),
-  customerId: z.number().int().positive().optional(),
-  quoteId: z.number().int().positive().optional(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/),
-  crewMemberIds: z.array(z.number().int().positive()).max(20).optional(),
-  notes: z.string().max(2000).optional(),
-});
+export const GET = apiRoute(async ({ orgId }) => listEvents(orgId));
 
-export const GET = withLogging(async () => {
-  try {
-    const orgId = await getOrgId();
-    const events = await listEvents(orgId);
-    return NextResponse.json(events);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-});
-
-export const POST = withLogging(async (req: NextRequest) => {
-  try {
-    const orgId = await getOrgId();
-    const body = await req.json();
-    const parsed = createSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message },
-        { status: 400 }
-      );
-    }
-
-    const { endDate, crewMemberIds, ...rest } = parsed.data;
+export const POST = apiRoute(
+  { input: eventCreateSchema, status: 201 },
+  async ({ orgId, input }) => {
+    const { endDate, crewMemberIds, ...rest } = input;
 
     if (crewMemberIds && crewMemberIds.length > 0) {
       const ok = await validateCrewMemberIds(orgId, crewMemberIds);
-      if (!ok) {
-        return NextResponse.json(
-          { error: "Invalid crew member" },
-          { status: 400 }
-        );
-      }
+      if (!ok) throw new EventValidationError("Invalid crew member");
     }
 
-    const event = await createEvent(orgId, {
+    return createEvent(orgId, {
       ...rest,
       date: new Date(rest.date),
       ...(endDate ? { endDate: new Date(endDate) } : {}),
       ...(crewMemberIds ? { crewMemberIds } : {}),
     });
-
-    return NextResponse.json(event, { status: 201 });
-  } catch (err) {
-    if (err instanceof EventValidationError) {
-      return NextResponse.json({ error: err.message }, { status: 400 });
-    }
-    if (err instanceof Error && err.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-});
+);

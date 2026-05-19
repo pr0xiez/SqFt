@@ -50,9 +50,9 @@ export function PublicQuoteAcceptBlock({
       });
       if (!res.ok && res.status !== 409) {
         const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
+          error?: { message?: string };
         };
-        throw new Error(body.error ?? `Failed (${res.status})`);
+        throw new Error(body.error?.message ?? `Failed (${res.status})`);
       }
       router.refresh();
     } catch (err) {
