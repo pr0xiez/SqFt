@@ -87,7 +87,7 @@ test.describe("5.2 Send lockdown", () => {
     });
     expect(res.status()).toBe(409);
     const body = await res.json();
-    expect(body.error).toMatch(/accepted/);
+    expect(body.error.message).toMatch(/accepted/);
     await ctx.close();
   });
 });

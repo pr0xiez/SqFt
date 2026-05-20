@@ -61,6 +61,6 @@ test.describe
 
     test("11.1.6 DELETE removes the member", async () => {
       const res = await ctx.request.delete(`/api/crew-members/${memberId}`);
-      expect(res.status()).toBe(200);
+      expect(res.status()).toBe(204);
     });
   });

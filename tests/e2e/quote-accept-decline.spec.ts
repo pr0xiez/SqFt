@@ -82,7 +82,7 @@ test.describe("6.1 Public accept", () => {
     await anon.close();
   });
 
-  test("6.1.4 short/garbage token returns 404 without DB lookup", async ({
+  test("6.1.4 short/garbage token is rejected without DB lookup", async ({
     browser,
   }) => {
     const anon = await browser.newContext();
@@ -94,7 +94,8 @@ test.describe("6.1 Public accept", () => {
         consentText: "I agree.",
       },
     });
-    expect(res.status()).toBe(404);
+    // Token must be 16-128 chars per quoteTokenParams; malformed → 400 VALIDATION_FAILED.
+    expect(res.status()).toBe(400);
     await anon.close();
   });
 });

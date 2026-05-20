@@ -4,11 +4,13 @@
  * from a plain Request here so tests stay terse.
  */
 
+import type { NextRequest } from "next/server";
+
 export function makeRequest(
   method = "GET",
   url = "http://localhost/",
   body?: unknown
-): Request {
+): NextRequest {
   const init: RequestInit = { method };
   if (body !== undefined) {
     init.body = typeof body === "string" ? body : JSON.stringify(body);
