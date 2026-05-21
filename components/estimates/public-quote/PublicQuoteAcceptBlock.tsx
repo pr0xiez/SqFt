@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { readApiError } from "@/lib/api/errors";
 import { SignaturePad, type SignaturePadHandle } from "./SignaturePad";
 
 const CONSENT_TEXT =
@@ -49,10 +50,8 @@ export function PublicQuoteAcceptBlock({
         }),
       });
       if (!res.ok && res.status !== 409) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: { message?: string };
-        };
-        throw new Error(body.error?.message ?? `Failed (${res.status})`);
+        const { message } = await readApiError(res, `Failed (${res.status})`);
+        throw new Error(message);
       }
       router.refresh();
     } catch (err) {

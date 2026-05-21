@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { readApiError } from "@/lib/api/errors";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 
 export interface QuoteEstimateSummary {
@@ -170,10 +171,11 @@ export function useSendQuote(quoteId: number) {
         body: JSON.stringify(vars),
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: { message?: string };
-        };
-        throw new Error(body.error?.message ?? `Send failed (${res.status})`);
+        const { message } = await readApiError(
+          res,
+          `Send failed (${res.status})`
+        );
+        throw new Error(message);
       }
       return res.json();
     },
@@ -192,10 +194,11 @@ export function useDeleteQuote() {
     ): Promise<{ ok?: boolean; error?: string }> => {
       const res = await fetch(`/api/quotes/${id}`, { method: "DELETE" });
       if (res.status === 409) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: { message?: string };
-        };
-        throw new Error(body.error?.message ?? "Quote has scheduled events");
+        const { message } = await readApiError(
+          res,
+          "Quote has scheduled events"
+        );
+        throw new Error(message);
       }
       if (!res.ok) throw new Error("Failed to delete quote");
       if (res.status === 204) return { ok: true };

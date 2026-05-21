@@ -74,3 +74,36 @@ export class CrewMemberInUseError extends ConflictError {
 }
 
 export class EventValidationError extends ValidationError {}
+
+/**
+ * Wire shape of the standard error envelope, as serialized by apiRoute / publicRoute.
+ * Mirrors `ApiError` but on the response side — use this when reading non-OK fetch
+ * responses on the client.
+ */
+export type ApiErrorEnvelope = {
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+};
+
+/**
+ * Read the standard error envelope from a non-OK fetch Response. Returns the
+ * provided fallback message if the body isn't JSON or doesn't match the envelope.
+ *
+ * Safe to call after `if (!res.ok)` — never throws on a malformed body.
+ */
+export async function readApiError(
+  res: Response,
+  fallback = "Request failed"
+): Promise<{ code: string; message: string; details?: unknown }> {
+  const body = (await res
+    .json()
+    .catch(() => null)) as Partial<ApiErrorEnvelope> | null;
+  return {
+    code: body?.error?.code ?? "UNKNOWN",
+    message: body?.error?.message ?? fallback,
+    details: body?.error?.details,
+  };
+}

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { readApiError } from "@/lib/api/errors";
 
 export function ReviseButton({ quoteId }: { quoteId: number }) {
   const router = useRouter();
@@ -14,10 +15,8 @@ export function ReviseButton({ quoteId }: { quoteId: number }) {
         method: "POST",
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: { message?: string };
-        };
-        throw new Error(body.error?.message ?? `Failed (${res.status})`);
+        const { message } = await readApiError(res, `Failed (${res.status})`);
+        throw new Error(message);
       }
       const body = (await res.json()) as { id: number };
       router.push(`/quotes/${body.id}`);
