@@ -55,3 +55,9 @@ Domain codes:
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.
+
+Clients read the envelope via `readApiError(res, fallback)` from the same
+module. It returns `{ code, message, details }` with safe fallbacks if the
+body isn't JSON. Use it instead of inlining `res.json()` parsing — it keeps
+the wire contract in one place and gives the caller access to `code` for
+branching.
