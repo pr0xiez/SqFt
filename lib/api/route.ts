@@ -64,8 +64,9 @@ export function apiRoute<TInput, TParams>(
 ): NextRouteHandler {
   const { options, handler } = normalizeArgs(optionsOrHandler, maybeHandler);
 
-  return wrapHandler(async (req, ctx) => {
+  return wrapHandler(async (req, ctx, logCtx) => {
     const orgId = await getOrgId();
+    logCtx.orgId = orgId;
     const input = await parseInput<TInput>(req, options.input);
     const params = ((await ctx.params) ?? {}) as TParams;
     const value = await handler({ req, orgId, input, params });
@@ -98,7 +99,7 @@ export function publicRoute<TInput, TParams>(
 ): NextRouteHandler {
   const { options, handler } = normalizeArgs(optionsOrHandler, maybeHandler);
 
-  return wrapHandler(async (req, ctx) => {
+  return wrapHandler(async (req, ctx, _logCtx) => {
     const input = await parseInput<TInput>(req, options.input);
     const params = ((await ctx.params) ?? {}) as TParams;
     const value = await handler({ req, input, params });
@@ -151,39 +152,48 @@ function toResponse(value: HandlerResult, status?: number): Response {
 }
 
 /**
- * Shared outer shell: resolves orgId for log enrichment (best-effort),
- * runs the inner handler, catches ApiError → envelope, catches everything
- * else → 500 + logError, and schedules request/mutation logging via `after()`.
+ * Shared outer shell: runs the inner handler, catches ApiError → envelope,
+ * catches everything else → 500 + logError, and schedules request/mutation
+ * logging via `after()`.
+ *
+ * The inner handler receives a mutable `logCtx` for log enrichment. `apiRoute`
+ * writes the resolved `orgId` into it once; `publicRoute` leaves it as
+ * `"unauthenticated"`. This means each authenticated request resolves the
+ * org once (not twice), and public requests skip `getOrgId()` entirely.
  */
 function wrapHandler(
-  inner: (req: NextRequest, ctx: RouteCtx) => Promise<Response>
+  inner: (
+    req: NextRequest,
+    ctx: RouteCtx,
+    logCtx: { orgId: string }
+  ) => Promise<Response>
 ): NextRouteHandler {
   return async (req, ctx) => {
     const start = Date.now();
     const method = req.method;
     const path = req.nextUrl.pathname;
-
-    let orgId = "unauthenticated";
-    try {
-      orgId = await getOrgId();
-    } catch {
-      // best-effort for logging; the inner handler decides whether auth is required
-    }
+    const logCtx = { orgId: "unauthenticated" };
 
     let res: Response;
     try {
-      res = await inner(req, ctx);
+      res = await inner(req, ctx, logCtx);
     } catch (err) {
-      res = errorToResponse(err, { method, path, orgId });
+      res = errorToResponse(err, { method, path, orgId: logCtx.orgId });
     }
 
     const durationMs = Date.now() - start;
     const { status } = res;
 
     after(() => {
-      logRequest({ method, path, status, durationMs, orgId });
+      logRequest({
+        method,
+        path,
+        status,
+        durationMs,
+        orgId: logCtx.orgId,
+      });
       if (MUTATION_METHODS.has(method) && status >= 200 && status < 300) {
-        logMutation({ method, path, status, orgId });
+        logMutation({ method, path, status, orgId: logCtx.orgId });
       }
     });
 
