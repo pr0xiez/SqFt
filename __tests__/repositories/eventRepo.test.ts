@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ValidationError } from "@/lib/api/errors";
 
 const eventFindMany = vi.fn();
 const eventFindFirst = vi.fn();
@@ -18,13 +19,9 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-const {
-  listEvents,
-  createEvent,
-  updateEvent,
-  deleteEvent,
-  EventValidationError,
-} = await import("@/lib/repositories/eventRepo");
+const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
+  "@/lib/repositories/eventRepo"
+);
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -99,7 +96,7 @@ describe("createEvent", () => {
         startTime: "08:00",
         endTime: "16:00",
       })
-    ).rejects.toBeInstanceOf(EventValidationError);
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(eventCreate).not.toHaveBeenCalled();
   });
 });
@@ -114,14 +111,14 @@ describe("updateEvent", () => {
     eventFindFirst.mockResolvedValueOnce({ type: "job", quoteId: 1 });
     await expect(
       updateEvent(1, "org1", { quoteId: null })
-    ).rejects.toBeInstanceOf(EventValidationError);
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("rejects when changing a visit's type to job without supplying a quoteId", async () => {
     eventFindFirst.mockResolvedValueOnce({ type: "visit", quoteId: null });
     await expect(
       updateEvent(1, "org1", { type: "job" })
-    ).rejects.toBeInstanceOf(EventValidationError);
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("allows changing a job's quoteId to another quote", async () => {

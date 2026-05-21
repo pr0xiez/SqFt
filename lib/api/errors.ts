@@ -73,7 +73,11 @@ export class CrewMemberInUseError extends ConflictError {
   }
 }
 
-export class EventValidationError extends ValidationError {}
+export class EmailFailedError extends ApiError {
+  constructor(message: string) {
+    super({ code: "EMAIL_FAILED", status: 502, message });
+  }
+}
 
 /**
  * Wire shape of the standard error envelope, as serialized by apiRoute / publicRoute.

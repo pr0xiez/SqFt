@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import {
   ConflictError,
+  EmailFailedError,
   NotFoundError,
   UnauthorizedError,
 } from "@/lib/api/errors";
@@ -8,6 +8,7 @@ import { apiRoute } from "@/lib/api/route";
 import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { sendQuoteEmail } from "@/lib/email/sendQuoteEmail";
 import { logError } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 import { quoteIdParams, quoteSendSchema } from "@/lib/quotes/schema";
 import { computeQuoteView, fromPrismaQuote } from "@/lib/quoteView";
 import {
@@ -66,15 +67,7 @@ export const POST = apiRoute(
     });
 
     if (!sendResult.ok) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "EMAIL_FAILED",
-            message: sendResult.error ?? "Email failed",
-          },
-        },
-        { status: 502 }
-      );
+      throw new EmailFailedError(sendResult.error ?? "Email failed");
     }
 
     const marked = await markQuoteSent(quoteId, orgId, {
@@ -94,7 +87,6 @@ export const POST = apiRoute(
 );
 
 async function getOrgForEmail(orgId: string) {
-  const { prisma } = await import("@/lib/prisma");
   return prisma.organization.findUniqueOrThrow({
     where: { id: orgId },
     select: { name: true, phone: true, logo: true },
@@ -106,7 +98,6 @@ async function updateCustomerEmail(
   orgId: string,
   email: string
 ) {
-  const { prisma } = await import("@/lib/prisma");
   try {
     await prisma.customer.updateMany({
       where: { id: customerId, orgId },

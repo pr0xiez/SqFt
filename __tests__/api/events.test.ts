@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EventValidationError } from "@/lib/api/errors";
+import { ValidationError } from "@/lib/api/errors";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
@@ -98,9 +98,9 @@ describe("POST /api/events", () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
-  it("maps EventValidationError from the repo to a 400 VALIDATION_FAILED", async () => {
+  it("maps ValidationError from the repo to a 400 VALIDATION_FAILED", async () => {
     mockCreate.mockRejectedValue(
-      new EventValidationError("Job events require a quoteId")
+      new ValidationError("Job events require a quoteId")
     );
     const res = await POST(
       makeRequest("POST", "http://x/api/events", validPayload),

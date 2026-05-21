@@ -1,4 +1,4 @@
-import { EventValidationError } from "@/lib/api/errors";
+import { ValidationError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { eventCreateSchema } from "@/lib/events/schema";
 import {
@@ -16,7 +16,7 @@ export const POST = apiRoute(
 
     if (crewMemberIds && crewMemberIds.length > 0) {
       const ok = await validateCrewMemberIds(orgId, crewMemberIds);
-      if (!ok) throw new EventValidationError("Invalid crew member");
+      if (!ok) throw new ValidationError("Invalid crew member");
     }
 
     return createEvent(orgId, {

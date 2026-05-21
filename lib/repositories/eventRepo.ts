@@ -1,8 +1,6 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { EventValidationError } from "@/lib/api/errors";
+import { ValidationError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
-
-export { EventValidationError };
 
 export type EventWithRelations = Prisma.EventGetPayload<{
   include: {
@@ -32,7 +30,7 @@ function assertJobHasQuote(
   quoteId: number | null | undefined
 ) {
   if (type === "job" && (quoteId === null || quoteId === undefined)) {
-    throw new EventValidationError("Job events require a quoteId");
+    throw new ValidationError("Job events require a quoteId");
   }
 }
 

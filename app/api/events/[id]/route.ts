@@ -1,4 +1,4 @@
-import { EventValidationError, NotFoundError } from "@/lib/api/errors";
+import { NotFoundError, ValidationError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { eventIdParams, eventUpdateSchema } from "@/lib/events/schema";
 import {
@@ -15,7 +15,7 @@ export const PATCH = apiRoute(
 
     if (crewMemberIds && crewMemberIds.length > 0) {
       const ok = await validateCrewMemberIds(orgId, crewMemberIds);
-      if (!ok) throw new EventValidationError("Invalid crew member");
+      if (!ok) throw new ValidationError("Invalid crew member");
     }
 
     const data = {
