@@ -1,87 +1,71 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
-  listQuotes: vi.fn(),
+  listQuotes: vi.fn().mockResolvedValue([]),
   createQuote: vi.fn(),
 }));
 
-vi.mock("@/lib/tenant", () => ({ getOrgId: vi.fn() }));
-
-vi.mock("@/lib/with-logging", () => ({
-  // biome-ignore lint/suspicious/noExplicitAny: test pass-through
-  withLogging: (fn: any) => fn,
+vi.mock("@/lib/tenant", () => ({
+  getOrgId: vi.fn().mockResolvedValue("org1"),
 }));
 
+vi.mock("next/server", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("next/server")>();
+  return { ...mod, after: vi.fn((cb: () => void) => cb()) };
+});
+
 const { listQuotes, createQuote } = await import("@/lib/repositories");
-const { getOrgId } = await import("@/lib/tenant");
 const { GET, POST } = await import("@/app/api/quotes/route");
 
-const mockGetOrgId = vi.mocked(getOrgId);
-const mockListQuotes = vi.mocked(listQuotes);
-const mockCreateQuote = vi.mocked(createQuote);
+const mockList = vi.mocked(listQuotes);
+const mockCreate = vi.mocked(createQuote);
 
-function makeRequest(body: unknown): Request {
-  return new Request("http://localhost/api/quotes", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("GET /api/quotes", () => {
-  it("returns the quotes list scoped to org", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockListQuotes.mockResolvedValue([
-      {
-        id: 1,
-        markupPct: 0,
-        convenienceFeeRate: 0.03,
-        lineItems: [],
-        estimate: { id: 10, title: "Est", items: [] },
-        _count: { lineItems: 0 },
-      },
-      // biome-ignore lint/suspicious/noExplicitAny: test stub
-    ] as any);
-    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler
-    const res = await GET(undefined as any);
+  it("calls listQuotes scoped to org", async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockList.mockResolvedValue([] as any);
+    const res = await GET(
+      makeRequest("GET", "http://x/api/quotes"),
+      params({})
+    );
     expect(res.status).toBe(200);
-    expect(mockListQuotes).toHaveBeenCalledWith("org1");
-  });
-
-  it("returns 401 when unauthenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler
-    const res = await GET(undefined as any);
-    expect(res.status).toBe(401);
+    expect(mockList).toHaveBeenCalledWith("org1");
   });
 });
 
 describe("POST /api/quotes", () => {
   it("creates a quote and returns 201", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockCreateQuote.mockResolvedValue({ id: 5, estimateId: 9 } as any);
-
-    const req = makeRequest({ estimateId: 9 });
-    const res = await POST(req as Parameters<typeof POST>[0]);
+    mockCreate.mockResolvedValue({ id: 5, estimateId: 9 } as any);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/quotes", { estimateId: 9 }),
+      params({})
+    );
     expect(res.status).toBe(201);
-    expect(mockCreateQuote).toHaveBeenCalledWith("org1", { estimateId: 9 });
+    expect(mockCreate).toHaveBeenCalledWith("org1", { estimateId: 9 });
   });
 
-  it("returns 404 when the estimate isn't in the org", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockCreateQuote.mockResolvedValue(null);
-    const req = makeRequest({ estimateId: 99 });
-    const res = await POST(req as Parameters<typeof POST>[0]);
+  it("returns NOT_FOUND when the estimate isn't in the org", async () => {
+    mockCreate.mockResolvedValue(null);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/quotes", { estimateId: 99 }),
+      params({})
+    );
     expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("NOT_FOUND");
   });
 
-  it("returns 400 when estimateId is missing", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    const req = makeRequest({});
-    const res = await POST(req as Parameters<typeof POST>[0]);
+  it("returns VALIDATION_FAILED when estimateId is missing", async () => {
+    const res = await POST(
+      makeRequest("POST", "http://x/api/quotes", {}),
+      params({})
+    );
     expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
   });
 });

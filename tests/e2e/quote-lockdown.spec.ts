@@ -20,7 +20,8 @@ test.describe("9.1 PATCH lockdown", () => {
     });
     expect(res.status()).toBe(409);
     const body = await res.json();
-    expect(body.error).toMatch(/locked/i);
+    expect(body.error.code).toBe("QUOTE_LOCKED");
+    expect(body.error.message).toMatch(/locked/i);
     await ctx.close();
   });
 

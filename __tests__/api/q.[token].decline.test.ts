@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeRequest, params } from "./_helpers";
 
+vi.mock("@/lib/tenant", () => ({
+  getOrgId: vi.fn().mockRejectedValue(new Error("public")),
+}));
 vi.mock("@/lib/repositories", () => ({
   getQuoteByToken: vi.fn(),
   declineQuoteByToken: vi.fn(),
@@ -7,33 +11,24 @@ vi.mock("@/lib/repositories", () => ({
 vi.mock("@/lib/email/sendSignedNotification", () => ({
   sendSignedNotification: vi.fn().mockResolvedValue({ ok: true }),
 }));
-vi.mock("@/lib/with-logging", () => ({
-  // biome-ignore lint/suspicious/noExplicitAny: pass-through
-  withLogging: (fn: any) => fn,
-}));
-vi.mock("@/lib/logger", () => ({ logError: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
   prisma: { user: { findMany: vi.fn().mockResolvedValue([]) } },
 }));
+vi.mock("next/server", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("next/server")>();
+  return { ...mod, after: vi.fn((cb: () => void) => cb()) };
+});
 
 const { getQuoteByToken, declineQuoteByToken } = await import(
   "@/lib/repositories"
 );
 const { POST } = await import("@/app/api/q/[token]/decline/route");
 
-beforeEach(() => vi.clearAllMocks());
+const validToken = "seed-token-1234567890";
 
-function makeReq(body: unknown) {
-  return new Request("http://localhost/api/q/abc/decline", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-forwarded-for": "1.2.3.4",
-    },
-    body: JSON.stringify(body),
-  });
-}
-const params = (token: string) => ({ params: Promise.resolve({ token }) });
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("POST /api/q/[token]/decline", () => {
   it("declines with optional reason", async () => {
@@ -45,15 +40,16 @@ describe("POST /api/q/[token]/decline", () => {
       estimate: { customer: { name: "C", email: "c@x.com" } },
     } as never);
     vi.mocked(declineQuoteByToken).mockResolvedValue("ok");
-    // biome-ignore lint/suspicious/noExplicitAny: route handler test
-    const res = await (POST as any)(
-      makeReq({ reason: "too expensive" }),
-      params("seed-token-1234567890")
+    const res = await POST(
+      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {
+        reason: "too expensive",
+      }),
+      params({ token: validToken })
     );
     expect(res.status).toBe(200);
   });
 
-  it("accepts empty body", async () => {
+  it("accepts an empty body", async () => {
     vi.mocked(getQuoteByToken).mockResolvedValue({
       id: 1,
       status: "viewed",
@@ -62,33 +58,30 @@ describe("POST /api/q/[token]/decline", () => {
       estimate: { customer: { name: "C", email: "c@x.com" } },
     } as never);
     vi.mocked(declineQuoteByToken).mockResolvedValue("ok");
-    // biome-ignore lint/suspicious/noExplicitAny: route handler test
-    const res = await (POST as any)(
-      makeReq({}),
-      params("seed-token-1234567890")
+    const res = await POST(
+      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
+      params({ token: validToken })
     );
     expect(res.status).toBe(200);
   });
 
-  it("returns 409 when already accepted", async () => {
+  it("returns CONFLICT when already accepted", async () => {
     vi.mocked(getQuoteByToken).mockResolvedValue({
       id: 1,
       status: "accepted",
     } as never);
-    // biome-ignore lint/suspicious/noExplicitAny: route handler test
-    const res = await (POST as any)(
-      makeReq({}),
-      params("seed-token-1234567890")
+    const res = await POST(
+      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
+      params({ token: validToken })
     );
     expect(res.status).toBe(409);
   });
 
-  it("returns 404 on bad token", async () => {
+  it("returns NOT_FOUND on unknown token", async () => {
     vi.mocked(getQuoteByToken).mockResolvedValue(null);
-    // biome-ignore lint/suspicious/noExplicitAny: route handler test
-    const res = await (POST as any)(
-      makeReq({}),
-      params("seed-token-1234567890")
+    const res = await POST(
+      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
+      params({ token: validToken })
     );
     expect(res.status).toBe(404);
   });

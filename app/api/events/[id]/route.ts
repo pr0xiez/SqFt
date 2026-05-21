@@ -1,111 +1,40 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { logError } from "@/lib/logger";
+import { NotFoundError, ValidationError } from "@/lib/api/errors";
+import { apiRoute } from "@/lib/api/route";
+import { eventIdParams, eventUpdateSchema } from "@/lib/events/schema";
 import {
   deleteEvent,
   updateEvent,
   validateCrewMemberIds,
 } from "@/lib/repositories";
-import { EventValidationError } from "@/lib/repositories/eventRepo";
-import { getOrgId } from "@/lib/tenant";
-import { withLogging } from "@/lib/with-logging";
 
-const updateSchema = z.object({
-  type: z.enum(["job", "visit", "other"]).optional(),
-  title: z.string().min(1).max(200).optional(),
-  customerId: z.number().int().positive().nullable().optional(),
-  quoteId: z.number().int().positive().nullable().optional(),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  endDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .nullable()
-    .optional(),
-  startTime: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .optional(),
-  endTime: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .optional(),
-  crewMemberIds: z.array(z.number().int().positive()).max(20).optional(),
-  notes: z.string().max(2000).optional(),
+export const PATCH = apiRoute(
+  { input: eventUpdateSchema },
+  async ({ orgId, input, params }) => {
+    const { id } = eventIdParams.parse(params);
+    const { date, endDate, crewMemberIds, ...rest } = input;
+
+    if (crewMemberIds && crewMemberIds.length > 0) {
+      const ok = await validateCrewMemberIds(orgId, crewMemberIds);
+      if (!ok) throw new ValidationError("Invalid crew member");
+    }
+
+    const data = {
+      ...rest,
+      ...(date ? { date: new Date(date) } : {}),
+      ...(endDate !== undefined
+        ? { endDate: endDate ? new Date(endDate) : null }
+        : {}),
+      ...(crewMemberIds !== undefined ? { crewMemberIds } : {}),
+    };
+
+    const event = await updateEvent(id, orgId, data);
+    if (!event) throw new NotFoundError();
+    return event;
+  }
+);
+
+export const DELETE = apiRoute(async ({ orgId, params }) => {
+  const { id } = eventIdParams.parse(params);
+  await deleteEvent(id, orgId);
+  return null;
 });
-
-type RouteParams = { params: Promise<{ id: string }> };
-
-export const PATCH = withLogging(
-  async (req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      const body = await req.json();
-      const parsed = updateSchema.safeParse(body);
-
-      if (!parsed.success) {
-        return NextResponse.json(
-          { error: parsed.error.issues[0]?.message },
-          { status: 400 }
-        );
-      }
-
-      const { date, endDate, crewMemberIds, ...rest } = parsed.data;
-
-      if (crewMemberIds && crewMemberIds.length > 0) {
-        const ok = await validateCrewMemberIds(orgId, crewMemberIds);
-        if (!ok) {
-          return NextResponse.json(
-            { error: "Invalid crew member" },
-            { status: 400 }
-          );
-        }
-      }
-
-      const data = {
-        ...rest,
-        ...(date ? { date: new Date(date) } : {}),
-        ...(endDate !== undefined
-          ? { endDate: endDate ? new Date(endDate) : null }
-          : {}),
-        ...(crewMemberIds !== undefined ? { crewMemberIds } : {}),
-      };
-
-      const event = await updateEvent(parseInt(id, 10), orgId, data);
-      if (!event)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json(event);
-    } catch (err) {
-      if (err instanceof EventValidationError) {
-        return NextResponse.json({ error: err.message }, { status: 400 });
-      }
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      logError({
-        errorMessage: err instanceof Error ? err.message : "Unknown error",
-        err,
-      });
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);
-
-export const DELETE = withLogging(
-  async (_req: NextRequest, { params }: RouteParams) => {
-    try {
-      const orgId = await getOrgId();
-      const { id } = await params;
-      await deleteEvent(parseInt(id, 10), orgId);
-      return NextResponse.json({ ok: true });
-    } catch (err) {
-      if (err instanceof Error && err.message === "Unauthorized") {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
-    }
-  }
-);

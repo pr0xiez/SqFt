@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { readApiError } from "@/lib/api/errors";
 
 interface Props {
   token: string;
@@ -27,10 +28,8 @@ export function DeclineModal({ token, open, onClose }: Props) {
         body: JSON.stringify({ reason: reason.trim() || undefined }),
       });
       if (!res.ok && res.status !== 409) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
-        };
-        throw new Error(body.error ?? `Failed (${res.status})`);
+        const { message } = await readApiError(res, `Failed (${res.status})`);
+        throw new Error(message);
       }
       router.refresh();
     } catch (err) {

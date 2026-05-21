@@ -1,201 +1,126 @@
-import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CrewMemberInUseError } from "@/lib/api/errors";
+import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
   listCrewMembers: vi.fn(),
   createCrewMember: vi.fn(),
   updateCrewMember: vi.fn(),
   deleteCrewMember: vi.fn(),
-  CrewMemberInUseError: class CrewMemberInUseError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = "CrewMemberInUseError";
-    }
-  },
 }));
 
-vi.mock("@/lib/tenant", () => ({ getOrgId: vi.fn() }));
-
-vi.mock("@/lib/with-logging", () => ({
-  // biome-ignore lint/suspicious/noExplicitAny: test pass-through
-  withLogging: (fn: any) => fn,
+vi.mock("@/lib/tenant", () => ({
+  getOrgId: vi.fn().mockResolvedValue("org1"),
 }));
+
+vi.mock("next/server", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("next/server")>();
+  return { ...mod, after: vi.fn((cb: () => void) => cb()) };
+});
 
 const {
   listCrewMembers,
   createCrewMember,
   updateCrewMember,
   deleteCrewMember,
-  CrewMemberInUseError,
 } = await import("@/lib/repositories");
-const { getOrgId } = await import("@/lib/tenant");
 const { GET, POST } = await import("@/app/api/crew-members/route");
 const { PATCH, DELETE } = await import("@/app/api/crew-members/[id]/route");
 
-const mockGetOrgId = vi.mocked(getOrgId);
 const mockList = vi.mocked(listCrewMembers);
 const mockCreate = vi.mocked(createCrewMember);
 const mockUpdate = vi.mocked(updateCrewMember);
 const mockDelete = vi.mocked(deleteCrewMember);
 
-const ORG = "org1";
-
-function jsonReq(url: string, body: unknown, method = "POST"): Request {
-  return new Request(url, {
-    method,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
-function makeParams(id: string) {
-  return { params: Promise.resolve({ id }) };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetOrgId.mockResolvedValue(ORG);
 });
 
 describe("GET /api/crew-members", () => {
-  it("returns active members by default", async () => {
-    mockList.mockResolvedValue([
-      {
-        id: 1,
-        orgId: ORG,
-        name: "Carlos",
-        role: "",
-        archived: false,
-        createdAt: new Date(),
-        _count: { events: 3 },
-        // biome-ignore lint/suspicious/noExplicitAny: test stub
-      } as any,
-    ]);
-    const req = new NextRequest("http://x/api/crew-members");
-    const res = await GET(req);
-    expect(res.status).toBe(200);
-    expect(mockList).toHaveBeenCalledWith(ORG, { includeArchived: false });
+  it("calls listCrewMembers with includeArchived=false by default", async () => {
+    mockList.mockResolvedValue([]);
+    await GET(makeRequest("GET", "http://x/api/crew-members"), params({}));
+    expect(mockList).toHaveBeenCalledWith("org1", { includeArchived: false });
   });
 
   it("respects ?includeArchived=1", async () => {
     mockList.mockResolvedValue([]);
-    const req = new NextRequest("http://x/api/crew-members?includeArchived=1");
-    await GET(req);
-    expect(mockList).toHaveBeenCalledWith(ORG, { includeArchived: true });
-  });
-
-  it("returns 401 when unauthenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-    const req = new NextRequest("http://x/api/crew-members");
-    const res = await GET(req);
-    expect(res.status).toBe(401);
+    await GET(
+      makeRequest("GET", "http://x/api/crew-members?includeArchived=1"),
+      params({})
+    );
+    expect(mockList).toHaveBeenCalledWith("org1", { includeArchived: true });
   });
 });
 
 describe("POST /api/crew-members", () => {
-  it("creates and returns 201", async () => {
-    mockCreate.mockResolvedValue({
-      id: 9,
-      orgId: ORG,
-      name: "Pat",
-      role: "Helper",
-      archived: false,
-      createdAt: new Date(),
-      // biome-ignore lint/suspicious/noExplicitAny: test stub
-    } as any);
-    const req = jsonReq("http://x/api/crew-members", {
-      name: "Pat",
-      role: "Helper",
-    });
-    const res = await POST(req as Parameters<typeof POST>[0]);
+  it("creates and returns 201 with the input forwarded", async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockCreate.mockResolvedValue({ id: 9, name: "Pat", role: "Helper" } as any);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/crew-members", {
+        name: "Pat",
+        role: "Helper",
+      }),
+      params({})
+    );
     expect(res.status).toBe(201);
-    expect(mockCreate).toHaveBeenCalledWith(ORG, {
+    expect(mockCreate).toHaveBeenCalledWith("org1", {
       name: "Pat",
       role: "Helper",
     });
-  });
-
-  it("rejects empty name with 400", async () => {
-    const req = jsonReq("http://x/api/crew-members", { name: "" });
-    const res = await POST(req as Parameters<typeof POST>[0]);
-    expect(res.status).toBe(400);
-    expect(mockCreate).not.toHaveBeenCalled();
   });
 });
 
 describe("PATCH /api/crew-members/[id]", () => {
-  it("updates and returns the row", async () => {
-    mockUpdate.mockResolvedValue({
-      id: 5,
-      orgId: ORG,
-      name: "Mike",
-      role: "Owner",
-      archived: false,
-      createdAt: new Date(),
-      // biome-ignore lint/suspicious/noExplicitAny: test stub
-    } as any);
-    const req = jsonReq(
-      "http://x/api/crew-members/5",
-      { archived: true },
-      "PATCH"
-    );
+  it("calls updateCrewMember with parsed id, org, and input", async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockUpdate.mockResolvedValue({ id: 5, archived: true } as any);
     const res = await PATCH(
-      req as Parameters<typeof PATCH>[0],
-      makeParams("5")
+      makeRequest("PATCH", "http://x/api/crew-members/5", { archived: true }),
+      params({ id: "5" })
     );
     expect(res.status).toBe(200);
-    expect(mockUpdate).toHaveBeenCalledWith(5, ORG, { archived: true });
+    expect(mockUpdate).toHaveBeenCalledWith(5, "org1", { archived: true });
   });
 
-  it("returns 404 when row missing for org", async () => {
+  it("returns NOT_FOUND when updateCrewMember returns null", async () => {
     mockUpdate.mockResolvedValue(null);
-    const req = jsonReq(
-      "http://x/api/crew-members/999",
-      { name: "X" },
-      "PATCH"
-    );
     const res = await PATCH(
-      req as Parameters<typeof PATCH>[0],
-      makeParams("999")
+      makeRequest("PATCH", "http://x/api/crew-members/99", { name: "X" }),
+      params({ id: "99" })
     );
     expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("NOT_FOUND");
   });
 });
 
 describe("DELETE /api/crew-members/[id]", () => {
-  it("returns 200 on successful hard delete", async () => {
+  it("returns 204 on successful delete", async () => {
     mockDelete.mockResolvedValue({ ok: true });
-    const req = new Request("http://x/api/crew-members/5", {
-      method: "DELETE",
-    });
     const res = await DELETE(
-      req as Parameters<typeof DELETE>[0],
-      makeParams("5")
+      makeRequest("DELETE", "http://x/api/crew-members/5"),
+      params({ id: "5" })
     );
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
   });
 
-  it("returns 404 when not found", async () => {
+  it("returns NOT_FOUND when the crew member doesn't exist", async () => {
     mockDelete.mockResolvedValue({ ok: false, reason: "not-found" });
-    const req = new Request("http://x/api/crew-members/999", {
-      method: "DELETE",
-    });
     const res = await DELETE(
-      req as Parameters<typeof DELETE>[0],
-      makeParams("999")
+      makeRequest("DELETE", "http://x/api/crew-members/99"),
+      params({ id: "99" })
     );
     expect(res.status).toBe(404);
   });
 
-  it("returns 409 when crew member is in use", async () => {
+  it("maps CrewMemberInUseError to a CREW_MEMBER_IN_USE 409", async () => {
     mockDelete.mockRejectedValue(new CrewMemberInUseError("in use"));
-    const req = new Request("http://x/api/crew-members/5", {
-      method: "DELETE",
-    });
     const res = await DELETE(
-      req as Parameters<typeof DELETE>[0],
-      makeParams("5")
+      makeRequest("DELETE", "http://x/api/crew-members/5"),
+      params({ id: "5" })
     );
     expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("CREW_MEMBER_IN_USE");
   });
 });

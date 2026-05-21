@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { readApiError } from "@/lib/api/errors";
 
 export interface CrewMember {
   id: number;
@@ -80,8 +81,11 @@ export function useDeleteCrewMember() {
     mutationFn: async (id: number) => {
       const res = await fetch(`/api/crew-members/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error ?? "Failed to delete crew member");
+        const { message } = await readApiError(
+          res,
+          "Failed to delete crew member"
+        );
+        throw new Error(message);
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["crew-members"] }),

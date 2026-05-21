@@ -6,8 +6,8 @@ export const onRequestError: Instrumentation.onRequestError = (
   request,
   context
 ) => {
-  // Route handler errors are already logged by withLogging.
-  // This catches anything that slips through (e.g. a handler missing withLogging).
+  // Route handler errors are already logged by apiRoute / publicRoute.
+  // This catches anything that slips through (e.g. an unwrapped handler).
   if (context.routeType === "route") {
     logError({
       method: request.method,

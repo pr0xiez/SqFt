@@ -1,137 +1,183 @@
+/**
+ * Tier-B route tests: verify the route wires its handler to the right repo
+ * function with the right arguments and returns its result. Auth, validation,
+ * and error envelopes are exercised by the wrapper's own tests in
+ * __tests__/lib/api/route.test.ts.
+ */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/repositories", () => ({
   listCustomers: vi.fn(),
   createCustomer: vi.fn(),
+  getCustomer: vi.fn(),
+  updateCustomer: vi.fn(),
+  deleteCustomer: vi.fn(),
 }));
 
 vi.mock("@/lib/tenant", () => ({
-  getOrgId: vi.fn(),
+  getOrgId: vi.fn().mockResolvedValue("org1"),
 }));
 
-vi.mock("@/lib/with-logging", () => ({
-  // biome-ignore lint/suspicious/noExplicitAny: test pass-through
-  withLogging: (fn: any) => fn,
-}));
+vi.mock("next/server", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("next/server")>();
+  return { ...mod, after: vi.fn((cb: () => void) => cb()) };
+});
 
-const { listCustomers, createCustomer } = await import("@/lib/repositories");
-const { getOrgId } = await import("@/lib/tenant");
+const {
+  listCustomers,
+  createCustomer,
+  getCustomer,
+  updateCustomer,
+  deleteCustomer,
+} = await import("@/lib/repositories");
 const { GET, POST } = await import("@/app/api/customers/route");
+const {
+  GET: GET_ID,
+  PATCH: PATCH_ID,
+  DELETE: DELETE_ID,
+} = await import("@/app/api/customers/[id]/route");
 
-const mockGetOrgId = vi.mocked(getOrgId);
 const mockListCustomers = vi.mocked(listCustomers);
 const mockCreateCustomer = vi.mocked(createCustomer);
+const mockGetCustomer = vi.mocked(getCustomer);
+const mockUpdateCustomer = vi.mocked(updateCustomer);
+const mockDeleteCustomer = vi.mocked(deleteCustomer);
+
+function makeRequest(
+  method = "GET",
+  url = "http://localhost/api/customers",
+  body?: unknown
+) {
+  const init: RequestInit = { method };
+  if (body !== undefined) {
+    init.body = JSON.stringify(body);
+    init.headers = { "content-type": "application/json" };
+  }
+  const req = new Request(url, init);
+  Object.defineProperty(req, "nextUrl", {
+    value: new URL(url),
+    writable: false,
+  });
+  // biome-ignore lint/suspicious/noExplicitAny: test helper cast
+  return req as any;
+}
+
+const noParams = { params: Promise.resolve({}) };
+const idParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// ── GET /api/customers ────────────────────────────────────────────────────────
-
 describe("GET /api/customers", () => {
-  it("returns customer list with 200", async () => {
-    const fakeCustomers = [
-      { id: 1, name: "Alice", orgId: "org1", _count: { estimates: 2 } },
-    ];
-    mockGetOrgId.mockResolvedValue("org1");
+  it("calls listCustomers with the org and returns the list", async () => {
+    const customers = [{ id: 1, name: "Alice", orgId: "org1" }];
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockListCustomers.mockResolvedValue(fakeCustomers as any);
+    mockListCustomers.mockResolvedValue(customers as any);
 
-    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler, req unused
-    const res = await GET(undefined as any);
-    const data = await res.json();
+    const res = await GET(makeRequest("GET"), noParams);
 
     expect(res.status).toBe(200);
-    expect(data).toEqual(fakeCustomers);
+    expect(await res.json()).toEqual(customers);
     expect(mockListCustomers).toHaveBeenCalledWith("org1");
-  });
-
-  it("returns 401 when not authenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-
-    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler, req unused
-    const res = await GET(undefined as any);
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data).toEqual({ error: "Unauthorized" });
   });
 });
 
-// ── POST /api/customers ───────────────────────────────────────────────────────
-
-function makeRequest(body: unknown): Request {
-  return new Request("http://localhost/api/customers", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
 describe("POST /api/customers", () => {
-  it("creates a customer and returns 201", async () => {
+  it("calls createCustomer with org and parsed input and returns 201", async () => {
     const payload = { name: "Bob", phone: "555-1234", source: "phone" };
     const created = { id: 1, orgId: "org1", ...payload };
-    mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockCreateCustomer.mockResolvedValue(created as any);
 
-    const req = makeRequest(payload);
-    const res = await POST(req as Parameters<typeof POST>[0]);
-    const data = await res.json();
+    const res = await POST(
+      makeRequest("POST", "http://localhost/api/customers", payload),
+      noParams
+    );
 
     expect(res.status).toBe(201);
-    expect(data).toEqual(created);
+    expect(await res.json()).toEqual(created);
     expect(mockCreateCustomer).toHaveBeenCalledWith(
       "org1",
       expect.objectContaining({ name: "Bob" })
     );
   });
+});
 
-  it("returns 400 when name is missing", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
+describe("GET /api/customers/[id]", () => {
+  it("calls getCustomer with parsed numeric id and the org", async () => {
+    const customer = { id: 7, name: "Carol", orgId: "org1" };
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockGetCustomer.mockResolvedValue(customer as any);
 
-    const req = makeRequest({ phone: "555-0000", source: "phone" });
-    const res = await POST(req as Parameters<typeof POST>[0]);
-    const data = await res.json();
+    const res = await GET_ID(
+      makeRequest("GET", "http://localhost/api/customers/7"),
+      idParams("7")
+    );
 
-    expect(res.status).toBe(400);
-    expect(data.error).toBeDefined();
-    expect(mockCreateCustomer).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(customer);
+    expect(mockGetCustomer).toHaveBeenCalledWith(7, "org1");
   });
 
-  it("returns 400 for invalid email", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
+  it("returns a NOT_FOUND envelope when the customer does not exist", async () => {
+    mockGetCustomer.mockResolvedValue(null);
 
-    const req = makeRequest({
-      name: "Carol",
-      email: "not-an-email",
-      source: "online",
-    });
-    const res = await POST(req as Parameters<typeof POST>[0]);
+    const res = await GET_ID(
+      makeRequest("GET", "http://localhost/api/customers/99"),
+      idParams("99")
+    );
 
-    expect(res.status).toBe(400);
-    expect(mockCreateCustomer).not.toHaveBeenCalled();
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("NOT_FOUND");
+  });
+});
+
+describe("PATCH /api/customers/[id]", () => {
+  it("calls updateCustomer with id, org, and parsed input", async () => {
+    const updated = { id: 7, name: "Renamed", orgId: "org1" };
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockUpdateCustomer.mockResolvedValue(updated as any);
+
+    const res = await PATCH_ID(
+      makeRequest("PATCH", "http://localhost/api/customers/7", {
+        name: "Renamed",
+      }),
+      idParams("7")
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(updated);
+    expect(mockUpdateCustomer).toHaveBeenCalledWith(
+      7,
+      "org1",
+      expect.objectContaining({ name: "Renamed" })
+    );
+  });
+});
+
+describe("DELETE /api/customers/[id]", () => {
+  it("calls deleteCustomer and returns 204 on success", async () => {
+    mockDeleteCustomer.mockResolvedValue(true);
+
+    const res = await DELETE_ID(
+      makeRequest("DELETE", "http://localhost/api/customers/7"),
+      idParams("7")
+    );
+
+    expect(res.status).toBe(204);
+    expect(mockDeleteCustomer).toHaveBeenCalledWith(7, "org1");
   });
 
-  it("returns 401 when not authenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
+  it("returns NOT_FOUND when the customer was not deleted", async () => {
+    mockDeleteCustomer.mockResolvedValue(false);
 
-    const req = makeRequest({ name: "Dave", source: "referral" });
-    const res = await POST(req as Parameters<typeof POST>[0]);
-    const data = await res.json();
+    const res = await DELETE_ID(
+      makeRequest("DELETE", "http://localhost/api/customers/99"),
+      idParams("99")
+    );
 
-    expect(res.status).toBe(401);
-    expect(data).toEqual({ error: "Unauthorized" });
-  });
-
-  it("returns 500 when a runtime error occurs", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockCreateCustomer.mockRejectedValue(new Error("DB connection failed"));
-
-    const req = makeRequest({ name: "Dave", source: "referral" });
-    const res = await POST(req as Parameters<typeof POST>[0]);
-
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("NOT_FOUND");
   });
 });

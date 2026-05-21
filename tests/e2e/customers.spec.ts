@@ -87,7 +87,7 @@ test.describe
 
     test("10.1.8 DELETE removes the customer", async () => {
       const res = await ctx.request.delete(`/api/customers/${customerId}`);
-      expect(res.status()).toBe(200);
+      expect(res.status()).toBe(204);
       const get = await ctx.request.get(`/api/customers/${customerId}`);
       expect(get.status()).toBe(404);
     });

@@ -1,43 +1,10 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { apiRoute } from "@/lib/api/route";
+import { estimateCreateSchema } from "@/lib/estimates/schema";
 import { createEstimate, listEstimates } from "@/lib/repositories";
-import { getOrgId } from "@/lib/tenant";
-import { withLogging } from "@/lib/with-logging";
 
-const createSchema = z.object({
-  customerId: z.number().int().positive(),
-  title: z.string().max(200).default(""),
-});
+export const GET = apiRoute(async ({ orgId }) => listEstimates(orgId));
 
-export const GET = withLogging(async () => {
-  try {
-    const orgId = await getOrgId();
-    const estimates = await listEstimates(orgId);
-    return NextResponse.json(estimates);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-});
-
-export const POST = withLogging(async (req: NextRequest) => {
-  try {
-    const orgId = await getOrgId();
-    const body = await req.json();
-    const parsed = createSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0]?.message },
-        { status: 400 }
-      );
-    }
-
-    const estimate = await createEstimate(orgId, parsed.data);
-    return NextResponse.json(estimate, { status: 201 });
-  } catch (err) {
-    if (err instanceof Error && err.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  }
-});
+export const POST = apiRoute(
+  { input: estimateCreateSchema, status: 201 },
+  async ({ orgId, input }) => createEstimate(orgId, input)
+);

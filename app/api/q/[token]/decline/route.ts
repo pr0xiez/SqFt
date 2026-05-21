@@ -1,77 +1,47 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { ConflictError, NotFoundError } from "@/lib/api/errors";
+import { publicRoute } from "@/lib/api/route";
 import { sendSignedNotification } from "@/lib/email/sendSignedNotification";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { quoteDeclineSchema, quoteTokenParams } from "@/lib/quotes/schema";
 import { declineQuoteByToken, getQuoteByToken } from "@/lib/repositories";
-import { withLogging } from "@/lib/with-logging";
 
-const bodySchema = z.object({
-  reason: z.string().max(1000).optional(),
-});
+export const POST = publicRoute(
+  { input: quoteDeclineSchema },
+  async ({ req, input, params }) => {
+    const { token } = quoteTokenParams.parse(params);
 
-type RouteParams = { params: Promise<{ token: string }> };
-
-export const POST = withLogging(
-  async (req: NextRequest, ctx: RouteParams | undefined) => {
-    try {
-      const p = ctx?.params;
-      const { token } = p ? await p : { token: "" };
-      if (!token || token.length < 16 || token.length > 128) {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
-
-      const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
-      if (!parsed.success) {
-        return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-      }
-
-      const quote = await getQuoteByToken(token);
-      if (!quote)
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      if (quote.status === "accepted" || quote.status === "declined") {
-        return NextResponse.json(
-          { error: `Quote already ${quote.status}` },
-          { status: 409 }
-        );
-      }
-
-      const ip =
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-      const userAgent = req.headers.get("user-agent") ?? null;
-
-      const result = await declineQuoteByToken(quote.id, {
-        reason: parsed.data.reason ?? null,
-        ip,
-        userAgent,
-      });
-      if (result === "not_found") {
-        return NextResponse.json({ error: "Not found" }, { status: 404 });
-      }
-      if (result !== "ok") {
-        return NextResponse.json(
-          { error: `Quote already ${result.replace("already_", "")}` },
-          { status: 409 }
-        );
-      }
-
-      // Fire-and-forget owner notification
-      void notifyDeclined(quote.orgId, {
-        quoteId: quote.id,
-        quoteNumber: quote.quoteNumber,
-        customerName: quote.estimate.customer?.name ?? "Customer",
-        customerEmail: quote.estimate.customer?.email ?? null,
-        reason: parsed.data.reason,
-      });
-
-      return NextResponse.json({ ok: true });
-    } catch (err) {
-      logError({
-        errorMessage: err instanceof Error ? err.message : "decline failed",
-        err,
-      });
-      return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const quote = await getQuoteByToken(token);
+    if (!quote) throw new NotFoundError();
+    if (quote.status === "accepted" || quote.status === "declined") {
+      throw new ConflictError(`Quote already ${quote.status}`);
     }
+
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const userAgent = req.headers.get("user-agent") ?? null;
+
+    const result = await declineQuoteByToken(quote.id, {
+      reason: input.reason ?? null,
+      ip,
+      userAgent,
+    });
+    if (result === "not_found") throw new NotFoundError();
+    if (result !== "ok") {
+      throw new ConflictError(
+        `Quote already ${result.replace("already_", "")}`
+      );
+    }
+
+    void notifyDeclined(quote.orgId, {
+      quoteId: quote.id,
+      quoteNumber: quote.quoteNumber,
+      customerName: quote.estimate.customer?.name ?? "Customer",
+      customerEmail: quote.estimate.customer?.email ?? null,
+      reason: input.reason,
+    });
+
+    return { ok: true };
   }
 );
 

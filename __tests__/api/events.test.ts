@@ -1,86 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/lib/repositories/eventRepo", () => ({
-  EventValidationError: class EventValidationError extends Error {
-    constructor(message: string) {
-      super(message);
-      this.name = "EventValidationError";
-    }
-  },
-}));
+import { ValidationError } from "@/lib/api/errors";
+import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
   listEvents: vi.fn(),
   createEvent: vi.fn(),
   updateEvent: vi.fn(),
   deleteEvent: vi.fn(),
-  validateCrewMemberIds: vi.fn(),
+  validateCrewMemberIds: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("@/lib/tenant", () => ({
-  getOrgId: vi.fn(),
+  getOrgId: vi.fn().mockResolvedValue("org1"),
 }));
 
-vi.mock("@/lib/with-logging", () => ({
-  // biome-ignore lint/suspicious/noExplicitAny: test pass-through
-  withLogging: (fn: any) => fn,
-}));
+vi.mock("next/server", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("next/server")>();
+  return { ...mod, after: vi.fn((cb: () => void) => cb()) };
+});
 
 const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
   "@/lib/repositories"
 );
-const { getOrgId } = await import("@/lib/tenant");
-const { EventValidationError } = await import("@/lib/repositories/eventRepo");
 const { GET: listGET, POST } = await import("@/app/api/events/route");
 const { PATCH, DELETE } = await import("@/app/api/events/[id]/route");
 
-const mockGetOrgId = vi.mocked(getOrgId);
-const mockListEvents = vi.mocked(listEvents);
-const mockCreateEvent = vi.mocked(createEvent);
-const mockUpdateEvent = vi.mocked(updateEvent);
-const mockDeleteEvent = vi.mocked(deleteEvent);
-
-function makeParams(id: string) {
-  return { params: Promise.resolve({ id }) };
-}
-
-function makeRequest(url: string, body: unknown, method = "POST"): Request {
-  return new Request(url, {
-    method,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
-// ── GET /api/events ───────────────────────────────────────────────────────────
-
-describe("GET /api/events", () => {
-  it("returns event list with 200", async () => {
-    const fakeEvents = [{ id: 1, orgId: "org1", title: "Job day" }];
-    mockGetOrgId.mockResolvedValue("org1");
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockListEvents.mockResolvedValue(fakeEvents as any);
-
-    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler
-    const res = await listGET(undefined as any);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(fakeEvents);
-    expect(mockListEvents).toHaveBeenCalledWith("org1");
-  });
-
-  it("returns 401 when unauthenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-    // biome-ignore lint/suspicious/noExplicitAny: no-arg GET handler
-    const res = await listGET(undefined as any);
-    expect(res.status).toBe(401);
-  });
-});
-
-// ── POST /api/events ──────────────────────────────────────────────────────────
+const mockList = vi.mocked(listEvents);
+const mockCreate = vi.mocked(createEvent);
+const mockUpdate = vi.mocked(updateEvent);
+const mockDelete = vi.mocked(deleteEvent);
 
 const validPayload = {
   type: "job",
@@ -90,218 +38,115 @@ const validPayload = {
   endTime: "17:00",
 };
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("GET /api/events", () => {
+  it("returns the list scoped by org", async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockList.mockResolvedValue([{ id: 1, title: "Job day" }] as any);
+    const res = await listGET(
+      makeRequest("GET", "http://x/api/events"),
+      params({})
+    );
+    expect(res.status).toBe(200);
+    expect(mockList).toHaveBeenCalledWith("org1");
+  });
+});
+
 describe("POST /api/events", () => {
   it("creates an event and returns 201", async () => {
-    const created = { id: 3, orgId: "org1", ...validPayload };
-    mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockCreateEvent.mockResolvedValue(created as any);
-
-    const req = makeRequest("http://localhost/api/events", validPayload);
-    const res = await POST(req as Parameters<typeof POST>[0]);
-
+    mockCreate.mockResolvedValue({ id: 3 } as any);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", validPayload),
+      params({})
+    );
     expect(res.status).toBe(201);
-    expect(mockCreateEvent).toHaveBeenCalledWith(
+    expect(mockCreate).toHaveBeenCalledWith(
       "org1",
       expect.objectContaining({ title: "Install day" })
     );
   });
 
-  it("returns 400 when title is missing", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    const req = makeRequest("http://localhost/api/events", {
-      type: "job",
-      date: "2026-06-01",
-      startTime: "08:00",
-      endTime: "17:00",
-    });
-    const res = await POST(req as Parameters<typeof POST>[0]);
-    expect(res.status).toBe(400);
-    expect(mockCreateEvent).not.toHaveBeenCalled();
-  });
-
-  it("returns 401 when not authenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-
-    const req = makeRequest("http://localhost/api/events", validPayload);
-    const res = await POST(req as Parameters<typeof POST>[0]);
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data).toEqual({ error: "Unauthorized" });
-  });
-
-  it("returns 500 when a runtime error occurs", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockCreateEvent.mockRejectedValue(new Error("DB error"));
-
-    const req = makeRequest("http://localhost/api/events", validPayload);
-    const res = await POST(req as Parameters<typeof POST>[0]);
-
-    expect(res.status).toBe(500);
-  });
-
-  it("creates a visit without a quoteId", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockCreateEvent.mockResolvedValue({ id: 1 } as any);
-    const req = makeRequest("http://localhost/api/events", {
-      type: "visit",
-      title: "Measure",
-      date: "2026-06-01",
-      startTime: "10:00",
-      endTime: "11:00",
-    });
-    const res = await POST(req as Parameters<typeof POST>[0]);
-    expect(res.status).toBe(201);
-  });
-
   it("creates a job with a quoteId", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockCreateEvent.mockResolvedValue({ id: 1 } as any);
-    const req = makeRequest("http://localhost/api/events", {
-      type: "job",
-      title: "Install",
-      quoteId: 42,
-      date: "2026-06-01",
-      startTime: "08:00",
-      endTime: "16:00",
-    });
-    const res = await POST(req as Parameters<typeof POST>[0]);
+    mockCreate.mockResolvedValue({ id: 1 } as any);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", {
+        ...validPayload,
+        quoteId: 42,
+      }),
+      params({})
+    );
     expect(res.status).toBe(201);
-    expect(mockCreateEvent).toHaveBeenCalledWith(
+    expect(mockCreate).toHaveBeenCalledWith(
       "org1",
       expect.objectContaining({ type: "job", quoteId: 42 })
     );
   });
 
-  it("returns 400 when a job is submitted without a quoteId", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockCreateEvent.mockRejectedValue(
-      new EventValidationError("Job events require a quoteId")
+  it("returns VALIDATION_FAILED when title is missing", async () => {
+    const { title: _title, ...payload } = validPayload;
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", payload),
+      params({})
     );
-    const req = makeRequest("http://localhost/api/events", {
-      type: "job",
-      title: "Install",
-      date: "2026-06-01",
-      startTime: "08:00",
-      endTime: "16:00",
-    });
-    const res = await POST(req as Parameters<typeof POST>[0]);
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({
-      error: "Job events require a quoteId",
-    });
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("maps ValidationError from the repo to a 400 VALIDATION_FAILED", async () => {
+    mockCreate.mockRejectedValue(
+      new ValidationError("Job events require a quoteId")
+    );
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", validPayload),
+      params({})
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("VALIDATION_FAILED");
+    expect(body.error.message).toBe("Job events require a quoteId");
   });
 });
 
-// ── PATCH /api/events/[id] ────────────────────────────────────────────────────
-
 describe("PATCH /api/events/[id]", () => {
-  it("updates and returns the event", async () => {
-    const updated = { id: 1, orgId: "org1", title: "Rescheduled" };
-    mockGetOrgId.mockResolvedValue("org1");
+  it("forwards updates to updateEvent", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockUpdateEvent.mockResolvedValue(updated as any);
-
-    const req = makeRequest(
-      "http://localhost/api/events/1",
-      { title: "Rescheduled" },
-      "PATCH"
-    );
+    mockUpdate.mockResolvedValue({ id: 1, title: "Rescheduled" } as any);
     const res = await PATCH(
-      req as Parameters<typeof PATCH>[0],
-      makeParams("1")
+      makeRequest("PATCH", "http://x/api/events/1", { title: "Rescheduled" }),
+      params({ id: "1" })
     );
-
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(updated);
-    expect(mockUpdateEvent).toHaveBeenCalledWith(
+    expect(mockUpdate).toHaveBeenCalledWith(
       1,
       "org1",
       expect.objectContaining({ title: "Rescheduled" })
     );
   });
 
-  it("returns 404 when event not found", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockUpdateEvent.mockResolvedValue(null);
-
-    const req = makeRequest(
-      "http://localhost/api/events/99",
-      { title: "Ghost" },
-      "PATCH"
-    );
+  it("returns NOT_FOUND when updateEvent returns null", async () => {
+    mockUpdate.mockResolvedValue(null);
     const res = await PATCH(
-      req as Parameters<typeof PATCH>[0],
-      makeParams("99")
+      makeRequest("PATCH", "http://x/api/events/99", { title: "Ghost" }),
+      params({ id: "99" })
     );
     expect(res.status).toBe(404);
   });
-
-  it("returns 401 when not authenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-
-    const req = makeRequest(
-      "http://localhost/api/events/1",
-      { title: "Updated" },
-      "PATCH"
-    );
-    const res = await PATCH(
-      req as Parameters<typeof PATCH>[0],
-      makeParams("1")
-    );
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data).toEqual({ error: "Unauthorized" });
-  });
-
-  it("returns 500 when a runtime error occurs", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockUpdateEvent.mockRejectedValue(new Error("DB error"));
-
-    const req = makeRequest(
-      "http://localhost/api/events/1",
-      { title: "Boom" },
-      "PATCH"
-    );
-    const res = await PATCH(
-      req as Parameters<typeof PATCH>[0],
-      makeParams("1")
-    );
-
-    expect(res.status).toBe(500);
-  });
 });
 
-// ── DELETE /api/events/[id] ───────────────────────────────────────────────────
-
 describe("DELETE /api/events/[id]", () => {
-  it("deletes and returns ok", async () => {
-    mockGetOrgId.mockResolvedValue("org1");
-    mockDeleteEvent.mockResolvedValue(true);
-
-    // biome-ignore lint/suspicious/noExplicitAny: unused req
-    const res = await DELETE(undefined as any, makeParams("1"));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
-  });
-
-  it("returns 401 when not authenticated", async () => {
-    mockGetOrgId.mockRejectedValue(new Error("Unauthorized"));
-
-    const req = new Request("http://localhost/api/events/1", {
-      method: "DELETE",
-    });
+  it("calls deleteEvent and returns 204", async () => {
+    mockDelete.mockResolvedValue(true);
     const res = await DELETE(
-      req as Parameters<typeof DELETE>[0],
-      makeParams("1")
+      makeRequest("DELETE", "http://x/api/events/1"),
+      params({ id: "1" })
     );
-    const data = await res.json();
-
-    expect(res.status).toBe(401);
-    expect(data).toEqual({ error: "Unauthorized" });
+    expect(res.status).toBe(204);
+    expect(mockDelete).toHaveBeenCalledWith(1, "org1");
   });
 });
