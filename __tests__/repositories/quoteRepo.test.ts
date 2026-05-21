@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { QuoteHasEventsError } from "@/lib/api/errors";
 
 const quoteFindMany = vi.fn();
 const quoteFindFirst = vi.fn();
@@ -80,7 +81,6 @@ const {
   createQuote,
   saveQuote,
   deleteQuote,
-  QuoteHasEventsError,
   rotateApprovalToken,
   getQuoteByToken,
 } = await import("@/lib/repositories/quoteRepo");

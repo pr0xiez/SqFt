@@ -2,8 +2,6 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { CrewMemberInUseError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
 
-export { CrewMemberInUseError };
-
 export type CrewMemberWithCount = Prisma.CrewMemberGetPayload<{
   include: { _count: { select: { events: true } } };
 }>;

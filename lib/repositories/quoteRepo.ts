@@ -3,8 +3,6 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { QuoteHasEventsError, QuoteLockedError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
 
-export { QuoteHasEventsError };
-
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
 }
