@@ -245,7 +245,7 @@ export function EstimateListView() {
                     })}
                   </div>
                   <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <span className="font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px]">
+                    <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
                       Open →
                     </span>
                   </div>
