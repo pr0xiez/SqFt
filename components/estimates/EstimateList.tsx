@@ -15,7 +15,6 @@ import { cn } from "@/lib/cn";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { paginate, useTableQueryState } from "@/lib/hooks/useTableQueryState";
 import { cycleSort, sortBy } from "@/lib/sort";
-import { estTotalArea } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: EstimateStatus; label: string }[] = [
   { value: "all", label: "All" },
@@ -24,7 +23,7 @@ const STATUS_FILTERS: { value: EstimateStatus; label: string }[] = [
   { value: "quoted", label: "Quoted" },
 ];
 
-type SortKey = "id" | "customer" | "area" | "date";
+type SortKey = "id" | "customer" | "date";
 
 export function EstimateListView() {
   const router = useRouter();
@@ -44,7 +43,7 @@ export function EstimateListView() {
     resetPage,
   } = useTableQueryState<SortKey>({
     storageKey: "estimates",
-    validSortKeys: ["id", "customer", "area", "date"],
+    validSortKeys: ["id", "customer", "date"],
     defaultSort: { key: "date", direction: "desc" },
   });
 
@@ -75,7 +74,6 @@ export function EstimateListView() {
       sortBy(filtered, sort, {
         id: (e) => e.id,
         customer: (e) => e.customer?.name ?? e.title ?? "",
-        area: (e) => (e.items ? estTotalArea(e.items) : 0),
         date: (e) => new Date(e.date),
       }),
     [filtered, sort]
@@ -146,7 +144,7 @@ export function EstimateListView() {
       {/* Table */}
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
         {/* Header row */}
-        <div className="hidden md:grid grid-cols-[80px_1fr_130px_110px_80px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+        <div className="hidden md:grid grid-cols-[80px_1fr_110px_80px] bg-[var(--surface-2)] border-b border-[var(--line)]">
           <SortableHeader
             sortKey="id"
             label="#"
@@ -159,13 +157,6 @@ export function EstimateListView() {
             label="Customer"
             sort={sort}
             onSort={handleSort}
-          />
-          <SortableHeader
-            sortKey="area"
-            label="Area"
-            sort={sort}
-            onSort={handleSort}
-            className="tabular-nums"
           />
           <SortableHeader
             sortKey="date"
@@ -197,61 +188,47 @@ export function EstimateListView() {
           </div>
         ) : (
           <>
-            {slice.map((est) => {
-              const area = est.items ? estTotalArea(est.items) : 0;
-              const roomCount =
-                est.items?.filter((i) => i.type === "room").length ?? 0;
-
-              return (
-                <button
-                  key={est.id}
-                  type="button"
-                  onClick={() => router.push(`/estimates/${est.id}`)}
-                  className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_130px_110px_80px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
+            {slice.map((est) => (
+              <button
+                key={est.id}
+                type="button"
+                onClick={() => router.push(`/estimates/${est.id}`)}
+                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_110px_80px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
+              >
+                <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                  <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
+                    #{est.id}
+                  </span>
+                </div>
+                <div className={cn("px-3.5", rowPad)}>
+                  <div className="text-[14px] font-[600] tracking-[-0.01em]">
+                    {est.title || est.customer?.name || "—"}
+                  </div>
+                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
+                    {est.title
+                      ? (est.customer?.name ?? "")
+                      : (est.customer?.address ?? "")}
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
+                    rowPad
+                  )}
                 >
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
-                      #{est.id}
-                    </span>
-                  </div>
-                  <div className={cn("px-3.5", rowPad)}>
-                    <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                      {est.title || est.customer?.name || "—"}
-                    </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
-                      {est.title
-                        ? (est.customer?.name ?? "")
-                        : (est.customer?.address ?? "")}
-                    </div>
-                  </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <div className="text-[13px] font-[600] tabular-nums">
-                      {area > 0 ? `${Math.round(area)} sqft` : "—"}
-                    </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-px tabular-nums">
-                      {roomCount} room{roomCount === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                  <div
-                    className={cn(
-                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
-                      rowPad
-                    )}
-                  >
-                    {new Date(est.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
-                      Open →
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+                  {new Date(est.date).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </div>
+                <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                  <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
+                    Open →
+                  </span>
+                </div>
+              </button>
+            ))}
             <Pagination
               total={total}
               page={safePage}
