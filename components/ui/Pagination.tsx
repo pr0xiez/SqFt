@@ -15,7 +15,7 @@ type PaginationProps = {
   className?: string;
 };
 
-const DEFAULT_PER_PAGE = [25, 50, 100];
+export const PER_PAGE_OPTIONS = [25, 50, 100];
 
 export function Pagination({
   total,
@@ -23,7 +23,7 @@ export function Pagination({
   perPage,
   onPageChange,
   onPerPageChange,
-  perPageOptions = DEFAULT_PER_PAGE,
+  perPageOptions = PER_PAGE_OPTIONS,
   noun = "row",
   className,
 }: PaginationProps) {
@@ -142,6 +142,12 @@ type TapeMeasureProps = {
   noun: string;
 };
 
+const TICK_STEPS: readonly (readonly [number, number])[] = [
+  [30, 1],
+  [60, 2],
+  [120, 5],
+];
+
 function TapeMeasure({
   page,
   pageCount,
@@ -150,11 +156,8 @@ function TapeMeasure({
   perPage,
   noun,
 }: TapeMeasureProps) {
-  // Decide tick density. When pages are few, one tick per page.
-  // When many, only render every Nth tick but keep clickable hit-targets per page.
   const ticks = useMemo(() => {
-    const step =
-      pageCount <= 30 ? 1 : pageCount <= 60 ? 2 : pageCount <= 120 ? 5 : 10;
+    const step = TICK_STEPS.find(([cap]) => pageCount <= cap)?.[1] ?? 10;
     const list: number[] = [];
     for (let i = 1; i <= pageCount; i++) {
       if (i === 1 || i === pageCount || i === page || i % step === 0) {
@@ -199,6 +202,7 @@ function TapeMeasure({
             type="button"
             onClick={() => onPageChange(p)}
             aria-label={`Page ${p} (${noun}s ${rangeStart}–${rangeEnd})`}
+            aria-current={isCurrent ? "page" : undefined}
             title={`Page ${p} · ${noun}s ${rangeStart.toLocaleString()}–${rangeEnd.toLocaleString()}`}
             className={cn(
               "absolute top-0 bottom-0 -translate-x-1/2",

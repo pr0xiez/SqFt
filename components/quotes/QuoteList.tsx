@@ -1,12 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   filterQuotes,
   type QuoteStatusFilter,
 } from "@/components/quotes/filterQuotes";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterPill } from "@/components/ui/FilterPill";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
@@ -36,8 +38,8 @@ type SortKey = "number" | "customer" | "estimate" | "total" | "status" | "date";
 export function QuoteListView() {
   const router = useRouter();
   const { data: quotes = [], isLoading } = useQuotes();
-  const [query, setQuery] = useState<string>("");
-  const [status, setStatus] = useState<QuoteStatusFilter>("all");
+  const [query, setQueryState] = useState<string>("");
+  const [status, setStatusState] = useState<QuoteStatusFilter>("all");
 
   const {
     sort,
@@ -48,7 +50,6 @@ export function QuoteListView() {
     setPage,
     setPerPage,
     setDensity,
-    resetPage,
   } = useTableQueryState<SortKey>({
     storageKey: "quotes",
     validSortKeys: [
@@ -61,6 +62,15 @@ export function QuoteListView() {
     ],
     defaultSort: { key: "date", direction: "desc" },
   });
+
+  const setQuery = (v: string) => {
+    setQueryState(v);
+    setPage(1);
+  };
+  const setStatus = (v: QuoteStatusFilter) => {
+    setStatusState(v);
+    setPage(1);
+  };
 
   const statusCounts = useMemo(() => {
     const counts: Record<QuoteStatusFilter, number> = {
@@ -96,13 +106,7 @@ export function QuoteListView() {
     [filtered, sort]
   );
 
-  const { slice, safePage, pageCount, total } = paginate(sorted, page, perPage);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: only on filter change
-  useEffect(() => {
-    if (safePage > 1 && pageCount === 1) return;
-    resetPage();
-  }, [query, status]);
+  const { slice, safePage, total } = paginate(sorted, page, perPage);
 
   const handleSort = (key: SortKey) => {
     const defaultDir =
@@ -111,12 +115,10 @@ export function QuoteListView() {
   };
 
   const isNarrowed = filtered.length !== quotes.length;
-  const trimmedQuery = query.trim();
   const rowPad = ROW_PADDING[density];
 
   return (
     <>
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
@@ -128,7 +130,6 @@ export function QuoteListView() {
         </div>
       </div>
 
-      {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <SearchInput
           value={query}
@@ -157,9 +158,7 @@ export function QuoteListView() {
         )}
       </div>
 
-      {/* Table */}
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        {/* Header row (desktop only) */}
         <div className="hidden md:grid grid-cols-[80px_1fr_120px_120px_110px_110px] bg-[var(--surface-2)] border-b border-[var(--line)]">
           <SortableHeader
             sortKey="number"
@@ -210,16 +209,7 @@ export function QuoteListView() {
             No quotes yet.
           </div>
         ) : filtered.length === 0 ? (
-          <div className="px-6 py-10 flex flex-col items-start gap-2">
-            <div className="font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.12em] text-[var(--muted)]">
-              No results
-            </div>
-            <div className="text-[14px] text-[var(--ink-2)]">
-              {trimmedQuery.length > 0
-                ? `No quotes match "${trimmedQuery}".`
-                : "No quotes match."}
-            </div>
-          </div>
+          <EmptyState noun="quote" query={query} />
         ) : (
           <>
             {slice.map((q) => {
@@ -311,43 +301,5 @@ export function QuoteListView() {
         )}
       </div>
     </>
-  );
-}
-
-function FilterPill({
-  active,
-  count,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  count: number;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[6px] cursor-pointer transition-colors duration-150",
-        "inline-flex items-center gap-1.5",
-        active
-          ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-          : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
-      )}
-    >
-      <span>{children}</span>
-      {count > 0 && (
-        <span
-          className={cn(
-            "font-[var(--font-mono)] text-[9.5px] tabular-nums leading-none",
-            active ? "text-[var(--bg)]/70" : "text-[var(--muted)]"
-          )}
-        >
-          {count}
-        </span>
-      )}
-    </button>
   );
 }

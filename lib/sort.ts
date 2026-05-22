@@ -5,7 +5,11 @@ export type SortState<K extends string = string> = {
   direction: SortDirection;
 };
 
-/** Cycle through sort states on header click: off → asc → desc → asc. */
+/**
+ * First click on a column applies `defaultDirection`; subsequent clicks on
+ * the same column toggle asc⇄desc. Clicking a new column resets to that
+ * column's `defaultDirection`. No "off" state — once sorted, always sorted.
+ */
 export function cycleSort<K extends string>(
   current: SortState<K> | null,
   key: K,

@@ -1,11 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { filterCustomers } from "@/components/customers/filterCustomers";
 import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterPill } from "@/components/ui/FilterPill";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
@@ -69,12 +71,19 @@ function summarize(customer: CustomerListItem): CustomerSummary {
   return { open, accepted, total: quotes.length, lastActivity: last };
 }
 
+const matchesPipeline = (s: CustomerSummary, p: PipelineFilter) => {
+  if (p === "open") return s.open > 0;
+  if (p === "accepted") return s.accepted > 0;
+  if (p === "cold") return s.total === 0;
+  return true;
+};
+
 export function CustomerListView() {
   const router = useRouter();
   const { data: customers = [], isLoading } = useCustomers();
-  const [filter, setFilter] = useState<string>("all");
-  const [pipeline, setPipeline] = useState<PipelineFilter>("any");
-  const [query, setQuery] = useState<string>("");
+  const [filter, setFilterState] = useState<string>("all");
+  const [pipeline, setPipelineState] = useState<PipelineFilter>("any");
+  const [query, setQueryState] = useState<string>("");
   const [panelOpen, setPanelOpen] = useState(false);
 
   const {
@@ -86,12 +95,24 @@ export function CustomerListView() {
     setPage,
     setPerPage,
     setDensity,
-    resetPage,
   } = useTableQueryState<SortKey>({
     storageKey: "customers",
     validSortKeys: ["name", "source", "estimates", "open", "lastActivity"],
     defaultSort: { key: "lastActivity", direction: "desc" },
   });
+
+  const setQuery = (v: string) => {
+    setQueryState(v);
+    setPage(1);
+  };
+  const setFilter = (v: string) => {
+    setFilterState(v);
+    setPage(1);
+  };
+  const setPipeline = (v: PipelineFilter) => {
+    setPipelineState(v);
+    setPage(1);
+  };
 
   const summarized = useMemo(
     () =>
@@ -114,51 +135,45 @@ export function CustomerListView() {
     return { openQuotes, won, withOpen };
   }, [summarized]);
 
-  // Counts per source for filter badges. Reflects only the *other* filters
-  // so each tag's number stays meaningful when a user toggles between them.
-  const sourceCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: 0 };
-    for (const { customer, summary } of summarized) {
-      if (pipeline === "open" && summary.open === 0) continue;
-      if (pipeline === "accepted" && summary.accepted === 0) continue;
-      if (pipeline === "cold" && summary.total !== 0) continue;
-      counts.all += 1;
-      counts[customer.source] = (counts[customer.source] ?? 0) + 1;
-    }
-    return counts;
-  }, [summarized, pipeline]);
-
-  const pipelineCounts = useMemo(() => {
-    const counts: Record<PipelineFilter, number> = {
-      any: 0,
-      open: 0,
-      accepted: 0,
-      cold: 0,
-    };
-    for (const { customer, summary } of summarized) {
-      if (filter !== "all" && customer.source !== filter) continue;
-      counts.any += 1;
-      if (summary.open > 0) counts.open += 1;
-      if (summary.accepted > 0) counts.accepted += 1;
-      if (summary.total === 0) counts.cold += 1;
-    }
-    return counts;
-  }, [summarized, filter]);
-
-  const filtered = useMemo(() => {
+  // Single pass: produces the filtered rows plus the pill counts for *other*
+  // dimensions (so each pill count stays meaningful as users toggle filters).
+  const { filtered, sourceCounts, pipelineCounts } = useMemo(() => {
     const base = filterCustomers(
       summarized.map((s) => s.customer),
       query,
       filter
     );
     const baseIds = new Set(base.map((c) => c.id));
-    return summarized.filter(({ customer, summary }) => {
-      if (!baseIds.has(customer.id)) return false;
-      if (pipeline === "open") return summary.open > 0;
-      if (pipeline === "accepted") return summary.accepted > 0;
-      if (pipeline === "cold") return summary.total === 0;
-      return true;
-    });
+
+    const sourceCounts: Record<string, number> = { all: 0 };
+    const pipelineCounts: Record<PipelineFilter, number> = {
+      any: 0,
+      open: 0,
+      accepted: 0,
+      cold: 0,
+    };
+    const filtered: typeof summarized = [];
+
+    for (const row of summarized) {
+      const { customer, summary } = row;
+      const inQuery = baseIds.has(customer.id);
+      const inSource = filter === "all" || customer.source === filter;
+      const inPipeline = matchesPipeline(summary, pipeline);
+
+      if (inQuery && inPipeline) {
+        sourceCounts.all += 1;
+        sourceCounts[customer.source] =
+          (sourceCounts[customer.source] ?? 0) + 1;
+      }
+      if (inQuery && inSource) {
+        pipelineCounts.any += 1;
+        if (summary.open > 0) pipelineCounts.open += 1;
+        if (summary.accepted > 0) pipelineCounts.accepted += 1;
+        if (summary.total === 0) pipelineCounts.cold += 1;
+      }
+      if (inQuery && inSource && inPipeline) filtered.push(row);
+    }
+    return { filtered, sourceCounts, pipelineCounts };
   }, [summarized, query, filter, pipeline]);
 
   const sorted = useMemo(
@@ -173,14 +188,7 @@ export function CustomerListView() {
     [filtered, sort]
   );
 
-  const { slice, safePage, pageCount, total } = paginate(sorted, page, perPage);
-
-  // Reset to page 1 whenever the underlying filter set changes.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: filter inputs only
-  useEffect(() => {
-    if (safePage > 1 && pageCount === 1) return;
-    resetPage();
-  }, [query, filter, pipeline]);
+  const { slice, safePage, total } = paginate(sorted, page, perPage);
 
   const handleSort = (key: SortKey) => {
     setSort(cycleSort(sort, key, key === "lastActivity" ? "desc" : "asc"));
@@ -191,7 +199,6 @@ export function CustomerListView() {
 
   return (
     <>
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-6 gap-5">
         <div>
           <h1 className="text-[40px] font-[700] leading-[1.02] tracking-[-0.03em]">
@@ -237,7 +244,6 @@ export function CustomerListView() {
         </Button>
       </div>
 
-      {/* Filter bar */}
       <div className="flex flex-col gap-2.5 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput
@@ -284,9 +290,7 @@ export function CustomerListView() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        {/* Header row */}
         <div className="hidden md:grid grid-cols-[1fr_120px_70px_70px_120px_90px] bg-[var(--surface-2)] border-b border-[var(--line)] sticky top-0 z-[1]">
           <SortableHeader
             sortKey="name"
@@ -330,7 +334,7 @@ export function CustomerListView() {
             Loading…
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState query={query.trim()} />
+          <EmptyState noun="customer" query={query} />
         ) : (
           <>
             {slice.map(({ customer: c, summary }) => {
@@ -430,66 +434,5 @@ export function CustomerListView() {
 
       <NewCustomerPanel open={panelOpen} onClose={() => setPanelOpen(false)} />
     </>
-  );
-}
-
-/* ── Internal helpers ─────────────────────────────────────────────────── */
-
-function FilterPill({
-  active,
-  count,
-  onClick,
-  children,
-  size = "md",
-}: {
-  active: boolean;
-  count: number;
-  onClick: () => void;
-  children: React.ReactNode;
-  size?: "sm" | "md";
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "font-[var(--font-mono)] border rounded-[6px] cursor-pointer transition-colors duration-150",
-        "inline-flex items-center gap-1.5",
-        size === "md"
-          ? "text-[11px] px-3 py-1.5"
-          : "text-[10.5px] px-2.5 py-1 uppercase tracking-[.06em] rounded-[5px]",
-        active
-          ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-          : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
-      )}
-    >
-      <span>{children}</span>
-      {count > 0 && (
-        <span
-          className={cn(
-            "font-[var(--font-mono)] tabular-nums leading-none",
-            size === "md" ? "text-[9.5px]" : "text-[9px]",
-            active ? "text-[var(--bg)]/70" : "text-[var(--muted)]"
-          )}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function EmptyState({ query }: { query: string }) {
-  return (
-    <div className="px-6 py-10 flex flex-col items-start gap-2">
-      <div className="font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.12em] text-[var(--muted)]">
-        No results
-      </div>
-      <div className="text-[14px] text-[var(--ink-2)]">
-        {query.length > 0
-          ? `No customers match "${query}".`
-          : "No customers match these filters."}
-      </div>
-    </div>
   );
 }

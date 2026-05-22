@@ -10,8 +10,6 @@ type SortableHeaderProps<K extends string> = {
   onSort: (key: K) => void;
   /** Right-align the label and indicator (numeric columns). */
   align?: "left" | "right";
-  /** Default sort direction the first time this column is clicked. */
-  defaultDirection?: SortDirection;
   className?: string;
 };
 
