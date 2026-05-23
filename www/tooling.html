@@ -7,424 +7,26 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,30..100,0..1&family=Azeret+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
-<style>
-/* ───────────────────────────  TOKENS  ─────────────────────────── */
-:root {
-  --paper:      #f1ece1;
-  --paper-2:    #ebe4d4;
-  --ink:        #11110f;
-  --ink-soft:   #2a2823;
-  --ink-mute:   #6b6555;
-  --rule:       #15140f;
-  --rule-light: rgba(17,17,15,.14);
-  --rule-fine:  rgba(17,17,15,.07);
-  --orange:     #ff3d00;
-  --orange-deep:#c12d00;
-  --cyan:       #134e6f;
-  --display: "Fraunces", "Times New Roman", serif;
-  --mono:    "Azeret Mono", ui-monospace, monospace;
-}
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; scroll-behavior: smooth; scroll-padding-top: 80px; }
-body {
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--display);
-  font-weight: 380;
-  line-height: 1.45;
-  overflow-x: hidden;
-  font-feature-settings: "ss01", "ss02", "tnum";
-}
-a { color: inherit; text-decoration: none; }
-img, svg { display: block; max-width: 100%; }
-button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
-
-body::before {
-  content: ""; position: fixed; inset: 0;
-  background-image:
-    linear-gradient(to right,  var(--rule-light) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--rule-light) 1px, transparent 1px),
-    linear-gradient(to right,  var(--rule-fine) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--rule-fine) 1px, transparent 1px);
-  background-size: 96px 96px, 96px 96px, 16px 16px, 16px 16px;
-  pointer-events: none; z-index: 0;
-  mask-image: radial-gradient(ellipse at center, #000 55%, transparent 95%);
-}
-body::after {
-  content: ""; position: fixed; inset: 0;
-  background-image: radial-gradient(rgba(17,17,15,0.05) 1px, transparent 1px);
-  background-size: 3px 3px; pointer-events: none;
-  mix-blend-mode: multiply; opacity: .55; z-index: 0;
-}
-
-.shell { position: relative; width: min(1360px, 100% - 64px); margin-inline: auto; z-index: 1; }
-
-/* ─────────────────────────  HEADER  ───────────────────────────── */
-.top {
-  position: sticky; top: 0; z-index: 50;
-  background: rgba(241,236,225,0.82);
-  backdrop-filter: saturate(140%) blur(8px);
-  -webkit-backdrop-filter: saturate(140%) blur(8px);
-  border-bottom: 1px solid var(--rule);
-}
-.top-inner { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 32px; padding: 14px 0; }
-.brand { display: inline-flex; align-items: baseline; gap: 8px; font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: -0.02em; }
-.brand .dot { width: 10px; height: 10px; background: var(--orange); display: inline-block; transform: translateY(-2px); }
-.brand .unit { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; color: var(--ink-mute); text-transform: uppercase; align-self: center; }
-
-.nav { display: flex; gap: 28px; justify-self: center; }
-.nav a { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); padding: 6px 0; position: relative; }
-.nav a::after { content: ""; position: absolute; left: 0; right: 100%; bottom: 0; height: 1px; background: var(--orange); transition: right .35s cubic-bezier(.2,.7,.2,1); }
-.nav a:hover::after, .nav a.active::after { right: 0; }
-.nav a.active { color: var(--orange-deep); }
-
-.top-cta { display: flex; align-items: center; gap: 18px; }
-.top-cta .signin { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
-.btn {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 11px 18px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
-  border: 1px solid var(--ink);
-  background: var(--ink); color: var(--paper);
-  transition: transform .2s, background .2s;
-}
-.btn .arr { width: 18px; height: 8px; }
-.btn:hover { background: var(--orange); border-color: var(--orange); }
-.btn.ghost { background: transparent; color: var(--ink); }
-.btn.ghost:hover { background: var(--ink); color: var(--paper); }
-
-/* ───────────────────────  PAGE INTRO  ─────────────────────────── */
-.intro { padding: 88px 0 72px; border-bottom: 1px solid var(--rule); }
-.intro-meta {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--ink-mute); margin-bottom: 56px;
-}
-.intro-meta .line { height: 1px; background: var(--rule); width: 100%; }
-.intro-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 64px; align-items: end; }
-.intro h1 {
-  font-family: var(--display); font-weight: 320;
-  font-size: clamp(60px, 8.5vw, 148px);
-  line-height: .9; letter-spacing: -0.045em;
-}
-.intro h1 em { font-style: italic; font-weight: 280; color: var(--orange-deep); }
-.intro h1 .dot { display: inline-block; width: .12em; height: .12em; background: var(--orange); vertical-align: 0.6em; margin: 0 -0.04em; }
-.intro p.lead {
-  font-family: var(--display); font-weight: 320;
-  font-size: clamp(20px, 1.8vw, 26px);
-  line-height: 1.3; max-width: 38ch; color: var(--ink-soft);
-}
-.intro p.lead em { font-style: italic; color: var(--orange-deep); }
-
-/* ────────────────────  TOOLBOX INDEX  ─────────────────────── */
-.toolbox {
-  padding: 64px 0;
-  border-bottom: 1px solid var(--rule);
-}
-.toolbox h3.k {
-  font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--orange-deep);
-  margin-bottom: 32px; display: flex; align-items: center; gap: 12px;
-}
-.toolbox h3.k::before { content: ""; width: 28px; height: 1px; background: var(--orange); }
-.toolbox-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1px;
-  background: var(--rule);
-  border: 1px solid var(--rule);
-}
-.tg {
-  background: var(--paper);
-  padding: 22px 20px;
-  transition: background .2s;
-  display: flex; flex-direction: column; gap: 8px;
-}
-.tg:hover { background: var(--paper-2); }
-.tg .n { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; color: var(--orange-deep); }
-.tg .t { font-family: var(--display); font-weight: 420; font-size: 17px; line-height: 1.1; letter-spacing: -0.01em; }
-
-/* ─────────────────────────  TOOL ROW  ─────────────────────────── */
-.tool {
-  padding: 140px 0;
-  border-bottom: 1px solid var(--rule);
-  position: relative;
-}
-.tool .row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 96px;
-  align-items: center;
-}
-.tool.reverse .row { direction: rtl; }
-.tool.reverse .row > * { direction: ltr; }
-
-.tool .copy .section-num {
-  font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--orange-deep); margin-bottom: 28px;
-  display: flex; align-items: center; gap: 14px;
-}
-.tool .copy .section-num::before { content: ""; width: 28px; height: 1px; background: var(--orange); }
-.tool .copy .section-num .pill {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
-  background: var(--ink); color: var(--paper);
-  padding: 3px 8px; margin-left: 6px;
-}
-.tool .copy h2 {
-  font-family: var(--display); font-weight: 320;
-  font-size: clamp(42px, 5.4vw, 78px);
-  line-height: .98; letter-spacing: -0.035em;
-  margin-bottom: 24px;
-  max-width: 14ch;
-}
-.tool .copy h2 em { font-style: italic; font-weight: 280; color: var(--orange-deep); }
-.tool .copy p.dek {
-  font-family: var(--display); font-weight: 360;
-  font-size: 20px; line-height: 1.5;
-  color: var(--ink-soft);
-  max-width: 44ch;
-  margin-bottom: 36px;
-}
-
-/* spec list — like a parts list on a drawing */
-.tool .specs { list-style: none; border-top: 1px solid var(--rule); }
-.tool .specs li {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 18px;
-  padding: 18px 0;
-  border-bottom: 1px dashed var(--rule-light);
-}
-.tool .specs li .idx {
-  font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--orange-deep);
-  padding-top: 4px;
-}
-.tool .specs li h4 {
-  font-family: var(--display); font-weight: 480; font-size: 17px;
-  letter-spacing: -0.01em; margin-bottom: 4px;
-}
-.tool .specs li p { font-size: 14px; color: var(--ink-mute); line-height: 1.5; }
-
-/* visual panel (drawing) */
-.tool .vis {
-  position: relative;
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
-  aspect-ratio: 4 / 3.4;
-  padding: 28px;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-}
-.tool .vis::before, .tool .vis::after {
-  content: ""; position: absolute; width: 14px; height: 14px;
-  border: 1px solid var(--orange);
-}
-.tool .vis::before { top: 8px; left: 8px; border-right: none; border-bottom: none; }
-.tool .vis::after  { bottom: 8px; right: 8px; border-left: none; border-top: none; }
-.tool .vis .stamp {
-  position: absolute; bottom: 14px; left: 14px;
-  font-family: var(--mono); font-size: 9px; letter-spacing: .18em;
-  color: var(--ink-mute); text-transform: uppercase;
-}
-.tool .vis .stamp-r {
-  position: absolute; top: 14px; right: 14px;
-  font-family: var(--mono); font-size: 9px; letter-spacing: .18em;
-  color: var(--ink-mute); text-transform: uppercase;
-}
-.tool .vis svg { width: 92%; height: 92%; stroke: var(--ink); fill: none; stroke-width: 1; }
-
-/* dark variant */
-.tool.dark {
-  background: var(--ink); color: var(--paper);
-  border-bottom: none;
-}
-.tool.dark::before {
-  content: ""; position: absolute; inset: 0;
-  background-image:
-    linear-gradient(to right,  rgba(241,236,225,.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(241,236,225,.06) 1px, transparent 1px);
-  background-size: 80px 80px; pointer-events: none;
-}
-.tool.dark .shell { position: relative; }
-.tool.dark .copy .section-num { color: var(--orange); }
-.tool.dark .copy .section-num::before { background: var(--orange); }
-.tool.dark .copy .section-num .pill { background: var(--orange); color: var(--ink); }
-.tool.dark .copy h2 { color: var(--paper); }
-.tool.dark .copy p.dek { color: rgba(241,236,225,.78); }
-.tool.dark .specs { border-top-color: rgba(241,236,225,.25); }
-.tool.dark .specs li { border-bottom-color: rgba(241,236,225,.15); }
-.tool.dark .specs li h4 { color: var(--paper); }
-.tool.dark .specs li p { color: rgba(241,236,225,.6); }
-.tool.dark .vis {
-  background: rgba(241,236,225,.04);
-  border-color: rgba(241,236,225,.25);
-}
-.tool.dark .vis svg { stroke: var(--paper); }
-.tool.dark .vis .stamp, .tool.dark .vis .stamp-r { color: rgba(241,236,225,.5); }
-
-/* ─────────────────────────  ROADMAP  ──────────────────────────── */
-.roadmap { padding: 140px 0; border-top: 1px solid var(--rule); }
-.section-head {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: end;
-  gap: 32px;
-  margin-bottom: 56px;
-}
-.section-head .label {
-  font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
-  color: var(--orange-deep);
-  display: flex; align-items: center; gap: 12px;
-}
-.section-head .label::before { content: ""; width: 28px; height: 1px; background: var(--orange); }
-.section-head h2 {
-  font-family: var(--display);
-  font-weight: 320;
-  font-size: clamp(40px, 5.4vw, 84px);
-  line-height: .98;
-  letter-spacing: -0.035em;
-  max-width: 22ch;
-}
-.section-head h2 em { font-style: italic; font-weight: 280; }
-
-.roadmap-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border: 1px solid var(--rule);
-}
-.rm-item {
-  padding: 40px 32px;
-  border-right: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  position: relative;
-  background: var(--paper);
-}
-.rm-item:nth-child(3n) { border-right: none; }
-.rm-item:nth-last-child(-n+3) { border-bottom: none; }
-.rm-item .when {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
-  color: var(--orange-deep);
-  padding: 4px 8px;
-  border: 1px solid var(--orange);
-  margin-bottom: 24px;
-}
-.rm-item .when .dot { width: 6px; height: 6px; background: var(--orange); display: inline-block; border-radius: 50%; }
-.rm-item .when.q3 { color: var(--ink-soft); border-color: var(--ink-mute); }
-.rm-item .when.q3 .dot { background: var(--ink-mute); }
-.rm-item .when.later { color: var(--ink-mute); border-color: var(--rule-light); }
-.rm-item .when.later .dot { background: var(--ink-mute); opacity: .4; }
-.rm-item h3 {
-  font-family: var(--display); font-weight: 380;
-  font-size: 26px; line-height: 1.15; letter-spacing: -0.02em;
-  margin-bottom: 12px;
-}
-.rm-item h3 em { font-style: italic; color: var(--orange-deep); }
-.rm-item p {
-  font-size: 15px; color: var(--ink-soft); line-height: 1.55;
-  max-width: 34ch;
-}
-
-/* ─────────────────────────  CTA  ──────────────────────────────── */
-.final-cta {
-  padding: 140px 0;
-  text-align: center;
-  position: relative;
-  border-top: 1px solid var(--rule);
-  background: var(--paper-2);
-}
-.final-cta .stamp {
-  display: inline-flex; align-items: center; gap: 14px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--orange-deep);
-  margin-bottom: 32px;
-}
-.final-cta .stamp .pip { width: 8px; height: 8px; background: var(--orange); }
-.final-cta h2 {
-  font-family: var(--display); font-weight: 320;
-  font-size: clamp(48px, 7vw, 110px);
-  line-height: .92; letter-spacing: -0.045em;
-  max-width: 22ch; margin: 0 auto 36px;
-}
-.final-cta h2 em { font-style: italic; font-weight: 280; color: var(--orange-deep); }
-.final-cta .actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-.final-cta .terms {
-  margin-top: 32px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
-  color: var(--ink-mute); text-transform: uppercase;
-}
-
-/* ─────────────────────────  FOOTER  ───────────────────────────── */
-footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; position: relative; z-index: 1; }
-.foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 56px; align-items: start; margin-bottom: 80px; }
-.foot-brand .brand { color: var(--paper); }
-.foot-brand .brand .unit { color: rgba(241,236,225,.55); }
-.foot-brand p {
-  margin-top: 20px;
-  font-family: var(--display); font-weight: 320;
-  font-size: 22px; line-height: 1.25; letter-spacing: -0.01em;
-  max-width: 30ch; color: rgba(241,236,225,.85);
-}
-.foot-col h4 { font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--orange); margin-bottom: 18px; }
-.foot-col ul { list-style: none; display: grid; gap: 10px; }
-.foot-col a { font-family: var(--display); font-weight: 360; font-size: 15px; color: rgba(241,236,225,.82); transition: color .2s; }
-.foot-col a:hover { color: var(--orange); }
-.title-block { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid rgba(241,236,225,.25); font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: rgba(241,236,225,.7); }
-.title-block .cell { padding: 12px 14px; border-right: 1px solid rgba(241,236,225,.2); }
-.title-block .cell:last-child { border-right: none; }
-.title-block .cell .k { color: rgba(241,236,225,.45); display: block; margin-bottom: 4px; font-size: 9px; }
-.title-block .cell .v { color: var(--paper); font-size: 12px; letter-spacing: .08em; }
-.foot-bottom { margin-top: 32px; display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgba(241,236,225,.55); }
-
-/* reveal */
-.reveal { opacity: 0; transform: translateY(20px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
-.reveal.in { opacity: 1; transform: none; }
-
-/* responsive */
-@media (max-width: 1024px) {
-  .top-inner { grid-template-columns: 1fr auto; }
-  .nav { display: none; }
-  .intro-grid { grid-template-columns: 1fr; gap: 40px; }
-  .tool { padding: 80px 0; }
-  .tool .row { grid-template-columns: 1fr; gap: 48px; }
-  .tool.reverse .row { direction: ltr; }
-  .toolbox-grid { grid-template-columns: repeat(3, 1fr); }
-  .roadmap-grid { grid-template-columns: 1fr; }
-  .rm-item { border-right: none; }
-  .rm-item:nth-last-child(-n+3) { border-bottom: 1px solid var(--rule); }
-  .rm-item:last-child { border-bottom: none; }
-  .foot-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
-  .title-block { grid-template-columns: repeat(2, 1fr); }
-  .title-block .cell:nth-child(2n) { border-right: none; }
-  .title-block .cell:nth-child(n+3) { border-top: 1px solid rgba(241,236,225,.2); }
-}
-@media (max-width: 640px) {
-  .shell { width: calc(100% - 32px); }
-  .toolbox-grid { grid-template-columns: repeat(2, 1fr); }
-  .section-head { grid-template-columns: 1fr; gap: 16px; margin-bottom: 32px; }
-  .foot-grid { grid-template-columns: 1fr; }
-  .foot-bottom { flex-direction: column; gap: 12px; align-items: flex-start; }
-}
-</style>
+<link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
 
 <!-- HEADER -->
 <header class="top">
   <div class="shell top-inner">
-    <a href="index.html" class="brand">
+    <a href="/" class="brand">
       <span>SqFt</span>
       <span class="unit">The Flooring Solution</span>
     </a>
     <nav class="nav">
-      <a href="index.html">The Loop</a>
-      <a href="tooling.html" class="active">Tooling</a>
-      <a href="pricing.html">Pricing</a>
-      <a href="contact.html">Contact</a>
+      <a href="/">The Loop</a>
+      <a href="/tooling" class="active">Tooling</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/contact">Contact</a>
     </nav>
     <div class="top-cta">
       <a href="#" class="signin">Sign in</a>
-      <a href="pricing.html" class="btn">
+      <a href="/pricing" class="btn">
         Start measuring
         <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
       </a>
@@ -484,7 +86,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
       <div class="vis">
         <span class="stamp-r">FIG. 01 — ESTIMATOR</span>
         <svg viewBox="0 0 600 480">
-          <!-- floor plan -->
           <rect x="40" y="60" width="240" height="180" stroke-dasharray="4 4"/>
           <rect x="280" y="60" width="200" height="120"/>
           <rect x="280" y="180" width="200" height="60" stroke-dasharray="4 4"/>
@@ -497,11 +98,9 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="380" y="217" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">HALL · 56</text>
           <text x="520" y="155" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">BED · 96</text>
 
-          <!-- dimension lines -->
           <path d="M40 44 H280 M44 40 L40 44 L44 48 M276 40 L280 44 L276 48" stroke="#ff3d00"/>
           <text x="160" y="36" font-family="Azeret Mono" font-size="9" fill="#c12d00" text-anchor="middle">20'-0"</text>
 
-          <!-- line items list -->
           <rect x="40" y="280" width="520" height="160"/>
           <text x="56" y="304" font-family="Azeret Mono" font-size="10" fill="currentColor">LINE ITEMS / 4</text>
           <line x1="40" y1="316" x2="560" y2="316"/>
@@ -522,7 +121,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="56" y="436" font-family="Azeret Mono" font-size="11" fill="#c12d00">TOTAL</text>
           <text x="540" y="436" font-family="Azeret Mono" font-size="14" fill="#c12d00" text-anchor="end">$ 12,840.00</text>
 
-          <!-- pins -->
           <circle cx="280" cy="180" r="3" fill="#ff3d00"/>
           <circle cx="480" cy="60" r="3" fill="#ff3d00"/>
         </svg>
@@ -550,7 +148,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
       <div class="vis">
         <span class="stamp-r">FIG. 02 — PORTAL</span>
         <svg viewBox="0 0 600 480">
-          <!-- phone -->
           <rect x="80" y="50" width="180" height="380" rx="20"/>
           <line x1="80" y1="80" x2="260" y2="80"/>
           <line x1="80" y1="400" x2="260" y2="400"/>
@@ -568,16 +165,13 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="100" y="208" font-family="Azeret Mono" font-size="10" fill="currentColor">TOTAL</text>
           <text x="240" y="208" font-family="Azeret Mono" font-size="12" fill="#c12d00" text-anchor="end">$8,120.00</text>
 
-          <!-- signature pad -->
           <rect x="100" y="240" width="140" height="60"/>
           <path d="M110 280 Q120 260 132 282 T156 274 T180 282 T210 270" stroke="#11110f" stroke-width="1.5"/>
           <text x="100" y="318" font-family="Azeret Mono" font-size="8" fill="currentColor">SIGN HERE</text>
 
-          <!-- approve button -->
           <rect x="100" y="340" width="140" height="34" fill="#ff3d00"/>
           <text x="170" y="362" font-family="Azeret Mono" font-size="10" fill="#11110f" text-anchor="middle">APPROVE QUOTE</text>
 
-          <!-- send arc + dashboard -->
           <path d="M280 200 Q400 100 540 180" stroke-dasharray="3 3"/>
           <path d="M533 173 L542 180 L535 188" />
 
@@ -612,13 +206,12 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <li><div class="idx">03.1</div><div><h4>Week + month view</h4><p>Click a slot to create a job. Drag to move. Conflict warnings on overlapping crew assignments.</p></div></li>
           <li><div class="idx">03.2</div><div><h4>Multi-crew assignment</h4><p>Schedule the install, the measure, the punch-list. Per-crew filter on the schedule view.</p></div></li>
           <li><div class="idx">03.3</div><div><h4>Customer-linked events</h4><p>Every event ties back to the customer + estimate. One click to the quote, one click to the address.</p></div></li>
-          <li><div class="idx">03.4</div><div><h4>Crew-only view <span style="color:var(--orange-deep); font-family:var(--mono); font-size: 11px; letter-spacing: .12em; margin-left: 6px;">CREW PLAN</span></h4><p>Installers see their assigned jobs and addresses. They don't see margins, pipeline, or pricing.</p></div></li>
+          <li><div class="idx">03.4</div><div><h4>Crew-only view <span class="pill" style="background:var(--orange); color:var(--ink); font-family:var(--mono); font-size: 10px; letter-spacing: .18em; padding: 2px 6px; margin-left: 6px;">CREW PLAN</span></h4><p>Installers see their assigned jobs and addresses. They don't see margins, pipeline, or pricing.</p></div></li>
         </ul>
       </div>
       <div class="vis">
         <span class="stamp-r">FIG. 03 — SCHEDULE</span>
         <svg viewBox="0 0 600 480">
-          <!-- header row -->
           <text x="60" y="60" font-family="Azeret Mono" font-size="10" fill="currentColor">MON 19</text>
           <text x="140" y="60" font-family="Azeret Mono" font-size="10" fill="currentColor">TUE 20</text>
           <text x="220" y="60" font-family="Azeret Mono" font-size="10" fill="currentColor">WED 21</text>
@@ -627,7 +220,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="460" y="60" font-family="Azeret Mono" font-size="10" fill="currentColor">SAT 24</text>
           <text x="540" y="60" font-family="Azeret Mono" font-size="10" fill="currentColor">SUN 25</text>
 
-          <!-- grid -->
           <line x1="40" y1="80" x2="580" y2="80"/>
           <line x1="40" y1="160" x2="580" y2="160" stroke-dasharray="2 4" opacity="0.4"/>
           <line x1="40" y1="240" x2="580" y2="240" stroke-dasharray="2 4" opacity="0.4"/>
@@ -643,20 +235,18 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <line x1="520" y1="80" x2="520" y2="440"/>
           <line x1="600" y1="80" x2="600" y2="440"/>
 
-          <!-- time labels -->
           <text x="32" y="164" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="end">9</text>
           <text x="32" y="244" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="end">12</text>
           <text x="32" y="324" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="end">3</text>
           <text x="32" y="404" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="end">6</text>
 
-          <!-- events -->
           <rect x="44" y="100" width="72" height="120" fill="#ff3d00"/>
           <text x="50" y="118" font-family="Azeret Mono" font-size="8" fill="#11110f">INSTALL</text>
           <text x="50" y="132" font-family="Fraunces" font-size="10" fill="#11110f">Saunders</text>
           <text x="50" y="146" font-family="Fraunces" font-size="9" fill="#11110f">Crew A · LVP</text>
 
           <rect x="124" y="160" width="72" height="160" fill="currentColor" opacity="0.85"/>
-          <text x="130" y="178" font-family="Azeret Mono" font-size="8" fill="var(--paper)" style="fill:#f1ece1">INSTALL</text>
+          <text x="130" y="178" font-family="Azeret Mono" font-size="8" fill="#f1ece1">INSTALL</text>
           <text x="130" y="192" font-family="Fraunces" font-size="10" fill="#f1ece1">Pereira</text>
           <text x="130" y="206" font-family="Fraunces" font-size="9" fill="#f1ece1">Crew B · Tile</text>
 
@@ -673,7 +263,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="370" y="132" font-family="Fraunces" font-size="10" fill="#f1ece1">Vaughn</text>
           <text x="370" y="146" font-family="Fraunces" font-size="9" fill="#f1ece1">Crew A</text>
 
-          <!-- conflict warning -->
           <rect x="372" y="160" width="56" height="20" fill="#ff3d00"/>
           <text x="400" y="174" font-family="Azeret Mono" font-size="8" fill="#11110f" text-anchor="middle">⚠ CONFLICT</text>
         </svg>
@@ -701,7 +290,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
       <div class="vis">
         <span class="stamp-r">FIG. 04 — DASHBOARD</span>
         <svg viewBox="0 0 600 480">
-          <!-- KPI tiles -->
           <rect x="40" y="40" width="120" height="60"/>
           <text x="52" y="60" font-family="Azeret Mono" font-size="8" fill="currentColor">OPEN OPPS</text>
           <text x="52" y="86" font-family="Fraunces" font-size="22" fill="currentColor">28</text>
@@ -718,7 +306,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="442" y="60" font-family="Azeret Mono" font-size="8" fill="currentColor">CASH IN</text>
           <text x="442" y="86" font-family="Fraunces" font-size="22" fill="currentColor">$ 52K</text>
 
-          <!-- kanban -->
           <text x="40" y="138" font-family="Azeret Mono" font-size="9" fill="currentColor">PIPELINE</text>
           <line x1="40" y1="148" x2="560" y2="148"/>
 
@@ -747,7 +334,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="440" y="198" font-family="Fraunces" font-size="11" fill="currentColor">Pereira</text>
           <text x="440" y="214" font-family="Azeret Mono" font-size="8" fill="currentColor">$9,940</text>
 
-          <!-- chart -->
           <text x="40" y="320" font-family="Azeret Mono" font-size="9" fill="currentColor">REVENUE / 6 MO</text>
           <line x1="40" y1="332" x2="560" y2="332"/>
           <polyline points="60,420 140,400 220,370 300,390 380,340 460,300 540,310" stroke="#ff3d00" stroke-width="1.5"/>
@@ -784,7 +370,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
       <div class="vis">
         <span class="stamp-r">FIG. 05 — MONEY</span>
         <svg viewBox="0 0 600 480">
-          <!-- card -->
           <rect x="60" y="50" width="240" height="140" rx="6"/>
           <rect x="60" y="50" width="240" height="32" fill="currentColor" opacity="0.85"/>
           <text x="80" y="72" font-family="Azeret Mono" font-size="10" fill="#11110f">SqFt PAY · STRIPE</text>
@@ -793,11 +378,9 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="80" y="166" font-family="Azeret Mono" font-size="8" fill="currentColor">SAUNDERS · DEPOSIT $2,568.00</text>
           <circle cx="278" cy="170" r="6" fill="#ff3d00"/>
 
-          <!-- arrow -->
           <path d="M310 120 H400" />
           <path d="M392 114 L400 120 L392 126" />
 
-          <!-- bank -->
           <rect x="410" y="60" width="140" height="120"/>
           <path d="M410 88 L480 60 L550 88 Z" fill="currentColor" opacity="0.85"/>
           <line x1="430" y1="98" x2="430" y2="170"/>
@@ -807,10 +390,8 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <line x1="420" y1="170" x2="540" y2="170"/>
           <text x="480" y="188" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">SETTLED T+2</text>
 
-          <!-- divider -->
           <line x1="40" y1="220" x2="560" y2="220" stroke-dasharray="2 4" opacity="0.4"/>
 
-          <!-- quickbooks sync -->
           <rect x="40" y="250" width="240" height="200"/>
           <text x="56" y="276" font-family="Azeret Mono" font-size="10" fill="#ff3d00">QBO SYNC</text>
           <line x1="40" y1="286" x2="280" y2="286"/>
@@ -826,7 +407,6 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
           <text x="264" y="402" font-family="Azeret Mono" font-size="9" fill="#ff3d00" text-anchor="end">PAID ✓</text>
           <text x="56" y="430" font-family="Azeret Mono" font-size="8" fill="currentColor" opacity="0.6">LAST SYNC 11:38:04</text>
 
-          <!-- margin bars -->
           <rect x="320" y="250" width="240" height="200"/>
           <text x="336" y="276" font-family="Azeret Mono" font-size="10" fill="#ff3d00">JOB COST · SAUNDERS</text>
           <line x1="320" y1="286" x2="560" y2="286"/>
@@ -911,11 +491,11 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
     </div>
     <h2 class="reveal">A real toolkit.<br/>For a <em>real trade.</em></h2>
     <div class="actions reveal">
-      <a href="pricing.html" class="btn">
+      <a href="/pricing" class="btn">
         See pricing
         <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
       </a>
-      <a href="contact.html" class="btn ghost">Talk to a real human</a>
+      <a href="/contact" class="btn ghost">Talk to a real human</a>
     </div>
     <p class="terms reveal">14-day free trial &nbsp;·&nbsp; card required &nbsp;·&nbsp; cancel from settings &nbsp;·&nbsp; data stays yours</p>
   </div>
@@ -926,7 +506,7 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
   <div class="shell">
     <div class="foot-grid">
       <div class="foot-brand">
-        <a href="index.html" class="brand">
+        <a href="/" class="brand">
           <span>SqFt</span>
           <span class="unit">The Flooring Solution</span>
         </a>
@@ -935,9 +515,9 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
       <div class="foot-col">
         <h4>Product</h4>
         <ul>
-          <li><a href="index.html">The loop</a></li>
-          <li><a href="tooling.html">Tooling</a></li>
-          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="/">The loop</a></li>
+          <li><a href="/tooling">Tooling</a></li>
+          <li><a href="/pricing">Pricing</a></li>
           <li><a href="#">Changelog</a></li>
         </ul>
       </div>
@@ -964,7 +544,7 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
         <ul>
           <li><a href="#">Docs</a></li>
           <li><a href="#">Status</a></li>
-          <li><a href="contact.html">Contact</a></li>
+          <li><a href="/contact">Contact</a></li>
           <li><a href="#">Security</a></li>
         </ul>
       </div>
@@ -984,12 +564,7 @@ footer { background: var(--ink); color: var(--paper); padding: 88px 0 32px; posi
   </div>
 </footer>
 
-<script>
-const io = new IntersectionObserver((entries) => {
-  for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-}, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
-for (const n of document.querySelectorAll('.reveal')) io.observe(n);
-</script>
+<script src="/script.js"></script>
 
 </body>
 </html>
