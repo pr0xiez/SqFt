@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SqFt — Quote-to-paid for flooring contractors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,30..100,0..1&family=Azeret+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ───────────────────────────  TOKENS  ─────────────────────────── */
+:root {
+  --paper:      #f1ece1;          /* draft paper */
+  --paper-2:    #ebe4d4;
+  --ink:        #11110f;          /* deep ink */
+  --ink-soft:   #2a2823;
+  --ink-mute:   #6b6555;
+  --rule:       #15140f;
+  --rule-light: rgba(17,17,15,.14);
+  --rule-fine:  rgba(17,17,15,.07);
+  --orange:     #ff3d00;          /* surveyor's orange */
+  --orange-deep:#c12d00;
+  --cyan:       #134e6f;          /* blueprint cyan */
+
+  --u: 8px;                       /* base unit — every spacing is a multiple */
+
+  --display: "Fraunces", "Times New Roman", serif;
+  --mono:    "Azeret Mono", ui-monospace, monospace;
+}
+
+/* ───────────────────────────  RESET  ──────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; scroll-behavior: smooth; scroll-padding-top: 80px; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 380;
+  line-height: 1.45;
+  overflow-x: hidden;
+  font-feature-settings: "ss01", "ss02", "tnum";
+}
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; max-width: 100%; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ─────────────────────  PAPER + GRID BACKDROP  ────────────────── */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    /* major grid */
+    linear-gradient(to right,  var(--rule-light) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-light) 1px, transparent 1px),
+    /* minor grid */
+    linear-gradient(to right,  var(--rule-fine) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-fine) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 16px 16px, 16px 16px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse at center, #000 55%, transparent 95%);
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(rgba(17,17,15,0.05) 1px, transparent 1px);
+  background-size: 3px 3px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: .55;
+  z-index: 0;
+}
+
+/* shared centred shell */
+.shell { position: relative; width: min(1360px, 100% - 64px); margin-inline: auto; z-index: 1; }
+
+/* ─────────────────────────  HEADER  ───────────────────────────── */
+.top {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(241,236,225,0.82);
+  backdrop-filter: saturate(140%) blur(8px);
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+.top-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 32px;
+  padding: 14px 0;
+}
+.brand {
+  display: inline-flex; align-items: baseline; gap: 8px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.brand .dot { width: 10px; height: 10px; background: var(--orange); display: inline-block; transform: translateY(-2px); }
+.brand .unit { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; color: var(--ink-mute); text-transform: uppercase; align-self: center; }
+
+.nav { display: flex; gap: 28px; justify-self: center; }
+.nav a {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 6px 0;
+  position: relative;
+}
+.nav a::after {
+  content: ""; position: absolute; left: 0; right: 100%; bottom: 0;
+  height: 1px; background: var(--orange);
+  transition: right .35s cubic-bezier(.2,.7,.2,1);
+}
+.nav a:hover::after { right: 0; }
+
+.top-cta {
+  display: flex; align-items: center; gap: 18px;
+}
+.top-cta .signin {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 18px;
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  border: 1px solid var(--ink);
+  background: var(--ink); color: var(--paper);
+  transition: transform .2s, background .2s;
+}
+.btn .arr { width: 18px; height: 8px; }
+.btn:hover { background: var(--orange); border-color: var(--orange); }
+.btn.ghost {
+  background: transparent; color: var(--ink);
+}
+.btn.ghost:hover { background: var(--ink); color: var(--paper); }
+
+/* ───────────────────────────  HERO  ───────────────────────────── */
+.hero {
+  position: relative;
+  padding-top: 48px;
+  padding-bottom: 96px;
+  min-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.hero-meta {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.hero-meta .line { height: 1px; background: var(--rule); width: 100%; }
+.hero-meta span { white-space: nowrap; }
+
+.hero-title {
+  position: relative;
+  margin: 56px 0 32px;
+  text-align: center;
+}
+.hero-title .word {
+  font-family: var(--display);
+  font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 0;
+  font-weight: 320;
+  font-size: clamp(120px, 22vw, 340px);
+  line-height: .82;
+  letter-spacing: -0.05em;
+  color: var(--ink);
+  display: inline-block;
+  position: relative;
+}
+.hero-title .sq { font-style: italic; font-weight: 280; }
+.hero-title .ft { font-weight: 480; }
+.hero-title .dot {
+  display: inline-block;
+  width: .14em; height: .14em;
+  background: var(--orange);
+  vertical-align: 0.6em;
+  margin: 0 -0.04em 0 -0.04em;
+}
+
+/* dimensional annotations around the title */
+.dim {
+  position: absolute;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--orange-deep);
+  display: flex; align-items: center; gap: 8px;
+}
+.dim svg { stroke: var(--orange); fill: none; stroke-width: 1; }
+.dim.dim-top    { top: 8px;    left: 50%; transform: translateX(-50%); }
+.dim.dim-left   { left: -2px;  top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
+.dim.dim-right  { right: -2px; top: 50%; transform: translateY(-50%) rotate(90deg);  transform-origin: right center; }
+
+.hero-sub {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: end;
+  margin-top: 24px;
+}
+.hero-tag {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(22px, 2.1vw, 30px);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  max-width: 36ch;
+  color: var(--ink);
+}
+.hero-tag em { font-style: italic; color: var(--orange-deep); }
+.hero-tag strong { font-weight: 520; }
+
+.hero-cta { display: flex; align-items: center; gap: 18px; justify-content: flex-end; flex-wrap: wrap; }
+.hero-cta .note {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+  color: var(--ink-mute); text-transform: uppercase;
+  text-align: right;
+}
+
+/* ───────────────────  MARQUEE / STAMP STRIP  ──────────────────── */
+.stamp-strip {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  overflow: hidden;
+  position: relative; z-index: 1;
+}
+.stamp-strip .track {
+  display: flex; align-items: center; gap: 56px;
+  padding: 18px 0;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-soft);
+  animation: scroll 50s linear infinite;
+  white-space: nowrap;
+}
+.stamp-strip .pip { color: var(--orange); }
+@keyframes scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ─────────────────────────  SECTIONS  ─────────────────────────── */
+section { position: relative; z-index: 1; padding: 120px 0; }
+.section-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 32px;
+  margin-bottom: 64px;
+}
+.section-head .label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--orange-deep);
+  display: flex; align-items: center; gap: 12px;
+}
+.section-head .label::before {
+  content: ""; width: 28px; height: 1px; background: var(--orange);
+}
+.section-head h2 {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(40px, 5.4vw, 84px);
+  line-height: .98;
+  letter-spacing: -0.035em;
+  max-width: 22ch;
+}
+.section-head h2 em { font-style: italic; font-weight: 280; }
+
+/* ─────────────────────────  THE LOOP  ─────────────────────────── */
+.loop {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.loop .step {
+  border-right: 1px solid var(--rule);
+  padding: 36px 28px 32px;
+  position: relative;
+  background: var(--paper);
+  transition: background .25s;
+}
+.loop .step:last-child { border-right: none; }
+.loop .step:hover { background: var(--paper-2); }
+.loop .step .num {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--orange-deep);
+  margin-bottom: 24px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.loop .step .num .arrow { color: var(--ink-mute); }
+.loop .step h3 {
+  font-family: var(--display);
+  font-weight: 360;
+  font-size: 38px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+.loop .step h3 em { font-style: italic; font-weight: 320; }
+.loop .step p {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 28ch;
+}
+.loop .step .icon {
+  margin-top: 32px;
+  height: 88px;
+  display: flex; align-items: end; justify-content: flex-start;
+}
+.loop .step .icon svg { stroke: var(--ink); fill: none; stroke-width: 1; }
+
+/* ───────────────────────  FEATURES GRID  ──────────────────────── */
+.features {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+.f {
+  grid-column: span 3;
+  padding: 48px 40px 44px;
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  position: relative;
+  background: var(--paper);
+  transition: background .25s;
+}
+.f:hover { background: var(--paper-2); }
+.f:nth-child(2n) { border-right: none; }
+.f.wide   { grid-column: span 6; border-right: none; padding: 64px 40px; }
+.f.third  { grid-column: span 2; border-right: 1px solid var(--rule); }
+.f.third:nth-child(2n) { border-right: 1px solid var(--rule); }
+.f.third:last-of-type { border-right: none; }
+
+.f .tag {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-mute);
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 24px;
+}
+.f .tag .pin { width: 8px; height: 8px; background: var(--orange); }
+.f h3 {
+  font-family: var(--display);
+  font-weight: 360;
+  font-size: clamp(28px, 2.6vw, 40px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin-bottom: 14px;
+  max-width: 18ch;
+}
+.f h3 em { font-style: italic; font-weight: 320; color: var(--orange-deep); }
+.f p {
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1.55;
+  max-width: 42ch;
+}
+.f .schematic {
+  margin-top: 28px;
+  height: 140px;
+  display: flex; align-items: center;
+}
+.f.wide .schematic { height: 200px; justify-content: center; }
+.f .schematic svg { stroke: var(--ink); fill: none; stroke-width: 1; }
+
+/* ─────────────────────  NUMBERS / SURVEY  ─────────────────────── */
+.survey {
+  background: var(--ink);
+  color: var(--paper);
+  position: relative;
+  overflow: hidden;
+}
+.survey::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(to right,  rgba(241,236,225,.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(241,236,225,.06) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+}
+.survey .shell { position: relative; }
+.survey .section-head { margin-bottom: 80px; }
+.survey .section-head .label { color: var(--orange); }
+.survey .section-head .label::before { background: var(--orange); }
+.survey .section-head h2 { color: var(--paper); }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: rgba(241,236,225,0.16);
+  border: 1px solid rgba(241,236,225,0.16);
+}
+.stat {
+  background: var(--ink);
+  padding: 40px 28px;
+  position: relative;
+}
+.stat .lbl {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+  color: rgba(241,236,225,.55);
+  margin-bottom: 28px;
+  display: flex; justify-content: space-between;
+}
+.stat .num {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(56px, 7vw, 96px);
+  line-height: .92;
+  letter-spacing: -0.04em;
+  font-feature-settings: "tnum";
+}
+.stat .num .u { color: var(--orange); font-family: var(--mono); font-size: .35em; vertical-align: 0.18em; margin-left: 6px; letter-spacing: .04em; }
+.stat .desc {
+  margin-top: 18px;
+  font-size: 14px;
+  color: rgba(241,236,225,.7);
+  max-width: 26ch;
+}
+
+/* ───────────────────────  TESTIMONIAL  ────────────────────────── */
+.quote {
+  padding: 140px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.quote-card {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 64px;
+  align-items: end;
+  position: relative;
+}
+.quote-card::before {
+  content: "“";
+  position: absolute;
+  top: -100px; left: -20px;
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 320px;
+  line-height: 1;
+  color: var(--orange);
+  opacity: .9;
+}
+.quote-card p {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(28px, 3.4vw, 52px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  max-width: 24ch;
+  position: relative;
+}
+.quote-card p em { font-style: italic; color: var(--orange-deep); }
+.quote-card .attrib {
+  border-left: 1px solid var(--rule);
+  padding: 16px 0 16px 28px;
+}
+.quote-card .attrib .name {
+  font-family: var(--display);
+  font-weight: 480;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+.quote-card .attrib .role {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .12em;
+  color: var(--ink-mute); text-transform: uppercase;
+}
+.quote-card .attrib .meta {
+  margin-top: 24px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+  color: var(--ink-mute); text-transform: uppercase;
+  display: grid; gap: 6px;
+}
+.quote-card .attrib .meta span strong { color: var(--ink); font-weight: 500; }
+
+/* ─────────────────────────  PRICING  ──────────────────────────── */
+.pricing-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+.price-card {
+  position: relative;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 40px 36px 36px;
+}
+.price-card.featured {
+  background: var(--ink);
+  color: var(--paper);
+}
+.price-card .badge {
+  position: absolute;
+  top: -10px; right: 24px;
+  background: var(--orange);
+  color: var(--ink);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+  padding: 5px 10px;
+}
+.price-card .tier {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--orange-deep);
+  margin-bottom: 12px;
+}
+.price-card.featured .tier { color: var(--orange); }
+.price-card h3 {
+  font-family: var(--display);
+  font-weight: 360;
+  font-size: 40px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 24px;
+}
+.price-card h3 em { font-style: italic; }
+.price-card .amt {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: 96px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  display: flex; align-items: baseline; gap: 8px;
+  font-feature-settings: "tnum";
+}
+.price-card .amt .currency {
+  font-family: var(--mono); font-size: 22px; letter-spacing: 0;
+  vertical-align: super;
+  color: var(--ink-mute);
+}
+.price-card.featured .amt .currency { color: rgba(241,236,225,.6); }
+.price-card .amt .per {
+  font-family: var(--mono); font-size: 13px; letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.price-card.featured .amt .per { color: rgba(241,236,225,.6); }
+
+.price-card ul {
+  list-style: none;
+  margin: 32px 0;
+  border-top: 1px dashed var(--rule-light);
+}
+.price-card.featured ul { border-top-color: rgba(241,236,225,.2); }
+.price-card li {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 14px;
+  padding: 14px 0;
+  align-items: center;
+  border-bottom: 1px dashed var(--rule-light);
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.price-card.featured li {
+  color: rgba(241,236,225,.85);
+  border-bottom-color: rgba(241,236,225,.2);
+}
+.price-card li .chk { width: 18px; height: 18px; display: grid; place-items: center; }
+.price-card li .chk svg { stroke: var(--orange); fill: none; stroke-width: 1.5; }
+.price-card li .mono {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+  color: var(--ink-mute); text-transform: uppercase;
+}
+.price-card.featured li .mono { color: rgba(241,236,225,.6); }
+.price-card .price-cta { display: flex; gap: 12px; margin-top: 8px; }
+.price-card.featured .btn {
+  background: var(--orange); color: var(--ink); border-color: var(--orange);
+}
+.price-card.featured .btn:hover { background: var(--paper); border-color: var(--paper); }
+.price-card.featured .btn.ghost {
+  background: transparent; color: var(--paper); border-color: rgba(241,236,225,.4);
+}
+.price-card.featured .btn.ghost:hover { background: var(--paper); color: var(--ink); }
+
+/* ───────────────────────────  CTA  ────────────────────────────── */
+.final-cta {
+  padding: 160px 0;
+  text-align: center;
+  position: relative;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.final-cta .stamp {
+  display: inline-flex; align-items: center; gap: 14px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--orange-deep);
+  margin-bottom: 40px;
+}
+.final-cta .stamp .pip { width: 8px; height: 8px; background: var(--orange); }
+.final-cta h2 {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(56px, 9vw, 140px);
+  line-height: .92;
+  letter-spacing: -0.045em;
+  max-width: 18ch;
+  margin: 0 auto 40px;
+}
+.final-cta h2 em { font-style: italic; font-weight: 280; color: var(--orange-deep); }
+.final-cta .actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.final-cta .terms {
+  margin-top: 40px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+  color: var(--ink-mute); text-transform: uppercase;
+}
+
+/* ─────────────────────────  FOOTER  ───────────────────────────── */
+footer {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 88px 0 32px;
+  position: relative;
+  z-index: 1;
+}
+.foot-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 56px;
+  align-items: start;
+  margin-bottom: 80px;
+}
+.foot-brand .brand { color: var(--paper); }
+.foot-brand .brand .unit { color: rgba(241,236,225,.55); }
+.foot-brand p {
+  margin-top: 20px;
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  max-width: 30ch;
+  color: rgba(241,236,225,.85);
+}
+.foot-col h4 {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 18px;
+}
+.foot-col ul { list-style: none; display: grid; gap: 10px; }
+.foot-col a {
+  font-family: var(--display); font-weight: 360; font-size: 15px;
+  color: rgba(241,236,225,.82);
+  transition: color .2s;
+}
+.foot-col a:hover { color: var(--orange); }
+
+/* drawing title block */
+.title-block {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid rgba(241,236,225,.25);
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(241,236,225,.7);
+}
+.title-block .cell { padding: 12px 14px; border-right: 1px solid rgba(241,236,225,.2); }
+.title-block .cell:last-child { border-right: none; }
+.title-block .cell .k { color: rgba(241,236,225,.45); display: block; margin-bottom: 4px; font-size: 9px; }
+.title-block .cell .v { color: var(--paper); font-size: 12px; letter-spacing: .08em; }
+
+.foot-bottom {
+  margin-top: 32px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(241,236,225,.55);
+}
+
+/* ─────────────────────────  REVEAL  ───────────────────────────── */
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
+.reveal.in { opacity: 1; transform: none; }
+
+.hero-title .word { opacity: 0; transform: translateY(40px); animation: rise 1.1s cubic-bezier(.2,.7,.2,1) .2s forwards; }
+.hero-title .word.b { animation-delay: .35s; }
+.hero-meta, .hero-sub, .dim { opacity: 0; animation: fade 1s cubic-bezier(.2,.7,.2,1) .8s forwards; }
+.hero-sub { animation-delay: 1s; }
+.dim.dim-top { animation-delay: 1.2s; }
+.dim.dim-left { animation-delay: 1.3s; }
+.dim.dim-right { animation-delay: 1.3s; }
+
+@keyframes rise { to { opacity: 1; transform: none; } }
+@keyframes fade { to { opacity: 1; } }
+
+/* SVG drawing-in */
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.draw-line { stroke-dasharray: 200; stroke-dashoffset: 200; animation: draw 1.6s cubic-bezier(.4,0,.2,1) .5s forwards; }
+
+/* ───────────────────────  RESPONSIVE  ─────────────────────────── */
+@media (max-width: 1024px) {
+  .top-inner { grid-template-columns: 1fr auto; }
+  .nav { display: none; }
+  .hero-sub { grid-template-columns: 1fr; gap: 32px; }
+  .hero-cta { justify-content: flex-start; }
+  .hero-cta .note { text-align: left; }
+  .loop { grid-template-columns: 1fr; }
+  .loop .step { border-right: none; border-bottom: 1px solid var(--rule); }
+  .loop .step:last-child { border-bottom: none; }
+  .features { grid-template-columns: 1fr; }
+  .f, .f.third { grid-column: span 1; border-right: none; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .quote-card { grid-template-columns: 1fr; gap: 32px; }
+  .quote-card .attrib { border-left: none; border-top: 1px solid var(--rule); padding: 24px 0 0; }
+  .pricing-wrap { grid-template-columns: 1fr; }
+  .foot-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+  .title-block { grid-template-columns: repeat(2, 1fr); }
+  .title-block .cell:nth-child(2n) { border-right: none; }
+  .title-block .cell:nth-child(n+3) { border-top: 1px solid rgba(241,236,225,.2); }
+}
+@media (max-width: 640px) {
+  .shell { width: calc(100% - 32px); }
+  section { padding: 80px 0; }
+  .section-head { grid-template-columns: 1fr; gap: 16px; margin-bottom: 40px; }
+  .hero { min-height: auto; padding-top: 32px; padding-bottom: 56px; }
+  .hero-title { margin: 32px 0; }
+  .dim { display: none; }
+  .stats { grid-template-columns: 1fr; }
+  .foot-grid { grid-template-columns: 1fr; }
+  .foot-bottom { flex-direction: column; gap: 12px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<!-- ────────────────────────  HEADER  ──────────────────────── -->
+<header class="top">
+  <div class="shell top-inner">
+    <a href="index.html" class="brand">
+      <span>SqFt</span>
+      <span class="unit">The Flooring Solution</span>
+    </a>
+    <nav class="nav">
+      <a href="index.html">The Loop</a>
+      <a href="tooling.html">Tooling</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="top-cta">
+      <a href="#" class="signin">Sign in</a>
+      <a href="pricing.html" class="btn">
+        Start measuring
+        <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ─────────────────────────  HERO  ──────────────────────── -->
+<section class="hero">
+  <div class="shell">
+    <div class="hero-meta">
+      <div class="line"></div>
+      <span>SqFt &nbsp;·&nbsp; EST. 2026</span>
+      <div class="line"></div>
+    </div>
+
+    <div class="hero-title">
+      <span class="dim dim-top">
+        <svg width="120" height="14"><path class="draw-line" d="M0 7 H120 M3 4 L0 7 L3 10 M117 4 L120 7 L117 10"/></svg>
+        12'-0"
+        <svg width="120" height="14"><path class="draw-line" d="M0 7 H120 M3 4 L0 7 L3 10 M117 4 L120 7 L117 10"/></svg>
+      </span>
+      <span class="dim dim-left">
+        <svg width="80" height="14"><path class="draw-line" d="M0 7 H80 M3 4 L0 7 L3 10 M77 4 L80 7 L77 10"/></svg>
+        6'-0"
+      </span>
+      <span class="dim dim-right">
+        6'-0"
+        <svg width="80" height="14"><path class="draw-line" d="M0 7 H80 M3 4 L0 7 L3 10 M77 4 L80 7 L77 10"/></svg>
+      </span>
+      <div class="word"><span class="sq">Sq</span><span class="ft">Ft.</span></div>
+    </div>
+
+    <div class="hero-sub">
+      <p class="hero-tag">
+        Quote-to-paid for flooring contractors who <em>measure twice</em>. From the first room sketch to the final invoice — <strong>one tool, no spreadsheet</strong>.
+      </p>
+      <div>
+        <div class="hero-cta">
+          <a href="pricing.html" class="btn">
+            Start a free quote
+            <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+          </a>
+          <a href="#loop" class="btn ghost">See how it works</a>
+        </div>
+        <p class="note">14-day free trial &nbsp;·&nbsp; card required &nbsp;·&nbsp; cancel anytime</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────  STAMP STRIP  ─────────────────── -->
+<div class="stamp-strip">
+  <div class="track">
+    <span>★ Trusted by 2,400+ flooring crews</span><span class="pip">●</span>
+    <span>$186M in quotes shipped</span><span class="pip">●</span>
+    <span>Built on the job site</span><span class="pip">●</span>
+    <span>Spanish-ready field portal</span><span class="pip">●</span>
+    <span>QuickBooks Online sync</span><span class="pip">●</span>
+    <span>SOC&nbsp;2 in progress</span><span class="pip">●</span>
+    <span>★ Trusted by 2,400+ flooring crews</span><span class="pip">●</span>
+    <span>$186M in quotes shipped</span><span class="pip">●</span>
+    <span>Built on the job site</span><span class="pip">●</span>
+    <span>Spanish-ready field portal</span><span class="pip">●</span>
+    <span>QuickBooks Online sync</span><span class="pip">●</span>
+    <span>SOC&nbsp;2 in progress</span><span class="pip">●</span>
+  </div>
+</div>
+
+<!-- ────────────────────────  LOOP  ──────────────────────── -->
+<section id="loop">
+  <div class="shell">
+    <div class="section-head reveal">
+      <span class="label">01 / The Revenue Loop</span>
+      <h2>Three steps. <em>No leaks.</em> From the door knock to the deposited check.</h2>
+    </div>
+
+    <div class="loop reveal">
+      <div class="step">
+        <div class="num"><span>STEP 01</span><span class="arrow">→</span></div>
+        <h3><em>Measure</em><br/>&amp; quote</h3>
+        <p>Sketch the room. SqFt does the math, applies waste, surfaces margin in real time.</p>
+        <div class="icon">
+          <svg width="100" height="80" viewBox="0 0 100 80">
+            <rect x="10" y="10" width="80" height="60" stroke-dasharray="3 3"/>
+            <path d="M10 10 L30 30 M70 30 L90 10 M30 30 L30 70 M70 30 L70 70 M30 70 L70 70" />
+            <circle cx="30" cy="30" r="2" fill="currentColor"/>
+            <circle cx="70" cy="30" r="2" fill="currentColor"/>
+            <text x="50" y="48" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="middle">14×11</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num"><span>STEP 02</span><span class="arrow">→</span></div>
+        <h3>Send &amp; <em>sign</em></h3>
+        <p>One link, no login. Customer reviews the breakdown and e-signs on their phone.</p>
+        <div class="icon">
+          <svg width="100" height="80" viewBox="0 0 100 80">
+            <rect x="15" y="10" width="55" height="62"/>
+            <line x1="22" y1="22" x2="60" y2="22"/>
+            <line x1="22" y1="30" x2="55" y2="30"/>
+            <line x1="22" y1="38" x2="60" y2="38"/>
+            <line x1="22" y1="46" x2="50" y2="46"/>
+            <path d="M28 60 Q35 52 42 60 T58 58" stroke="#ff3d00" stroke-width="1.5"/>
+            <path d="M75 30 L92 30 L92 70 L75 70 Z" stroke-dasharray="2 2"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num"><span>STEP 03</span><span class="arrow">●</span></div>
+        <h3>Get <em>paid</em></h3>
+        <p>Card or ACH through the same link. Auto-syncs to QuickBooks before you're off-site.</p>
+        <div class="icon">
+          <svg width="100" height="80" viewBox="0 0 100 80">
+            <rect x="10" y="22" width="80" height="46" />
+            <rect x="10" y="22" width="80" height="10" fill="currentColor" opacity="0.85"/>
+            <rect x="18" y="42" width="22" height="14" stroke-dasharray="2 2"/>
+            <line x1="46" y1="50" x2="82" y2="50"/>
+            <line x1="46" y1="56" x2="72" y2="56"/>
+            <circle cx="78" cy="62" r="3" fill="#ff3d00"/>
+            <text x="50" y="14" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="middle">CLEARED ✓</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────  FEATURES  ────────────────────── -->
+<section id="features">
+  <div class="shell">
+    <div class="section-head reveal">
+      <span class="label">02 / The Toolkit</span>
+      <h2>Every drawing has a <em>scale.</em><br/>Yours has a stack.</h2>
+    </div>
+
+    <div class="features">
+
+      <!-- WIDE: Room sketcher -->
+      <div class="f wide reveal">
+        <div class="tag"><span class="pin"></span>FEATURE 01 — ROOM SKETCHER</div>
+        <h3>Draw the room. <em>Get the area.</em><br/>Stop counting tiles on a napkin.</h3>
+        <p>Tap to add rooms, type the dimensions, and SqFt computes the square footage with the waste factor of your choice. Pull in carpet, LVP, hardwood — every line item respects unit, coverage, and box count.</p>
+        <div class="schematic">
+          <svg width="540" height="180" viewBox="0 0 540 180">
+            <!-- floor plan -->
+            <rect x="20" y="20" width="200" height="140" stroke-dasharray="4 4"/>
+            <rect x="220" y="20" width="160" height="90"/>
+            <rect x="220" y="110" width="160" height="50" stroke-dasharray="4 4"/>
+            <rect x="380" y="20" width="140" height="140"/>
+
+            <!-- room labels -->
+            <text x="120" y="92" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">LIVING / 224 sq ft</text>
+            <text x="300" y="65" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">DINING / 120 sq ft</text>
+            <text x="300" y="138" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">HALL / 56 sq ft</text>
+            <text x="450" y="92" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">BEDROOM / 168 sq ft</text>
+
+            <!-- dimension lines -->
+            <path d="M20 8 H220 M22 4 L20 8 L22 12 M218 4 L220 8 L218 12" stroke="#ff3d00"/>
+            <text x="120" y="2" font-family="Azeret Mono" font-size="8" fill="#c12d00" text-anchor="middle">16'-0"</text>
+
+            <path d="M530 20 V160 M526 22 L530 20 L534 22 M526 158 L530 160 L534 158" stroke="#ff3d00"/>
+            <text x="538" y="92" font-family="Azeret Mono" font-size="8" fill="#c12d00" text-anchor="middle" transform="rotate(90 538 92)">14'-0"</text>
+
+            <!-- pins -->
+            <circle cx="220" cy="110" r="3" fill="#ff3d00"/>
+            <circle cx="380" cy="20" r="3" fill="#ff3d00"/>
+            <circle cx="380" cy="160" r="3" fill="#ff3d00"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Public quote -->
+      <div class="f reveal">
+        <div class="tag"><span class="pin"></span>FEATURE 02 — CUSTOMER PORTAL</div>
+        <h3>One link.<br/><em>Zero login.</em></h3>
+        <p>One link, no login. Customer reviews the breakdown and e-signs on their mobile or home device.</p>
+        <div class="schematic">
+          <svg width="320" height="140" viewBox="0 0 320 140">
+            <!-- phone -->
+            <rect x="20" y="10" width="100" height="120" rx="10"/>
+            <line x1="35" y1="28" x2="105" y2="28"/>
+            <line x1="35" y1="38" x2="95" y2="38"/>
+            <line x1="35" y1="48" x2="105" y2="48"/>
+            <line x1="35" y1="58" x2="80" y2="58"/>
+            <rect x="35" y="72" width="70" height="16" fill="#ff3d00"/>
+            <text x="70" y="83" font-family="Azeret Mono" font-size="7" fill="#11110f" text-anchor="middle">APPROVE</text>
+            <path d="M40 102 Q48 92 56 102 T76 100" stroke="#11110f" stroke-width="1.2"/>
+            <line x1="35" y1="118" x2="105" y2="118" stroke-dasharray="2 2"/>
+
+            <!-- send arc -->
+            <path d="M130 70 Q200 30 270 70" stroke-dasharray="3 3"/>
+            <path d="M265 65 L272 70 L265 75" />
+
+            <!-- dashboard slip -->
+            <rect x="200" y="80" width="100" height="50"/>
+            <line x1="210" y1="92" x2="280" y2="92"/>
+            <line x1="210" y1="102" x2="270" y2="102"/>
+            <line x1="210" y1="112" x2="265" y2="112"/>
+            <circle cx="290" cy="120" r="3" fill="#ff3d00"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Job costing -->
+      <div class="f reveal">
+        <div class="tag"><span class="pin"></span>FEATURE 03 — JOB COSTING</div>
+        <h3>Margin in<br/><em>real time.</em></h3>
+        <p>Materials, labor hours, overhead — costed as you build the quote. Know the margin before the customer ever sees the number.</p>
+        <div class="schematic">
+          <svg width="320" height="140" viewBox="0 0 320 140">
+            <line x1="20" y1="120" x2="300" y2="120"/>
+            <line x1="20" y1="20" x2="20" y2="120"/>
+
+            <!-- bars -->
+            <rect x="40" y="80" width="36" height="40" fill="currentColor" opacity="0.85"/>
+            <rect x="90" y="60" width="36" height="60" fill="currentColor" opacity="0.85"/>
+            <rect x="140" y="40" width="36" height="80" fill="currentColor" opacity="0.85"/>
+            <rect x="190" y="30" width="36" height="90" fill="#ff3d00"/>
+            <rect x="240" y="50" width="36" height="70" fill="currentColor" opacity="0.85"/>
+
+            <text x="40" y="135" font-family="Azeret Mono" font-size="8" fill="currentColor">MAT</text>
+            <text x="90" y="135" font-family="Azeret Mono" font-size="8" fill="currentColor">LAB</text>
+            <text x="140" y="135" font-family="Azeret Mono" font-size="8" fill="currentColor">OH</text>
+            <text x="190" y="135" font-family="Azeret Mono" font-size="8" fill="#c12d00">MGN</text>
+            <text x="240" y="135" font-family="Azeret Mono" font-size="8" fill="currentColor">TAX</text>
+
+            <line x1="20" y1="40" x2="300" y2="40" stroke-dasharray="2 4" opacity="0.4"/>
+            <text x="305" y="44" font-family="Azeret Mono" font-size="8" fill="currentColor">$8k</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Pipeline (third row, 2-2-2) -->
+      <div class="f third reveal">
+        <div class="tag"><span class="pin"></span>04 — PIPELINE</div>
+        <h3>Where every<br/>job <em>stands.</em></h3>
+        <p>Drag estimates through draft → sent → scheduled → invoiced.</p>
+        <div class="schematic">
+          <svg width="220" height="120" viewBox="0 0 220 120">
+            <rect x="10" y="10" width="40" height="100" stroke-dasharray="2 2"/>
+            <rect x="60" y="10" width="40" height="100"/>
+            <rect x="110" y="10" width="40" height="100"/>
+            <rect x="160" y="10" width="40" height="100" stroke-dasharray="2 2"/>
+            <rect x="16" y="20" width="28" height="14" fill="currentColor" opacity="0.2"/>
+            <rect x="66" y="20" width="28" height="14" fill="currentColor" opacity="0.4"/>
+            <rect x="66" y="40" width="28" height="14" fill="currentColor" opacity="0.4"/>
+            <rect x="116" y="20" width="28" height="14" fill="#ff3d00"/>
+            <rect x="116" y="40" width="28" height="14" fill="currentColor" opacity="0.6"/>
+            <rect x="166" y="20" width="28" height="14" fill="currentColor" opacity="0.8"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="f third reveal">
+        <div class="tag"><span class="pin"></span>05 — SCHEDULE</div>
+        <h3>Crews on<br/>the <em>right job.</em></h3>
+        <p>Assign installs to crews, see conflicts before they bite.</p>
+        <div class="schematic">
+          <svg width="220" height="120" viewBox="0 0 220 120">
+            <line x1="10" y1="20" x2="210" y2="20"/>
+            <line x1="10" y1="40" x2="210" y2="40"/>
+            <line x1="10" y1="60" x2="210" y2="60"/>
+            <line x1="10" y1="80" x2="210" y2="80"/>
+            <line x1="10" y1="100" x2="210" y2="100"/>
+            <line x1="10" y1="10" x2="10" y2="110"/>
+            <line x1="50" y1="10" x2="50" y2="110"/>
+            <line x1="90" y1="10" x2="90" y2="110"/>
+            <line x1="130" y1="10" x2="130" y2="110"/>
+            <line x1="170" y1="10" x2="170" y2="110"/>
+            <line x1="210" y1="10" x2="210" y2="110"/>
+            <rect x="52" y="42" width="36" height="16" fill="#ff3d00"/>
+            <rect x="92" y="62" width="76" height="16" fill="currentColor" opacity="0.6"/>
+            <rect x="132" y="22" width="36" height="16" fill="currentColor" opacity="0.4"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="f third reveal">
+        <div class="tag"><span class="pin"></span>06 — TEMPLATES</div>
+        <h3>Quote in<br/><em>two taps.</em></h3>
+        <p>Save a job. Reuse it. Onboard a new crew in a morning.</p>
+        <div class="schematic">
+          <svg width="220" height="120" viewBox="0 0 220 120">
+            <rect x="10" y="20" width="50" height="80"/>
+            <rect x="70" y="20" width="50" height="80" stroke-dasharray="2 2"/>
+            <rect x="130" y="20" width="50" height="80" stroke-dasharray="2 2"/>
+            <line x1="16" y1="32" x2="54" y2="32"/>
+            <line x1="16" y1="42" x2="50" y2="42"/>
+            <line x1="16" y1="52" x2="54" y2="52"/>
+            <line x1="16" y1="62" x2="46" y2="62"/>
+            <line x1="16" y1="76" x2="54" y2="76" stroke="#ff3d00" stroke-width="1.5"/>
+            <line x1="16" y1="86" x2="54" y2="86" stroke="#ff3d00" stroke-width="1.5"/>
+            <path d="M65 60 L70 60" stroke-dasharray="2 2"/>
+            <path d="M125 60 L130 60" stroke-dasharray="2 2"/>
+            <text x="190" y="60" font-family="Azeret Mono" font-size="10" fill="#c12d00">×3</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────  SURVEY (STATS)  ───────────────────── -->
+<section id="proof" class="survey">
+  <div class="shell">
+    <div class="section-head reveal">
+      <span class="label">03 / By the Numbers</span>
+      <h2>Tools die in spreadsheets. SqFt <em>doesn't.</em></h2>
+    </div>
+
+    <div class="stats reveal">
+      <div class="stat">
+        <div class="lbl"><span>QUOTES SHIPPED</span><span>YTD</span></div>
+        <div class="num">186<span class="u">M$</span></div>
+        <div class="desc">Total quote value pushed through SqFt in the trailing twelve.</div>
+      </div>
+      <div class="stat">
+        <div class="lbl"><span>FROM SKETCH</span><span>TO SEND</span></div>
+        <div class="num">11<span class="u">MIN</span></div>
+        <div class="desc">Median time from first room measurement to e-signable quote.</div>
+      </div>
+      <div class="stat">
+        <div class="lbl"><span>APPROVAL RATE</span><span>±2.1</span></div>
+        <div class="num">68<span class="u">%</span></div>
+        <div class="desc">Of sent quotes that get signed. Industry baseline: 41%.</div>
+      </div>
+      <div class="stat">
+        <div class="lbl"><span>ACTIVE CREWS</span><span>↑ 32% Q/Q</span></div>
+        <div class="num">2,418<span class="u">CO</span></div>
+        <div class="desc">Independent contractors and shops running on SqFt today.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────  TESTIMONIAL  ──────────────────── -->
+<section class="quote">
+  <div class="shell">
+    <div class="quote-card reveal">
+      <p>
+        We used to lose <em>two days</em> a week chasing paper.<br/>
+        Now I quote a 2,000-sqft house in the truck before the homeowner closes the door.
+      </p>
+      <div class="attrib">
+        <div class="name">Doug Hall</div>
+        <div class="role">Owner / All About Hardwood Floor Co.</div>
+        <div class="meta">
+          <span>EST. <strong>1994</strong></span>
+          <span>TRADE <strong>HARDWOOD</strong></span>
+          <span>30+ YEARS IN BUSINESS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────  FINAL CTA  ─────────────────────── -->
+<section class="final-cta" id="contact">
+  <div class="shell">
+    <div class="stamp reveal">
+      <span class="pip"></span>
+      <span>FILE: 2026-CTA-001 &nbsp;·&nbsp; APPROVED FOR ISSUE</span>
+      <span class="pip"></span>
+    </div>
+    <h2 class="reveal">Stop quoting at <em>midnight.</em><br/>Start closing at <em>noon.</em></h2>
+    <div class="actions reveal">
+      <a href="pricing.html" class="btn">
+        Start measuring
+        <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+      </a>
+      <a href="contact.html" class="btn ghost">Talk to a real human</a>
+    </div>
+    <p class="terms reveal">14-day free trial &nbsp;·&nbsp; card required &nbsp;·&nbsp; cancel from settings &nbsp;·&nbsp; data stays yours</p>
+  </div>
+</section>
+
+<!-- ───────────────────────  FOOTER  ──────────────────────── -->
+<footer>
+  <div class="shell">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a href="index.html" class="brand">
+          <span>SqFt</span>
+          <span class="unit">The Flooring Solution</span>
+        </a>
+        <p>Estimating, scheduling, and the rest of the back office — built for flooring contractors and kept on the home screen.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="index.html">The loop</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="#">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Trade</h4>
+        <ul>
+          <li><a href="#">Hardwood crews</a></li>
+          <li><a href="#">Tile shops</a></li>
+          <li><a href="#">Carpet retailers</a></li>
+          <li><a href="#">LVP installers</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Customers</a></li>
+          <li><a href="#">Field blog</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Docs</a></li>
+          <li><a href="#">Status</a></li>
+          <li><a href="#">Contact</a></li>
+          <li><a href="#">Security</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- drawing title block -->
+    <div class="title-block">
+      <div class="cell"><span class="k">Drawing</span><span class="v">SqFt — Marketing / Index</span></div>
+      <div class="cell"><span class="k">Issued</span><span class="v">2026-05-23</span></div>
+      <div class="cell"><span class="k">Revision</span><span class="v">A</span></div>
+      <div class="cell"><span class="k">Drawn by</span><span class="v">SqFt Studio</span></div>
+    </div>
+
+    <div class="foot-bottom">
+      <span>© 2026 SqFt Inc. — Made on a job site in Cincinnati.</span>
+      <span>Privacy &nbsp;·&nbsp; Terms &nbsp;·&nbsp; Cookies</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Intersection-driven reveal
+const io = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }
+}, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+for (const n of document.querySelectorAll('.reveal')) io.observe(n);
+
+// Marquee duplicates handled in markup; pause on hover
+const strip = document.querySelector('.stamp-strip .track');
+strip?.addEventListener('mouseenter', () => strip.style.animationPlayState = 'paused');
+strip?.addEventListener('mouseleave', () => strip.style.animationPlayState = 'running');
+</script>
+
+</body>
+</html>
