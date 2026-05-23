@@ -10,6 +10,7 @@
       "!**/prisma/migrations",
       "!**/docs",
       "!**/design",
+      "!**/www",
       "!**/*.css",
       "!.claude/*"
     ]
