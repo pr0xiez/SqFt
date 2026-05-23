@@ -57,7 +57,7 @@ async function notifyDeclined(
 ) {
   try {
     const owners = await prisma.user.findMany({
-      where: { orgId, role: "owner" },
+      where: { orgId, role: "admin" },
       select: { email: true },
     });
     await sendSignedNotification({

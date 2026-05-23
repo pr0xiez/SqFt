@@ -76,7 +76,7 @@ export type QuoteWithPublicView = Prisma.QuoteGetPayload<{
         licenseNumber: true;
         logo: true;
         users: {
-          where: { role: "owner" };
+          where: { role: "admin" };
           orderBy: { id: "asc" };
           take: 1;
           select: { email: true };
@@ -568,7 +568,7 @@ export async function getQuoteByToken(
           licenseNumber: true,
           logo: true,
           users: {
-            where: { role: "owner" },
+            where: { role: "admin" },
             orderBy: { id: "asc" },
             take: 1,
             select: { email: true },
