@@ -1,6 +1,6 @@
 "use client";
 
-import { FieldRow, SectionHead } from "./IdentitySection";
+import { FieldRow, SectionHead } from "./_ui";
 import type { WorkspaceSettingsForm } from "./types";
 
 type Props = {
