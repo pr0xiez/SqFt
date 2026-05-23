@@ -1,14 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   filterQuotes,
   type QuoteStatusFilter,
 } from "@/components/quotes/filterQuotes";
+import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { FilterPill } from "@/components/ui/FilterPill";
+import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { SortableHeader } from "@/components/ui/SortableHeader";
 import { cn } from "@/lib/cn";
 import { useQuotes } from "@/lib/hooks/useQuotes";
+import { paginate, useTableQueryState } from "@/lib/hooks/useTableQueryState";
+import { cycleSort, sortBy } from "@/lib/sort";
 import { fmtBig } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: QuoteStatusFilter; label: string }[] = [
@@ -26,31 +33,103 @@ const STATUS_PILL_COLOR: Record<string, string> = {
   declined: "text-[var(--accent)]",
 };
 
+type SortKey = "number" | "customer" | "estimate" | "total" | "status" | "date";
+
 export function QuoteListView() {
   const router = useRouter();
   const { data: quotes = [], isLoading } = useQuotes();
-  const [query, setQuery] = useState<string>("");
-  const [status, setStatus] = useState<QuoteStatusFilter>("all");
+  const [query, setQueryState] = useState<string>("");
+  const [status, setStatusState] = useState<QuoteStatusFilter>("all");
 
-  const filtered = filterQuotes(quotes, query, status);
+  const {
+    sort,
+    page,
+    perPage,
+    density,
+    setSort,
+    setPage,
+    setPerPage,
+    setDensity,
+  } = useTableQueryState<SortKey>({
+    storageKey: "quotes",
+    validSortKeys: [
+      "number",
+      "customer",
+      "estimate",
+      "total",
+      "status",
+      "date",
+    ],
+    defaultSort: { key: "date", direction: "desc" },
+  });
+
+  const setQuery = (v: string) => {
+    setQueryState(v);
+    setPage(1);
+  };
+  const setStatus = (v: QuoteStatusFilter) => {
+    setStatusState(v);
+    setPage(1);
+  };
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<QuoteStatusFilter, number> = {
+      all: quotes.length,
+      draft: 0,
+      sent: 0,
+      accepted: 0,
+      declined: 0,
+    };
+    for (const q of quotes) {
+      if (q.status in counts) {
+        counts[q.status as QuoteStatusFilter] += 1;
+      }
+    }
+    return counts;
+  }, [quotes]);
+
+  const filtered = useMemo(
+    () => filterQuotes(quotes, query, status),
+    [quotes, query, status]
+  );
+
+  const sorted = useMemo(
+    () =>
+      sortBy(filtered, sort, {
+        number: (q) => q.quoteNumber,
+        customer: (q) => q.estimate.customer?.name ?? "",
+        estimate: (q) => q.estimate.estimateNumber ?? q.estimate.id,
+        total: (q) => q.total ?? 0,
+        status: (q) => q.status,
+        date: (q) => new Date(q.date),
+      }),
+    [filtered, sort]
+  );
+
+  const { slice, safePage, total } = paginate(sorted, page, perPage);
+
+  const handleSort = (key: SortKey) => {
+    const defaultDir =
+      key === "date" || key === "total" || key === "number" ? "desc" : "asc";
+    setSort(cycleSort(sort, key, defaultDir));
+  };
+
   const isNarrowed = filtered.length !== quotes.length;
-  const trimmedQuery = query.trim();
+  const rowPad = ROW_PADDING[density];
 
   return (
     <>
-      {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Quotes
           </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
+          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
             {quotes.length} quote{quotes.length === 1 ? "" : "s"}
           </div>
         </div>
       </div>
 
-      {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <SearchInput
           value={query}
@@ -58,39 +137,67 @@ export function QuoteListView() {
           placeholder="Search quote #, customer, estimate…"
         />
         {STATUS_FILTERS.map(({ value, label }) => (
-          <button
+          <FilterPill
             key={value}
-            type="button"
+            active={status === value}
+            count={statusCounts[value]}
             onClick={() => setStatus(value)}
-            className={cn(
-              "font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[6px] cursor-pointer transition-colors duration-150",
-              status === value
-                ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-                : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
-            )}
           >
             {label}
-          </button>
+          </FilterPill>
         ))}
+        <DensityToggle
+          value={density}
+          onChange={setDensity}
+          className="ml-auto"
+        />
         {isNarrowed && (
-          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] ml-auto">
-            {filtered.length} shown
+          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums">
+            {filtered.length} of {quotes.length}
           </span>
         )}
       </div>
 
-      {/* Table */}
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        {/* Header row (desktop only) */}
         <div className="hidden md:grid grid-cols-[80px_1fr_120px_120px_110px_110px] bg-[var(--surface-2)] border-b border-[var(--line)]">
-          {["#", "Customer", "Estimate", "Total", "Status", "Date"].map((h) => (
-            <div
-              key={h}
-              className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]"
-            >
-              {h}
-            </div>
-          ))}
+          <SortableHeader
+            sortKey="number"
+            label="#"
+            sort={sort}
+            onSort={handleSort}
+            className="tabular-nums"
+          />
+          <SortableHeader
+            sortKey="customer"
+            label="Customer"
+            sort={sort}
+            onSort={handleSort}
+          />
+          <SortableHeader
+            sortKey="estimate"
+            label="Estimate"
+            sort={sort}
+            onSort={handleSort}
+          />
+          <SortableHeader
+            sortKey="total"
+            label="Total"
+            sort={sort}
+            onSort={handleSort}
+            className="tabular-nums"
+          />
+          <SortableHeader
+            sortKey="status"
+            label="Status"
+            sort={sort}
+            onSort={handleSort}
+          />
+          <SortableHeader
+            sortKey="date"
+            label="Date"
+            sort={sort}
+            onSort={handleSort}
+          />
         </div>
 
         {isLoading ? (
@@ -102,82 +209,95 @@ export function QuoteListView() {
             No quotes yet.
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            {trimmedQuery.length > 0
-              ? `No quotes match "${trimmedQuery}".`
-              : "No quotes match."}
-          </div>
+          <EmptyState noun="quote" query={query} />
         ) : (
-          filtered.map((q) => {
-            const customer = q.estimate.customer;
-            const estimateLabel = `#${q.estimate.estimateNumber ?? q.estimate.id}`;
-            const totalLabel = q.total === null ? "—" : `${fmtBig(q.total)}`;
-            const pillColor =
-              STATUS_PILL_COLOR[q.status] ?? "text-[var(--muted)]";
+          <>
+            {slice.map((q) => {
+              const customer = q.estimate.customer;
+              const estimateLabel = `#${q.estimate.estimateNumber ?? q.estimate.id}`;
+              const totalLabel = q.total === null ? "—" : `${fmtBig(q.total)}`;
+              const pillColor =
+                STATUS_PILL_COLOR[q.status] ?? "text-[var(--muted)]";
 
-            return (
-              <button
-                key={q.id}
-                type="button"
-                onClick={() => router.push(`/quotes/${q.id}`)}
-                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_120px_120px_110px_110px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
-              >
-                <div className="px-3.5 py-3.5 hidden md:block">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-[var(--font-mono)] text-[13px] font-[600]">
-                      #{q.quoteNumber}
-                    </span>
-                    {q.revisedFromId && (
-                      <span
-                        className="ml-1.5 font-[var(--font-mono)] text-[10px] uppercase tracking-[.04em] text-[var(--muted)] border border-[var(--line-2)] rounded-sm px-1"
-                        title="Revised quote"
-                      >
-                        ↶ rev
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  onClick={() => router.push(`/quotes/${q.id}`)}
+                  className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_120px_120px_110px_110px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
+                >
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
+                        #{q.quoteNumber}
                       </span>
-                    )}
+                      {q.revisedFromId && (
+                        <span
+                          className="ml-1.5 font-[var(--font-mono)] text-[10px] uppercase tracking-[.04em] text-[var(--muted)] border border-[var(--line-2)] rounded-sm px-1"
+                          title="Revised quote"
+                        >
+                          ↶ rev
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="px-3.5 py-3.5">
-                  <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                    {customer?.name ?? "—"}
+                  <div className={cn("px-3.5", rowPad)}>
+                    <div className="text-[14px] font-[600] tracking-[-0.01em]">
+                      {customer?.name ?? "—"}
+                    </div>
+                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap md:hidden">
+                      #{q.quoteNumber} · {totalLabel} ·{" "}
+                      <span className={pillColor}>{q.status}</span>
+                    </div>
+                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap hidden md:block">
+                      {customer?.address ?? ""}
+                    </div>
                   </div>
-                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap md:hidden">
-                    #{q.quoteNumber} · {totalLabel} ·{" "}
-                    <span className={pillColor}>{q.status}</span>
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <div className="font-[var(--font-mono)] text-[13px] tabular-nums">
+                      {estimateLabel}
+                    </div>
                   </div>
-                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap hidden md:block">
-                    {customer?.address ?? ""}
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <div className="text-[13px] font-[600] tabular-nums">
+                      {totalLabel}
+                    </div>
                   </div>
-                </div>
-                <div className="px-3.5 py-3.5 hidden md:block">
-                  <div className="font-[var(--font-mono)] text-[13px]">
-                    {estimateLabel}
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <span
+                      className={cn(
+                        "inline-block font-[var(--font-mono)] text-[9px] px-2 py-[3px] border rounded-[4px] tracking-[.04em] font-[500] capitalize",
+                        pillColor,
+                        "border-current"
+                      )}
+                    >
+                      {q.status}
+                    </span>
                   </div>
-                </div>
-                <div className="px-3.5 py-3.5 hidden md:block">
-                  <div className="text-[13px] font-[600]">{totalLabel}</div>
-                </div>
-                <div className="px-3.5 py-3.5 hidden md:block">
-                  <span
+                  <div
                     className={cn(
-                      "inline-block font-[var(--font-mono)] text-[9px] px-2 py-[3px] border rounded-[4px] tracking-[.04em] font-[500] capitalize",
-                      pillColor,
-                      "border-current"
+                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
+                      rowPad
                     )}
                   >
-                    {q.status}
-                  </span>
-                </div>
-                <div className="px-3.5 py-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-                  {new Date(q.date).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </div>
-              </button>
-            );
-          })
+                    {new Date(q.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                </button>
+              );
+            })}
+            <Pagination
+              total={total}
+              page={safePage}
+              perPage={perPage}
+              onPageChange={setPage}
+              onPerPageChange={setPerPage}
+              noun="quote"
+            />
+          </>
         )}
       </div>
     </>
