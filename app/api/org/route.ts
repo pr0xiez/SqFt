@@ -30,7 +30,7 @@ export const GET = apiRoute(async ({ orgId }) => {
   return org;
 });
 
-const TIMEZONE_RE = /^[A-Za-z]+\/[A-Za-z_]+(\/[A-Za-z_]+)?$/;
+const TIMEZONE_RE = /^[A-Za-z]+\/[A-Za-z_-]+(\/[A-Za-z_-]+)?$/;
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 const PatchBody = z

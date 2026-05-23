@@ -169,6 +169,91 @@ describe("PATCH /api/org", () => {
       expect.objectContaining({ data: { tagline: null } })
     );
   });
+
+  it("returns 400 on unknown timezone format", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { timezone: "not-a-tz" }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when defaultDepositPct is negative", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { defaultDepositPct: -0.1 }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when defaultValidityDays exceeds 365", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { defaultValidityDays: 366 }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on unknown locale", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { locale: "fr-FR" }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on unknown defaultUnitLabel", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { defaultUnitLabel: "acres" }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when name exceeds 100 chars", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { name: "x".repeat(101) }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when defaultTerms exceeds 2000 chars", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { defaultTerms: "x".repeat(2001) }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 on unknown field (strict schema)", async () => {
+    asAdmin();
+    const res = await PATCH(
+      makeRequest("PATCH", { unknownField: "x" }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("accepts valid hyphenated IANA timezone", async () => {
+    asAdmin();
+    mockUpdate.mockResolvedValueOnce({
+      timezone: "America/Port-au-Prince",
+      // biome-ignore lint/suspicious/noExplicitAny: test stub
+    } as any);
+    const res = await PATCH(
+      makeRequest("PATCH", { timezone: "America/Port-au-Prince" }),
+      noParams
+    );
+    expect(res.status).toBe(200);
+  });
 });
 
 describe("GET /api/org", () => {
