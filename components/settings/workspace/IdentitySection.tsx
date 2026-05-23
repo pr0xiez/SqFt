@@ -39,7 +39,11 @@ export function IdentitySection({ form, onChange }: Props) {
               className="w-full px-3 py-2 border border-[var(--line)] rounded bg-transparent font-mono text-[13px] tracking-[.02em] cursor-pointer pr-8 appearance-none focus:outline-none focus:border-[var(--ink-2)]"
             >
               {TIMEZONES.map((tz) => (
-                <option key={tz} value={tz}>
+                <option
+                  key={tz}
+                  value={tz}
+                  className="bg-[var(--surface)] text-[var(--ink)]"
+                >
                   {tz}
                 </option>
               ))}
@@ -52,7 +56,11 @@ export function IdentitySection({ form, onChange }: Props) {
               className="w-full px-3 py-2 border border-[var(--line)] rounded bg-transparent font-mono text-[13px] tracking-[.02em] cursor-pointer pr-8 appearance-none focus:outline-none focus:border-[var(--ink-2)]"
             >
               {LOCALES.map((l) => (
-                <option key={l} value={l}>
+                <option
+                  key={l}
+                  value={l}
+                  className="bg-[var(--surface)] text-[var(--ink)]"
+                >
                   {l}
                 </option>
               ))}

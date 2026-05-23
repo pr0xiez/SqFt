@@ -16,16 +16,30 @@ export function Toc() {
       (el): el is HTMLElement => el !== null
     );
     if (sections.length === 0) return;
+
+    // Track each section's last-known intersection state across callbacks.
+    // The IO callback only delivers entries that CHANGED — we need the
+    // full picture to pick the topmost intersecting section in DOM order.
+    const intersecting = new Set<string>();
+
     const obs = new IntersectionObserver(
       (entries) => {
-        const top = entries
-          .filter((e) => e.isIntersecting)
-          .sort(
-            (a, b) => a.boundingClientRect.top - b.boundingClientRect.top
-          )[0];
-        if (top) setActive(top.target.id);
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            intersecting.add(entry.target.id);
+          } else {
+            intersecting.delete(entry.target.id);
+          }
+        }
+        // Pick the first ENTRIES entry whose id is currently intersecting.
+        // ENTRIES is in DOM order, so this is the topmost on screen.
+        const topmost = ENTRIES.find((e) => intersecting.has(e.id));
+        if (topmost) setActive(topmost.id);
       },
-      { rootMargin: "-25% 0px -65% 0px", threshold: 0 }
+      // A section is "intersecting" when any part of it sits below the
+      // sticky nav (80px) and above the bottom 40% of the viewport.
+      // Wide enough that consecutive sections overlap, so DOM order wins.
+      { rootMargin: "-80px 0px -40% 0px", threshold: 0 }
     );
     sections.forEach((s) => {
       obs.observe(s);
