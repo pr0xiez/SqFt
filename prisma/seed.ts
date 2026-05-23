@@ -142,7 +142,7 @@ async function main() {
       name: "Mike Johnson",
       email: "demo@sqft.dev",
       password,
-      role: "owner",
+      role: "admin",
       orgId: org.id,
     },
   });
@@ -165,7 +165,7 @@ async function main() {
       name: "Other Owner",
       email: "demo2@sqft.dev",
       password,
-      role: "owner",
+      role: "admin",
       orgId: otherOrg.id,
     },
   });
