@@ -10,10 +10,14 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 import type { NextRequest } from "next/server";
+import type { Session } from "next-auth";
 import { adminRoute } from "@/lib/api/route";
 import { auth } from "@/lib/auth";
 
-const mockAuth = vi.mocked(auth);
+// vi.mocked(auth) resolves to the NextMiddleware overload; cast to the session overload
+const mockAuth = vi.mocked(auth) as unknown as ReturnType<
+  typeof vi.fn<() => Promise<Session | null>>
+>;
 
 function makeRequest(method = "GET", url = "http://localhost/api/x") {
   const req = new Request(url, { method });
