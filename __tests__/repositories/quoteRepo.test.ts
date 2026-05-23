@@ -140,7 +140,12 @@ describe("createQuote", () => {
 
   it("allocates the next quoteNumber from Organization.nextQuoteNumber", async () => {
     estimateFindFirst.mockResolvedValue({ id: 1 });
-    organizationFindUnique.mockResolvedValue({ nextQuoteNumber: 5005 });
+    organizationFindUnique.mockResolvedValue({
+      nextQuoteNumber: 5005,
+      defaultDepositPct: 0.3,
+      defaultTerms: "",
+      defaultValidityDays: 21,
+    });
     organizationUpdate.mockResolvedValue({});
     txQuoteCreate.mockResolvedValue({ id: 100, quoteNumber: 5005 });
     quoteFindFirst.mockResolvedValue({ id: 100 });
@@ -159,9 +164,40 @@ describe("createQuote", () => {
         status: "draft",
         convenienceFeeRate: 0.03,
         markupPct: 0,
-        depositPct: 0.5,
+        depositPct: 0.3,
+        terms: "",
+        validityDays: 21,
       }),
     });
+  });
+});
+
+describe("createQuote — org defaults", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    estimateFindFirst.mockResolvedValue({ id: 7 });
+    organizationFindUnique.mockResolvedValue({
+      nextQuoteNumber: 1042,
+      defaultDepositPct: 0.4,
+      defaultTerms: "Custom terms text.",
+      defaultValidityDays: 30,
+    });
+    organizationUpdate.mockResolvedValue({});
+    txQuoteCreate.mockResolvedValue({ id: 999 });
+    quoteFindFirst.mockResolvedValue({ id: 999 });
+  });
+
+  it("copies depositPct, terms, validityDays from the org onto the new quote", async () => {
+    await createQuote("org1", { estimateId: 7 });
+    expect(txQuoteCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          depositPct: 0.4,
+          terms: "Custom terms text.",
+          validityDays: 30,
+        }),
+      })
+    );
   });
 });
 

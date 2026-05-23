@@ -183,7 +183,12 @@ export async function createQuote(
 
     const org = await tx.organization.findUnique({
       where: { id: orgId },
-      select: { nextQuoteNumber: true },
+      select: {
+        nextQuoteNumber: true,
+        defaultDepositPct: true,
+        defaultTerms: true,
+        defaultValidityDays: true,
+      },
     });
     const quoteNumber = org?.nextQuoteNumber ?? 1;
     await tx.organization.update({
@@ -199,7 +204,9 @@ export async function createQuote(
         status: "draft",
         convenienceFeeRate: 0.03,
         markupPct: 0,
-        depositPct: 0.5,
+        depositPct: org?.defaultDepositPct ?? 0.3,
+        terms: org?.defaultTerms ?? "",
+        validityDays: org?.defaultValidityDays ?? 21,
       },
     });
 
