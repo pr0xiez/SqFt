@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SqFt — Pricing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,30..100,0..1&family=Azeret+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<style>
+/* ───────────────────────────  TOKENS  ─────────────────────────── */
+:root {
+  --paper:      #f1ece1;
+  --paper-2:    #ebe4d4;
+  --ink:        #11110f;
+  --ink-soft:   #2a2823;
+  --ink-mute:   #6b6555;
+  --rule:       #15140f;
+  --rule-light: rgba(17,17,15,.14);
+  --rule-fine:  rgba(17,17,15,.07);
+  --orange:     #ff3d00;
+  --orange-deep:#c12d00;
+  --cyan:       #134e6f;
+  --u: 8px;
+  --display: "Fraunces", "Times New Roman", serif;
+  --mono:    "Azeret Mono", ui-monospace, monospace;
+}
+
+/* ───────────────────────────  RESET  ──────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; scroll-behavior: smooth; scroll-padding-top: 80px; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 380;
+  line-height: 1.45;
+  overflow-x: hidden;
+  font-feature-settings: "ss01", "ss02", "tnum";
+}
+a { color: inherit; text-decoration: none; }
+img, svg { display: block; max-width: 100%; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ─────────────────────  PAPER + GRID BACKDROP  ────────────────── */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(to right,  var(--rule-light) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-light) 1px, transparent 1px),
+    linear-gradient(to right,  var(--rule-fine) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-fine) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 16px 16px, 16px 16px;
+  pointer-events: none;
+  z-index: 0;
+  mask-image: radial-gradient(ellipse at center, #000 55%, transparent 95%);
+}
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(17,17,15,0.05) 1px, transparent 1px);
+  background-size: 3px 3px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: .55;
+  z-index: 0;
+}
+
+.shell { position: relative; width: min(1360px, 100% - 64px); margin-inline: auto; z-index: 1; }
+
+/* ─────────────────────────  HEADER  ───────────────────────────── */
+.top {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(241,236,225,0.82);
+  backdrop-filter: saturate(140%) blur(8px);
+  -webkit-backdrop-filter: saturate(140%) blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+.top-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 32px;
+  padding: 14px 0;
+}
+.brand {
+  display: inline-flex; align-items: baseline; gap: 8px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.brand .dot { width: 10px; height: 10px; background: var(--orange); display: inline-block; transform: translateY(-2px); }
+.brand .unit { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; color: var(--ink-mute); text-transform: uppercase; align-self: center; }
+
+.nav { display: flex; gap: 28px; justify-self: center; }
+.nav a {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 6px 0;
+  position: relative;
+}
+.nav a::after {
+  content: ""; position: absolute; left: 0; right: 100%; bottom: 0;
+  height: 1px; background: var(--orange);
+  transition: right .35s cubic-bezier(.2,.7,.2,1);
+}
+.nav a:hover::after,
+.nav a.active::after { right: 0; }
+.nav a.active { color: var(--orange-deep); }
+
+.top-cta { display: flex; align-items: center; gap: 18px; }
+.top-cta .signin {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 18px;
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  border: 1px solid var(--ink);
+  background: var(--ink); color: var(--paper);
+  transition: transform .2s, background .2s;
+}
+.btn .arr { width: 18px; height: 8px; }
+.btn:hover { background: var(--orange); border-color: var(--orange); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: var(--ink); color: var(--paper); }
+
+/* ───────────────────────  PAGE INTRO  ─────────────────────────── */
+.intro {
+  padding: 88px 0 64px;
+  border-bottom: 1px solid var(--rule);
+}
+.intro-meta {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-bottom: 56px;
+}
+.intro-meta .line { height: 1px; background: var(--rule); width: 100%; }
+.intro-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 64px;
+  align-items: end;
+}
+.intro h1 {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(64px, 9vw, 156px);
+  line-height: .9;
+  letter-spacing: -0.045em;
+}
+.intro h1 em { font-style: italic; font-weight: 280; color: var(--orange-deep); }
+.intro h1 .dot { display: inline-block; width: .12em; height: .12em; background: var(--orange); vertical-align: 0.6em; margin: 0 -0.04em; }
+.intro p.lead {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(20px, 1.8vw, 26px);
+  line-height: 1.3;
+  max-width: 36ch;
+  color: var(--ink-soft);
+}
+.intro p.lead em { font-style: italic; color: var(--orange-deep); }
+.intro .stamp-row {
+  margin-top: 28px;
+  display: flex; flex-wrap: wrap; gap: 12px 28px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.intro .stamp-row span { display: inline-flex; align-items: center; gap: 8px; }
+.intro .stamp-row .pip { width: 7px; height: 7px; background: var(--orange); display: inline-block; }
+
+/* ─────────────────────────  PRICING  ──────────────────────────── */
+.pricing { padding: 96px 0 80px; }
+.section-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 32px;
+  margin-bottom: 56px;
+}
+.section-head .label {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--orange-deep);
+  display: flex; align-items: center; gap: 12px;
+}
+.section-head .label::before { content: ""; width: 28px; height: 1px; background: var(--orange); }
+.section-head h2 {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(36px, 4.6vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  max-width: 22ch;
+}
+.section-head h2 em { font-style: italic; font-weight: 280; }
+
+.pricing-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+.price-card {
+  position: relative;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 44px 40px 40px;
+}
+.price-card.featured {
+  background: var(--ink);
+  color: var(--paper);
+}
+.price-card .badge {
+  position: absolute;
+  top: -10px; right: 24px;
+  background: var(--orange);
+  color: var(--ink);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+  padding: 5px 10px;
+}
+.price-card .tier {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--orange-deep);
+  margin-bottom: 12px;
+}
+.price-card.featured .tier { color: var(--orange); }
+.price-card h3 {
+  font-family: var(--display);
+  font-weight: 360;
+  font-size: 44px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 28px;
+}
+.price-card h3 em { font-style: italic; }
+.price-card .amt {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: 110px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  display: flex; align-items: baseline; gap: 8px;
+  font-feature-settings: "tnum";
+}
+.price-card .amt .currency {
+  font-family: var(--mono); font-size: 24px; letter-spacing: 0;
+  vertical-align: super;
+  color: var(--ink-mute);
+}
+.price-card.featured .amt .currency { color: rgba(241,236,225,.6); }
+.price-card .amt .per {
+  font-family: var(--mono); font-size: 13px; letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.price-card.featured .amt .per { color: rgba(241,236,225,.6); }
+.price-card .blurb {
+  margin-top: 16px;
+  font-size: 15px;
+  color: var(--ink-soft);
+  max-width: 38ch;
+}
+.price-card.featured .blurb { color: rgba(241,236,225,.78); }
+
+.price-card ul {
+  list-style: none;
+  margin: 32px 0;
+  border-top: 1px dashed var(--rule-light);
+}
+.price-card.featured ul { border-top-color: rgba(241,236,225,.2); }
+.price-card li {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 14px;
+  padding: 14px 0;
+  align-items: center;
+  border-bottom: 1px dashed var(--rule-light);
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.price-card.featured li {
+  color: rgba(241,236,225,.85);
+  border-bottom-color: rgba(241,236,225,.2);
+}
+.price-card li .chk { width: 18px; height: 18px; display: grid; place-items: center; }
+.price-card li .chk svg { stroke: var(--orange); fill: none; stroke-width: 1.5; }
+.price-card li .mono {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .08em;
+  color: var(--ink-mute); text-transform: uppercase;
+}
+.price-card.featured li .mono { color: rgba(241,236,225,.6); }
+.price-card .price-cta { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+.price-card .price-cta .note {
+  width: 100%;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-mute);
+  margin-top: 6px;
+}
+.price-card.featured .price-cta .note { color: rgba(241,236,225,.55); }
+.price-card.featured .btn {
+  background: var(--orange); color: var(--ink); border-color: var(--orange);
+}
+.price-card.featured .btn:hover { background: var(--paper); border-color: var(--paper); }
+.price-card.featured .btn.ghost {
+  background: transparent; color: var(--paper); border-color: rgba(241,236,225,.4);
+}
+.price-card.featured .btn.ghost:hover { background: var(--paper); color: var(--ink); }
+
+/* ─────────────────────  COMPARISON TABLE  ─────────────────────── */
+.compare {
+  padding: 96px 0;
+  border-top: 1px solid var(--rule);
+}
+.compare table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+.compare thead th {
+  text-align: left;
+  padding: 24px 24px;
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-mute);
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  vertical-align: bottom;
+}
+.compare thead th .tier-name {
+  display: block;
+  font-family: var(--display);
+  font-weight: 380;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-top: 6px;
+  text-transform: none;
+}
+.compare thead th.tier-featured { background: var(--ink); color: var(--orange); }
+.compare thead th.tier-featured .tier-name { color: var(--paper); }
+.compare tbody td {
+  padding: 18px 24px;
+  border-bottom: 1px dashed var(--rule-light);
+  font-size: 15px;
+  color: var(--ink-soft);
+  vertical-align: middle;
+}
+.compare tbody tr:hover td { background: rgba(255,61,0,.04); }
+.compare tbody td.feat {
+  font-family: var(--display);
+  font-weight: 420;
+  font-size: 16px;
+  color: var(--ink);
+  width: 38%;
+}
+.compare tbody td.val {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.compare tbody td.val.yes { color: var(--orange-deep); }
+.compare tbody td.val.no  { color: var(--ink-mute); }
+.compare tbody td.val .chk { display: inline-block; }
+.compare tbody td.val .chk svg { stroke: var(--orange); fill: none; stroke-width: 1.5; vertical-align: middle; }
+.compare tbody td.val .dash { color: var(--ink-mute); font-size: 16px; }
+.compare tbody tr.group td {
+  background: var(--paper-2);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--orange-deep);
+  border-bottom: 1px solid var(--rule);
+  padding: 12px 24px;
+}
+
+/* ───────────────────────────  FAQ  ────────────────────────────── */
+.faq {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 120px 0;
+  position: relative;
+  overflow: hidden;
+}
+.faq::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(to right,  rgba(241,236,225,.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(241,236,225,.06) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+}
+.faq .shell { position: relative; }
+.faq .section-head .label { color: var(--orange); }
+.faq .section-head .label::before { background: var(--orange); }
+.faq .section-head h2 { color: var(--paper); }
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: rgba(241,236,225,0.16);
+  border: 1px solid rgba(241,236,225,0.16);
+}
+.faq-item {
+  background: var(--ink);
+  padding: 36px 32px;
+}
+.faq-item .num {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 16px;
+}
+.faq-item h4 {
+  font-family: var(--display);
+  font-weight: 380;
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin-bottom: 12px;
+  color: var(--paper);
+}
+.faq-item h4 em { font-style: italic; color: var(--orange); }
+.faq-item p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(241,236,225,.78);
+  max-width: 50ch;
+}
+
+/* ─────────────────────────  CTA  ──────────────────────────────── */
+.final-cta {
+  padding: 140px 0;
+  text-align: center;
+  position: relative;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+}
+.final-cta .stamp {
+  display: inline-flex; align-items: center; gap: 14px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--orange-deep);
+  margin-bottom: 32px;
+}
+.final-cta .stamp .pip { width: 8px; height: 8px; background: var(--orange); }
+.final-cta h2 {
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: clamp(48px, 7vw, 110px);
+  line-height: .92;
+  letter-spacing: -0.045em;
+  max-width: 22ch;
+  margin: 0 auto 36px;
+}
+.final-cta h2 em { font-style: italic; font-weight: 280; color: var(--orange-deep); }
+.final-cta .actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.final-cta .terms {
+  margin-top: 32px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+  color: var(--ink-mute); text-transform: uppercase;
+}
+
+/* ─────────────────────────  FOOTER  ───────────────────────────── */
+footer {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 88px 0 32px;
+  position: relative;
+  z-index: 1;
+}
+.foot-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 56px;
+  align-items: start;
+  margin-bottom: 80px;
+}
+.foot-brand .brand { color: var(--paper); }
+.foot-brand .brand .unit { color: rgba(241,236,225,.55); }
+.foot-brand p {
+  margin-top: 20px;
+  font-family: var(--display);
+  font-weight: 320;
+  font-size: 22px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  max-width: 30ch;
+  color: rgba(241,236,225,.85);
+}
+.foot-col h4 {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--orange);
+  margin-bottom: 18px;
+}
+.foot-col ul { list-style: none; display: grid; gap: 10px; }
+.foot-col a {
+  font-family: var(--display); font-weight: 360; font-size: 15px;
+  color: rgba(241,236,225,.82);
+  transition: color .2s;
+}
+.foot-col a:hover { color: var(--orange); }
+
+.title-block {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid rgba(241,236,225,.25);
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(241,236,225,.7);
+}
+.title-block .cell { padding: 12px 14px; border-right: 1px solid rgba(241,236,225,.2); }
+.title-block .cell:last-child { border-right: none; }
+.title-block .cell .k { color: rgba(241,236,225,.45); display: block; margin-bottom: 4px; font-size: 9px; }
+.title-block .cell .v { color: var(--paper); font-size: 12px; letter-spacing: .08em; }
+
+.foot-bottom {
+  margin-top: 32px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(241,236,225,.55);
+}
+
+/* ─────────────────────────  REVEAL  ───────────────────────────── */
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity .9s cubic-bezier(.2,.7,.2,1), transform .9s cubic-bezier(.2,.7,.2,1); }
+.reveal.in { opacity: 1; transform: none; }
+
+/* ───────────────────────  RESPONSIVE  ─────────────────────────── */
+@media (max-width: 1024px) {
+  .top-inner { grid-template-columns: 1fr auto; }
+  .nav { display: none; }
+  .intro-grid { grid-template-columns: 1fr; gap: 40px; }
+  .pricing-wrap { grid-template-columns: 1fr; }
+  .compare { overflow-x: auto; }
+  .faq-grid { grid-template-columns: 1fr; }
+  .foot-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+  .title-block { grid-template-columns: repeat(2, 1fr); }
+  .title-block .cell:nth-child(2n) { border-right: none; }
+  .title-block .cell:nth-child(n+3) { border-top: 1px solid rgba(241,236,225,.2); }
+}
+@media (max-width: 640px) {
+  .shell { width: calc(100% - 32px); }
+  .section-head { grid-template-columns: 1fr; gap: 16px; margin-bottom: 32px; }
+  .intro { padding: 56px 0 40px; }
+  .price-card .amt { font-size: 84px; }
+  .foot-grid { grid-template-columns: 1fr; }
+  .foot-bottom { flex-direction: column; gap: 12px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<!-- ────────────────────────  HEADER  ──────────────────────── -->
+<header class="top">
+  <div class="shell top-inner">
+    <a href="index.html" class="brand">
+      <span>SqFt</span>
+      <span class="unit">The Flooring Solution</span>
+    </a>
+    <nav class="nav">
+      <a href="index.html">The Loop</a>
+      <a href="tooling.html">Tooling</a>
+      <a href="pricing.html" class="active">Pricing</a>
+      <a href="contact.html">Contact</a>
+    </nav>
+    <div class="top-cta">
+      <a href="#" class="signin">Sign in</a>
+      <a href="#plans" class="btn">
+        Start measuring
+        <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ─────────────────────  PAGE INTRO  ──────────────────────── -->
+<section class="intro">
+  <div class="shell">
+    <div class="intro-meta">
+      <div class="line"></div>
+      <span>PRICING</span>
+      <div class="line"></div>
+    </div>
+    <div class="intro-grid">
+      <h1>Priced like a<br/><em>tool.</em> Not a tax.</h1>
+      <div>
+        <p class="lead">
+          Two plans. <em>No add-on tax</em> for the features you came for — quotes, schedule, payments, QuickBooks, all included on the right plan.
+        </p>
+        <div class="stamp-row">
+          <span><span class="pip"></span>14-DAY FREE TRIAL</span>
+          <span><span class="pip"></span>CARD REQUIRED</span>
+          <span><span class="pip"></span>CANCEL ANYTIME</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────────  PLANS  ──────────────────────── -->
+<section class="pricing" id="plans">
+  <div class="shell">
+    <div class="section-head reveal">
+      <span class="label">01 / Plot Plan</span>
+      <h2>Pick the <em>scale</em> of your shop.</h2>
+    </div>
+
+    <div class="pricing-wrap reveal">
+
+      <div class="price-card">
+        <div class="tier">PLAN 01 / SOLO</div>
+        <h3>Owner-<em>operator</em></h3>
+        <div class="amt">
+          <span><span class="currency">$</span>49</span>
+          <span class="per">/ month</span>
+        </div>
+        <p class="blurb">For one-truck shops doing their own measuring, quoting, and scheduling.</p>
+        <ul>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Unlimited estimates &amp; customers</span><span class="mono">∞</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>PDF + e-sign quote portal</span><span class="mono">incl.</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Job schedule, mobile-first</span><span class="mono">incl.</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Customer record &amp; notes</span><span class="mono">incl.</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>1 user, 1 org</span><span class="mono">1 SEAT</span></li>
+        </ul>
+        <div class="price-cta">
+          <a href="#" class="btn ghost">Start free trial</a>
+          <p class="note">Card required · billed after 14 days</p>
+        </div>
+      </div>
+
+      <div class="price-card featured">
+        <div class="badge">Most chosen</div>
+        <div class="tier">PLAN 02 / CREW</div>
+        <h3>Crew &amp; <em>scale</em></h3>
+        <div class="amt">
+          <span><span class="currency">$</span>149</span>
+          <span class="per">/ month, per org</span>
+        </div>
+        <p class="blurb">For shops with crews, installers, and a back office that needs to talk to QuickBooks.</p>
+        <ul>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Everything in Solo</span><span class="mono">+</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Up to 8 crew seats &amp; roles</span><span class="mono">8 SEATS</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Card + ACH via Stripe Connect</span><span class="mono">2.9% + ¢30</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>QuickBooks Online two-way sync</span><span class="mono">incl.</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Job costing &amp; margin alerts</span><span class="mono">incl.</span></li>
+          <li><span class="chk"><svg viewBox="0 0 18 18" width="18" height="18"><path d="M3 9 L8 14 L15 4"/></svg></span><span>Bilingual EN / ES field portal</span><span class="mono">incl.</span></li>
+        </ul>
+        <div class="price-cta">
+          <a href="#" class="btn">Start free trial
+            <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+          </a>
+          <a href="contact.html" class="btn ghost">Talk to sales</a>
+          <p class="note">Card required · billed after 14 days · need 9+ seats? talk to sales</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────  COMPARISON TABLE  ───────────────────── -->
+<section class="compare">
+  <div class="shell">
+    <div class="section-head reveal">
+      <span class="label">02 / Line Items</span>
+      <h2>What's in <em>each plan.</em></h2>
+    </div>
+
+    <table class="reveal">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Solo<span class="tier-name">$49 / mo</span></th>
+          <th class="tier-featured">Crew<span class="tier-name">$149 / mo</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="group"><td colspan="3">Estimating &amp; quotes</td></tr>
+        <tr>
+          <td class="feat">Room sketcher &amp; sqft math</td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">Branded PDF quote &amp; invoice</td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">E-sign customer portal</td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">Quote templates</td>
+          <td class="val no"><span class="dash">—</span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+
+        <tr class="group"><td colspan="3">Scheduling &amp; jobs</td></tr>
+        <tr>
+          <td class="feat">Calendar &amp; install scheduling</td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">Crew assignment &amp; conflict checks</td>
+          <td class="val no"><span class="dash">—</span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">Bilingual EN / ES field portal</td>
+          <td class="val no"><span class="dash">—</span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+
+        <tr class="group"><td colspan="3">Customers &amp; pipeline</td></tr>
+        <tr>
+          <td class="feat">Unlimited customers &amp; estimates</td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">Pipeline kanban &amp; dashboard</td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+
+        <tr class="group"><td colspan="3">Money in</td></tr>
+        <tr>
+          <td class="feat">Card + ACH via Stripe Connect</td>
+          <td class="val no"><span class="dash">—</span></td>
+          <td class="val yes">2.9% + ¢30</td>
+        </tr>
+        <tr>
+          <td class="feat">QuickBooks Online sync</td>
+          <td class="val no"><span class="dash">—</span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">Job costing &amp; margin alerts</td>
+          <td class="val no"><span class="dash">—</span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+
+        <tr class="group"><td colspan="3">Team &amp; support</td></tr>
+        <tr>
+          <td class="feat">User seats</td>
+          <td class="val">1</td>
+          <td class="val">Up to 8</td>
+        </tr>
+        <tr>
+          <td class="feat">Roles &amp; permissions</td>
+          <td class="val no"><span class="dash">—</span></td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+        </tr>
+        <tr>
+          <td class="feat">Email support</td>
+          <td class="val yes"><span class="chk"><svg width="18" height="18" viewBox="0 0 18 18"><path d="M3 9 L8 14 L15 4"/></svg></span></td>
+          <td class="val yes">Priority</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─────────────────────────  FAQ  ──────────────────────────── -->
+<section class="faq">
+  <div class="shell">
+    <div class="section-head reveal">
+      <span class="label">03 / Field Questions</span>
+      <h2>Things people <em>actually ask.</em></h2>
+    </div>
+
+    <div class="faq-grid reveal">
+      <div class="faq-item">
+        <div class="num">Q.01</div>
+        <h4>Do I need a card to <em>start the trial?</em></h4>
+        <p>Yes. We ask for a card up front so you don't lose a day of measurement work at the end of the trial. You won't be charged until day 15, and you can cancel anytime from settings before then.</p>
+      </div>
+      <div class="faq-item">
+        <div class="num">Q.02</div>
+        <h4>What happens on <em>day 15?</em></h4>
+        <p>The card on file is charged for the plan you selected at signup. Everything you built during the trial — estimates, customers, schedule — stays exactly where you left it.</p>
+      </div>
+      <div class="faq-item">
+        <div class="num">Q.03</div>
+        <h4>Can I switch <em>plans later?</em></h4>
+        <p>Anytime, in both directions. Upgrade and you get the new features immediately, prorated. Downgrade and the change takes effect at the next billing cycle.</p>
+      </div>
+      <div class="faq-item">
+        <div class="num">Q.04</div>
+        <h4>What about <em>9+ crew seats?</em></h4>
+        <p>Talk to us. Larger shops get a Crew+ tier with volume seat pricing, custom roles, SSO, and a dedicated success contact. Email <a href="#" style="color: var(--orange); text-decoration: underline;">sales@sqft.dev</a>.</p>
+      </div>
+      <div class="faq-item">
+        <div class="num">Q.05</div>
+        <h4>Who <em>owns the data?</em></h4>
+        <p>You do. Cancel and we export everything to CSV — customers, estimates, line items, schedule history. No lock-in, no last-mile gotcha.</p>
+      </div>
+      <div class="faq-item">
+        <div class="num">Q.06</div>
+        <h4>How are <em>payments processed?</em></h4>
+        <p>Stripe Connect on the Crew plan. Funds settle directly to your bank in T+2, fees come out of the transaction, and refunds work how you'd expect. We never touch the money.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────────────  FINAL CTA  ─────────────────────── -->
+<section class="final-cta">
+  <div class="shell">
+    <div class="stamp reveal">
+      <span class="pip"></span>
+      <span>FILE: 2026-PRICING-001 &nbsp;·&nbsp; APPROVED FOR ISSUE</span>
+      <span class="pip"></span>
+    </div>
+    <h2 class="reveal">Two weeks free.<br/>Then a <em>fair price</em> for a fair tool.</h2>
+    <div class="actions reveal">
+      <a href="#plans" class="btn">
+        Start free trial
+        <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
+      </a>
+      <a href="contact.html" class="btn ghost">Talk to a real human</a>
+    </div>
+    <p class="terms reveal">14-day free trial &nbsp;·&nbsp; card required &nbsp;·&nbsp; cancel from settings &nbsp;·&nbsp; data stays yours</p>
+  </div>
+</section>
+
+<!-- ───────────────────────  FOOTER  ──────────────────────── -->
+<footer>
+  <div class="shell">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a href="index.html" class="brand">
+          <span>SqFt</span>
+          <span class="unit">The Flooring Solution</span>
+        </a>
+        <p>Estimating, scheduling, and the rest of the back office — built for flooring contractors and kept on the home screen.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="index.html">The loop</a></li>
+          <li><a href="index.html#features">Features</a></li>
+          <li><a href="pricing.html">Pricing</a></li>
+          <li><a href="#">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Trade</h4>
+        <ul>
+          <li><a href="#">Hardwood crews</a></li>
+          <li><a href="#">Tile shops</a></li>
+          <li><a href="#">Carpet retailers</a></li>
+          <li><a href="#">LVP installers</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#">About</a></li>
+          <li><a href="#">Customers</a></li>
+          <li><a href="#">Field blog</a></li>
+          <li><a href="#">Careers</a></li>
+        </ul>
+      </div>
+      <div class="foot-col">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Docs</a></li>
+          <li><a href="#">Status</a></li>
+          <li><a href="#">Contact</a></li>
+          <li><a href="#">Security</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="title-block">
+      <div class="cell"><span class="k">Drawing</span><span class="v">SqFt — Pricing</span></div>
+      <div class="cell"><span class="k">Issued</span><span class="v">2026-05-23</span></div>
+      <div class="cell"><span class="k">Revision</span><span class="v">A</span></div>
+      <div class="cell"><span class="k">Drawn by</span><span class="v">SqFt Studio</span></div>
+    </div>
+
+    <div class="foot-bottom">
+      <span>© 2026 SqFt Inc. — Made on a job site in Cincinnati.</span>
+      <span>Privacy &nbsp;·&nbsp; Terms &nbsp;·&nbsp; Cookies</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+const io = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }
+}, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+for (const n of document.querySelectorAll('.reveal')) io.observe(n);
+</script>
+
+</body>
+</html>
