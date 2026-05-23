@@ -21,10 +21,18 @@ business. One page, one form, one save.
 - **Access.** Admin-only. Non-admins who hit `/settings/workspace` are
   redirected to `/settings`. The PATCH endpoint rejects non-admins with
   `UNAUTHORIZED`.
-- **Role rename.** `User.role` value `"owner"` is renamed to `"admin"` in
-  the same change. The current `"admin"` value already exists; the rename
-  collapses owner into admin. `"member"` is untouched. Lead/Crew are NOT
-  introduced — they wait for Spec C (Members).
+- **Role redesign — values only, no enforcement.** Land the full
+  taxonomy `admin | lead | crew` now so role data isn't migrated twice.
+  - `owner` → `admin` (collapse; the existing `admin` value stays).
+  - `member` → `crew`.
+  - `lead` is a new valid value; no user has it yet (no UI assigns it
+    until Spec C).
+  - Schema default for `User.role` changes from `"member"` to `"crew"`
+    (safest default for future invitees).
+  - **Enforcement still scoped to admin-only on this page.** No
+    Lead/Crew permission checks anywhere else in this spec — Spec C
+    builds the Members UI and the permission gates on jobs, schedule,
+    and quote editing.
 - **Defaults flow.** Org-level defaults are copied onto the Quote at
   creation time (no live reference, no backfill of existing quotes). Same
   copy-not-reference pattern that `LineItemTemplate` already uses.
@@ -77,13 +85,26 @@ The existing `Quote.depositPct` column keeps its `@default(0.50)` as a
 schema-level safety net, but quote-creation code now overrides it with
 `org.defaultDepositPct`.
 
-### Role rename (data migration)
+### Role redesign (data migration + code updates)
 
 ```sql
 UPDATE "User" SET role = 'admin' WHERE role = 'owner';
+UPDATE "User" SET role = 'crew'  WHERE role = 'member';
 ```
 
-Code updates in the same PR (4 production-code references found):
+Schema change on `User.role`:
+
+```prisma
+role String @default("crew") // admin | lead | crew
+```
+
+(Default was `"member"`. New default `"crew"` is the least-privileged
+role, safest for future invite flows in Spec C. No public signup exists
+today, and the seed creates admins explicitly, so the default isn't
+exercised yet — but set it correctly now.)
+
+Code updates in the same PR (4 production-code references found, all
+`role: "owner"` → `role: "admin"`):
 
 - `app/api/q/[token]/accept/route.ts:100` — `where: { orgId, role: "owner" }`
 - `app/api/q/[token]/decline/route.ts:60` — same
@@ -97,8 +118,9 @@ same. Behavior change worth noting: an org with multiple admins still
 notifies only one (the lowest-id), same as today.
 
 Plus `prisma/seed.ts` lines 145, 168 (`role: "owner"` → `role: "admin"`).
-
-Schema comment on `User.role` updates to `// admin | member`.
+The seed does not currently create users with `role: "member"`, so no
+new seed lines are needed for `crew`. If a seed update later adds a
+non-admin user, it should use `"crew"` or `"lead"`.
 
 ## URL & page composition
 
@@ -321,7 +343,10 @@ Playwright (optional smoke, low priority):
 - Notifications, Members, Integrations sections.
 - Any UI for changing roles. (Admin-only gating uses the role value
   already on the user row, set by seed.)
-- Lead/Crew roles.
+- Lead/Crew **enforcement**. The values land in the data and schema,
+  but no code branches on `role === "lead"` or `role === "crew"` in
+  this spec — Spec C builds the permission gates across jobs, schedule,
+  and quote editing.
 - Pre-existing-quote backfill of new defaults.
 - A brand-aware redesign of `/q/[token]`. Brand fields are saved; how
   the public quote page consumes them can be a follow-up if the current
