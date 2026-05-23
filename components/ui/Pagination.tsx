@@ -148,6 +148,25 @@ const TICK_STEPS: readonly (readonly [number, number])[] = [
   [120, 5],
 ];
 
+/**
+ * Decide which page indices get a tick on the tape measure. Always
+ * includes page 1, the last page, and the current page; in between,
+ * thins ticks out as the total page count grows so the rule stays
+ * legible.
+ *
+ * Exported for unit testing.
+ */
+export function computeTicks(page: number, pageCount: number): number[] {
+  const step = TICK_STEPS.find(([cap]) => pageCount <= cap)?.[1] ?? 10;
+  const list: number[] = [];
+  for (let i = 1; i <= pageCount; i++) {
+    if (i === 1 || i === pageCount || i === page || i % step === 0) {
+      list.push(i);
+    }
+  }
+  return list;
+}
+
 function TapeMeasure({
   page,
   pageCount,
@@ -156,16 +175,7 @@ function TapeMeasure({
   perPage,
   noun,
 }: TapeMeasureProps) {
-  const ticks = useMemo(() => {
-    const step = TICK_STEPS.find(([cap]) => pageCount <= cap)?.[1] ?? 10;
-    const list: number[] = [];
-    for (let i = 1; i <= pageCount; i++) {
-      if (i === 1 || i === pageCount || i === page || i % step === 0) {
-        list.push(i);
-      }
-    }
-    return list;
-  }, [page, pageCount]);
+  const ticks = useMemo(() => computeTicks(page, pageCount), [page, pageCount]);
 
   if (pageCount <= 1) {
     return (
