@@ -12,6 +12,15 @@ export const GET = apiRoute(async ({ orgId }) => {
       address: true,
       licenseNumber: true,
       logo: true,
+      timezone: true,
+      locale: true,
+      brandColor: true,
+      tagline: true,
+      showLicenseOnQuotes: true,
+      defaultDepositPct: true,
+      defaultValidityDays: true,
+      defaultUnitLabel: true,
+      defaultTerms: true,
     },
   });
   if (!org) throw new NotFoundError();
