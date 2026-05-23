@@ -1,8 +1,9 @@
 /**
  * The API request seam.
  *
- * Two adapters: `apiRoute` for org-scoped endpoints, `publicRoute` for
- * unauthenticated (token-verified) endpoints. Both own:
+ * Three adapters: `apiRoute` for org-scoped endpoints, `adminRoute` for
+ * admin-only org-scoped endpoints, and `publicRoute` for unauthenticated
+ * (token-verified) endpoints. All three own:
  *   - input parsing via an optional Zod schema
  *   - error translation to the standard envelope (see CONTEXT.md)
  *   - request/mutation/error logging
@@ -203,6 +204,10 @@ function wrapHandler(
 
 // ── adminRoute ────────────────────────────────────────────────────────────────
 
+/**
+ * Like `apiRoute`, but also requires `session.user.role === "admin"`.
+ * Non-admin and unauthenticated callers both receive 401 UNAUTHORIZED.
+ */
 export function adminRoute<
   TInput = undefined,
   TParams = Record<string, string>,
