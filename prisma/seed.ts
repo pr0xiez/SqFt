@@ -50,9 +50,7 @@ async function main() {
   // ── Organization ──────────────────────────────────────────────────────────
   const org = await prisma.organization.upsert({
     where: { slug: "johnson-flooring-demo" },
-    // Reset the name on every seed run so a stray UI edit (or manual DB
-    // change) can't drift away from what the e2e tests expect.
-    update: { name: "Johnson Flooring Co." },
+    update: {},
     create: {
       name: "Johnson Flooring Co.",
       slug: "johnson-flooring-demo",
@@ -153,7 +151,7 @@ async function main() {
   // ── Second org + user (used by tenant-isolation E2E tests) ───────────────
   const otherOrg = await prisma.organization.upsert({
     where: { slug: "other-floors-demo" },
-    update: { name: "Other Floors Co." },
+    update: {},
     create: {
       name: "Other Floors Co.",
       slug: "other-floors-demo",
