@@ -73,10 +73,7 @@ export function DashboardView() {
           <Button onClick={() => router.push("/estimates")}>
             + Quick Quote
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => router.push("/estimates/new")}
-          >
+          <Button variant="primary" onClick={() => router.push("/estimates")}>
             + New Estimate
           </Button>
         </div>
