@@ -22,7 +22,7 @@ vi.mock("next/server", async (importOriginal) => {
 
 import type { NextRequest } from "next/server";
 import type { Session } from "next-auth";
-import { GET } from "@/app/api/users/route";
+import { GET, POST } from "@/app/api/users/route";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -30,6 +30,8 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
 const mockFindMany = vi.mocked(prisma.user.findMany);
+const mockFindUnique = vi.mocked(prisma.user.findUnique);
+const mockCreate = vi.mocked(prisma.user.create);
 
 function makeRequest(method = "GET", body?: unknown) {
   const init: RequestInit = { method };
@@ -115,5 +117,108 @@ describe("GET /api/users", () => {
         orderBy: { createdAt: "asc" },
       })
     );
+  });
+});
+
+describe("POST /api/users", () => {
+  function makePost(body: unknown) {
+    const req = new Request("http://localhost/api/users", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    Object.defineProperty(req, "nextUrl", {
+      value: new URL("http://localhost/api/users"),
+      writable: false,
+    });
+    // biome-ignore lint/suspicious/noExplicitAny: NextRequest duck-typing
+    return req as any as NextRequest;
+  }
+
+  it("401 for non-admin", async () => {
+    asRole("lead");
+    const res = await POST(
+      makePost({
+        name: "Jane",
+        email: "jane@test.dev",
+        role: "crew",
+        password: "abcd1234",
+      }),
+      noParams
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("201 creates a user; lowercases email; password is hashed and not returned", async () => {
+    asRole("admin");
+    mockFindUnique.mockResolvedValueOnce(null);
+    const created = {
+      id: "new1",
+      name: "Jane",
+      email: "jane@test.dev",
+      role: "crew",
+      createdAt: new Date(),
+    };
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockCreate.mockResolvedValueOnce(created as any);
+
+    const res = await POST(
+      makePost({
+        name: "Jane",
+        email: "JANE@TEST.DEV",
+        role: "crew",
+        password: "abcd1234",
+      }),
+      noParams
+    );
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body).toMatchObject({
+      id: "new1",
+      email: "jane@test.dev",
+      role: "crew",
+    });
+    expect(body.password).toBeUndefined();
+
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    const callArg = mockCreate.mock.calls[0]?.[0] as {
+      data: { email: string; password: string; orgId: string; role: string };
+    };
+    expect(callArg.data.email).toBe("jane@test.dev");
+    expect(callArg.data.orgId).toBe("org1");
+    expect(callArg.data.role).toBe("crew");
+    expect(callArg.data.password).not.toBe("abcd1234");
+    expect(callArg.data.password.startsWith("$2")).toBe(true); // bcrypt signature
+  });
+
+  it("409 EMAIL_TAKEN when the email already exists", async () => {
+    asRole("admin");
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockFindUnique.mockResolvedValueOnce({ id: "existing" } as any);
+
+    const res = await POST(
+      makePost({
+        name: "Jane",
+        email: "dup@test.dev",
+        role: "crew",
+        password: "abcd1234",
+      }),
+      noParams
+    );
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("EMAIL_TAKEN");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("400 on bad payload (invalid role, short password, bad email)", async () => {
+    asRole("admin");
+    const res = await POST(
+      makePost({ name: "", email: "bad", role: "owner", password: "x" }),
+      noParams
+    );
+    expect(res.status).toBe(400);
   });
 });
