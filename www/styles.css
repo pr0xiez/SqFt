@@ -31,7 +31,7 @@ body {
   font-feature-settings: "ss01", "ss02", "tnum";
 }
 a { color: inherit; text-decoration: none; }
-img, svg { display: block; max-width: 100%; }
+img, svg { display: block; max-width: 100%; height: auto; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 
 /* ─────────────────  PAPER + GRID BACKDROP  ──────────────────── */
@@ -382,6 +382,7 @@ section { position: relative; z-index: 1; padding: 120px 0; }
   position: relative;
   background: var(--paper);
   transition: background .25s;
+  min-width: 0;
 }
 .f:hover { background: var(--paper-2); }
 .f:nth-child(2n) { border-right: none; }
@@ -417,9 +418,10 @@ section { position: relative; z-index: 1; padding: 120px 0; }
   margin-top: 28px;
   height: 140px;
   display: flex; align-items: center;
+  min-width: 0;
 }
 .f.wide .schematic { height: 200px; justify-content: center; }
-.f .schematic svg { stroke: var(--ink); fill: none; stroke-width: 1; }
+.f .schematic svg { stroke: var(--ink); fill: none; stroke-width: 1; min-width: 0; }
 
 /* ─────────────────  HOMEPAGE: SURVEY / STATS  ─────────────────── */
 .survey {
@@ -1241,11 +1243,12 @@ footer {
   .hero-sub { grid-template-columns: 1fr; gap: 32px; }
   .hero-cta { justify-content: flex-start; }
   .hero-cta .note { text-align: left; }
-  .loop { grid-template-columns: 1fr; }
+  .loop { grid-template-columns: minmax(0, 1fr); }
   .loop .step { border-right: none; border-bottom: 1px solid var(--rule); }
   .loop .step:last-child { border-bottom: none; }
-  .features { grid-template-columns: 1fr; }
-  .f, .f.third { grid-column: span 1; border-right: none; }
+  .features { grid-template-columns: minmax(0, 1fr); }
+  .f, .f.wide, .f.third { grid-column: span 1; border-right: none; }
+  .f.wide { padding: 48px 40px 44px; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .quote-card { grid-template-columns: 1fr; gap: 32px; }
   .quote-card .attrib { border-left: none; border-top: 1px solid var(--rule); padding: 24px 0 0; }
