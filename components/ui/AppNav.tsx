@@ -22,6 +22,9 @@ export function AppNav() {
   const { data: session } = useSession();
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  const role = session?.user?.role ?? "crew";
+  const tabs = navTabsFor(role);
+
   const initials = getInitials(session?.user?.name, session?.user?.email);
 
   function isActive(href: string) {
@@ -44,7 +47,7 @@ export function AppNav() {
             <em className="not-italic text-[var(--accent)]">Sq</em>Ft
           </span>
 
-          {NAV_TABS.map(({ href, label }) => {
+          {tabs.map(({ href, label }) => {
             const active = isActive(href);
             return (
               <Link
@@ -118,8 +121,14 @@ export function AppNav() {
           {initials}
         </button>
 
-        <div className="grid grid-cols-6 gap-0.5 max-w-[640px] mx-auto">
-          {NAV_TABS.map(({ href, label }) => {
+        <div
+          className={cn(
+            "grid gap-0.5 max-w-[640px] mx-auto",
+            tabs.length === 6 && "grid-cols-6",
+            tabs.length < 6 && "justify-center grid-cols-1"
+          )}
+        >
+          {tabs.map(({ href, label }) => {
             const active = isActive(href);
             return (
               <Link
@@ -226,4 +235,11 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
     ),
   };
   return <>{icons[label] ?? null}</>;
+}
+
+function navTabsFor(role: string) {
+  if (role === "crew") {
+    return NAV_TABS.filter((t) => t.href === "/schedule");
+  }
+  return NAV_TABS;
 }
