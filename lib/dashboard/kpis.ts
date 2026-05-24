@@ -154,14 +154,12 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
       0
     );
 
-  const expiringSoonCount = awaitingQuotes.filter(
-    (q: { id: string; sentAt: Date | null; validityDays: number }) => {
-      if (!q.sentAt) return false;
-      const expiresAt = new Date(q.sentAt);
-      expiresAt.setDate(expiresAt.getDate() + q.validityDays);
-      return expiresAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    }
-  ).length;
+  const expiringSoonCount = awaitingQuotes.filter((q) => {
+    if (!q.sentAt) return false;
+    const expiresAt = new Date(q.sentAt);
+    expiresAt.setDate(expiresAt.getDate() + q.validityDays);
+    return expiresAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  }).length;
 
   const total30d = won30d + lost30d;
   const winRate30d = total30d === 0 ? 0 : Math.round((won30d / total30d) * 100);
