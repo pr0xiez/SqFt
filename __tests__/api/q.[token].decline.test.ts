@@ -8,12 +8,6 @@ vi.mock("@/lib/repositories", () => ({
   getQuoteByToken: vi.fn(),
   declineQuoteByToken: vi.fn(),
 }));
-vi.mock("@/lib/email/sendSignedNotification", () => ({
-  sendSignedNotification: vi.fn().mockResolvedValue({ ok: true }),
-}));
-vi.mock("@/lib/prisma", () => ({
-  prisma: { user: { findMany: vi.fn().mockResolvedValue([]) } },
-}));
 vi.mock("next/server", async (importOriginal) => {
   const mod = await importOriginal<typeof import("next/server")>();
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
