@@ -27,14 +27,22 @@ export default function LoginPage() {
       password,
       redirect: false,
     });
-    setLoading(false);
 
     if (result?.error) {
+      setLoading(false);
       setError("Incorrect email or password.");
-    } else {
-      router.push("/");
-      router.refresh();
+      return;
     }
+
+    // Resolve the role via the session endpoint, then route home.
+    const sessionRes = await fetch("/api/auth/session", { cache: "no-store" });
+    const sessionData = (await sessionRes.json()) as {
+      user?: { role?: string };
+    } | null;
+    const role = sessionData?.user?.role ?? "lead";
+    setLoading(false);
+    router.push(role === "crew" ? "/schedule" : "/");
+    router.refresh();
   }
 
   return (
