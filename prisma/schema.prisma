@@ -23,6 +23,15 @@ model Organization {
   logo               String?
   nextEstimateNumber Int      @default(1)
   nextQuoteNumber    Int      @default(1)
+  timezone           String   @default("America/New_York")
+  locale             String   @default("en-US")
+  brandColor         String   @default("#c0341a")
+  tagline            String?
+  showLicenseOnQuotes Boolean @default(true)
+  defaultDepositPct  Float    @default(0.30)
+  defaultValidityDays Int     @default(21)
+  defaultUnitLabel   String   @default("ft²")
+  defaultTerms       String   @default("")
   createdAt          DateTime @default(now())
 
   users             User[]
@@ -39,7 +48,7 @@ model User {
   name      String
   email     String       @unique
   password  String // bcrypt hash
-  role      String       @default("member") // owner | admin | member
+  role      String       @default("crew") // admin | lead | crew
   orgId     String
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   createdAt DateTime     @default(now())
@@ -109,6 +118,8 @@ model Quote {
   convenienceFeeRate Float   @default(0.03)
   markupPct     Float        @default(0)
   depositPct    Float        @default(0.50)
+  terms         String       @default("")
+  validityDays  Int          @default(21)
   approvalToken String?      @unique
   sentAt        DateTime?
   sentToEmail   String?
