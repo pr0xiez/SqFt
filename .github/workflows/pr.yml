@@ -80,6 +80,10 @@ jobs:
         with:
           vercel_protection_bypass_header: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Pin to the app project; ignore Preview – sqft-www (marketing site
+          # has its own bypass secret and would 401 here). Must match the
+          # GitHub deployment environment name verbatim, en-dash included.
+          environment: Preview – sqft
           max_timeout: 600 # 10 min — bump if your builds are longer
           check_interval: 5
       - name: Run Playwright

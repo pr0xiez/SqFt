@@ -4,6 +4,12 @@ export const metadata = { title: "Settings · SqFt" };
 
 const SETTINGS_LINKS = [
   {
+    href: "/settings/workspace",
+    title: "Workspace",
+    description:
+      "Company identity, brand, and the defaults that new quotes inherit.",
+  },
+  {
     href: "/settings/line-item-templates",
     title: "Line item templates",
     description:

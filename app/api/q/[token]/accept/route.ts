@@ -97,7 +97,7 @@ async function notifyOwners(
 ) {
   try {
     const owners = await prisma.user.findMany({
-      where: { orgId, role: "owner" },
+      where: { orgId, role: "admin" },
       select: { email: true },
     });
     const recipients = owners.map((o) => o.email).filter(Boolean);

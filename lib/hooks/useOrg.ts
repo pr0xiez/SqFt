@@ -9,6 +9,15 @@ export interface Org {
   address: string | null;
   licenseNumber: string | null;
   logo: string | null;
+  timezone: string;
+  locale: string;
+  brandColor: string;
+  tagline: string | null;
+  showLicenseOnQuotes: boolean;
+  defaultDepositPct: number;
+  defaultValidityDays: number;
+  defaultUnitLabel: string;
+  defaultTerms: string;
 }
 
 async function fetchOrg(): Promise<Org> {

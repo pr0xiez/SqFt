@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SqFt — Workspace Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafaf7;--surface:#ffffff;--surface-2:#f4f3ed;
+  --ink:#1a1a17;--ink-2:#3a3a35;--muted:#6b6b66;--line:#e6e4dd;--line-2:#d8d6cd;
+  --accent:#c0341a;--accent-l:#e04828;--accent-d:#8a2010;
+  --sage:#3d6b4a;--sage-l:#588a66;--gold:#b07a1a;--gold-l:#d4982a;
+  --shadow:0 1px 2px rgba(20,18,12,.04),0 4px 14px rgba(20,18,12,.04);
+  --shadow-md:0 4px 12px rgba(20,18,12,.08),0 12px 40px rgba(20,18,12,.08);
+  --display:'Inter Tight',sans-serif;--mono:'JetBrains Mono',monospace;
+  --r:8px; --r-sm:5px;
+  /* --brand defaults to accent; updated live by the brand color picker */
+  --brand:var(--accent);
+}
+[data-theme="dark"]{
+  --bg:#0f0f0d;--surface:#181815;--surface-2:#222220;
+  --ink:#f0eee5;--ink-2:#c9c6bc;--muted:#888579;--line:#2a2a26;--line-2:#363632;
+  --accent:#ff6a44;--accent-l:#ff8665;--accent-d:#d44e2c;
+  --sage:#7fbf90;--sage-l:#9bd4ab;--gold:#e0b04a;--gold-l:#f0c25a;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);
+  --shadow-md:0 4px 12px rgba(0,0,0,.4),0 12px 40px rgba(0,0,0,.5);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--display);background:var(--bg);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
+button{font-family:inherit;color:inherit}
+input,textarea,select{font-family:inherit;color:inherit}
+a{color:inherit}
+
+/* ── NAV ── */
+.nav{display:flex;align-items:center;height:60px;padding:0 28px;border-bottom:1px solid var(--line);background:var(--surface);gap:28px;position:sticky;top:0;z-index:50;transition:background .25s,border-color .25s}
+.brand-wm{font-weight:800;font-size:18px;letter-spacing:-.025em}
+.brand-wm em{color:var(--accent);font-style:normal}
+.nav-tab{font-family:var(--mono);font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:6px 0;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;letter-spacing:.02em;text-decoration:none}
+.nav-tab:hover{color:var(--ink)}
+.nav-tab.active{color:var(--ink);border-bottom-color:var(--accent)}
+.nav-r{margin-left:auto;display:flex;gap:10px;align-items:center}
+.theme-toggle{font-family:var(--mono);font-size:11px;border:1px solid var(--line);background:transparent;cursor:pointer;padding:6px 10px;border-radius:6px;color:var(--muted);transition:.15s;display:flex;align-items:center;gap:6px}
+.theme-toggle:hover{border-color:var(--ink-2);color:var(--ink)}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink)}
+
+/* ── BUTTONS ── */
+.btn{font-family:var(--mono);font-size:11px;padding:9px 16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;border-radius:6px;transition:.15s;letter-spacing:.02em;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--ink-2);background:var(--surface-2)}
+.btn-primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn-primary:hover{background:var(--ink-2);border-color:var(--ink-2);color:var(--bg)}
+.btn-accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-accent:hover{background:var(--accent-l);border-color:var(--accent-l)}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--ink);border-color:transparent}
+.btn-sm{padding:6px 11px;font-size:10px}
+
+/* ── MASTHEAD ── */
+.masthead{padding:48px 48px 36px;border-bottom:1px solid var(--line)}
+.masthead-inner{max-width:1180px;margin:0 auto}
+.crumb{display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.crumb .sep{color:var(--line-2)}
+.crumb .here{color:var(--ink-2)}
+.crumb .vol{margin-left:auto;font-feature-settings:"tnum" 1}
+.mast-row{display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.h-masthead{font-size:64px;font-weight:700;letter-spacing:-.035em;line-height:.95}
+.h-masthead .italic{font-style:italic;font-weight:400;color:var(--muted)}
+.dek{max-width:360px;font-size:13px;line-height:1.55;color:var(--ink-2);padding-bottom:8px}
+.dek strong{color:var(--ink);font-weight:600}
+.ledger{margin-top:30px;display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;max-width:520px}
+.ledger.ledger-2{grid-template-columns:repeat(2,1fr)}
+.ledger-cell{background:var(--surface);padding:14px 18px}
+.lc-label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase}
+.lc-val{margin-top:5px;font-size:14px;letter-spacing:-.005em}
+.lc-val.mono{font-family:var(--mono);font-size:12px;letter-spacing:.02em}
+.lc-val.accent{color:var(--brand);font-weight:600}
+
+/* ── PAGE BODY ── */
+.body-wrap{max-width:1180px;margin:0 auto;padding:40px 48px 200px;display:grid;grid-template-columns:200px 1fr;gap:56px}
+
+/* ── TOC ── */
+.toc{position:sticky;top:80px;align-self:start;height:max-content}
+.toc-h{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+.toc-list{list-style:none}
+.toc-list a{display:flex;align-items:baseline;gap:12px;padding:7px 0;text-decoration:none;color:var(--muted);transition:color .15s}
+.toc-list a:hover{color:var(--ink-2)}
+.toc-list a.active{color:var(--ink)}
+.toc-list a .n{font-family:var(--mono);font-size:10px;width:22px;color:var(--line-2);font-feature-settings:"tnum" 1;transition:color .15s}
+.toc-list a:hover .n{color:var(--muted)}
+.toc-list a.active .n{color:var(--brand)}
+.toc-list a .l{font-size:13px;letter-spacing:-.01em}
+.toc-list a.active .l{font-weight:600}
+.toc-list a .bar{margin-left:auto;width:0;height:1px;background:var(--brand);transition:width .2s}
+.toc-list a.active .bar{width:20px}
+
+/* ── SECTION ── */
+section.s{scroll-margin-top:80px;margin-bottom:64px}
+.s-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding-bottom:18px;margin-bottom:26px;border-bottom:1px solid var(--line)}
+.s-head-l{display:flex;align-items:baseline;gap:16px}
+.s-num{font-family:var(--display);font-weight:700;font-size:40px;line-height:1;letter-spacing:-.04em;color:var(--brand);opacity:.88;font-feature-settings:"tnum" 1}
+.s-titles h2{font-size:22px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.s-kicker{margin-top:3px;font-size:12px;color:var(--muted);font-style:italic}
+
+/* ── FIELD ROWS ── */
+.field{display:grid;grid-template-columns:200px 1fr;gap:32px;padding:10px 0}
+.f-label{padding-top:8px}
+.f-label .label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.f-label .hint{margin-top:7px;font-size:12px;color:var(--ink-2);line-height:1.5;max-width:200px}
+
+.input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r);background:transparent;font-size:14px;letter-spacing:-.005em;transition:border-color .15s}
+.input:focus{outline:none;border-color:var(--ink-2)}
+.input.mono{font-family:var(--mono);font-size:13px;letter-spacing:.02em}
+textarea.input{resize:vertical;line-height:1.55;font-size:13px}
+
+.input-prefix{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;transition:border-color .15s}
+.input-prefix:focus-within{border-color:var(--ink-2)}
+.input-prefix .pre{padding:9px 12px;background:var(--surface-2);font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;align-items:center}
+.input-prefix input{flex:1;border:none;background:transparent;padding:9px 12px;font-family:var(--mono);font-size:13px;color:var(--ink);outline:none}
+
+.sel-wrap{position:relative;display:inline-block;width:100%}
+select.input{appearance:none;-webkit-appearance:none;padding-right:32px;font-family:var(--mono);font-size:13px;letter-spacing:.02em;cursor:pointer}
+.sel-wrap::after{content:"▾";position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:10px;pointer-events:none}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ── SEGMENTED ── */
+.seg{display:inline-flex;padding:2px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.seg button{padding:7px 13px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;background:transparent;border:none;color:var(--muted);cursor:pointer;border-radius:var(--r-sm);transition:.15s}
+.seg button:hover{color:var(--ink)}
+.seg button.active{background:var(--ink);color:var(--bg)}
+
+/* ── TOGGLE ── */
+.tog{display:inline-flex;align-items:flex-start;gap:12px;cursor:pointer;padding:4px 0}
+.tog-sw{position:relative;flex-shrink:0;width:36px;height:20px;border:1px solid var(--line-2);background:var(--surface-2);border-radius:99px;transition:background .2s,border-color .2s;margin-top:1px}
+.tog-sw::after{content:"";position:absolute;top:1px;left:1px;width:14px;height:14px;background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.18);transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.tog input{position:absolute;opacity:0;pointer-events:none}
+.tog input:checked + .tog-sw{background:var(--brand);border-color:transparent}
+.tog input:checked + .tog-sw::after{transform:translateX(16px)}
+.tog-lbl{font-size:13px;line-height:1.4}
+
+/* ── SWATCH ── */
+.swatches{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.sw{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border:1px solid var(--line);background:transparent;border-radius:var(--r);cursor:pointer;transition:.15s}
+.sw:hover{border-color:var(--ink-2)}
+.sw.active{border-color:var(--ink)}
+.sw-dot{width:14px;height:14px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.sw-name{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+.hex-row{display:flex;align-items:center;gap:10px}
+.hex-row label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.hex-input{font-family:var(--mono);font-size:12px;width:110px;padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-sm);background:transparent;color:var(--ink)}
+.hex-input:focus{outline:none;border-color:var(--ink-2)}
+
+.mono-input{text-align:center;font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:-.03em;padding:7px 0;width:80px;border:1px solid var(--line);border-radius:var(--r);background:transparent;color:var(--ink);text-transform:uppercase}
+.mono-input:focus{outline:none;border-color:var(--ink-2)}
+
+/* ── BRAND ROW (form + preview) ── */
+.brand-row{display:grid;grid-template-columns:1fr 320px;gap:36px;align-items:start}
+.brand-form > .field + .field{border-top:0}
+
+/* ── LIVE QUOTE PREVIEW ── */
+.preview-wrap{position:sticky;top:80px}
+.preview-cap{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.preview{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.preview-ribbon{height:6px;background:var(--brand)}
+.preview-body{padding:18px 20px}
+.ph-ledger{display:flex;align-items:flex-start;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.ph-mono{display:flex;align-items:center;gap:10px}
+.ph-seal{width:42px;height:42px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px;letter-spacing:-.04em;background:var(--brand)}
+.ph-name{font-size:15px;font-weight:700;letter-spacing:-.015em}
+.ph-tag{font-size:10px;font-style:italic;color:var(--muted);margin-top:2px;max-width:200px;line-height:1.25}
+.ph-right{text-align:right}
+.ph-right .pml{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.ph-right .pmv{font-family:var(--mono);font-size:12px;font-feature-settings:"tnum" 1}
+.ph-letter{padding-bottom:14px;border-bottom:1px solid var(--line);text-align:center}
+.ph-letter .lname{font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-.03em;color:var(--brand)}
+.ph-letter .ltag{font-size:10px;color:var(--muted);font-style:italic;margin-top:4px}
+.ph-letter .lref{margin-top:10px;font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.ph-min{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.ph-min .lname{font-size:13px;font-weight:600;letter-spacing:-.005em}
+.ph-min .lref{font-family:var(--mono);font-size:11px;color:var(--muted);font-feature-settings:"tnum" 1}
+.prev-lines{padding:14px 0;display:flex;flex-direction:column;gap:9px}
+.pl{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:12px}
+.pl-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-qty{font-family:var(--mono);font-size:10px;color:var(--muted);font-feature-settings:"tnum" 1}
+.pl-amt{font-family:var(--mono);width:78px;text-align:right;font-feature-settings:"tnum" 1}
+.prev-tot{padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.pt{display:flex;align-items:baseline;justify-content:space-between;font-size:12px}
+.pt span:last-child{font-family:var(--mono);font-feature-settings:"tnum" 1}
+.pt.total{font-size:13px;font-weight:600;letter-spacing:-.005em}
+.pt.total span:last-child{color:var(--brand);font-weight:700}
+.pt.muted{color:var(--muted)}
+.prev-foot{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.preview-note{margin-top:8px;font-family:var(--mono);font-size:10px;text-align:center;color:var(--muted);font-style:italic}
+
+/* ── PCT DIALS ── */
+.dials{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.dials.dials-2{grid-template-columns:repeat(2,1fr)}
+.dials.dials-1{grid-template-columns:1fr}
+.dial{background:var(--surface);padding:16px 18px}
+.dial-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px}
+.dial-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.dial-val{font-feature-settings:"tnum" 1}
+.dial-val .n{font-family:var(--display);font-size:28px;font-weight:700;letter-spacing:-.03em;color:var(--brand)}
+.dial-val .u{font-size:14px;color:var(--muted);margin-left:2px}
+.dial input[type="range"]{width:100%;-webkit-appearance:none;appearance:none;height:2px;background:var(--line);border-radius:99px;outline:none;cursor:pointer}
+.dial input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--brand);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--brand);cursor:pointer}
+.dial input[type="range"]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--brand);border:2px solid var(--surface);box-shadow:0 0 0 1px var(--brand);cursor:pointer}
+.dial-foot{display:flex;justify-content:space-between;margin-top:6px;font-family:var(--mono);font-size:9px;color:var(--muted);font-feature-settings:"tnum" 1}
+
+.num-input{width:90px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--r);background:transparent;font-family:var(--mono);font-size:14px;text-align:right;font-feature-settings:"tnum" 1}
+.num-input:focus{outline:none;border-color:var(--ink-2)}
+.with-suffix{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+
+/* ── NOTIF LIST ── */
+.notif-list{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.notif-row{display:flex;align-items:center;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.notif-row:last-child{border-bottom:none}
+.notif-meta{flex:1;min-width:0}
+.notif-t{font-size:13px;font-weight:600;letter-spacing:-.005em}
+.notif-b{margin-top:2px;font-size:12px;color:var(--muted);line-height:1.45}
+
+/* ── ROLE LEGEND ── */
+.role-legend{margin-bottom:18px;padding:18px 20px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.rl-h{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.rl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.rl-card{padding-left:14px;border-left:1px solid var(--line)}
+.rl-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;letter-spacing:-.005em;margin-bottom:5px}
+.rl-dot{width:7px;height:7px;border-radius:50%}
+.rl-desc{font-size:12px;line-height:1.5;color:var(--muted)}
+.rl-desc em{font-style:italic;color:var(--ink-2)}
+@media (max-width:980px){
+  .rl-grid{grid-template-columns:1fr;gap:14px}
+  .rl-card{padding-left:0;border-left:none;padding-top:12px;border-top:1px solid var(--line)}
+  .rl-card:first-child{padding-top:0;border-top:none}
+}
+.role-sel{padding:7px 28px 7px 10px;font-size:11px}
+
+/* ── MEMBERS ── */
+.mem-table{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.mem-head{display:grid;grid-template-columns:1.6fr 1fr 130px 90px;gap:18px;padding:9px 18px;background:var(--surface-2);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.mem-row{display:grid;grid-template-columns:1.6fr 1fr 130px 90px;gap:18px;padding:13px 18px;align-items:center;border-bottom:1px solid var(--line);transition:background .12s}
+.mem-row:last-child{border-bottom:none}
+.mem-row:hover{background:var(--surface-2)}
+.mem-person{display:flex;align-items:center;gap:11px;min-width:0}
+.mem-av{width:32px;height:32px;border-radius:50%;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:12px;font-weight:600;flex-shrink:0}
+.mem-name{font-size:13px;font-weight:600;letter-spacing:-.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mem-email{font-family:var(--mono);font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mem-last{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;font-feature-settings:"tnum" 1}
+
+/* ── INTEGRATIONS ── */
+.int-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.int-card{text-align:left;padding:16px 18px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);cursor:pointer;transition:border-color .15s;display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.int-card:hover{border-color:var(--ink-2)}
+.int-card.connected{border-color:var(--ink-2)}
+.int-meta .name{font-size:14px;font-weight:600;letter-spacing:-.005em}
+.int-meta .blurb{margin-top:5px;font-size:12px;color:var(--muted);line-height:1.5}
+.int-pill{flex-shrink:0;font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px;border-radius:var(--r-sm);border:1px solid var(--line);color:var(--muted)}
+.int-card.connected .int-pill{background:var(--sage);color:#fff;border-color:var(--sage)}
+
+/* ── DANGER ── */
+.danger{border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:var(--surface);border-radius:var(--r);padding:22px 24px}
+.danger-row{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
+.danger-row + .danger-row{margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}
+.danger-t{font-size:14px;font-weight:600;letter-spacing:-.005em}
+.danger-t.fire{color:var(--accent)}
+.danger-b{margin-top:4px;font-size:12px;color:var(--muted);line-height:1.55}
+
+/* ── FOOTER RULE ── */
+.endrule{display:flex;align-items:center;gap:14px;padding:14px 0;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+.endrule .ln{flex:1;height:1px;background:var(--line)}
+
+/* ── SAVE BAR ── */
+.savebar{position:fixed;bottom:24px;left:50%;transform:translate(-50%,12px);z-index:60;display:flex;align-items:center;gap:14px;padding:11px 18px;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s cubic-bezier(.4,0,.2,1)}
+.savebar.show{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.savebar-dot{width:8px;height:8px;border-radius:50%;background:var(--brand)}
+.savebar-l{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.savebar-r{display:flex;gap:8px;margin-left:8px}
+
+/* ── RESPONSIVE ── */
+@media (max-width:980px){
+  .body-wrap{grid-template-columns:1fr;padding:32px 20px 200px}
+  .toc{display:none}
+  .masthead{padding:32px 20px 28px}
+  .h-masthead{font-size:44px}
+  .ledger{grid-template-columns:repeat(2,1fr)}
+  .brand-row{grid-template-columns:1fr}
+  .preview-wrap{position:static}
+  .field{grid-template-columns:1fr;gap:10px}
+  .f-label .hint{display:none}
+  .dials{grid-template-columns:1fr}
+  .int-grid{grid-template-columns:1fr}
+  .mem-head{display:none}
+  .mem-row{grid-template-columns:1fr auto;gap:10px}
+  .mem-email{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ── TOP NAV ─────────────────────────────────────────── -->
+<nav class="nav">
+  <span class="brand-wm"><em>Sq</em>Ft</span>
+  <a class="nav-tab" href="#">Dashboard</a>
+  <a class="nav-tab" href="#">Customers</a>
+  <a class="nav-tab" href="#">Estimates</a>
+  <a class="nav-tab" href="#">Quotes</a>
+  <a class="nav-tab" href="#">Schedule</a>
+  <a class="nav-tab active" href="#">Settings</a>
+  <div class="nav-r">
+    <button class="theme-toggle" id="themeToggle"><span id="themeIcon">◐</span><span id="themeLabel">Light</span></button>
+    <div class="avatar">AS</div>
+  </div>
+</nav>
+
+<!-- ── MASTHEAD ────────────────────────────────────────── -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="crumb">
+      <span>Settings</span>
+      <span class="sep">/</span>
+      <span class="here">Workspace</span>
+    </div>
+    <div class="mast-row">
+      <h1 class="h-masthead">Workspace<br><span class="italic">— settings &amp; customs.</span></h1>
+      <p class="dek">How <strong id="dekTrading">Pinecrest Flooring</strong> shows up to customers, what your defaults look like, and who can do what. Changes apply to every quote, schedule, and invoice going forward.</p>
+    </div>
+  </div>
+</header>
+
+<!-- ── BODY ────────────────────────────────────────────── -->
+<div class="body-wrap">
+
+  <!-- ── TOC ── -->
+  <aside class="toc" aria-label="Settings sections">
+    <div class="toc-h">Contents</div>
+    <ol class="toc-list" id="tocList">
+      <li><a href="#identity" class="active"><span class="n">01</span><span class="l">Identity</span><span class="bar"></span></a></li>
+      <li><a href="#brand"><span class="n">02</span><span class="l">Brand &amp; Quote Style</span><span class="bar"></span></a></li>
+      <li><a href="#defaults"><span class="n">03</span><span class="l">Estimating Defaults</span><span class="bar"></span></a></li>
+      <li><a href="#notifications"><span class="n">04</span><span class="l">Notifications</span><span class="bar"></span></a></li>
+      <li><a href="#members"><span class="n">05</span><span class="l">Members</span><span class="bar"></span></a></li>
+      <li><a href="#integrations"><span class="n">06</span><span class="l">Integrations</span><span class="bar"></span></a></li>
+    </ol>
+  </aside>
+
+  <main>
+
+    <!-- 01 IDENTITY -->
+    <section class="s" id="identity">
+      <div class="s-head"><div class="s-head-l">
+        <div class="s-num">01</div>
+        <div class="s-titles"><h2>Identity</h2><div class="s-kicker">Who you are on paper</div></div>
+      </div></div>
+      <div class="field">
+        <div class="f-label"><div class="label">Company name</div></div>
+        <div><input class="input" type="text" value="Pinecrest Flooring" id="tradingInput" data-dirty></div>
+      </div>
+      <div class="field">
+        <div class="f-label"><div class="label">Timezone &amp; locale</div></div>
+        <div class="grid-2">
+          <div class="sel-wrap"><select class="input" data-dirty><option>America/Los_Angeles</option><option>America/Denver</option><option>America/Chicago</option><option>America/New_York</option></select></div>
+          <div class="sel-wrap"><select class="input" data-dirty><option>en-US</option><option>en-CA</option><option>es-MX</option></select></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 BRAND -->
+    <section class="s" id="brand">
+      <div class="s-head"><div class="s-head-l">
+        <div class="s-num">02</div>
+        <div class="s-titles"><h2>Brand &amp; Quote Style</h2><div class="s-kicker">The look of every customer-facing page</div></div>
+      </div></div>
+      <div class="brand-row">
+        <div class="brand-form">
+
+          <div class="field">
+            <div class="f-label"><div class="label">Accent color</div></div>
+            <div>
+              <div class="swatches" id="swatches">
+                <button type="button" class="sw active" data-hex="#c0341a"><span class="sw-dot" style="background:#c0341a"></span><span class="sw-name">Vermilion</span></button>
+                <button type="button" class="sw" data-hex="#3d6b4a"><span class="sw-dot" style="background:#3d6b4a"></span><span class="sw-name">Sage</span></button>
+                <button type="button" class="sw" data-hex="#b07a1a"><span class="sw-dot" style="background:#b07a1a"></span><span class="sw-name">Burnt Gold</span></button>
+                <button type="button" class="sw" data-hex="#1f4e6b"><span class="sw-dot" style="background:#1f4e6b"></span><span class="sw-name">Slate Blue</span></button>
+                <button type="button" class="sw" data-hex="#5a2a4a"><span class="sw-dot" style="background:#5a2a4a"></span><span class="sw-name">Plum</span></button>
+                <button type="button" class="sw" data-hex="#1a1a17"><span class="sw-dot" style="background:#1a1a17"></span><span class="sw-name">Ink</span></button>
+              </div>
+              <div class="hex-row"><label for="hexInput">Custom</label><input id="hexInput" class="hex-input" value="#c0341a" data-dirty></div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="f-label"><div class="label">Monogram</div><div class="hint">Two letters appear in the email seal.</div></div>
+            <div><input class="mono-input" id="monogramInput" maxlength="3" value="PF" data-dirty></div>
+          </div>
+
+          <div class="field">
+            <div class="f-label"><div class="label">Tagline</div><div class="hint">Optional. Shown beneath the company name on quote PDFs.</div></div>
+            <div><input class="input" id="taglineInput" value="Honest measurements. Floors that outlast the lease." data-dirty></div>
+          </div>
+
+          <div class="field">
+            <div class="f-label"><div class="label">License footer</div></div>
+            <div><label class="tog"><input type="checkbox" id="licFoot" checked data-dirty><span class="tog-sw"></span><span class="tog-lbl">Print license number on every quote</span></label></div>
+          </div>
+        </div>
+
+        <!-- LIVE PREVIEW -->
+        <div class="preview-wrap">
+          <div class="preview-cap"><span>Live preview</span><span>Quote · sample</span></div>
+          <div class="preview">
+            <div class="preview-ribbon"></div>
+            <div class="preview-body">
+
+              <div class="ph-ledger" id="phLedger">
+                <div class="ph-mono">
+                  <div class="ph-seal" id="phSeal">PF</div>
+                  <div>
+                    <div class="ph-name" id="phName">Pinecrest Flooring</div>
+                    <div class="ph-tag" id="phTag">Honest measurements. Floors that outlast the lease.</div>
+                  </div>
+                </div>
+                <div class="ph-right"><div class="pml">Quote</div><div class="pmv">#Q-1047</div></div>
+              </div>
+
+              <div class="prev-lines">
+                <div class="pl"><div class="pl-name">Sand &amp; refinish — red oak</div><div class="pl-amt">$2,940.00</div></div>
+                <div class="pl"><div class="pl-name">LVP install — Tahoe collection</div><div class="pl-amt">$3,720.00</div></div>
+                <div class="pl"><div class="pl-name">Underlayment &amp; trim</div><div class="pl-amt">$485.00</div></div>
+              </div>
+
+              <div class="prev-tot">
+                <div class="pt total"><span>Total</span><span id="ptTotal">$7,145.00</span></div>
+                <div class="pt muted"><span id="ptDep">Deposit · 30%</span><span id="ptDepAmt">$2,143.50</span></div>
+              </div>
+
+              <div class="prev-foot">
+                <span id="phValid">Valid 21 days</span>
+                <span id="phLic">CCB #214-887</span>
+              </div>
+            </div>
+          </div>
+          <div class="preview-note">Sample numbers — your saved settings apply to new quotes.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 DEFAULTS -->
+    <section class="s" id="defaults">
+      <div class="s-head"><div class="s-head-l">
+        <div class="s-num">03</div>
+        <div class="s-titles"><h2>Estimating Defaults</h2><div class="s-kicker">What new quotes inherit</div></div>
+      </div></div>
+
+      <div class="dials dials-1" id="dials">
+        <div class="dial">
+          <div class="dial-h"><div class="dial-lbl">Deposit</div><div class="dial-val"><span class="n" id="depN">30</span><span class="u">%</span></div></div>
+          <input type="range" min="0" max="100" step="1" value="30" id="dep" data-dirty>
+          <div class="dial-foot"><span>0%</span><span>100%</span></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="f-label"><div class="label">Quote validity</div></div>
+        <div class="with-suffix"><input class="num-input" type="number" min="1" max="365" value="21" id="validityInput" data-dirty><span>days from send</span></div>
+      </div>
+
+      <div class="field">
+        <div class="f-label"><div class="label">Measure unit</div></div>
+        <div><div class="seg" data-group="unit">
+          <button type="button" class="active" data-val="ft²">Square feet</button>
+          <button type="button" data-val="yd²">Square yards</button>
+          <button type="button" data-val="m²">Square meters</button>
+        </div></div>
+      </div>
+
+      <div class="field">
+        <div class="f-label"><div class="label">Default terms</div><div class="hint">Pre-fills the Terms field on a fresh quote. The estimator can override per quote.</div></div>
+        <div><textarea class="input" rows="4" data-dirty>Quote valid for 21 days. Material price subject to mill availability. 30% deposit due on acceptance; balance on completion.</textarea></div>
+      </div>
+    </section>
+
+    <!-- 04 NOTIFICATIONS -->
+    <section class="s" id="notifications">
+      <div class="s-head"><div class="s-head-l">
+        <div class="s-num">04</div>
+        <div class="s-titles"><h2>Notifications</h2><div class="s-kicker">What's worth a ping</div></div>
+      </div></div>
+
+      <div class="notif-list">
+        <div class="notif-row">
+          <div class="notif-meta"><div class="notif-t">Quote accepted</div><div class="notif-b">Customer signed and the snapshot was sealed.</div></div>
+          <label class="tog"><input type="checkbox" checked data-dirty><span class="tog-sw"></span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 MEMBERS -->
+    <section class="s" id="members">
+      <div class="s-head">
+        <div class="s-head-l">
+          <div class="s-num">05</div>
+          <div class="s-titles"><h2>Members</h2><div class="s-kicker">Who can see and do what</div></div>
+        </div>
+        <button class="btn btn-sm">+ Invite member</button>
+      </div>
+
+      <div class="role-legend">
+        <div class="rl-h">Roles</div>
+        <div class="rl-grid">
+          <div class="rl-card">
+            <div class="rl-name"><span class="rl-dot" style="background:var(--accent)"></span>Admin</div>
+            <div class="rl-desc">Full access to everything, including workspace settings and billing.</div>
+          </div>
+          <div class="rl-card">
+            <div class="rl-name"><span class="rl-dot" style="background:var(--gold)"></span>Lead</div>
+            <div class="rl-desc">Access to everything <em>except</em> workspace settings — can run jobs, edit quotes, manage the schedule.</div>
+          </div>
+          <div class="rl-card">
+            <div class="rl-name"><span class="rl-dot" style="background:var(--sage)"></span>Crew</div>
+            <div class="rl-desc">Sees the schedule and job details. Cannot edit the schedule; can edit the job card on the day of.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mem-table">
+        <div class="mem-head"><span>Person</span><span>Email</span><span>Role</span><span style="text-align:right">Last seen</span></div>
+
+        <div class="mem-row">
+          <div class="mem-person"><div class="mem-av">AS</div><div class="mem-name">Avery Sloan</div></div>
+          <div class="mem-email">avery@pinecrest.co</div>
+          <div class="sel-wrap"><select class="input role-sel" data-dirty><option selected>Admin</option><option>Lead</option><option>Crew</option></select></div>
+          <div class="mem-last">today</div>
+        </div>
+        <div class="mem-row">
+          <div class="mem-person"><div class="mem-av">MC</div><div class="mem-name">Marcus Chen</div></div>
+          <div class="mem-email">marcus@pinecrest.co</div>
+          <div class="sel-wrap"><select class="input role-sel" data-dirty><option>Admin</option><option selected>Lead</option><option>Crew</option></select></div>
+          <div class="mem-last">2h ago</div>
+        </div>
+        <div class="mem-row">
+          <div class="mem-person"><div class="mem-av">RO</div><div class="mem-name">Rae Okonkwo</div></div>
+          <div class="mem-email">rae@pinecrest.co</div>
+          <div class="sel-wrap"><select class="input role-sel" data-dirty><option>Admin</option><option selected>Lead</option><option>Crew</option></select></div>
+          <div class="mem-last">yesterday</div>
+        </div>
+        <div class="mem-row">
+          <div class="mem-person"><div class="mem-av">DM</div><div class="mem-name">Diego Marín</div></div>
+          <div class="mem-email">diego@pinecrest.co</div>
+          <div class="sel-wrap"><select class="input role-sel" data-dirty><option>Admin</option><option>Lead</option><option selected>Crew</option></select></div>
+          <div class="mem-last">4d ago</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 INTEGRATIONS -->
+    <section class="s" id="integrations">
+      <div class="s-head"><div class="s-head-l">
+        <div class="s-num">06</div>
+        <div class="s-titles"><h2>Integrations</h2><div class="s-kicker">Other tools you've wired in</div></div>
+      </div></div>
+
+      <div class="int-grid">
+        <button type="button" class="int-card connected" data-int>
+          <div class="int-meta"><div class="name">QuickBooks Online</div><div class="blurb">Push accepted quotes as draft invoices.</div></div>
+          <span class="int-pill">Connected</span>
+        </button>
+        <button type="button" class="int-card" data-int>
+          <div class="int-meta"><div class="name">Stripe</div><div class="blurb">Collect deposits when a customer accepts.</div></div>
+          <span class="int-pill">Connect</span>
+        </button>
+        <button type="button" class="int-card" data-int>
+          <div class="int-meta"><div class="name">Google Calendar</div><div class="blurb">Mirror the install schedule to a crew calendar.</div></div>
+          <span class="int-pill">Connect</span>
+        </button>
+      </div>
+    </section>
+
+    <div class="endrule"><span class="ln"></span><span>End of workspace settings</span><span class="ln"></span></div>
+
+  </main>
+</div>
+
+<!-- ── SAVE BAR ─────────────────────────────────────────── -->
+<div class="savebar" id="savebar">
+  <span class="savebar-dot"></span>
+  <span class="savebar-l">Unsaved changes</span>
+  <div class="savebar-r">
+    <button class="btn btn-ghost btn-sm" id="revertBtn">Revert</button>
+    <button class="btn btn-primary btn-sm" id="saveBtn">Save workspace</button>
+  </div>
+</div>
+
+<script>
+// ─── THEME ──────────────────────────────────────────────
+const root = document.documentElement;
+const themeBtn = document.getElementById('themeToggle');
+const themeIcon = document.getElementById('themeIcon');
+const themeLabel = document.getElementById('themeLabel');
+function applyTheme(t){
+  if(t==='dark'){root.setAttribute('data-theme','dark');themeIcon.textContent='◑';themeLabel.textContent='Dark';}
+  else{root.removeAttribute('data-theme');themeIcon.textContent='◐';themeLabel.textContent='Light';}
+}
+applyTheme(localStorage.getItem('theme')||'light');
+themeBtn.addEventListener('click',()=>{
+  const dark = root.getAttribute('data-theme')==='dark';
+  const next = dark?'light':'dark';
+  applyTheme(next);
+  try{localStorage.setItem('theme',next);}catch(e){}
+});
+
+// ─── BRAND COLOR ────────────────────────────────────────
+const swatches = document.querySelectorAll('#swatches .sw');
+const hexInput = document.getElementById('hexInput');
+function setBrand(hex){
+  root.style.setProperty('--brand', hex);
+  hexInput.value = hex;
+  swatches.forEach(s => s.classList.toggle('active', s.dataset.hex.toLowerCase()===hex.toLowerCase()));
+  markDirty();
+}
+swatches.forEach(s => s.addEventListener('click', () => setBrand(s.dataset.hex)));
+hexInput.addEventListener('input', () => {
+  const v = hexInput.value.trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(v)){
+    root.style.setProperty('--brand', v);
+    swatches.forEach(s => s.classList.toggle('active', s.dataset.hex.toLowerCase()===v.toLowerCase()));
+  }
+  markDirty();
+});
+
+// ─── SEGMENTED ──────────────────────────────────────────
+document.querySelectorAll('.seg').forEach(seg => {
+  seg.addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b===btn));
+    markDirty();
+  });
+});
+
+// ─── LIVE PREVIEW WIRING ────────────────────────────────
+const trading = document.getElementById('tradingInput');
+const monogram = document.getElementById('monogramInput');
+const tagline = document.getElementById('taglineInput');
+const licFoot = document.getElementById('licFoot');
+const validityInput = document.getElementById('validityInput');
+const dekTrading = document.getElementById('dekTrading');
+const phSeal = document.getElementById('phSeal');
+const phName = document.getElementById('phName');
+const phTag = document.getElementById('phTag');
+const phValid = document.getElementById('phValid');
+const phLic = document.getElementById('phLic');
+
+function syncPreviewText(){
+  const name = trading.value || 'Workspace';
+  const m = monogram.value || 'WS';
+  const tag = tagline.value;
+  phSeal.textContent = m;
+  phName.textContent = name;
+  phTag.textContent = tag;
+  phTag.style.display = tag ? '' : 'none';
+  dekTrading.textContent = name;
+  phValid.textContent = `Valid ${validityInput.value || 0} days`;
+  phLic.style.display = licFoot.checked ? '' : 'none';
+}
+[trading, monogram, tagline, validityInput].forEach(el => el.addEventListener('input', syncPreviewText));
+licFoot.addEventListener('change', syncPreviewText);
+monogram.addEventListener('input', () => { monogram.value = monogram.value.toUpperCase().slice(0,3); });
+
+// deposit dial
+function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+const dep = document.getElementById('dep');
+const depN = document.getElementById('depN');
+const ptTotal = document.getElementById('ptTotal');
+const ptDep = document.getElementById('ptDep');
+const ptDepAmt = document.getElementById('ptDepAmt');
+
+function paintDialFill(input){
+  const pct = (input.value - input.min) / (input.max - input.min) * 100;
+  input.style.background = `linear-gradient(to right, var(--brand) 0%, var(--brand) ${pct}%, var(--line) ${pct}%, var(--line) 100%)`;
+}
+
+function recalcTotals(){
+  const sub = 7145;
+  const d = parseFloat(dep.value);
+  depN.textContent = d;
+  const dAmt = sub * d/100;
+  ptTotal.textContent = `$${fmt(sub)}`;
+  ptDep.textContent = `Deposit · ${d}%`;
+  ptDepAmt.textContent = `$${fmt(dAmt)}`;
+  paintDialFill(dep);
+}
+dep.addEventListener('input', () => { recalcTotals(); markDirty(); });
+recalcTotals();
+
+// ─── INTEGRATION CARDS ──────────────────────────────────
+document.querySelectorAll('[data-int]').forEach(card => {
+  card.addEventListener('click', () => {
+    card.classList.toggle('connected');
+    const pill = card.querySelector('.int-pill');
+    pill.textContent = card.classList.contains('connected') ? 'Connected' : 'Connect';
+    markDirty();
+  });
+});
+
+// ─── DIRTY / SAVE BAR ───────────────────────────────────
+const savebar = document.getElementById('savebar');
+let dirty = false;
+function markDirty(){
+  if(dirty) return;
+  dirty = true;
+  savebar.classList.add('show');
+}
+function clearDirty(){
+  dirty = false;
+  savebar.classList.remove('show');
+}
+document.querySelectorAll('[data-dirty]').forEach(el => {
+  const ev = (el.type==='checkbox' || el.tagName==='SELECT') ? 'change' : 'input';
+  el.addEventListener(ev, markDirty);
+});
+document.getElementById('saveBtn').addEventListener('click', clearDirty);
+document.getElementById('revertBtn').addEventListener('click', () => { location.reload(); });
+
+// ─── TOC SCROLL-SPY ────────────────────────────────────
+const tocLinks = document.querySelectorAll('#tocList a');
+const sections = document.querySelectorAll('main section.s');
+const spy = new IntersectionObserver(entries => {
+  const top = entries.filter(e => e.isIntersecting).sort((a,b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+  if(!top) return;
+  const id = top.target.id;
+  tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#'+id));
+}, { rootMargin:'-25% 0px -65% 0px', threshold:0 });
+sections.forEach(s => spy.observe(s));
+
+// keep saved value bound to monogram uppercase normalization etc.
+syncPreviewText();
+</script>
+
+</body>
+</html>
