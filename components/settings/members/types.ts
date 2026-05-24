@@ -1,0 +1,16 @@
+export type MemberRole = "admin" | "lead" | "crew";
+
+export type MemberRow = {
+  id: string;
+  name: string;
+  email: string;
+  role: MemberRole;
+  createdAt: string;
+};
+
+export type CreateMemberInput = {
+  name: string;
+  email: string;
+  role: MemberRole;
+  password: string;
+};
