@@ -79,6 +79,24 @@ export class EmailFailedError extends ApiError {
   }
 }
 
+export class EmailTakenError extends ConflictError {
+  constructor(message = "Email already in use") {
+    super(message, "EMAIL_TAKEN");
+  }
+}
+
+export class CannotDemoteSelfError extends ApiError {
+  constructor(message = "You can't change your own role") {
+    super({ code: "CANNOT_DEMOTE_SELF", status: 400, message });
+  }
+}
+
+export class LastAdminError extends ApiError {
+  constructor(message = "Can't remove the last admin in the organization") {
+    super({ code: "LAST_ADMIN", status: 400, message });
+  }
+}
+
 /**
  * Wire shape of the standard error envelope, as serialized by apiRoute / publicRoute.
  * Mirrors `ApiError` but on the response side — use this when reading non-OK fetch
