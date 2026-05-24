@@ -2,7 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { computeQuoteView } from "@/lib/quoteView/compute";
-import type { LineItemCalc, RoomItem } from "@/lib/utils";
+import {
+  fromPrismaQuote,
+  type PrismaQuoteForView,
+} from "@/lib/quoteView/fromPrisma";
 
 export interface DashboardKpis {
   estimatesTotal: number;
@@ -17,24 +20,6 @@ export interface DashboardKpis {
   bookedRevenueDelta: number;
 }
 
-type QuoteForRevenue = {
-  markupPct: number;
-  convenienceFeeRate: number;
-  depositPct: number;
-  lineItems: LineItemCalc[];
-  estimate: { items: RoomItem[] };
-};
-
-function computeQuoteTotal(q: QuoteForRevenue): number {
-  return computeQuoteView({
-    lineItems: q.lineItems,
-    items: q.estimate.items,
-    markupPct: q.markupPct,
-    convenienceFeeRate: q.convenienceFeeRate,
-    depositPct: q.depositPct,
-  }).total;
-}
-
 const revenueSelect = {
   markupPct: true,
   convenienceFeeRate: true,
@@ -42,11 +27,15 @@ const revenueSelect = {
   lineItems: {
     select: {
       id: true,
+      name: true,
+      description: true,
+      rate: true,
       qtyMode: true,
       qty: true,
-      rate: true,
       wastePct: true,
+      unitLabel: true,
       linkedRoomIds: true,
+      sortOrder: true,
     },
   },
   estimate: {
@@ -55,11 +44,12 @@ const revenueSelect = {
         select: {
           id: true,
           type: true,
+          name: true,
           shape: true,
           w: true,
           l: true,
-          name: true,
-          sortOrder: true,
+          note: true,
+          text: true,
         },
       },
     },
@@ -80,7 +70,8 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     now.getDate(),
     23,
     59,
-    59
+    59,
+    999
   );
 
   const [
@@ -152,29 +143,25 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     }),
   ]);
 
-  const bookedRevenueMtd = (acceptedMtd as QuoteForRevenue[]).reduce(
-    (sum, q) => sum + computeQuoteTotal(q),
+  const bookedRevenueMtd = (acceptedMtd as PrismaQuoteForView[]).reduce(
+    (sum: number, q) => sum + computeQuoteView(fromPrismaQuote(q)).total,
     0
   );
   const bookedRevenueDelta =
     bookedRevenueMtd -
-    (acceptedLastMonthSamePeriod as QuoteForRevenue[]).reduce(
-      (sum, q) => sum + computeQuoteTotal(q),
+    (acceptedLastMonthSamePeriod as PrismaQuoteForView[]).reduce(
+      (sum: number, q) => sum + computeQuoteView(fromPrismaQuote(q)).total,
       0
     );
 
-  const expiringSoonCount = (
-    awaitingQuotes as {
-      id: string;
-      sentAt: Date | null;
-      validityDays: number;
-    }[]
-  ).filter((q) => {
-    if (!q.sentAt) return false;
-    const expiresAt = new Date(q.sentAt);
-    expiresAt.setDate(expiresAt.getDate() + q.validityDays);
-    return expiresAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  }).length;
+  const expiringSoonCount = awaitingQuotes.filter(
+    (q: { id: string; sentAt: Date | null; validityDays: number }) => {
+      if (!q.sentAt) return false;
+      const expiresAt = new Date(q.sentAt);
+      expiresAt.setDate(expiresAt.getDate() + q.validityDays);
+      return expiresAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+  ).length;
 
   const total30d = won30d + lost30d;
   const winRate30d = total30d === 0 ? 0 : Math.round((won30d / total30d) * 100);

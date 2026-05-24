@@ -27,7 +27,7 @@ interface PrismaEstimateItemRow {
   text?: string | null;
 }
 
-interface PrismaQuoteForView {
+export interface PrismaQuoteForView {
   markupPct: number;
   convenienceFeeRate: number;
   depositPct: number;
