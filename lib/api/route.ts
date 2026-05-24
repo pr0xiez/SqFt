@@ -15,6 +15,7 @@
 import { after, type NextRequest, NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { ApiError, UnauthorizedError, ValidationError } from "@/lib/api/errors";
+import { hasMinRole } from "@/lib/auth/permissions";
 import { logError, logMutation, logRequest } from "@/lib/logger";
 import { getOrgId, requireSession } from "@/lib/tenant";
 
@@ -42,6 +43,8 @@ type RouteOptions<TInput> = {
   input?: ZodType<TInput>;
   /** Success status when the handler returns a value (default 200, ignored for explicit Response). */
   status?: number;
+  /** Minimum role required to access this route. Omit for any-authenticated. */
+  minRole?: "lead" | "admin";
 };
 
 type NextRouteHandler = (req: NextRequest, ctx: RouteCtx) => Promise<Response>;
@@ -66,7 +69,16 @@ export function apiRoute<TInput, TParams>(
   const { options, handler } = normalizeArgs(optionsOrHandler, maybeHandler);
 
   return wrapHandler(async (req, ctx, logCtx) => {
-    const orgId = await getOrgId();
+    let orgId: string;
+    if (options.minRole) {
+      const session = await requireSession();
+      if (!hasMinRole(session.user.role, options.minRole)) {
+        throw new UnauthorizedError();
+      }
+      orgId = session.user.orgId;
+    } else {
+      orgId = await getOrgId();
+    }
     logCtx.orgId = orgId;
     const input = await parseInput<TInput>(req, options.input);
     const params = ((await ctx.params) ?? {}) as TParams;
