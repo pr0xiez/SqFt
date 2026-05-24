@@ -4,9 +4,6 @@ import {
   ValidationError,
 } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
-import { sendSignedNotification } from "@/lib/email/sendSignedNotification";
-import { logError } from "@/lib/logger";
-import { prisma } from "@/lib/prisma";
 import { quoteAcceptSchema, quoteTokenParams } from "@/lib/quotes/schema";
 import { fromPrismaQuote } from "@/lib/quoteView";
 import { canonicalize, sha256, snapshotQuote } from "@/lib/quoteView/snapshot";
@@ -70,49 +67,6 @@ export const POST = publicRoute(
       );
     }
 
-    // Fire-and-forget owner notification
-    void notifyOwners(quote.orgId, {
-      quoteId: quote.id,
-      quoteNumber: quote.quoteNumber,
-      customerName: name,
-      customerEmail: email,
-      total: snap.totals.total,
-      deposit: snap.totals.deposit,
-    });
-
     return { ok: true };
   }
 );
-
-async function notifyOwners(
-  orgId: string,
-  args: {
-    quoteId: number;
-    quoteNumber: number;
-    customerName: string;
-    customerEmail: string;
-    total: number;
-    deposit: number;
-  }
-) {
-  try {
-    const owners = await prisma.user.findMany({
-      where: { orgId, role: "admin" },
-      select: { email: true },
-    });
-    const recipients = owners.map((o) => o.email).filter(Boolean);
-    await sendSignedNotification({
-      variant: "accepted",
-      to: recipients,
-      quoteId: args.quoteId,
-      quoteNumber: args.quoteNumber,
-      customerName: args.customerName,
-      customerEmail: args.customerEmail,
-      signedAt: new Date(),
-      total: args.total,
-      deposit: args.deposit,
-    });
-  } catch (err) {
-    logError({ errorMessage: "Owner notification failed", err });
-  }
-}
