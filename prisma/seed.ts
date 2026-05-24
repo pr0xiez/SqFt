@@ -148,6 +148,34 @@ async function main() {
   });
   console.log(`  ✓ User: ${user.email} / password: demo1234`);
 
+  const leadHash = await bcrypt.hash("demo1234", 10);
+  await prisma.user.upsert({
+    where: { email: "lead@sqft.dev" },
+    update: {},
+    create: {
+      name: "Marcus Chen",
+      email: "lead@sqft.dev",
+      password: leadHash,
+      role: "lead",
+      orgId: org.id,
+    },
+  });
+  console.log("  ✓ User: lead@sqft.dev / password: demo1234");
+
+  const crewHash = await bcrypt.hash("demo1234", 10);
+  await prisma.user.upsert({
+    where: { email: "crew@sqft.dev" },
+    update: {},
+    create: {
+      name: "Diego Marín",
+      email: "crew@sqft.dev",
+      password: crewHash,
+      role: "crew",
+      orgId: org.id,
+    },
+  });
+  console.log("  ✓ User: crew@sqft.dev / password: demo1234");
+
   // ── Second org + user (used by tenant-isolation E2E tests) ───────────────
   const otherOrg = await prisma.organization.upsert({
     where: { slug: "other-floors-demo" },
