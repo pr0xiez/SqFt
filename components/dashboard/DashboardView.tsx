@@ -53,7 +53,7 @@ export function DashboardView() {
         <div>
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.06em] uppercase mb-2 flex items-center gap-2.5">
             <span
-              className="w-1.5 h-1.5 rounded-full"
+              className="w-1.5 h-1.5 rounded-full animate-pulse"
               style={{
                 background: "var(--sage)",
                 boxShadow: "0 0 0 4px rgba(61,107,74,.12)",
