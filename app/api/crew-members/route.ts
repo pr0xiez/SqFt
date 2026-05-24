@@ -9,6 +9,6 @@ export const GET = apiRoute(async ({ orgId, req }) => {
 });
 
 export const POST = apiRoute(
-  { input: crewMemberCreateSchema, status: 201 },
+  { minRole: "lead", input: crewMemberCreateSchema, status: 201 },
   async ({ orgId, input }) => createCrewMember(orgId, input)
 );

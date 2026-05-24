@@ -8,7 +8,7 @@ import {
 } from "@/lib/repositories";
 
 export const PATCH = apiRoute(
-  { input: eventUpdateSchema },
+  { minRole: "lead", input: eventUpdateSchema },
   async ({ orgId, input, params }) => {
     const { id } = eventIdParams.parse(params);
     const { date, endDate, crewMemberIds, ...rest } = input;
@@ -33,8 +33,11 @@ export const PATCH = apiRoute(
   }
 );
 
-export const DELETE = apiRoute(async ({ orgId, params }) => {
-  const { id } = eventIdParams.parse(params);
-  await deleteEvent(id, orgId);
-  return null;
-});
+export const DELETE = apiRoute(
+  { minRole: "lead" },
+  async ({ orgId, params }) => {
+    const { id } = eventIdParams.parse(params);
+    await deleteEvent(id, orgId);
+    return null;
+  }
+);
