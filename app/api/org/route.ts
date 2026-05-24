@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { NotFoundError } from "@/lib/api/errors";
-import { adminRoute, apiRoute } from "@/lib/api/route";
+import { apiRoute } from "@/lib/api/route";
 import { prisma } from "@/lib/prisma";
 
 const ORG_SELECT = {
@@ -56,8 +56,8 @@ const PatchBody = z
   })
   .strict();
 
-export const PATCH = adminRoute(
-  { input: PatchBody },
+export const PATCH = apiRoute(
+  { minRole: "admin", input: PatchBody },
   async ({ orgId, input }) => {
     const data = Object.fromEntries(
       Object.entries(input).filter(([, v]) => v !== undefined)

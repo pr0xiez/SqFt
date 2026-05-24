@@ -1,7 +1,7 @@
 /**
  * Tier-B route tests: PATCH /api/org gates on admin, validates input,
  * and returns the updated org. Auth/role plumbing is covered by
- * adminRoute's own tests; this file focuses on the route's contract.
+ * apiRoute({ minRole: "admin" }) plumbing is covered by route.test.ts; this file focuses on the route's contract.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
