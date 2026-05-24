@@ -50,7 +50,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   process.env.PUBLIC_BASE_URL = "https://app.sqft.dev";
   mockRequireSession.mockResolvedValue({
-    user: { email: "alex@org.com", name: "Alex" },
+    user: {
+      id: "u1",
+      orgId: "org1",
+      role: "lead",
+      email: "alex@org.com",
+      name: "Alex",
+    },
   } as never);
 });
 

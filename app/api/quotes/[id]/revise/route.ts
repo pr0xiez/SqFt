@@ -3,7 +3,7 @@ import { apiRoute } from "@/lib/api/route";
 import { quoteIdParams } from "@/lib/quotes/schema";
 import { getQuote, reviseQuote } from "@/lib/repositories";
 
-export const POST = apiRoute(async ({ orgId, params }) => {
+export const POST = apiRoute({ minRole: "lead" }, async ({ orgId, params }) => {
   const { id } = quoteIdParams.parse(params);
 
   const original = await getQuote(id, orgId);
