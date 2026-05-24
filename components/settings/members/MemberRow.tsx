@@ -36,12 +36,12 @@ export function MemberRow({
     );
   }
 
-  const initials =
-    row.name
-      .split(/\s+/)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .slice(0, 2)
-      .join("") || row.email[0]?.toUpperCase() || "·";
+  const nameInitials = row.name
+    .split(/\s+/)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .slice(0, 2)
+    .join("");
+  const initials = nameInitials || row.email[0]?.toUpperCase() || "·";
 
   return (
     <div className="grid grid-cols-[1fr_1.5fr_140px] items-center gap-3 px-4 py-3 border-b border-[var(--line)] last:border-b-0">
