@@ -1,19 +1,14 @@
 import { expect, test } from "@playwright/test";
 import {
   createTestUser,
-  deleteTestUser,
   loginAsTestUser,
   type TestUser,
 } from "./fixtures/users";
 
 let user: TestUser;
 
-test.beforeAll(async () => {
-  user = await createTestUser("crew");
-});
-
-test.afterAll(async () => {
-  await deleteTestUser(user.id);
+test.beforeAll(async ({ browser }) => {
+  user = await createTestUser(browser, "crew");
 });
 
 test("crew login lands on /schedule", async ({ browser }) => {

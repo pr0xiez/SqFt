@@ -1,13 +1,16 @@
 /**
- * Per-test user fixtures. Each call creates a fresh user with a unique
- * email so parallel tests don't collide. The caller is responsible for
- * deleting the user (or batch-deleting after the suite via the cleanup
- * helper).
+ * Per-test user fixtures. Creates users via POST /api/users using a
+ * temporary admin session driven through the seeded demo admin. Each call
+ * generates a unique email so parallel tests don't collide. There is no
+ * cleanup — the test DB accumulates users across runs, which matches the
+ * pattern of the other e2e fixtures (customers, estimates, etc).
+ *
+ * Direct Prisma access would be cleaner but the generated client is
+ * CommonJS and Playwright's runtime is ESM, so we go through HTTP.
  */
 
-import { randomUUID } from "node:crypto";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import type { Browser } from "@playwright/test";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "./auth";
 
 export type Role = "admin" | "lead" | "crew";
 
@@ -16,42 +19,52 @@ export type TestUser = {
   email: string;
   password: string;
   role: Role;
-  orgId: string;
 };
 
 const PLAYWRIGHT_PASSWORD = "test-pw-1234";
 
 /**
- * Create a user in the demo org with the given role. The email is
- * "{role}-{uuid}@playwright.test", which never collides with seed data.
+ * Create a user in the seeded demo org with the given role. The email is
+ * `{role}-{timestamp}-{rand}@playwright.test`, which never collides with
+ * seed data or prior runs.
  */
-export async function createTestUser(role: Role): Promise<TestUser> {
-  const org = await prisma.organization.findFirstOrThrow({
-    where: { slug: "johnson-flooring-demo" },
-  });
-  const email = `${role}-${randomUUID()}@playwright.test`;
-  const password = PLAYWRIGHT_PASSWORD;
-  const hash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: {
-      name: `Test ${role}`,
-      email,
-      password: hash,
-      role,
-      orgId: org.id,
-    },
-  });
-  return { id: user.id, email, password, role, orgId: org.id };
-}
+export async function createTestUser(
+  browser: Browser,
+  role: Role
+): Promise<TestUser> {
+  const ctx = await browser.newContext();
+  try {
+    const page = await ctx.newPage();
+    await page.goto("/login");
+    await page.fill("#email", DEMO_EMAIL);
+    await page.fill("#password", DEMO_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL("/");
 
-export async function deleteTestUser(id: string): Promise<void> {
-  await prisma.user.delete({ where: { id } }).catch(() => {});
+    const email = `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@playwright.test`;
+    const res = await ctx.request.post("/api/users", {
+      data: {
+        name: `Test ${role}`,
+        email,
+        role,
+        password: PLAYWRIGHT_PASSWORD,
+      },
+    });
+    if (!res.ok()) {
+      throw new Error(
+        `createTestUser(${role}) failed: ${res.status()} ${await res.text()}`
+      );
+    }
+    const user = (await res.json()) as { id: string };
+    return { id: user.id, email, password: PLAYWRIGHT_PASSWORD, role };
+  } finally {
+    await ctx.close();
+  }
 }
 
 /**
  * Login helper that drives the login form, awaits navigation, and
- * returns when the page is settled on the post-login route. Works for
- * any role — caller verifies the landing URL.
+ * returns when the page is settled on the post-login route.
  */
 export async function loginAsTestUser(
   page: import("@playwright/test").Page,

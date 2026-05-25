@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
   createTestUser,
-  deleteTestUser,
   loginAsTestUser,
   type TestUser,
 } from "./fixtures/users";
@@ -9,14 +8,9 @@ import {
 let admin: TestUser;
 let target: TestUser;
 
-test.beforeAll(async () => {
-  admin = await createTestUser("admin");
-  target = await createTestUser("crew");
-});
-
-test.afterAll(async () => {
-  await deleteTestUser(admin.id);
-  await deleteTestUser(target.id);
+test.beforeAll(async ({ browser }) => {
+  admin = await createTestUser(browser, "admin");
+  target = await createTestUser(browser, "crew");
 });
 
 test("admin sees Members card on /settings", async ({ browser }) => {
@@ -89,9 +83,8 @@ test("admin can invite a new member", async ({ browser }) => {
 
   await expect(page.locator(`text=${newEmail}`)).toBeVisible();
 
-  // Cleanup: delete via Prisma directly so we don't depend on a delete API.
-  const { prisma } = await import("@/lib/prisma");
-  await prisma.user.deleteMany({ where: { email: newEmail } });
+  // No cleanup — invited user remains in the test DB. Unique email per run
+  // prevents collisions, same as the other e2e fixtures.
 
   await ctx.close();
 });
