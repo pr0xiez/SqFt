@@ -72,12 +72,14 @@ test("admin can invite a new member", async ({ browser }) => {
 
   await page.getByRole("button", { name: /invite member/i }).click();
 
+  // Scope to the form — each existing row also has a "Role for X" select.
+  const form = page.locator("form").filter({ hasText: /add member/i });
   const newEmail = `invited-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@playwright.test`;
-  await page.getByLabel("Name").fill("Invited Person");
-  await page.getByLabel("Email").fill(newEmail);
-  await page.getByLabel("Role").selectOption("crew");
-  await page.getByLabel("Temporary password").fill("invitedpw1234");
-  await page.getByRole("button", { name: /add member/i }).click();
+  await form.getByLabel("Name").fill("Invited Person");
+  await form.getByLabel("Email").fill(newEmail);
+  await form.getByLabel("Role").selectOption("crew");
+  await form.getByLabel("Temporary password").fill("invitedpw1234");
+  await form.getByRole("button", { name: /add member/i }).click();
 
   await expect(page.locator(`text=${newEmail}`)).toBeVisible();
 
