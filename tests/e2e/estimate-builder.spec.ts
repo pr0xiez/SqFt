@@ -209,11 +209,9 @@ test.describe
       await page.goto(`/estimates/${estimateId}`);
       const input = page.getByPlaceholder("Room name");
       // RoomSection saves on every onChange AND onBlur, so fill+blur fires
-      // two overlapping PATCHes. Wait for the network to go quiet, then
-      // confirm the server converged via the API — same pattern as 3.2.4.
+      // overlapping PATCHes. expect.poll retries until the server converges.
       await input.fill("Living Room");
       await input.blur();
-      await page.waitForLoadState("networkidle");
 
       await expect
         .poll(async () => {
@@ -235,12 +233,11 @@ test.describe
     test("3.2.4 editing dimensions saves and updates sqft display", async () => {
       await page.goto(`/estimates/${estimateId}`);
       // RoomSection saves on every onChange AND onBlur, so filling L then W
-      // fires several overlapping PATCHes. Wait for the network to go quiet
-      // before we assert, otherwise we race in-flight saves.
+      // fires several overlapping PATCHes. The sqft display updates from local
+      // React state; expect.poll below retries until the server converges.
       await page.getByPlaceholder("L").fill("12");
       await page.getByPlaceholder("W").fill("10");
       await page.getByPlaceholder("W").blur();
-      await page.waitForLoadState("networkidle");
 
       await expect(page.getByText(/120 sqft/).first()).toBeVisible();
 
@@ -277,7 +274,6 @@ test.describe
       const note = page.getByPlaceholder("Field note…");
       await note.fill("Tile in entryway only");
       await note.blur();
-      await page.waitForLoadState("networkidle");
 
       await expect
         .poll(async () => {
