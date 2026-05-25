@@ -58,22 +58,24 @@ export function useTableQueryState<SortKey extends string>(
     return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 1;
   });
 
-  const [perPage, setPerPageState] = useState<number>(() => {
-    if (typeof window === "undefined") return defaultPerPage;
+  const [perPage, setPerPageState] = useState<number>(defaultPerPage);
+
+  const [density, setDensityState] = useState<Density>(defaultDensity);
+
+  useEffect(() => {
     const stored = window.localStorage.getItem(
       storageKeyFor(storageKey, "perPage")
     );
     const n = Number(stored);
-    return PER_PAGE_OPTIONS.includes(n) ? n : defaultPerPage;
-  });
+    if (PER_PAGE_OPTIONS.includes(n)) setPerPageState(n);
+  }, [storageKey]);
 
-  const [density, setDensityState] = useState<Density>(() => {
-    if (typeof window === "undefined") return defaultDensity;
+  useEffect(() => {
     const stored = window.localStorage.getItem(
       storageKeyFor(storageKey, "density")
     );
-    return isDensity(stored) ? stored : defaultDensity;
-  });
+    if (isDensity(stored)) setDensityState(stored);
+  }, [storageKey]);
 
   // Debounced URL writer. We coalesce paired setSort+setPage calls inside
   // one handler into a single router.replace.

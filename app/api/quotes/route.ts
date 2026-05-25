@@ -4,7 +4,7 @@ import { quoteCreateSchema } from "@/lib/quotes/schema";
 import { computeQuoteView, fromPrismaQuote } from "@/lib/quoteView";
 import { createQuote, listQuotes } from "@/lib/repositories";
 
-export const GET = apiRoute(async ({ orgId }) => {
+export const GET = apiRoute({ minRole: "lead" }, async ({ orgId }) => {
   const quotes = await listQuotes(orgId);
   return quotes.map((quote) => {
     const { lineItems: _lineItems, estimate, ...rest } = quote;
@@ -19,7 +19,7 @@ export const GET = apiRoute(async ({ orgId }) => {
 });
 
 export const POST = apiRoute(
-  { input: quoteCreateSchema, status: 201 },
+  { minRole: "lead", input: quoteCreateSchema, status: 201 },
   async ({ orgId, input }) => {
     const quote = await createQuote(orgId, input);
     if (!quote) throw new NotFoundError("Estimate not found");

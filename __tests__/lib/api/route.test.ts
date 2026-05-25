@@ -9,6 +9,7 @@ vi.mock("../../../lib/logger", () => ({
 
 vi.mock("../../../lib/tenant", () => ({
   getOrgId: vi.fn(),
+  requireSession: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -22,7 +23,8 @@ vi.mock("next/server", async (importOriginal) => {
 const { logRequest, logMutation, logError } = await import(
   "../../../lib/logger"
 );
-const { getOrgId } = await import("../../../lib/tenant");
+const { getOrgId, requireSession } = await import("../../../lib/tenant");
+const mockRequireSession = vi.mocked(requireSession);
 const { apiRoute, publicRoute } = await import("../../../lib/api/route");
 const {
   ConflictError,
@@ -366,5 +368,75 @@ describe("publicRoute", () => {
     expect(await res.json()).toEqual({
       error: { code: "NOT_FOUND", message: "Not found" },
     });
+  });
+});
+
+describe("apiRoute — minRole option", () => {
+  it("returns 401 when minRole is set and the session is missing", async () => {
+    mockRequireSession.mockRejectedValueOnce(new UnauthorizedError());
+    const handler = apiRoute({ minRole: "lead" }, async () => ({ ok: true }));
+
+    const res = await handler(makeRequest("GET"), ctx);
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({
+      error: { code: "UNAUTHORIZED", message: "Unauthorized" },
+    });
+  });
+
+  it("returns 401 when the session role is below minRole", async () => {
+    mockRequireSession.mockResolvedValueOnce(
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+      { user: { id: "u1", orgId: "org1", role: "crew" } } as any
+    );
+    const handler = apiRoute({ minRole: "lead" }, async () => ({ ok: true }));
+
+    const res = await handler(makeRequest("GET"), ctx);
+
+    expect(res.status).toBe(401);
+  });
+
+  it("invokes the handler with orgId when role meets minRole (lead → lead)", async () => {
+    mockRequireSession.mockResolvedValueOnce(
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+      { user: { id: "u1", orgId: "org1", role: "lead" } } as any
+    );
+    const inner = vi.fn(async ({ orgId }: { orgId: string }) => ({ orgId }));
+    const handler = apiRoute({ minRole: "lead" }, inner);
+
+    const res = await handler(makeRequest("GET"), ctx);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ orgId: "org1" });
+    expect(inner).toHaveBeenCalledWith(
+      expect.objectContaining({ orgId: "org1" })
+    );
+    expect(mockGetOrgId).not.toHaveBeenCalled(); // minRole branch skips getOrgId
+  });
+
+  it("admin meets minRole=admin", async () => {
+    mockRequireSession.mockResolvedValueOnce(
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+      { user: { id: "u1", orgId: "org1", role: "admin" } } as any
+    );
+    const handler = apiRoute({ minRole: "admin" }, async ({ orgId }) => ({
+      orgId,
+    }));
+
+    const res = await handler(makeRequest("GET"), ctx);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("lead does NOT meet minRole=admin", async () => {
+    mockRequireSession.mockResolvedValueOnce(
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+      { user: { id: "u1", orgId: "org1", role: "lead" } } as any
+    );
+    const handler = apiRoute({ minRole: "admin" }, async () => ({ ok: true }));
+
+    const res = await handler(makeRequest("GET"), ctx);
+
+    expect(res.status).toBe(401);
   });
 });

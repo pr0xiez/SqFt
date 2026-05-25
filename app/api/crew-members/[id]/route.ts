@@ -7,7 +7,7 @@ import {
 import { deleteCrewMember, updateCrewMember } from "@/lib/repositories";
 
 export const PATCH = apiRoute(
-  { input: crewMemberUpdateSchema },
+  { minRole: "lead", input: crewMemberUpdateSchema },
   async ({ orgId, input, params }) => {
     const { id } = crewMemberIdParams.parse(params);
     const member = await updateCrewMember(id, orgId, input);
@@ -16,9 +16,12 @@ export const PATCH = apiRoute(
   }
 );
 
-export const DELETE = apiRoute(async ({ orgId, params }) => {
-  const { id } = crewMemberIdParams.parse(params);
-  const result = await deleteCrewMember(id, orgId);
-  if (!result.ok) throw new NotFoundError();
-  return null;
-});
+export const DELETE = apiRoute(
+  { minRole: "lead" },
+  async ({ orgId, params }) => {
+    const { id } = crewMemberIdParams.parse(params);
+    const result = await deleteCrewMember(id, orgId);
+    if (!result.ok) throw new NotFoundError();
+    return null;
+  }
+);

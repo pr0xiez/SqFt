@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
 import { getQuote, getQuoteSignature } from "@/lib/repositories";
-import { getOrgId } from "@/lib/tenant";
+import { requireSession } from "@/lib/tenant";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -9,7 +10,10 @@ interface Props {
 export const metadata = { title: "Signed quote — SqFt" };
 
 export default async function SignedQuotePage({ params }: Props) {
-  const orgId = await getOrgId();
+  const session = await requireSession();
+  if (!hasMinRole(session.user.role, "lead"))
+    redirect(homePathFor(session.user.role));
+  const orgId = session.user.orgId;
   const { id } = await params;
   const quoteId = parseInt(id, 10);
   if (Number.isNaN(quoteId)) notFound();

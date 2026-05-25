@@ -1,9 +1,9 @@
 /**
  * The API request seam.
  *
- * Three adapters: `apiRoute` for org-scoped endpoints, `adminRoute` for
- * admin-only org-scoped endpoints, and `publicRoute` for unauthenticated
- * (token-verified) endpoints. All three own:
+ * Two adapters: `apiRoute` for org-scoped endpoints (optionally gated by
+ * `minRole: "lead" | "admin"`), and `publicRoute` for unauthenticated
+ * (token-verified) endpoints. Both own:
  *   - input parsing via an optional Zod schema
  *   - error translation to the standard envelope (see CONTEXT.md)
  *   - request/mutation/error logging
@@ -15,6 +15,7 @@
 import { after, type NextRequest, NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { ApiError, UnauthorizedError, ValidationError } from "@/lib/api/errors";
+import { hasMinRole } from "@/lib/auth/permissions";
 import { logError, logMutation, logRequest } from "@/lib/logger";
 import { getOrgId, requireSession } from "@/lib/tenant";
 
@@ -42,6 +43,8 @@ type RouteOptions<TInput> = {
   input?: ZodType<TInput>;
   /** Success status when the handler returns a value (default 200, ignored for explicit Response). */
   status?: number;
+  /** Minimum role required to access this route. Omit for any-authenticated. */
+  minRole?: "lead" | "admin";
 };
 
 type NextRouteHandler = (req: NextRequest, ctx: RouteCtx) => Promise<Response>;
@@ -66,7 +69,16 @@ export function apiRoute<TInput, TParams>(
   const { options, handler } = normalizeArgs(optionsOrHandler, maybeHandler);
 
   return wrapHandler(async (req, ctx, logCtx) => {
-    const orgId = await getOrgId();
+    let orgId: string;
+    if (options.minRole) {
+      const session = await requireSession();
+      if (!hasMinRole(session.user.role, options.minRole)) {
+        throw new UnauthorizedError();
+      }
+      orgId = session.user.orgId;
+    } else {
+      orgId = await getOrgId();
+    }
     logCtx.orgId = orgId;
     const input = await parseInput<TInput>(req, options.input);
     const params = ((await ctx.params) ?? {}) as TParams;
@@ -200,49 +212,6 @@ function wrapHandler(
 
     return res;
   };
-}
-
-// ── adminRoute ────────────────────────────────────────────────────────────────
-
-/**
- * Like `apiRoute`, but also requires `session.user.role === "admin"`.
- * Non-admin and unauthenticated callers both receive 401 UNAUTHORIZED.
- */
-export function adminRoute<
-  TInput = undefined,
-  TParams = Record<string, string>,
->(
-  handler: (args: OrgHandlerArgs<TInput, TParams>) => Promise<HandlerResult>
-): NextRouteHandler;
-export function adminRoute<
-  TInput = undefined,
-  TParams = Record<string, string>,
->(
-  options: RouteOptions<TInput>,
-  handler: (args: OrgHandlerArgs<TInput, TParams>) => Promise<HandlerResult>
-): NextRouteHandler;
-export function adminRoute<TInput, TParams>(
-  optionsOrHandler:
-    | RouteOptions<TInput>
-    | ((args: OrgHandlerArgs<TInput, TParams>) => Promise<HandlerResult>),
-  maybeHandler?: (
-    args: OrgHandlerArgs<TInput, TParams>
-  ) => Promise<HandlerResult>
-): NextRouteHandler {
-  const { options, handler } = normalizeArgs(optionsOrHandler, maybeHandler);
-
-  return wrapHandler(async (req, ctx, logCtx) => {
-    const session = await requireSession();
-    if (session.user.role !== "admin") {
-      throw new UnauthorizedError();
-    }
-    const orgId = session.user.orgId;
-    logCtx.orgId = orgId;
-    const input = await parseInput<TInput>(req, options.input);
-    const params = ((await ctx.params) ?? {}) as TParams;
-    const value = await handler({ req, orgId, input, params });
-    return toResponse(value, options.status);
-  });
 }
 
 function errorToResponse(

@@ -20,7 +20,7 @@ import {
 import { requireSession } from "@/lib/tenant";
 
 export const POST = apiRoute(
-  { input: quoteSendSchema },
+  { minRole: "lead", input: quoteSendSchema },
   async ({ orgId, input, params }) => {
     const session = await requireSession();
     const sender = session.user;

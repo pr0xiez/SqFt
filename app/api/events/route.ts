@@ -10,7 +10,7 @@ import {
 export const GET = apiRoute(async ({ orgId }) => listEvents(orgId));
 
 export const POST = apiRoute(
-  { input: eventCreateSchema, status: 201 },
+  { minRole: "lead", input: eventCreateSchema, status: 201 },
   async ({ orgId, input }) => {
     const { endDate, crewMemberIds, ...rest } = input;
 

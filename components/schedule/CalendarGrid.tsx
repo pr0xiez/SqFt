@@ -98,7 +98,7 @@ function layoutEvents(dayEvents: CalEvent[]): PlacedEvent[] {
   return placed;
 }
 
-export function ScheduleView() {
+export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
@@ -202,13 +202,15 @@ export function ScheduleView() {
           >
             →
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => openNewEvent(today)}
-          >
-            + Add Event
-          </Button>
+          {canEdit && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => openNewEvent(today)}
+            >
+              + Add Event
+            </Button>
+          )}
         </div>
       </div>
 
@@ -250,11 +252,12 @@ export function ScheduleView() {
                 key={ds}
                 type="button"
                 className={cn(
-                  "px-2.5 py-2 text-center border-l border-[var(--line)] bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-2)] transition-colors w-full",
+                  "px-2.5 py-2 text-center border-l border-[var(--line)] bg-[var(--surface)] transition-colors w-full",
+                  canEdit && "cursor-pointer hover:bg-[var(--surface-2)]",
                   isToday &&
                     "bg-[rgba(192,52,26,0.04)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.06)]"
                 )}
-                onClick={() => openNewEvent(ds)}
+                onClick={() => canEdit && openNewEvent(ds)}
               >
                 <div className="font-[var(--font-mono)] text-[9px] text-[var(--muted)] uppercase tracking-[.06em] mb-0.5">
                   {d.toLocaleDateString("en-US", { weekday: "short" })}
@@ -314,13 +317,16 @@ export function ScheduleView() {
                   role="button"
                   tabIndex={0}
                   className={cn(
-                    "relative border-l border-[var(--line)] cursor-pointer",
+                    "relative border-l border-[var(--line)]",
+                    canEdit && "cursor-pointer",
                     isToday &&
                       "bg-[rgba(192,52,26,0.02)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.04)]"
                   )}
                   style={{ minHeight: BODY_HEIGHT }}
-                  onClick={() => openNewEvent(ds)}
-                  onKeyDown={(e) => e.key === "Enter" && openNewEvent(ds)}
+                  onClick={() => canEdit && openNewEvent(ds)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && canEdit && openNewEvent(ds)
+                  }
                 >
                   {/* Hour lines */}
                   {HOURS.map((hour) => (
@@ -358,7 +364,7 @@ export function ScheduleView() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openEditEvent(ev);
+                          if (canEdit) openEditEvent(ev);
                         }}
                         style={{
                           position: "absolute",
@@ -413,32 +419,34 @@ export function ScheduleView() {
         </div>
       </div>
 
-      <EventFormPanel
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        defaultDate={selectedDate}
-        editingEvent={editingEvent}
-        customers={customers}
-        quotes={quotes}
-        onSave={async (data) => {
-          try {
-            await createEvent.mutateAsync(data);
-            setPanelOpen(false);
-            showToast("Event saved", data.title);
-          } catch {
-            showToast("Failed to save event");
-          }
-        }}
-        onDelete={async (id) => {
-          try {
-            await deleteEvent.mutateAsync(id);
-            setPanelOpen(false);
-            showToast("Event deleted");
-          } catch {
-            showToast("Failed to delete event");
-          }
-        }}
-      />
+      {canEdit && (
+        <EventFormPanel
+          open={panelOpen}
+          onClose={() => setPanelOpen(false)}
+          defaultDate={selectedDate}
+          editingEvent={editingEvent}
+          customers={customers}
+          quotes={quotes}
+          onSave={async (data) => {
+            try {
+              await createEvent.mutateAsync(data);
+              setPanelOpen(false);
+              showToast("Event saved", data.title);
+            } catch {
+              showToast("Failed to save event");
+            }
+          }}
+          onDelete={async (id) => {
+            try {
+              await deleteEvent.mutateAsync(id);
+              setPanelOpen(false);
+              showToast("Event deleted");
+            } catch {
+              showToast("Failed to delete event");
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

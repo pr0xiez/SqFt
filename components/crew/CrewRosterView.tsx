@@ -12,7 +12,7 @@ import {
   useUpdateCrewMember,
 } from "@/lib/hooks/useCrewMembers";
 
-export function CrewRosterView() {
+export function CrewRosterView({ canEdit }: { canEdit: boolean }) {
   const { data: all = [], isLoading } = useCrewMembers({
     includeArchived: true,
   });
@@ -28,12 +28,12 @@ export function CrewRosterView() {
     <div className="max-w-[640px] mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[24px] font-[700] tracking-[-0.02em]">Crew</h1>
-        {!adding && (
+        {canEdit && !adding && (
           <Button onClick={() => setAdding(true)}>+ Add crew member</Button>
         )}
       </div>
 
-      {adding && (
+      {canEdit && adding && (
         <AddRow
           onCancel={() => setAdding(false)}
           onSave={async (input) => {
@@ -57,7 +57,7 @@ export function CrewRosterView() {
       ) : (
         <ul className="divide-y divide-[var(--line)] border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)]">
           {active.map((m) => (
-            <RosterRow key={m.id} member={m} />
+            <RosterRow key={m.id} member={m} canEdit={canEdit} />
           ))}
         </ul>
       )}
@@ -74,7 +74,7 @@ export function CrewRosterView() {
           {showArchived && (
             <ul className="mt-2 divide-y divide-[var(--line)] border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)]">
               {archived.map((m) => (
-                <RosterRow key={m.id} member={m} archived />
+                <RosterRow key={m.id} member={m} archived canEdit={canEdit} />
               ))}
             </ul>
           )}
@@ -123,9 +123,11 @@ function AddRow(props: {
 function RosterRow({
   member,
   archived = false,
+  canEdit,
 }: {
   member: CrewMember;
   archived?: boolean;
+  canEdit: boolean;
 }) {
   const update = useUpdateCrewMember(member.id);
   const { showToast } = useToast();
@@ -195,9 +197,9 @@ function RosterRow({
         ) : (
           <button
             type="button"
-            onClick={() => !archived && setEditingName(true)}
+            onClick={() => canEdit && !archived && setEditingName(true)}
             className="text-[14px] font-[600] text-left hover:underline"
-            disabled={archived}
+            disabled={!canEdit || archived}
           >
             {member.name}
           </button>
@@ -221,17 +223,19 @@ function RosterRow({
         ) : (
           <button
             type="button"
-            onClick={() => !archived && setEditingRole(true)}
+            onClick={() => canEdit && !archived && setEditingRole(true)}
             className="block text-[12px] text-[var(--muted)] hover:underline text-left"
-            disabled={archived}
+            disabled={!canEdit || archived}
           >
             {member.role || (archived ? "—" : "Add role")}
           </button>
         )}
       </div>
-      <Button variant="ghost" onClick={toggleArchive}>
-        {archived ? "Restore" : "Archive"}
-      </Button>
+      {canEdit && (
+        <Button variant="ghost" onClick={toggleArchive}>
+          {archived ? "Restore" : "Archive"}
+        </Button>
+      )}
     </li>
   );
 }

@@ -5,8 +5,12 @@ vi.mock("@/lib/dashboard/revenue", () => ({
   getDashboardRevenue: vi.fn(),
 }));
 
+const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
+
 vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockResolvedValue("org1"),
+  // biome-ignore lint/suspicious/noExplicitAny: test stub session
+  requireSession: vi.fn().mockResolvedValue(stubSession as any),
 }));
 
 vi.mock("next/server", async (importOriginal) => {

@@ -7,7 +7,7 @@ import {
   updateCustomer,
 } from "@/lib/repositories";
 
-export const GET = apiRoute(async ({ orgId, params }) => {
+export const GET = apiRoute({ minRole: "lead" }, async ({ orgId, params }) => {
   const { id } = customerIdParams.parse(params);
   const customer = await getCustomer(id, orgId);
   if (!customer) throw new NotFoundError();
@@ -15,7 +15,7 @@ export const GET = apiRoute(async ({ orgId, params }) => {
 });
 
 export const PATCH = apiRoute(
-  { input: customerUpdateSchema },
+  { minRole: "lead", input: customerUpdateSchema },
   async ({ orgId, input, params }) => {
     const { id } = customerIdParams.parse(params);
     const customer = await updateCustomer(id, orgId, input);
@@ -24,9 +24,12 @@ export const PATCH = apiRoute(
   }
 );
 
-export const DELETE = apiRoute(async ({ orgId, params }) => {
-  const { id } = customerIdParams.parse(params);
-  const deleted = await deleteCustomer(id, orgId);
-  if (!deleted) throw new NotFoundError();
-  return null;
-});
+export const DELETE = apiRoute(
+  { minRole: "lead" },
+  async ({ orgId, params }) => {
+    const { id } = customerIdParams.parse(params);
+    const deleted = await deleteCustomer(id, orgId);
+    if (!deleted) throw new NotFoundError();
+    return null;
+  }
+);

@@ -10,8 +10,12 @@ vi.mock("@/lib/repositories", () => ({
   validateCrewMemberIds: vi.fn().mockResolvedValue(true),
 }));
 
+const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
+
 vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockResolvedValue("org1"),
+  // biome-ignore lint/suspicious/noExplicitAny: test stub session
+  requireSession: vi.fn().mockResolvedValue(stubSession as any),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
