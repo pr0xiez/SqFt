@@ -3,13 +3,21 @@ import type {
   AdminOrgRow,
   SubscriptionStatus,
 } from "@/components/admin/orgs/types";
+import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/tenant";
 
 export const metadata = { title: "Organizations · Admin · SqFt" };
 
 export default async function AdminOrgsPage() {
-  // The (admin) layout has already gated this page on isSuperAdmin. We can
-  // safely hydrate the initial data here.
+  // Defense-in-depth: the (admin) layout already renders ForbiddenPanel for
+  // non-super-admins, but Next runs the page's async body in parallel with
+  // the layout. Skip the DB query when the caller isn't allowed.
+  const session = await requireSession();
+  if (!isSuperAdmin(session.user.email)) {
+    return <AdminOrgsView initial={[]} />;
+  }
+
   const rows = await prisma.organization.findMany({
     select: {
       id: true,
@@ -24,8 +32,7 @@ export default async function AdminOrgsPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // biome-ignore lint/suspicious/noExplicitAny: prisma row shape
-  const initial: AdminOrgRow[] = rows.map((r: any) => ({
+  const initial: AdminOrgRow[] = rows.map((r) => ({
     id: r.id,
     name: r.name,
     slug: r.slug,

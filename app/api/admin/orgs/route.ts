@@ -28,8 +28,7 @@ export const GET = apiRoute({ superAdmin: true }, async () => {
     select: ORG_SELECT,
     orderBy: { createdAt: "desc" },
   });
-  // biome-ignore lint/suspicious/noExplicitAny: Prisma row typed via ORG_SELECT
-  return rows.map((r: any) => ({
+  return rows.map((r) => ({
     id: r.id,
     name: r.name,
     slug: r.slug,

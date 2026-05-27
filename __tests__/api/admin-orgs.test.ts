@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/prisma", () => ({
@@ -46,8 +46,18 @@ function asNormalAdmin() {
   } as any);
 }
 
+const ORIGINAL_ADMIN_EMAILS = process.env.SUPER_ADMIN_EMAILS;
+
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+afterEach(() => {
+  if (ORIGINAL_ADMIN_EMAILS === undefined) {
+    delete process.env.SUPER_ADMIN_EMAILS;
+  } else {
+    process.env.SUPER_ADMIN_EMAILS = ORIGINAL_ADMIN_EMAILS;
+  }
 });
 
 describe("GET /api/admin/orgs", () => {
