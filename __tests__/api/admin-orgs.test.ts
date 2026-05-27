@@ -17,8 +17,10 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 import type { Session } from "next-auth";
-import { GET } from "@/app/api/admin/orgs/route";
+import { GET, POST } from "@/app/api/admin/orgs/route";
+import { EmailTakenError } from "@/lib/api/errors";
 import { auth } from "@/lib/auth";
+import { createOrganization } from "@/lib/onboarding/createOrganization";
 import { prisma } from "@/lib/prisma";
 import { makeRequest, noParams } from "./_helpers";
 
@@ -26,6 +28,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
 const mockFindMany = vi.mocked(prisma.organization.findMany);
+const mockCreate = vi.mocked(createOrganization);
 
 function asSuperAdmin() {
   process.env.SUPER_ADMIN_EMAILS = "boss@sqft.dev";
@@ -112,5 +115,100 @@ describe("GET /api/admin/orgs", () => {
         orderBy: { createdAt: "desc" },
       })
     );
+  });
+});
+
+describe("POST /api/admin/orgs", () => {
+  const validBody = {
+    orgName: "Pinecrest Flooring",
+    adminName: "Pat Pine",
+    adminEmail: "Pat@Pinecrest.test",
+    adminPassword: "supersecret1",
+  };
+
+  it("401 when no session", async () => {
+    process.env.SUPER_ADMIN_EMAILS = "boss@sqft.dev";
+    mockAuth.mockResolvedValueOnce(null);
+    const res = await POST(
+      makeRequest("POST", "http://localhost/", validBody),
+      noParams
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("403 when authenticated but not super-admin", async () => {
+    asNormalAdmin();
+    const res = await POST(
+      makeRequest("POST", "http://localhost/", validBody),
+      noParams
+    );
+    expect(res.status).toBe(403);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("400 when validation fails", async () => {
+    asSuperAdmin();
+    const res = await POST(
+      makeRequest("POST", "http://localhost/", {
+        orgName: "",
+        adminName: "Pat",
+        adminEmail: "not-an-email",
+        adminPassword: "short",
+      }),
+      noParams
+    );
+    expect(res.status).toBe(400);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("201 and returns the new org id + slug + email on success", async () => {
+    asSuperAdmin();
+    mockCreate.mockResolvedValueOnce({
+      orgId: "org-new",
+      adminUserId: "user-new",
+      slug: "pinecrest-flooring",
+    });
+    const res = await POST(
+      makeRequest("POST", "http://localhost/", validBody),
+      noParams
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body).toEqual({
+      orgId: "org-new",
+      slug: "pinecrest-flooring",
+      adminEmail: "pat@pinecrest.test",
+    });
+    expect(mockCreate).toHaveBeenCalledWith({
+      org: { name: "Pinecrest Flooring" },
+      admin: {
+        name: "Pat Pine",
+        email: "pat@pinecrest.test",
+        password: "supersecret1",
+      },
+      billing: { kind: "manual" },
+    });
+  });
+
+  it("translates EmailTakenError to 409 EMAIL_TAKEN", async () => {
+    asSuperAdmin();
+    mockCreate.mockRejectedValueOnce(new EmailTakenError());
+    const res = await POST(
+      makeRequest("POST", "http://localhost/", validBody),
+      noParams
+    );
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("EMAIL_TAKEN");
+  });
+
+  it("translates unexpected errors to 500 INTERNAL", async () => {
+    asSuperAdmin();
+    mockCreate.mockRejectedValueOnce(new Error("boom"));
+    const res = await POST(
+      makeRequest("POST", "http://localhost/", validBody),
+      noParams
+    );
+    expect(res.status).toBe(500);
   });
 });
