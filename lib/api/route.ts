@@ -14,8 +14,14 @@
 
 import { after, type NextRequest, NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
-import { ApiError, UnauthorizedError, ValidationError } from "@/lib/api/errors";
+import {
+  ApiError,
+  ForbiddenError,
+  UnauthorizedError,
+  ValidationError,
+} from "@/lib/api/errors";
 import { hasMinRole } from "@/lib/auth/permissions";
+import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { logError, logMutation, logRequest } from "@/lib/logger";
 import { getOrgId, requireSession } from "@/lib/tenant";
 
@@ -45,6 +51,12 @@ type RouteOptions<TInput> = {
   status?: number;
   /** Minimum role required to access this route. Omit for any-authenticated. */
   minRole?: "lead" | "admin";
+  /**
+   * When true, the route requires a session AND the session user's email must
+   * be in `SUPER_ADMIN_EMAILS`. Returns 403 FORBIDDEN otherwise. Mutually
+   * exclusive with `minRole` (superAdmin takes precedence if both are set).
+   */
+  superAdmin?: boolean;
 };
 
 type NextRouteHandler = (req: NextRequest, ctx: RouteCtx) => Promise<Response>;
@@ -70,7 +82,13 @@ export function apiRoute<TInput, TParams>(
 
   return wrapHandler(async (req, ctx, logCtx) => {
     let orgId: string;
-    if (options.minRole) {
+    if (options.superAdmin) {
+      const session = await requireSession();
+      if (!isSuperAdmin(session.user.email)) {
+        throw new ForbiddenError();
+      }
+      orgId = session.user.orgId;
+    } else if (options.minRole) {
       const session = await requireSession();
       if (!hasMinRole(session.user.role, options.minRole)) {
         throw new UnauthorizedError();
