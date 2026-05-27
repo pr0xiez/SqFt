@@ -7,6 +7,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../app/generated/prisma/client";
+import { createOrganization } from "../lib/onboarding/createOrganization";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
@@ -38,26 +39,39 @@ async function main() {
     await prisma.lineItemTemplate.deleteMany({
       where: { orgId: { in: demoOrgIds } },
     });
-    // Reset per-org counters so the seed's explicit estimate/quote numbers
-    // don't drift relative to nextEstimateNumber / nextQuoteNumber.
-    await prisma.organization.updateMany({
+    // Delete demo users so re-runs of the seed don't collide with the
+    // EmailTakenError that createOrganization now raises.
+    await prisma.user.deleteMany({ where: { orgId: { in: demoOrgIds } } });
+    // Then delete the orgs themselves — cascades clean up any remaining
+    // children. createOrganization will recreate them below.
+    await prisma.organization.deleteMany({
       where: { id: { in: demoOrgIds } },
-      data: { nextEstimateNumber: 1, nextQuoteNumber: 1 },
     });
     console.log(`  ✓ Cleared prior demo data (${demoOrgs.length} org(s))`);
   }
 
-  // ── Organization ──────────────────────────────────────────────────────────
-  const org = await prisma.organization.upsert({
-    where: { slug: "johnson-flooring-demo" },
-    update: {},
-    create: {
-      name: "Johnson Flooring Co.",
-      slug: "johnson-flooring-demo",
-      plan: "free",
+  // ── Primary demo org ─────────────────────────────────────────────────────
+  // Create through the shared onboarding service so seed + production paths
+  // stay aligned. seed: "minimal" plants the 6 default line-item templates.
+  const orgResult = await createOrganization({
+    org: { name: "Johnson Flooring Co.", slug: "johnson-flooring-demo" },
+    admin: {
+      name: "Mike Johnson",
+      email: "demo@sqft.dev",
+      password: "demo1234",
     },
+    billing: { kind: "manual" },
+    seed: "minimal",
+  });
+  const org = await prisma.organization.findUniqueOrThrow({
+    where: { id: orgResult.orgId },
+  });
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: orgResult.adminUserId },
   });
   console.log(`  ✓ Org: ${org.name}`);
+  console.log(`  ✓ User: ${user.email} / password: demo1234`);
+  console.log("  ✓ 6 line item templates");
 
   // ── Crew roster ───────────────────────────────────────────────────────────
   const [crewMike, crewCarlos, crewDave, crewSarah] = await Promise.all([
@@ -75,78 +89,6 @@ async function main() {
     }),
   ]);
   console.log("  ✓ 4 crew members");
-
-  // ── Line item templates (reusable presets for quote builder) ──────────────
-  await prisma.lineItemTemplate.createMany({
-    data: [
-      {
-        orgId: org.id,
-        name: "LVP — Mohawk RevWood",
-        description:
-          "Luxury vinyl plank, 5.5mm wear layer. Includes click-lock install over prepped subfloor.",
-        rate: 4.85,
-        unitLabel: "sqft",
-        sortOrder: 0,
-      },
-      {
-        orgId: org.id,
-        name: "White oak — select grade",
-        description:
-          '3/4" solid hardwood, select grade. Material only — site-finished separately.',
-        rate: 7.2,
-        unitLabel: "sqft",
-        sortOrder: 1,
-      },
-      {
-        orgId: org.id,
-        name: "Hardwood install — nail down",
-        description: 'Nail-down install over 3/4" plywood subfloor.',
-        rate: 3.8,
-        unitLabel: "sqft",
-        sortOrder: 2,
-      },
-      {
-        orgId: org.id,
-        name: "Carpet removal & disposal",
-        description: "Includes haul-away and dump fees.",
-        rate: 1.2,
-        unitLabel: "sqft",
-        sortOrder: 3,
-      },
-      {
-        orgId: org.id,
-        name: "Quarter round trim",
-        description: "Stain-grade pine quarter round, cut and installed.",
-        rate: 2.5,
-        unitLabel: "lf",
-        sortOrder: 4,
-      },
-      {
-        orgId: org.id,
-        name: "Floor prep & leveling",
-        description: "Self-leveling compound where needed.",
-        rate: 0.65,
-        unitLabel: "sqft",
-        sortOrder: 5,
-      },
-    ],
-  });
-  console.log("  ✓ 6 line item templates");
-
-  // ── Demo user ─────────────────────────────────────────────────────────────
-  const password = await bcrypt.hash("demo1234", 12);
-  const user = await prisma.user.upsert({
-    where: { email: "demo@sqft.dev" },
-    update: { password },
-    create: {
-      name: "Mike Johnson",
-      email: "demo@sqft.dev",
-      password,
-      role: "admin",
-      orgId: org.id,
-    },
-  });
-  console.log(`  ✓ User: ${user.email} / password: demo1234`);
 
   const leadHash = await bcrypt.hash("demo1234", 10);
   await prisma.user.upsert({
@@ -176,27 +118,24 @@ async function main() {
   });
   console.log("  ✓ User: crew@sqft.dev / password: demo1234");
 
-  // ── Second org + user (used by tenant-isolation E2E tests) ───────────────
-  const otherOrg = await prisma.organization.upsert({
-    where: { slug: "other-floors-demo" },
-    update: {},
-    create: {
-      name: "Other Floors Co.",
-      slug: "other-floors-demo",
-      plan: "free",
-    },
-  });
-  const otherUser = await prisma.user.upsert({
-    where: { email: "demo2@sqft.dev" },
-    update: { password },
-    create: {
+  // ── Second demo org (tenant-isolation tests) ─────────────────────────────
+  const otherResult = await createOrganization({
+    org: { name: "Other Floors Co.", slug: "other-floors-demo" },
+    admin: {
       name: "Other Owner",
       email: "demo2@sqft.dev",
-      password,
-      role: "admin",
-      orgId: otherOrg.id,
+      password: "demo1234",
     },
+    billing: { kind: "manual" },
+    seed: "none", // second demo org doesn't need the template defaults
   });
+  const otherOrg = await prisma.organization.findUniqueOrThrow({
+    where: { id: otherResult.orgId },
+  });
+  const otherUser = await prisma.user.findUniqueOrThrow({
+    where: { id: otherResult.adminUserId },
+  });
+  console.log(`  ✓ Org: ${otherOrg.name}`);
   console.log(`  ✓ User: ${otherUser.email} / password: demo1234`);
 
   // ── Customers (matching prototype data) ───────────────────────────────────

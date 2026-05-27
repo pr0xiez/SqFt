@@ -34,6 +34,14 @@ model Organization {
   defaultTerms       String   @default("")
   createdAt          DateTime @default(now())
 
+  // ── BILLING (added 2026-05-25) ────────────────────────────────────────────
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  subscriptionStatus   String    @default("manual")
+  // manual | trialing | active | past_due | unpaid | canceled
+  trialEndsAt          DateTime?
+  currentPeriodEndsAt  DateTime?
+
   users             User[]
   customers         Customer[]
   estimates         Estimate[]
