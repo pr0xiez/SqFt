@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
   getApprovalToken,
-  loginAsDemo,
   seedQuoteWithLineItem,
   TEST_SIGNATURE_PNG,
 } from "./fixtures/seed";
@@ -14,7 +14,7 @@ test.describe("6.1 Public accept", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
     const token = await getApprovalToken(ctx.request, quoteId);
@@ -40,7 +40,7 @@ test.describe("6.1 Public accept", () => {
 
   test("6.1.2 second accept returns 409 (idempotent)", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
     const token = await getApprovalToken(ctx.request, quoteId);
@@ -107,7 +107,7 @@ test.describe("6.2 Public decline", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
     const token = await getApprovalToken(ctx.request, quoteId);
@@ -131,7 +131,7 @@ test.describe("6.2 Public decline", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
     const token = await getApprovalToken(ctx.request, quoteId);
@@ -153,7 +153,7 @@ test.describe("6.2 Public decline", () => {
 
   test("6.2.3 second decline returns 409", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
     const token = await getApprovalToken(ctx.request, quoteId);

@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomer,
   createEstimate,
   getApprovalToken,
-  loginAsDemo,
   seedQuoteWithLineItem,
   TEST_SIGNATURE_PNG,
 } from "./fixtures/seed";
@@ -15,7 +15,7 @@ test.describe("8.1 Sibling auto-decline", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
 
     const customer = await createCustomer(ctx.request, {
       name: "Cascade Customer",
@@ -53,7 +53,7 @@ test.describe("8.1 Sibling auto-decline", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
 
     const c1 = await createCustomer(ctx.request, { name: "Iso A" });
     const e1 = await createEstimate(ctx.request, c1.id);
@@ -87,7 +87,7 @@ test.describe("8.1 Sibling auto-decline", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
 
     const customer = await createCustomer(ctx.request, {
       name: "Banner Customer",

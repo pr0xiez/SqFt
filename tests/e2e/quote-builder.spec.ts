@@ -1,9 +1,6 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import {
-  loginAsDemo,
-  seedEstimateWithRooms,
-  seedQuoteWithLineItem,
-} from "./fixtures/seed";
+import { loginAsWorkerOrg } from "./fixtures/org";
+import { seedEstimateWithRooms, seedQuoteWithLineItem } from "./fixtures/seed";
 
 // ── 4.1 Quote Builder — Room Link Picker ─────────────────────────────────────
 //
@@ -23,7 +20,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      page = await loginAsDemo(ctx);
+      page = await loginAsWorkerOrg(browser, ctx);
       const seed = await seedEstimateWithRooms(ctx.request);
       kitchenId = seed.kitchenId;
       diningId = seed.diningId;

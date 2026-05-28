@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
-  loginAsDemo,
   seedAcceptedQuote,
   seedDeclinedQuote,
 } from "./fixtures/seed";
@@ -11,7 +11,7 @@ import {
 test.describe("9.1 PATCH lockdown", () => {
   test("9.1.1 PATCH on accepted quote returns 409", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
 
@@ -27,7 +27,7 @@ test.describe("9.1 PATCH lockdown", () => {
 
   test("9.1.2 PATCH on declined quote returns 409", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedDeclinedQuote(ctx.request, estimateId);
 
@@ -46,7 +46,7 @@ test.describe("9.2 Lock banners", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
 
@@ -62,7 +62,7 @@ test.describe("9.2 Lock banners", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedDeclinedQuote(
       ctx.request,
