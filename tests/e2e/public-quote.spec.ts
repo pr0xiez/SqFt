@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAsWorkerOrg } from "./fixtures/org";
+import { loginAsWorkerOrg, workerOrg } from "./fixtures/org";
 
 // ── 1.4 Public token-authed quote view ────────────────────────────────────────
 //
@@ -12,10 +12,12 @@ test.describe
   .serial("1.4 Public quote view", () => {
     let quoteId: number;
     let approvalToken: string;
+    let orgName: string;
 
     test.beforeAll(async ({ browser }) => {
       const ctx = await browser.newContext();
       await loginAsWorkerOrg(browser, ctx);
+      orgName = (await workerOrg(browser)).orgName;
 
       const custRes = await ctx.request.post("/api/customers", {
         data: { name: "Carla Customer", source: "phone" },
@@ -64,7 +66,7 @@ test.describe
       await expect(page.getByText(/^Quote$/i).first()).toBeVisible();
       await expect(page.getByText("Carla Customer")).toBeVisible();
       await expect(
-        page.getByText("Johnson Flooring Co.", { exact: true }).first()
+        page.getByText(orgName, { exact: true }).first()
       ).toBeVisible();
       await ctx.close();
     });

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAsWorkerOrg } from "./fixtures/org";
+import { loginAsWorkerOrg, workerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
   getApprovalToken,
@@ -132,6 +132,7 @@ test.describe("6.2 Public decline", () => {
   }) => {
     const ctx = await browser.newContext();
     await loginAsWorkerOrg(browser, ctx);
+    const { orgName } = await workerOrg(browser);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
     const token = await getApprovalToken(ctx.request, quoteId);
@@ -144,7 +145,7 @@ test.describe("6.2 Public decline", () => {
     const page = await anon.newPage();
     await page.goto(`/q/${token}`);
     await expect(
-      page.getByText(/Johnson Flooring Co\./i).first()
+      page.getByText(orgName, { exact: true }).first()
     ).toBeVisible();
     await expect(page.getByText(/declined/i).first()).toBeVisible();
     await anon.close();
