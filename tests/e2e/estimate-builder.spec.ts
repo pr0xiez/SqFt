@@ -1,10 +1,6 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import {
-  createCustomerAndEstimate,
-  loginAsDemo,
-  loginAsOtherDemo,
-  reloadFresh,
-} from "./fixtures/seed";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
+import { createCustomerAndEstimate, reloadFresh } from "./fixtures/seed";
 
 // ── 3.1 Estimate Builder ──────────────────────────────────────────────────────
 //
@@ -32,7 +28,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      await loginAsDemo(ctx);
+      await loginAsWorkerOrg(browser, ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
       estimateId = ids.estimateId;
     });
@@ -133,7 +129,7 @@ test.describe
     }) => {
       // Different user → different org. Their session can't see our estimate.
       const otherCtx = await browser.newContext();
-      await loginAsOtherDemo(otherCtx);
+      await loginAsSecondaryOrg(browser, otherCtx);
       const res = await otherCtx.request.patch(`/api/estimates/${estimateId}`, {
         data: { title: "Hacked" },
       });
@@ -161,7 +157,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      page = await loginAsDemo(ctx);
+      page = await loginAsWorkerOrg(browser, ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
       estimateId = ids.estimateId;
     });
@@ -345,7 +341,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      page = await loginAsDemo(ctx);
+      page = await loginAsWorkerOrg(browser, ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
       estimateId = ids.estimateId;
     });

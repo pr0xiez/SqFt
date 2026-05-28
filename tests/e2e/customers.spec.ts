@@ -1,5 +1,5 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
-import { loginAsDemo, loginAsOtherDemo } from "./fixtures/seed";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 
 // ── 10.1 Customers — API CRUD ────────────────────────────────────────────────
 
@@ -10,7 +10,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      await loginAsDemo(ctx);
+      await loginAsWorkerOrg(browser, ctx);
     });
 
     test.afterAll(async () => {
@@ -54,7 +54,7 @@ test.describe
 
     test("10.1.4 cross-org GET returns 404", async ({ browser }) => {
       const otherCtx = await browser.newContext();
-      await loginAsOtherDemo(otherCtx);
+      await loginAsSecondaryOrg(browser, otherCtx);
       const res = await otherCtx.request.get(`/api/customers/${customerId}`);
       expect(res.status()).toBe(404);
       await otherCtx.close();
@@ -62,7 +62,7 @@ test.describe
 
     test("10.1.5 cross-org PATCH returns 404", async ({ browser }) => {
       const otherCtx = await browser.newContext();
-      await loginAsOtherDemo(otherCtx);
+      await loginAsSecondaryOrg(browser, otherCtx);
       const res = await otherCtx.request.patch(`/api/customers/${customerId}`, {
         data: { name: "Hijacked" },
       });
@@ -72,7 +72,7 @@ test.describe
 
     test("10.1.6 cross-org DELETE returns 404", async ({ browser }) => {
       const otherCtx = await browser.newContext();
-      await loginAsOtherDemo(otherCtx);
+      await loginAsSecondaryOrg(browser, otherCtx);
       const res = await otherCtx.request.delete(`/api/customers/${customerId}`);
       expect(res.status()).toBe(404);
       await otherCtx.close();
@@ -100,7 +100,7 @@ test.describe("10.2 Customers list page", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
 
     const unique = `List Visible ${Date.now()}`;
     const created = await ctx.request.post("/api/customers", {
@@ -117,7 +117,7 @@ test.describe("10.2 Customers list page", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const unique = `Open Me ${Date.now()}`;
     const created = await ctx.request.post("/api/customers", {
       data: { name: unique, source: "phone" },

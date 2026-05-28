@@ -1,5 +1,5 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
-import { loginAsDemo, loginAsOtherDemo } from "./fixtures/seed";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 
 test.describe
   .serial("11.1 Crew members API", () => {
@@ -8,7 +8,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      await loginAsDemo(ctx);
+      await loginAsWorkerOrg(browser, ctx);
     });
 
     test.afterAll(async () => {
@@ -41,7 +41,7 @@ test.describe
 
     test("11.1.4 cross-org PATCH returns 404", async ({ browser }) => {
       const otherCtx = await browser.newContext();
-      await loginAsOtherDemo(otherCtx);
+      await loginAsSecondaryOrg(browser, otherCtx);
       const res = await otherCtx.request.patch(
         `/api/crew-members/${memberId}`,
         {

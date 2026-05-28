@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { createCustomer, loginAsDemo, loginAsOtherDemo } from "./fixtures/seed";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
+import { createCustomer } from "./fixtures/seed";
 
 test.describe("14.1 Events / schedule API", () => {
   test("14.1.1 POST creates an event (201)", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const customer = await createCustomer(ctx.request, {
       name: "Sched Customer",
     });
@@ -27,7 +28,7 @@ test.describe("14.1 Events / schedule API", () => {
 
   test("14.1.2 invalid date returns 400", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const res = await ctx.request.post("/api/events", {
       data: {
         type: "visit",
@@ -52,7 +53,7 @@ test.describe("14.1 Events / schedule API", () => {
     browser,
   }) => {
     const ctxA = await browser.newContext();
-    await loginAsDemo(ctxA);
+    await loginAsWorkerOrg(browser, ctxA);
     const customer = await createCustomer(ctxA.request, { name: "A-only" });
     const created = await ctxA.request.post("/api/events", {
       data: {
@@ -68,7 +69,7 @@ test.describe("14.1 Events / schedule API", () => {
     await ctxA.close();
 
     const ctxB = await browser.newContext();
-    await loginAsOtherDemo(ctxB);
+    await loginAsSecondaryOrg(browser, ctxB);
     const list = await (await ctxB.request.get("/api/events")).json();
     expect(list.some((e: { id: number }) => e.id === eventId)).toBe(false);
     await ctxB.close();

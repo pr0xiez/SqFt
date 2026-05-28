@@ -1,14 +1,11 @@
 import { expect, test } from "@playwright/test";
-import {
-  createCustomerAndEstimate,
-  loginAsDemo,
-  loginAsOtherDemo,
-} from "./fixtures/seed";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
+import { createCustomerAndEstimate } from "./fixtures/seed";
 
 test.describe("15.1 Estimates list page", () => {
   test("15.1.1 seeded estimate appears in the list", async ({ browser }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
 
     // EstimateList renders <button onClick={router.push}> not <a href> links.
@@ -47,12 +44,12 @@ test.describe("15.1 Estimates list page", () => {
 
   test("15.1.2 other-org estimate does not appear", async ({ browser }) => {
     const ctxB = await browser.newContext();
-    await loginAsOtherDemo(ctxB);
+    await loginAsSecondaryOrg(browser, ctxB);
     const { estimateId } = await createCustomerAndEstimate(ctxB.request);
     await ctxB.close();
 
     const ctxA = await browser.newContext();
-    const page = await loginAsDemo(ctxA);
+    const page = await loginAsWorkerOrg(browser, ctxA);
     await page.goto("/estimates");
     await expect(
       page.locator("button").filter({ hasText: `#${estimateId}` })

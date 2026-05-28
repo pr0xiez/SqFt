@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
-  loginAsDemo,
-  loginAsOtherDemo,
   seedAcceptedQuote,
   seedQuoteWithLineItem,
 } from "./fixtures/seed";
@@ -10,7 +9,7 @@ import {
 test.describe("13.1 Quotes list page", () => {
   test("13.1.1 seeded quote appears in the list", async ({ browser }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
 
@@ -33,7 +32,7 @@ test.describe("13.1 Quotes list page", () => {
 
   test("13.1.2 revised quote shows ↶ rev badge", async ({ browser }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
     const revRes = await ctx.request.post(`/api/quotes/${quoteId}/revise`);
@@ -48,7 +47,7 @@ test.describe("13.1 Quotes list page", () => {
     browser,
   }) => {
     const ctxB = await browser.newContext();
-    await loginAsOtherDemo(ctxB);
+    await loginAsSecondaryOrg(browser, ctxB);
     const { estimateId } = await createCustomerAndEstimate(ctxB.request);
     const { quoteId: otherQuoteId } = await seedQuoteWithLineItem(
       ctxB.request,
@@ -61,7 +60,7 @@ test.describe("13.1 Quotes list page", () => {
     await ctxB.close();
 
     const ctxA = await browser.newContext();
-    const page = await loginAsDemo(ctxA);
+    const page = await loginAsWorkerOrg(browser, ctxA);
     await page.goto("/quotes");
     await expect(
       page.locator("button").filter({ hasText: `#${otherQuoteNumber}` })

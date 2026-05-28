@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
-  loginAsDemo,
-  loginAsOtherDemo,
   seedAcceptedQuote,
   seedQuoteWithLineItem,
 } from "./fixtures/seed";
@@ -14,7 +13,7 @@ test.describe("7.1 Quote revise — API", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
 
@@ -34,7 +33,7 @@ test.describe("7.1 Quote revise — API", () => {
 
   test("7.1.2 revising a draft returns 409", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
 
@@ -52,13 +51,13 @@ test.describe("7.1 Quote revise — API", () => {
 
   test("7.1.4 cross-org returns 404", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
     await ctx.close();
 
     const otherCtx = await browser.newContext();
-    await loginAsOtherDemo(otherCtx);
+    await loginAsSecondaryOrg(browser, otherCtx);
     const res = await otherCtx.request.post(`/api/quotes/${quoteId}/revise`);
     expect(res.status()).toBe(404);
     await otherCtx.close();
@@ -72,7 +71,7 @@ test.describe("7.2 Revise button UI", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
 
@@ -85,7 +84,7 @@ test.describe("7.2 Revise button UI", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
 
@@ -99,7 +98,7 @@ test.describe("7.2 Revise button UI", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
 
@@ -122,7 +121,7 @@ test.describe("7.3 Revision badge", () => {
     browser,
   }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
 
