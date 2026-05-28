@@ -1,16 +1,17 @@
 /**
- * Per-test user fixtures. Creates users via POST /api/users using a
- * temporary admin session driven through the seeded demo admin. Each call
- * generates a unique email so parallel tests don't collide. There is no
- * cleanup — the test DB accumulates users across runs, which matches the
- * pattern of the other e2e fixtures (customers, estimates, etc).
+ * Per-org user fixtures for role/members specs.
  *
- * Direct Prisma access would be cleaner but the generated client is
- * CommonJS and Playwright's runtime is ESM, so we go through HTTP.
+ * `createOrgWithAdmin` mints a fresh org via the super-admin endpoint; the
+ * org's admin (created by `createOrganization`) is returned as a `TestUser`.
+ * `addUserToOrg` logs in as that admin and creates an additional user of the
+ * given role via POST /api/users. Every email is unique per run, so there is
+ * no cleanup — matching the other e2e fixtures.
+ *
+ * Direct Prisma access would be cleaner but the generated client is CommonJS
+ * and Playwright's runtime is ESM, so we go through HTTP.
  */
-
 import type { Browser } from "@playwright/test";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "./auth";
+import { createOrg, loginViaForm, type OrgCreds } from "./org";
 
 export type Role = "admin" | "lead" | "crew";
 
@@ -21,50 +22,58 @@ export type TestUser = {
   role: Role;
 };
 
-const PLAYWRIGHT_PASSWORD = "test-pw-1234";
+/**
+ * Create a fresh org. Returns the org plus its admin as a `TestUser` (the
+ * admin's `id` is unknown from the create response and left empty — specs key
+ * off email/password, not id).
+ */
+export async function createOrgWithAdmin(
+  browser: Browser
+): Promise<{ org: OrgCreds; admin: TestUser }> {
+  const org = await createOrg(browser, "roles");
+  return {
+    org,
+    admin: {
+      id: "",
+      email: org.adminEmail,
+      password: org.adminPassword,
+      role: "admin",
+    },
+  };
+}
 
 /**
- * Create a user in the seeded demo org with the given role. The email is
- * `{role}-{timestamp}-{rand}@playwright.test`, which never collides with
- * seed data or prior runs.
+ * Add a user of `role` to an existing org by logging in as that org's admin
+ * and POSTing /api/users. Email is `{role}-{timestamp}-{rand}@playwright.test`.
  */
-export async function createTestUser(
+export async function addUserToOrg(
   browser: Browser,
+  org: OrgCreds,
   role: Role
 ): Promise<TestUser> {
+  const password = "test-pw-1234";
   const ctx = await browser.newContext();
   try {
-    const page = await ctx.newPage();
-    await page.goto("/login");
-    await page.fill("#email", DEMO_EMAIL);
-    await page.fill("#password", DEMO_PASSWORD);
-    await page.click('button[type="submit"]');
-    await page.waitForURL("/");
-
+    await loginViaForm(ctx, org.adminEmail, org.adminPassword);
     const email = `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@playwright.test`;
     const res = await ctx.request.post("/api/users", {
-      data: {
-        name: `Test ${role}`,
-        email,
-        role,
-        password: PLAYWRIGHT_PASSWORD,
-      },
+      data: { name: `Test ${role}`, email, role, password },
     });
     if (!res.ok()) {
       throw new Error(
-        `createTestUser(${role}) failed: ${res.status()} ${await res.text()}`
+        `addUserToOrg(${role}) failed: ${res.status()} ${await res.text()}`
       );
     }
     const user = (await res.json()) as { id: string };
-    return { id: user.id, email, password: PLAYWRIGHT_PASSWORD, role };
+    return { id: user.id, email, password, role };
   } finally {
     await ctx.close();
   }
 }
 
 /**
- * Login helper that drives the login form, awaits navigation, and
- * returns when the page is settled on the post-login route.
+ * Login helper that drives the login form, awaits navigation, and returns when
+ * the page is settled on the post-login route (crew → /schedule, else → /).
  */
 export async function loginAsTestUser(
   page: import("@playwright/test").Page,
