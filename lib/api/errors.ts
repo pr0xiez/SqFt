@@ -32,6 +32,12 @@ export class UnauthorizedError extends ApiError {
   }
 }
 
+export class ForbiddenError extends ApiError {
+  constructor(message = "Forbidden") {
+    super({ code: "FORBIDDEN", status: 403, message });
+  }
+}
+
 export class NotFoundError extends ApiError {
   constructor(message = "Not found") {
     super({ code: "NOT_FOUND", status: 404, message });

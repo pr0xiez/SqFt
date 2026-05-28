@@ -118,6 +118,23 @@ async function main() {
   });
   console.log("  ✓ User: crew@sqft.dev / password: demo1234");
 
+  // Super-admin user. Has the regular `admin` org role plus a cross-org
+  // super-admin capability when its email is listed in SUPER_ADMIN_EMAILS
+  // (see lib/auth/superAdmin.ts). Required to reach /admin/orgs.
+  const superAdminHash = await bcrypt.hash("demo1234", 10);
+  await prisma.user.upsert({
+    where: { email: "admin@sqft.dev" },
+    update: {},
+    create: {
+      name: "Sam Operator",
+      email: "admin@sqft.dev",
+      password: superAdminHash,
+      role: "admin",
+      orgId: org.id,
+    },
+  });
+  console.log("  ✓ User: admin@sqft.dev / password: demo1234 (super-admin)");
+
   // ── Second demo org (tenant-isolation tests) ─────────────────────────────
   const otherResult = await createOrganization({
     org: { name: "Other Floors Co.", slug: "other-floors-demo" },
