@@ -1,37 +1,4 @@
-import {
-  type APIRequestContext,
-  type BrowserContext,
-  expect,
-  type Page,
-} from "@playwright/test";
-import {
-  DEMO_EMAIL,
-  DEMO_OTHER_EMAIL,
-  DEMO_OTHER_PASSWORD,
-  DEMO_PASSWORD,
-} from "./auth";
-
-// ── login ────────────────────────────────────────────────────────────────────
-
-export async function loginAs(
-  ctx: BrowserContext,
-  email: string,
-  password: string
-): Promise<Page> {
-  const page = await ctx.newPage();
-  await page.goto("/login");
-  await page.fill("#email", email);
-  await page.fill("#password", password);
-  await page.click('button[type="submit"]');
-  await expect(page).toHaveURL("/");
-  return page;
-}
-
-export const loginAsDemo = (ctx: BrowserContext): Promise<Page> =>
-  loginAs(ctx, DEMO_EMAIL, DEMO_PASSWORD);
-
-export const loginAsOtherDemo = (ctx: BrowserContext): Promise<Page> =>
-  loginAs(ctx, DEMO_OTHER_EMAIL, DEMO_OTHER_PASSWORD);
+import { type APIRequestContext, expect, type Page } from "@playwright/test";
 
 // ── reload helper ────────────────────────────────────────────────────────────
 
