@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
-  createTestUser,
+  addUserToOrg,
+  createOrgWithAdmin,
   loginAsTestUser,
   type TestUser,
 } from "./fixtures/users";
@@ -8,7 +9,8 @@ import {
 let user: TestUser;
 
 test.beforeAll(async ({ browser }) => {
-  user = await createTestUser(browser, "crew");
+  const { org } = await createOrgWithAdmin(browser);
+  user = await addUserToOrg(browser, org, "crew");
 });
 
 test("crew login lands on /schedule", async ({ browser }) => {
