@@ -61,7 +61,7 @@ export function CustomerPickerPanel({
     const q = query.trim().toLowerCase();
     if (!q) return customers;
     return customers.filter((c) => {
-      const fields = [c.name, c.phone, c.email, c.address];
+      const fields = [c.name, c.phone, c.email];
       return fields.some(
         (f) => typeof f === "string" && f.toLowerCase().includes(q)
       );
@@ -98,7 +98,7 @@ export function CustomerPickerPanel({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search name, phone, email, address…"
+          placeholder="Search name, phone, email…"
           className="w-full font-[var(--font-mono)] text-[12px] py-[7px] px-2.5 border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] rounded-[6px] tracking-[.01em] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--ink-2)]"
         />
       </div>
@@ -133,9 +133,9 @@ export function CustomerPickerPanel({
                     </span>
                   ) : null}
                 </span>
-                {c.address ? (
+                {c.phone ? (
                   <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-                    {c.address}
+                    {c.phone}
                   </span>
                 ) : null}
               </button>

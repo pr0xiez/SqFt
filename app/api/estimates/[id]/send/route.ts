@@ -59,7 +59,7 @@ export const POST = apiRoute(
       subject,
       message,
       publicUrl,
-      customerName: estimate.siteMeasure.customer?.name ?? "there",
+      customerName: estimate.siteMeasure.location.customer?.name ?? "there",
       org: { name: org.name, phone: org.phone, logo: org.logo },
       estimateNumber: estimate.estimateNumber,
       totalDollars: total,
@@ -78,11 +78,9 @@ export const POST = apiRoute(
     });
     if (!marked) throw new NotFoundError();
 
-    if (
-      estimate.siteMeasure.customer &&
-      estimate.siteMeasure.customer.email !== to
-    ) {
-      void updateCustomerEmail(estimate.siteMeasure.customer.id, orgId, to);
+    const sendCustomer = estimate.siteMeasure.location.customer;
+    if (sendCustomer && sendCustomer.email !== to) {
+      void updateCustomerEmail(sendCustomer.id, orgId, to);
     }
 
     return { ok: true };

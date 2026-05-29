@@ -110,7 +110,7 @@ describe("listEstimatesForSiteMeasure", () => {
 });
 
 describe("getEstimate", () => {
-  it("includes siteMeasure with customer + rooms and line items", async () => {
+  it("includes siteMeasure with location.customer + rooms and line items", async () => {
     estimateFindFirst.mockResolvedValue(null);
     await getEstimate(1, "org1");
     expect(estimateFindFirst).toHaveBeenCalledWith(
@@ -119,7 +119,7 @@ describe("getEstimate", () => {
         include: expect.objectContaining({
           siteMeasure: expect.objectContaining({
             include: expect.objectContaining({
-              customer: true,
+              location: { include: { customer: true } },
               items: { orderBy: { sortOrder: "asc" } },
             }),
           }),

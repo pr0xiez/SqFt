@@ -103,7 +103,7 @@ export function EstimateListView() {
     () =>
       sortBy(filtered, sort, {
         number: (q) => q.estimateNumber,
-        customer: (q) => q.siteMeasure.customer?.name ?? "",
+        customer: (q) => q.siteMeasure.location?.customer?.name ?? "",
         siteMeasure: (q) => q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id,
         total: (q) => q.total ?? 0,
         status: (q) => q.status,
@@ -219,7 +219,8 @@ export function EstimateListView() {
         ) : (
           <>
             {slice.map((q) => {
-              const customer = q.siteMeasure.customer;
+              const customer = q.siteMeasure.location?.customer;
+              const locationAddress = q.siteMeasure.location?.address;
               const estimateLabel = `#${q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id}`;
               const totalLabel = q.total === null ? "—" : `${fmtBig(q.total)}`;
               const pillColor =
@@ -256,7 +257,7 @@ export function EstimateListView() {
                       <span className={pillColor}>{q.status}</span>
                     </div>
                     <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap hidden md:block">
-                      {customer?.address ?? ""}
+                      {locationAddress ?? ""}
                     </div>
                   </div>
                   <div className={cn("px-3.5 hidden md:block", rowPad)}>

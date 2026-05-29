@@ -13,13 +13,13 @@ const itemSchema = z.object({
 });
 
 export const estimateCreateSchema = z.object({
-  customerId: z.number().int().positive(),
+  locationId: z.number().int().positive(),
   title: z.string().max(200).default(""),
 });
 
 export const estimateUpdateSchema = z.object({
   title: z.string().max(200).optional(),
-  customerId: z.number().int().positive().optional(),
+  locationId: z.number().int().positive().optional(),
   items: z.array(itemSchema).optional(),
 });
 

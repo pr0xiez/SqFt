@@ -14,7 +14,7 @@ interface EstimateOption {
   estimateNumber: number;
   siteMeasure: {
     title: string;
-    customer?: { id: number } | null | undefined;
+    location?: { customer?: { id: number } | null } | null | undefined;
   };
 }
 
@@ -62,7 +62,9 @@ export function EventFormPanel({
   const customerEstimates = useMemo(
     () =>
       customerId
-        ? estimates.filter((q) => q.siteMeasure.customer?.id === customerId)
+        ? estimates.filter(
+            (q) => q.siteMeasure.location?.customer?.id === customerId
+          )
         : [],
     [customerId, estimates]
   );

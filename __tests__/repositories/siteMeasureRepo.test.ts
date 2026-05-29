@@ -111,7 +111,7 @@ describe("createSiteMeasure", () => {
     organizationUpdate.mockResolvedValue({});
     txEstimateCreate.mockResolvedValue({ id: 1, siteMeasureNumber: 42 });
 
-    await createSiteMeasure("org1", { customerId: 9, title: "Job" });
+    await createSiteMeasure("org1", { locationId: 9, title: "Job" });
 
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org1" },
@@ -120,7 +120,7 @@ describe("createSiteMeasure", () => {
     expect(txEstimateCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         orgId: "org1",
-        customerId: 9,
+        locationId: 9,
         siteMeasureNumber: 42,
       }),
     });
@@ -131,7 +131,7 @@ describe("createSiteMeasure", () => {
     organizationUpdate.mockResolvedValue({});
     txEstimateCreate.mockResolvedValue({ id: 1, siteMeasureNumber: 1 });
 
-    await createSiteMeasure("org1", { customerId: 9 });
+    await createSiteMeasure("org1", { locationId: 9 });
 
     expect(txEstimateCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ siteMeasureNumber: 1 }),
@@ -155,15 +155,15 @@ describe("saveSiteMeasure", () => {
     expect(estimateItemDeleteMany).not.toHaveBeenCalled();
   });
 
-  it("forwards customerId to siteMeasure.updateMany", async () => {
+  it("forwards locationId to siteMeasure.updateMany", async () => {
     estimateUpdateMany.mockResolvedValue({ count: 1 });
     estimateFindFirst.mockResolvedValue({ id: 1 });
 
-    await saveSiteMeasure(1, "org1", { customerId: 42 });
+    await saveSiteMeasure(1, "org1", { locationId: 42 });
 
     expect(estimateUpdateMany).toHaveBeenCalledWith({
       where: { id: 1, orgId: "org1" },
-      data: { customerId: 42 },
+      data: { locationId: 42 },
     });
     expect(estimateItemDeleteMany).not.toHaveBeenCalled();
   });

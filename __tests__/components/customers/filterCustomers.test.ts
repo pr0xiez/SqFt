@@ -6,7 +6,6 @@ type C = {
   name: string;
   phone: string | null;
   email: string | null;
-  address: string | null;
   source: string;
 };
 
@@ -16,7 +15,6 @@ const sample: C[] = [
     name: "Alice Smith",
     phone: "555-1111",
     email: "alice@example.com",
-    address: "12 Oak St",
     source: "phone",
   },
   {
@@ -24,7 +22,6 @@ const sample: C[] = [
     name: "Bob Jones",
     phone: "555-2222",
     email: "bob@example.com",
-    address: "44 Elm Rd",
     source: "online",
   },
   {
@@ -32,7 +29,6 @@ const sample: C[] = [
     name: "Carol Lee",
     phone: null,
     email: null,
-    address: null,
     source: "referral",
   },
 ];
@@ -57,9 +53,9 @@ describe("filterCustomers", () => {
     expect(result.map((c) => c.id)).toEqual([2]);
   });
 
-  it("matches by address substring", () => {
+  it("does not match by address (addresses live on Location now)", () => {
     const result = filterCustomers(sample, "elm", "all");
-    expect(result.map((c) => c.id)).toEqual([2]);
+    expect(result).toEqual([]);
   });
 
   it("ignores null optional fields without throwing", () => {

@@ -63,7 +63,7 @@ describe("POST /api/site-measures", () => {
     mockCreate.mockResolvedValue({ id: 5 } as any);
     const res = await POST(
       makeRequest("POST", "http://x/api/site-measures", {
-        customerId: 1,
+        locationId: 1,
         title: "New",
       }),
       params({})
@@ -71,7 +71,7 @@ describe("POST /api/site-measures", () => {
     expect(res.status).toBe(201);
     expect(mockCreate).toHaveBeenCalledWith(
       "org1",
-      expect.objectContaining({ customerId: 1 })
+      expect.objectContaining({ locationId: 1 })
     );
   });
 });
@@ -151,9 +151,9 @@ describe("PATCH /api/site-measures/[id]", () => {
     );
   });
 
-  it("rejects invalid customerId with VALIDATION_FAILED", async () => {
+  it("rejects invalid locationId with VALIDATION_FAILED", async () => {
     const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/site-measures/5", { customerId: -1 }),
+      makeRequest("PATCH", "http://x/api/site-measures/5", { locationId: -1 }),
       params({ id: "5" })
     );
     expect(res.status).toBe(400);

@@ -14,7 +14,13 @@ export type EstimateWithSiteMeasureSummary = Prisma.EstimateGetPayload<{
         id: true;
         siteMeasureNumber: true;
         title: true;
-        customer: { select: { id: true; name: true; address: true } };
+        location: {
+          select: {
+            id: true;
+            address: true;
+            customer: { select: { id: true; name: true } };
+          };
+        };
         items: { orderBy: { sortOrder: "asc" } };
       };
     };
@@ -31,7 +37,13 @@ export type EstimateWithSiteMeasureSummaryNarrow = Prisma.EstimateGetPayload<{
         id: true;
         siteMeasureNumber: true;
         title: true;
-        customer: { select: { id: true; name: true; address: true } };
+        location: {
+          select: {
+            id: true;
+            address: true;
+            customer: { select: { id: true; name: true } };
+          };
+        };
       };
     };
     _count: { select: { lineItems: true } };
@@ -42,7 +54,7 @@ export type EstimateWithDetails = Prisma.EstimateGetPayload<{
   include: {
     siteMeasure: {
       include: {
-        customer: true;
+        location: { include: { customer: true } };
         items: { orderBy: { sortOrder: "asc" } };
       };
     };
@@ -63,7 +75,7 @@ export type EstimateWithPublicView = Prisma.EstimateGetPayload<{
   include: {
     siteMeasure: {
       include: {
-        customer: true;
+        location: { include: { customer: true } };
         items: { orderBy: { sortOrder: "asc" } };
       };
     };
@@ -112,7 +124,13 @@ export async function listEstimates(
           id: true,
           siteMeasureNumber: true,
           title: true,
-          customer: { select: { id: true, name: true, address: true } },
+          location: {
+            select: {
+              id: true,
+              address: true,
+              customer: { select: { id: true, name: true } },
+            },
+          },
           items: { orderBy: { sortOrder: "asc" } },
         },
       },
@@ -135,7 +153,13 @@ export async function listEstimatesForSiteMeasure(
           id: true,
           siteMeasureNumber: true,
           title: true,
-          customer: { select: { id: true, name: true, address: true } },
+          location: {
+            select: {
+              id: true,
+              address: true,
+              customer: { select: { id: true, name: true } },
+            },
+          },
         },
       },
       _count: { select: { lineItems: true } },
@@ -152,7 +176,7 @@ export async function getEstimate(
     include: {
       siteMeasure: {
         include: {
-          customer: true,
+          location: { include: { customer: true } },
           items: { orderBy: { sortOrder: "asc" } },
         },
       },
@@ -215,7 +239,7 @@ export async function createEstimate(
       include: {
         siteMeasure: {
           include: {
-            customer: true,
+            location: { include: { customer: true } },
             items: { orderBy: { sortOrder: "asc" } },
           },
         },
@@ -279,7 +303,7 @@ export async function saveEstimate(
       include: {
         siteMeasure: {
           include: {
-            customer: true,
+            location: { include: { customer: true } },
             items: { orderBy: { sortOrder: "asc" } },
           },
         },
@@ -565,7 +589,7 @@ export async function getEstimateByToken(
     include: {
       siteMeasure: {
         include: {
-          customer: true,
+          location: { include: { customer: true } },
           items: { orderBy: { sortOrder: "asc" } },
         },
       },

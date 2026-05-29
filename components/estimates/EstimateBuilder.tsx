@@ -207,17 +207,17 @@ export function EstimateBuilderView({ estimateId }: Props) {
       )}
 
       {/* Customer bar */}
-      {estimate.siteMeasure.customer && (
+      {estimate.siteMeasure.location?.customer && (
         <div className="flex items-center gap-3.5 px-[18px] py-[14px] bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--accent)] rounded-lg mb-4">
           <div className="flex-1">
             <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.04em] mb-0.5">
               Customer
             </div>
             <div className="text-[16px] font-[600] tracking-[-0.01em]">
-              {estimate.siteMeasure.customer.name}
+              {estimate.siteMeasure.location.customer.name}
             </div>
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-0.5">
-              {estimate.siteMeasure.customer.address ?? ""}
+              {estimate.siteMeasure.location.address ?? ""}
             </div>
           </div>
         </div>
@@ -246,7 +246,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
         estimateId={estimate.id}
         estimateNumber={estimate.estimateNumber}
         orgName={estimate.org?.name ?? ""}
-        customerEmail={estimate.siteMeasure.customer?.email ?? null}
+        customerEmail={estimate.siteMeasure.location?.customer?.email ?? null}
         hasToken={Boolean(estimate.approvalToken)}
         open={sendDialogOpen}
         onClose={() => setSendDialogOpen(false)}

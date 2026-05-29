@@ -3,14 +3,21 @@ import { prisma } from "@/lib/prisma";
 
 export type SiteMeasureWithCustomerAndCount = Prisma.SiteMeasureGetPayload<{
   include: {
-    customer: { select: { id: true; name: true; address: true } };
+    location: {
+      select: {
+        id: true;
+        address: true;
+        label: true;
+        customer: { select: { id: true; name: true } };
+      };
+    };
     _count: { select: { items: true; estimates: true } };
   };
 }>;
 
 export type SiteMeasureWithDetails = Prisma.SiteMeasureGetPayload<{
   include: {
-    customer: true;
+    location: { include: { customer: true } };
     items: { orderBy: { sortOrder: "asc" } };
     estimates: {
       orderBy: { createdAt: "desc" };
@@ -35,7 +42,7 @@ type SiteMeasureItemInput = Omit<
 
 export type SiteMeasurePatch = {
   title?: string;
-  customerId?: number;
+  locationId?: number;
   items?: SiteMeasureItemInput[];
 };
 
@@ -46,7 +53,14 @@ export async function listSiteMeasures(
     where: { orgId },
     orderBy: { createdAt: "desc" },
     include: {
-      customer: { select: { id: true, name: true, address: true } },
+      location: {
+        select: {
+          id: true,
+          address: true,
+          label: true,
+          customer: { select: { id: true, name: true } },
+        },
+      },
       _count: { select: { items: true, estimates: true } },
     },
   });
@@ -59,7 +73,7 @@ export async function getSiteMeasure(
   return prisma.siteMeasure.findFirst({
     where: { id, orgId },
     include: {
-      customer: true,
+      location: { include: { customer: true } },
       items: { orderBy: { sortOrder: "asc" } },
       estimates: {
         orderBy: { createdAt: "desc" },
@@ -133,7 +147,7 @@ export async function saveSiteMeasure(
     return tx.siteMeasure.findFirst({
       where: { id, orgId },
       include: {
-        customer: true,
+        location: { include: { customer: true } },
         items: { orderBy: { sortOrder: "asc" } },
         estimates: {
           orderBy: { createdAt: "desc" },

@@ -39,12 +39,12 @@ export const POST = publicRoute(
     const snap = snapshotEstimate(fromPrismaEstimate(estimate), {
       estimateNumber: estimate.estimateNumber,
       date: estimate.date,
-      customer: estimate.siteMeasure.customer
+      customer: estimate.siteMeasure.location.customer
         ? {
-            name: estimate.siteMeasure.customer.name,
-            address: estimate.siteMeasure.customer.address,
-            email: estimate.siteMeasure.customer.email,
-            phone: estimate.siteMeasure.customer.phone,
+            name: estimate.siteMeasure.location.customer.name,
+            address: estimate.siteMeasure.location.address,
+            email: estimate.siteMeasure.location.customer.email,
+            phone: estimate.siteMeasure.location.customer.phone,
           }
         : null,
       org: estimate.org,

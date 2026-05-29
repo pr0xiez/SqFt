@@ -25,10 +25,14 @@ const DETAIL_ESTIMATE_SELECT = {
 
 export type CustomerWithCount = Prisma.CustomerGetPayload<{
   include: {
-    _count: { select: { siteMeasures: true } };
-    siteMeasures: {
+    _count: { select: { locations: true } };
+    locations: {
       select: {
-        estimates: { select: typeof LIST_ESTIMATE_SELECT };
+        siteMeasures: {
+          select: {
+            estimates: { select: typeof LIST_ESTIMATE_SELECT };
+          };
+        };
       };
     };
   };
@@ -36,16 +40,21 @@ export type CustomerWithCount = Prisma.CustomerGetPayload<{
 
 export type CustomerWithEstimates = Prisma.CustomerGetPayload<{
   include: {
-    siteMeasures: {
-      orderBy: { createdAt: "desc" };
+    locations: {
+      orderBy: { createdAt: "asc" };
       include: {
-        estimates: {
+        siteMeasures: {
           orderBy: { createdAt: "desc" };
-          select: typeof DETAIL_ESTIMATE_SELECT;
+          include: {
+            estimates: {
+              orderBy: { createdAt: "desc" };
+              select: typeof DETAIL_ESTIMATE_SELECT;
+            };
+          };
         };
       };
     };
-    _count: { select: { siteMeasures: true } };
+    _count: { select: { locations: true } };
   };
 }>;
 
@@ -64,10 +73,14 @@ export async function listCustomers(
     where: { orgId },
     orderBy: { createdAt: "desc" },
     include: {
-      _count: { select: { siteMeasures: true } },
-      siteMeasures: {
+      _count: { select: { locations: true } },
+      locations: {
         select: {
-          estimates: { select: LIST_ESTIMATE_SELECT },
+          siteMeasures: {
+            select: {
+              estimates: { select: LIST_ESTIMATE_SELECT },
+            },
+          },
         },
       },
     },
@@ -81,16 +94,21 @@ export async function getCustomer(
   return prisma.customer.findFirst({
     where: { id, orgId },
     include: {
-      siteMeasures: {
-        orderBy: { createdAt: "desc" },
+      locations: {
+        orderBy: { createdAt: "asc" },
         include: {
-          estimates: {
+          siteMeasures: {
             orderBy: { createdAt: "desc" },
-            select: DETAIL_ESTIMATE_SELECT,
+            include: {
+              estimates: {
+                orderBy: { createdAt: "desc" },
+                select: DETAIL_ESTIMATE_SELECT,
+              },
+            },
           },
         },
       },
-      _count: { select: { siteMeasures: true } },
+      _count: { select: { locations: true } },
     },
   });
 }

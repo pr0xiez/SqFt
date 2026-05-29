@@ -208,15 +208,24 @@ async function main() {
   ];
 
   const customers: { id: number }[] = [];
+  // One Location per demo customer, created from the address string that used
+  // to live on Customer. Site measures hang off these locations now.
+  const locations: { id: number }[] = [];
   for (const c of customerData) {
+    const { address, ...customerFields } = c;
     const customer = await prisma.customer.upsert({
       where: { id: customers.length + 1 },
       update: {},
-      create: { ...c, orgId: org.id },
+      create: { ...customerFields, orgId: org.id },
     });
     customers.push(customer);
+    const location = await prisma.location.create({
+      data: { orgId: org.id, customerId: customer.id, address },
+    });
+    locations.push(location);
   }
   console.log(`  ✓ ${customers.length} customers`);
+  console.log(`  ✓ ${locations.length} locations`);
 
   // ── SiteMeasures (rooms only) ────────────────────────────────────────────────
 
@@ -228,7 +237,7 @@ async function main() {
   const est1042 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
-      customerId: customers[0].id,
+      locationId: locations[0].id,
       siteMeasureNumber: 1042,
       items: {
         create: [
@@ -268,7 +277,7 @@ async function main() {
   const est1043 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
-      customerId: customers[5].id,
+      locationId: locations[5].id,
       siteMeasureNumber: 1043,
       items: {
         create: [
@@ -299,7 +308,7 @@ async function main() {
   const _est1044 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
-      customerId: customers[3].id,
+      locationId: locations[3].id,
       siteMeasureNumber: 1044,
       items: {
         create: [
@@ -321,7 +330,7 @@ async function main() {
   const _est1045 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
-      customerId: customers[4].id,
+      locationId: locations[4].id,
       siteMeasureNumber: 1045,
     },
   });
@@ -330,7 +339,7 @@ async function main() {
   const est1040 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
-      customerId: customers[2].id,
+      locationId: locations[2].id,
       siteMeasureNumber: 1040,
       items: {
         create: [
@@ -361,7 +370,7 @@ async function main() {
   const est1041 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
-      customerId: customers[1].id,
+      locationId: locations[1].id,
       siteMeasureNumber: 1041,
       items: {
         create: [

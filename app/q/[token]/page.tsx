@@ -46,11 +46,11 @@ export default async function PublicEstimatePage({ params }: Props) {
       siteMeasureNumber: estimate.siteMeasure.siteMeasureNumber,
       title: estimate.siteMeasure.title,
     },
-    customer: estimate.siteMeasure.customer
+    customer: estimate.siteMeasure.location.customer
       ? {
-          name: estimate.siteMeasure.customer.name,
-          address: estimate.siteMeasure.customer.address,
-          email: estimate.siteMeasure.customer.email,
+          name: estimate.siteMeasure.location.customer.name,
+          address: estimate.siteMeasure.location.address,
+          email: estimate.siteMeasure.location.customer.email,
         }
       : null,
     items: estimate.siteMeasure.items.map((i) => ({

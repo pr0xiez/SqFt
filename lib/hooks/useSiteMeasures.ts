@@ -12,28 +12,35 @@ export interface SiteMeasureEstimateSummary {
   _count: { lineItems: number };
 }
 
+export interface SiteMeasureLocationSummary {
+  id: number;
+  address: string;
+  label?: string | null;
+  customer?: { id: number; name: string } | null;
+}
+
 export interface SiteMeasure {
   id: number;
   orgId: string;
-  customerId: number;
+  locationId: number;
   title: string;
   siteMeasureNumber?: number | null;
   date: string;
   createdAt: string;
-  customer?: { id: number; name: string; address?: string | null };
+  location?: SiteMeasureLocationSummary | null;
   items?: RoomItem[];
   estimates?: SiteMeasureEstimateSummary[];
   _count?: { items: number; estimates: number };
 }
 
 export interface CreateSiteMeasureInput {
-  customerId: number;
+  locationId: number;
   title?: string;
 }
 
 export interface UpdateSiteMeasureInput {
   title?: string;
-  customerId?: number;
+  locationId?: number;
   items?: RoomItem[];
 }
 

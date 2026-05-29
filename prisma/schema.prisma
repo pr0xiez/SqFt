@@ -46,6 +46,7 @@ model Organization {
   customers         Customer[]
   siteMeasures      SiteMeasure[]
   estimates         Estimate[]
+  locations         Location[]
   events            Event[]
   crewMembers       CrewMember[]
   lineItemTemplates LineItemTemplate[]
@@ -71,21 +72,40 @@ model Customer {
   name      String
   phone     String?
   email     String?
-  address   String?
   source    String       @default("phone") // phone | online | referral | walkin | website
   notes     String?
   createdAt DateTime     @default(now())
 
+  locations Location[]
+  events    Event[]
+}
+
+// A physical site address for a customer. A customer can have multiple
+// locations (e.g. a primary residence and a rental); each site measure is
+// taken at one location, so site measures reach the customer via Location.
+model Location {
+  id         Int          @id @default(autoincrement())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId Int
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  address    String
+  label      String?
+  notes      String?
+  createdAt  DateTime     @default(now())
+
   siteMeasures SiteMeasure[]
-  events       Event[]
+
+  @@index([orgId])
+  @@index([customerId])
 }
 
 model SiteMeasure {
   id                Int          @id @default(autoincrement())
   orgId             String
   org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  customerId        Int
-  customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  locationId        Int
+  location          Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
   title             String       @default("")
   siteMeasureNumber Int?
   date              DateTime     @default(now())

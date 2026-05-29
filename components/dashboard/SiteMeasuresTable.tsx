@@ -106,11 +106,11 @@ export function SiteMeasuresTable({ siteMeasures }: Props) {
 
                 <td className="py-3.5 px-3 border-b border-dashed border-[var(--line)]">
                   <div className="text-[13px] font-[600] tracking-[-0.01em]">
-                    {est.customer?.name ?? "—"}
+                    {est.location?.customer?.name ?? "—"}
                   </div>
-                  {est.customer?.address && (
+                  {est.location?.address && (
                     <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
-                      {est.customer.address.split(",")[0]}
+                      {est.location.address.split(",")[0]}
                       {est.title ? ` · ${est.title}` : ""}
                     </div>
                   )}

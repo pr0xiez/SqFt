@@ -12,7 +12,7 @@ export type EstimateFilterInput = {
   siteMeasure: {
     id: number;
     siteMeasureNumber?: number | null;
-    customer?: { name: string } | null | undefined;
+    location?: { customer?: { name: string } | null } | null | undefined;
   };
 };
 
@@ -34,7 +34,7 @@ export function filterEstimates<T extends EstimateFilterInput>(
     );
     if (estimateLabel.includes(cleaned)) return true;
 
-    const customerName = q.siteMeasure.customer?.name ?? "";
+    const customerName = q.siteMeasure.location?.customer?.name ?? "";
     if (customerName.toLowerCase().includes(cleaned)) return true;
 
     return false;

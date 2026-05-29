@@ -83,7 +83,7 @@ export function SiteMeasureListView() {
     () =>
       sortBy(filtered, sort, {
         id: (e) => e.id,
-        customer: (e) => e.customer?.name ?? e.title ?? "",
+        customer: (e) => e.location?.customer?.name ?? e.title ?? "",
         date: (e) => new Date(e.date),
       }),
     [filtered, sort]
@@ -193,12 +193,12 @@ export function SiteMeasureListView() {
                 </div>
                 <div className={cn("px-3.5", rowPad)}>
                   <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                    {est.title || est.customer?.name || "—"}
+                    {est.title || est.location?.customer?.name || "—"}
                   </div>
                   <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
                     {est.title
-                      ? (est.customer?.name ?? "")
-                      : (est.customer?.address ?? "")}
+                      ? (est.location?.customer?.name ?? "")
+                      : (est.location?.address ?? "")}
                   </div>
                 </div>
                 <div

@@ -6,34 +6,36 @@ import {
 
 type E = {
   id: number;
-  customer?: { name: string } | null;
+  location?: { customer?: { name: string } | null } | null;
   items?: { type: string }[];
   estimates?: unknown[];
 };
 
+const loc = (name: string) => ({ customer: { name } });
+
 const sample: E[] = [
   // 1: empty (no rooms, no estimates)
-  { id: 1, customer: { name: "Alice Smith" }, items: [], estimates: [] },
+  { id: 1, location: loc("Alice Smith"), items: [], estimates: [] },
   // 2: measured (has rooms, no estimates)
   {
     id: 2,
-    customer: { name: "Bob Jones" },
+    location: loc("Bob Jones"),
     items: [{ type: "room" }, { type: "room" }],
     estimates: [],
   },
   // 3: estimated (has rooms and a estimate)
   {
     id: 3,
-    customer: { name: "Carol Lee" },
+    location: loc("Carol Lee"),
     items: [{ type: "room" }],
     estimates: [{}],
   },
   // 4: empty via missing items field; defensive check
-  { id: 4, customer: { name: "Dan Park" } },
+  { id: 4, location: loc("Dan Park") },
   // 5: only non-room items (e.g. notes), still counts as empty
   {
     id: 5,
-    customer: { name: "Eve North" },
+    location: loc("Eve North"),
     items: [{ type: "note" }],
     estimates: [],
   },
@@ -93,7 +95,7 @@ describe("filterSiteMeasures", () => {
   });
 
   it("handles missing customer without throwing", () => {
-    const data: E[] = [{ id: 9, customer: null, items: [], estimates: [] }];
+    const data: E[] = [{ id: 9, location: null, items: [], estimates: [] }];
     expect(filterSiteMeasures(data, "9", "all").map((e) => e.id)).toEqual([9]);
     expect(filterSiteMeasures(data, "anyone", "all")).toEqual([]);
   });

@@ -2,12 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CustomerPickerPanel } from "@/components/siteMeasures/CustomerPickerPanel";
 import { RoomSection } from "@/components/siteMeasures/RoomSection";
 import { SiteMeasureEstimatesCard } from "@/components/siteMeasures/SiteMeasureEstimatesCard";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useCreateEstimate } from "@/lib/hooks/useEstimates";
 import {
   useSiteMeasure,
@@ -28,9 +26,6 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const changeCustomerBtnRef = useRef<HTMLButtonElement>(null);
-  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
-  const { data: customers } = useCustomers();
 
   useEffect(() => {
     if (editingTitle) titleInputRef.current?.focus();
@@ -44,15 +39,6 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
       await updateSiteMeasure.mutateAsync({ title: trimmed });
     } catch {
       showToast("Failed to save title");
-    }
-  }
-
-  async function handleChangeCustomer(customerId: number) {
-    try {
-      await updateSiteMeasure.mutateAsync({ customerId });
-      showToast("Customer changed");
-    } catch {
-      showToast("Failed to change customer");
     }
   }
 
@@ -149,50 +135,33 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
         </div>
       </div>
 
-      {/* Customer bar */}
-      {siteMeasure.customer && (
+      {/* Location / customer bar */}
+      {siteMeasure.location && (
         <div className="flex items-center gap-3.5 px-[18px] py-[14px] bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--accent)] rounded-lg mb-4">
           <div className="flex-1">
             <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.04em] mb-0.5">
-              Customer
+              {siteMeasure.location.label
+                ? `Location · ${siteMeasure.location.label}`
+                : "Location"}
             </div>
             <div className="text-[16px] font-[600] tracking-[-0.01em]">
-              {siteMeasure.customer.name}
+              {siteMeasure.location.customer?.name ?? "—"}
             </div>
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-0.5">
-              {siteMeasure.customer.address ?? ""}
+              {siteMeasure.location.address}
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() =>
-              router.push(`/customers/${siteMeasure.customer?.id}`)
-            }
-          >
-            View
-          </Button>
-          <Button
-            ref={changeCustomerBtnRef}
-            size="sm"
-            onClick={() => {
-              const rect =
-                changeCustomerBtnRef.current?.getBoundingClientRect();
-              if (rect) setPickerAnchor(rect);
-            }}
-          >
-            Change
-          </Button>
+          {siteMeasure.location.customer && (
+            <Button
+              size="sm"
+              onClick={() =>
+                router.push(`/customers/${siteMeasure.location?.customer?.id}`)
+              }
+            >
+              View customer
+            </Button>
+          )}
         </div>
-      )}
-
-      {pickerAnchor && siteMeasure.customer && (
-        <CustomerPickerPanel
-          customers={customers ?? []}
-          currentCustomerId={siteMeasure.customer.id}
-          anchorRect={pickerAnchor}
-          onSelect={handleChangeCustomer}
-          onClose={() => setPickerAnchor(null)}
-        />
       )}
 
       {/* Estimates card */}

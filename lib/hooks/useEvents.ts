@@ -22,7 +22,7 @@ export interface CalEvent {
   crewMembers: CrewMemberSummary[];
   notes?: string | null;
   createdAt: string;
-  customer?: { id: number; name: string; address?: string | null } | null;
+  customer?: { id: number; name: string } | null;
 }
 
 export interface CreateEventInput {

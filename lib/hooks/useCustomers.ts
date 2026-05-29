@@ -40,6 +40,15 @@ export interface CustomerSiteMeasureSummary {
   estimates: CustomerEstimateSummary[];
 }
 
+export interface CustomerLocationSummary {
+  id: number;
+  address: string;
+  label: string | null;
+  notes: string | null;
+  createdAt: string;
+  siteMeasures: CustomerSiteMeasureSummary[];
+}
+
 /**
  * Base customer record — the bare row shape, no relations.
  * Returned by POST /api/customers and PATCH /api/customers/:id, and
@@ -52,7 +61,6 @@ export interface Customer {
   name: string;
   phone?: string | null;
   email?: string | null;
-  address?: string | null;
   source: string;
   notes?: string | null;
   createdAt: string;
@@ -63,24 +71,25 @@ export interface Customer {
  * slim estimate summary used to derive pipeline state on the list view.
  */
 export interface CustomerListItem extends Customer {
-  _count?: { siteMeasures: number };
-  siteMeasures?: { estimates: CustomerListEstimateSummary[] }[];
+  _count?: { locations: number };
+  locations?: {
+    siteMeasures: { estimates: CustomerListEstimateSummary[] }[];
+  }[];
 }
 
 /**
- * Shape returned by GET /api/customers/:id — full siteMeasure + estimate
- * details for the customer detail page.
+ * Shape returned by GET /api/customers/:id — locations, each with their
+ * siteMeasure + estimate details, for the customer detail page.
  */
 export interface CustomerDetail extends Customer {
-  _count?: { siteMeasures: number };
-  siteMeasures?: CustomerSiteMeasureSummary[];
+  _count?: { locations: number };
+  locations?: CustomerLocationSummary[];
 }
 
 export interface CreateCustomerInput {
   name: string;
   phone?: string;
   email?: string;
-  address?: string;
   source?: string;
   notes?: string;
 }

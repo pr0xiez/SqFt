@@ -4,13 +4,13 @@ import { prisma } from "@/lib/prisma";
 
 export type EventWithRelations = Prisma.EventGetPayload<{
   include: {
-    customer: { select: { id: true; name: true; address: true } };
+    customer: { select: { id: true; name: true } };
     crewMembers: { select: { id: true; name: true; role: true } };
   };
 }>;
 
 const includeRelations = {
-  customer: { select: { id: true, name: true, address: true } },
+  customer: { select: { id: true, name: true } },
   crewMembers: {
     select: { id: true, name: true, role: true },
     orderBy: { name: "asc" as const },

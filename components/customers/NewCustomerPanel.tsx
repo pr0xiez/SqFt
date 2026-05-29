@@ -32,7 +32,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
     name: "",
     phone: "",
     email: "",
-    address: "",
     source: "phone",
     notes: "",
   });
@@ -43,7 +42,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
       name: "",
       phone: "",
       email: "",
-      address: "",
       source: "phone",
       notes: "",
     });
@@ -132,11 +130,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
             field: "email" as const,
             label: "Email",
             placeholder: "name@email.com",
-          },
-          {
-            field: "address" as const,
-            label: "Address",
-            placeholder: "Street, City",
           },
         ].map(({ field, label, placeholder }) => (
           <div key={field} className="mb-4">

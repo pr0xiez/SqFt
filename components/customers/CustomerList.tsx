@@ -59,20 +59,30 @@ interface CustomerSummary {
   open: number;
   accepted: number;
   total: number;
+  siteMeasures: number;
   lastActivity: string | null;
 }
 
 function summarize(customer: CustomerListItem): CustomerSummary {
-  const estimates: CustomerListEstimateSummary[] = (
-    customer.siteMeasures ?? []
-  ).flatMap((e) => e.estimates);
+  const siteMeasures = (customer.locations ?? []).flatMap(
+    (loc) => loc.siteMeasures
+  );
+  const estimates: CustomerListEstimateSummary[] = siteMeasures.flatMap(
+    (sm) => sm.estimates
+  );
   const open = estimates.filter(isOpenEstimate).length;
   const accepted = estimates.filter((q) => q.status === "accepted").length;
   const last =
     estimates.length > 0
       ? estimates.map(lastTouchAt).sort().reverse()[0]
       : (customer.createdAt ?? null);
-  return { open, accepted, total: estimates.length, lastActivity: last };
+  return {
+    open,
+    accepted,
+    total: estimates.length,
+    siteMeasures: siteMeasures.length,
+    lastActivity: last,
+  };
 }
 
 const matchesPipeline = (s: CustomerSummary, p: PipelineFilter) => {
@@ -185,7 +195,7 @@ export function CustomerListView() {
       sortBy(filtered, sort, {
         name: (r) => r.customer.name,
         source: (r) => r.customer.source,
-        siteMeasures: (r) => r.customer._count?.siteMeasures ?? 0,
+        siteMeasures: (r) => r.summary.siteMeasures,
         open: (r) => r.summary.open,
         lastActivity: (r) => r.summary.lastActivity ?? "",
       }),
@@ -253,7 +263,7 @@ export function CustomerListView() {
           <SearchInput
             value={query}
             onChange={setQuery}
-            placeholder="Search name, phone, email, address…"
+            placeholder="Search name, phone, email…"
           />
           {SOURCES.map((src) => (
             <FilterPill
@@ -342,7 +352,7 @@ export function CustomerListView() {
         ) : (
           <>
             {slice.map(({ customer: c, summary }) => {
-              const estCount = c._count?.siteMeasures ?? 0;
+              const estCount = summary.siteMeasures;
               const won = summary.accepted > 0;
               return (
                 <button

@@ -5,4 +5,5 @@ export * from "./estimateRepo";
 export * from "./estimateSignatureRepo";
 export * from "./eventRepo";
 export * from "./lineItemTemplateRepo";
+export * from "./locationRepo";
 export * from "./siteMeasureRepo";

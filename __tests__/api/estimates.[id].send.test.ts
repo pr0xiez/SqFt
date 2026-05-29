@@ -92,7 +92,9 @@ describe("POST /api/estimates/[id]/send", () => {
       ],
       siteMeasure: {
         items: [],
-        customer: { name: "Janet", email: "henderson@example.com" },
+        location: {
+          customer: { name: "Janet", email: "henderson@example.com" },
+        },
       },
       // biome-ignore lint/suspicious/noExplicitAny: partial test fixture
     } as any);
@@ -128,7 +130,10 @@ describe("POST /api/estimates/[id]/send", () => {
       markupPct: 0,
       depositPct: 0.5,
       lineItems: [],
-      siteMeasure: { items: [], customer: { name: "X", email: "x@x.com" } },
+      siteMeasure: {
+        items: [],
+        location: { customer: { name: "X", email: "x@x.com" } },
+      },
       // biome-ignore lint/suspicious/noExplicitAny: partial test fixture
     } as any);
     mockRotate.mockResolvedValue("new-token-aaa");
@@ -209,7 +214,10 @@ describe("POST /api/estimates/[id]/send", () => {
       markupPct: 0,
       depositPct: 0.5,
       lineItems: [],
-      siteMeasure: { items: [], customer: { name: "X", email: "x@x.com" } },
+      siteMeasure: {
+        items: [],
+        location: { customer: { name: "X", email: "x@x.com" } },
+      },
     } as never);
     mockSendEstimateEmail.mockResolvedValue({ ok: false, error: "boom" });
     const res = await POST(

@@ -8,7 +8,11 @@ export interface EstimateSiteMeasureSummary {
   id: number;
   siteMeasureNumber?: number | null;
   title: string;
-  customer?: { id: number; name: string; address?: string | null };
+  location?: {
+    id: number;
+    address: string;
+    customer?: { id: number; name: string } | null;
+  } | null;
 }
 
 export interface EstimateListItem {
@@ -55,12 +59,15 @@ export interface EstimateDetail {
     id: number;
     siteMeasureNumber?: number | null;
     title: string;
-    customer?: {
+    location?: {
       id: number;
-      name: string;
-      address?: string | null;
-      email?: string | null;
-    };
+      address: string;
+      customer?: {
+        id: number;
+        name: string;
+        email?: string | null;
+      } | null;
+    } | null;
     items: RoomItem[];
   };
   lineItems: LineItemCalc[];

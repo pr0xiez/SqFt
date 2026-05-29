@@ -8,9 +8,11 @@ type Q = {
   siteMeasure: {
     id: number;
     siteMeasureNumber?: number | null;
-    customer?: { name: string } | null | undefined;
+    location?: { customer?: { name: string } | null } | null | undefined;
   };
 };
+
+const loc = (name: string) => ({ customer: { name } });
 
 const sample: Q[] = [
   {
@@ -20,7 +22,7 @@ const sample: Q[] = [
     siteMeasure: {
       id: 11,
       siteMeasureNumber: 5,
-      customer: { name: "Alice Smith" },
+      location: loc("Alice Smith"),
     },
   },
   {
@@ -30,7 +32,7 @@ const sample: Q[] = [
     siteMeasure: {
       id: 12,
       siteMeasureNumber: 6,
-      customer: { name: "Bob Jones" },
+      location: loc("Bob Jones"),
     },
   },
   {
@@ -40,14 +42,14 @@ const sample: Q[] = [
     siteMeasure: {
       id: 13,
       siteMeasureNumber: null,
-      customer: { name: "Carol Lee" },
+      location: loc("Carol Lee"),
     },
   },
   {
     id: 104,
     estimateNumber: 10,
     status: "declined",
-    siteMeasure: { id: 14, siteMeasureNumber: 8, customer: null },
+    siteMeasure: { id: 14, siteMeasureNumber: 8, location: null },
   },
 ];
 

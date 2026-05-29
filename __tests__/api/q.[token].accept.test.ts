@@ -48,11 +48,13 @@ describe("POST /api/q/[token]/accept", () => {
       lineItems: [],
       date: new Date(),
       siteMeasure: {
-        customer: {
-          name: "Janet",
-          email: "h@example.com",
+        location: {
           address: null,
-          phone: null,
+          customer: {
+            name: "Janet",
+            email: "h@example.com",
+            phone: null,
+          },
         },
         items: [],
       },

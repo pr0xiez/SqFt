@@ -2,7 +2,7 @@ export type SiteMeasureStatus = "all" | "empty" | "measured" | "estimated";
 
 export type SiteMeasureFilterInput = {
   id: number;
-  customer?: { name: string } | null;
+  location?: { customer?: { name: string } | null } | null;
   items?: { type: string }[];
   estimates?: unknown[];
 };
@@ -24,7 +24,9 @@ export function filterSiteMeasures<T extends SiteMeasureFilterInput>(
     }
     if (q.length > 0) {
       const idMatch = String(e.id).includes(q);
-      const nameMatch = (e.customer?.name ?? "").toLowerCase().includes(q);
+      const nameMatch = (e.location?.customer?.name ?? "")
+        .toLowerCase()
+        .includes(q);
       if (!idMatch && !nameMatch) return false;
     }
     return true;
