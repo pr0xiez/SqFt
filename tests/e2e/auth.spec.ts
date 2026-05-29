@@ -1,13 +1,19 @@
 import { expect, test } from "@playwright/test";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "./fixtures/auth";
+import { createOrg, type OrgCreds } from "./fixtures/org";
+
+let org: OrgCreds;
+
+test.beforeAll(async ({ browser }) => {
+  org = await createOrg(browser, "auth");
+});
 
 // ── 1.1 Login ─────────────────────────────────────────────────────────────────
 
 test.describe("1.1 Login", () => {
   test("1.1.1 happy path redirects to /", async ({ page }) => {
     await page.goto("/login");
-    await page.fill("#email", DEMO_EMAIL);
-    await page.fill("#password", DEMO_PASSWORD);
+    await page.fill("#email", org.adminEmail);
+    await page.fill("#password", org.adminPassword);
     await page.click('button[type="submit"]');
     await expect(page).toHaveURL("/");
   });
@@ -16,7 +22,7 @@ test.describe("1.1 Login", () => {
     page,
   }) => {
     await page.goto("/login");
-    await page.fill("#email", DEMO_EMAIL);
+    await page.fill("#email", org.adminEmail);
     await page.fill("#password", "wrongpassword");
     await page.click('button[type="submit"]');
 
@@ -31,7 +37,7 @@ test.describe("1.1 Login", () => {
   }) => {
     await page.goto("/login");
     await page.fill("#email", "nobody@nowhere.example.com");
-    await page.fill("#password", DEMO_PASSWORD);
+    await page.fill("#password", org.adminPassword);
     await page.click('button[type="submit"]');
 
     await expect(

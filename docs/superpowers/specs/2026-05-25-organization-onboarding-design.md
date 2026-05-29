@@ -1,7 +1,8 @@
 # Organization Onboarding — Design
 
 **Status:** Draft
-**Date:** 2026-05-25
+**Date:** 2026-05-25 (Phase 3 revised 2026-05-28: E2E tenants reuse the
+super-admin endpoint; the test-only API and env gate are removed)
 
 ## Problem
 
@@ -37,8 +38,8 @@ script enforces today: an Organization row, an admin User, sensible defaults
   destroying and recreating them.
 - E2E tests get isolated tenants. Per-worker by default for speed; per-test on
   opt-in for org-state mutators.
-- The test API is mounted only when an explicit env flag is set, with a
-  startup assertion that prevents it from being on in production.
+- E2E tenants are created through the existing super-admin endpoint, not a
+  test-only API — the super-admin allowlist is the only access gate.
 
 ## Non-Goals
 
@@ -62,20 +63,23 @@ script enforces today: an Organization row, an admin User, sensible defaults
                     │    createOrganization(...)      │
                     │  (transactional, single source) │
                     └─────────────────────────────────┘
-                              ▲   ▲   ▲
-                              │   │   │
-        ┌─────────────────────┘   │   └─────────────────────────┐
-        │                         │                             │
-   POST /api/signup       POST /api/admin/orgs           POST /api/test/orgs
-   (Stripe webhook        (super-admin allowlist)        (env-gated, dev+CI
-    completion)                                            only, 404 in prod)
-        │                         │                             │
-   Phase 4                    Phase 2                       Phase 3
+                              ▲           ▲
+                              │           │
+        ┌─────────────────────┘           └─────────────────────┐
+        │                                                        │
+   POST /api/signup                              POST /api/admin/orgs
+   (Stripe webhook                               (super-admin allowlist)
+    completion)                                   • Phase 2: manual onboarding
+        │                                         • Phase 3: E2E test tenants
+   Phase 4                                              (same endpoint, reused)
 ```
 
 Every tenant is created by `createOrganization`. Each entry point applies its
 own auth check, but the actual tenant-bootstrap work — schema invariants,
 defaults, transaction boundaries — lives in one function with one test suite.
+E2E tests deliberately reuse the super-admin `POST /api/admin/orgs` endpoint
+rather than a dedicated test-only route (see Phase 3); the only test-specific
+caller is the Playwright fixture layer.
 
 ## Schema Changes
 
@@ -310,8 +314,8 @@ can onboard real customer orgs without touching SQL.
      sent — hand-off is out-of-band.
 5. Vitest for the routes: super-admin allow, non-super-admin deny, validation
    errors, happy path.
-6. Playwright spec for the UI is deferred to Phase 3 (it needs the test-API
-   fixtures to seed a super-admin cleanly).
+6. Playwright spec for the UI is deferred to Phase 3 (it needs the Phase 3
+   Playwright fixtures, which mint isolated tenants via this same endpoint).
 
 **Acceptance:**
 
@@ -324,78 +328,107 @@ can onboard real customer orgs without touching SQL.
 
 ## Phase 3 — E2E Test Orgs
 
-User-visible change: none for end-users. Playwright suite restructured so
-every spec gets isolated tenants. The shared `other-floors-demo` org is
-removed.
+User-visible change: none for end-users. The Playwright suite is restructured
+so every spec runs against an isolated tenant it creates at runtime, instead
+of sharing the two seeded demo orgs. The shared-org flakes (two specs mutating
+the same org-level state) disappear.
+
+**Key decision — reuse the super-admin path, no test-only API.** Tenant
+creation for E2E goes through the **existing** super-admin endpoint
+`POST /api/admin/orgs` (shipped in Phase 2), not a new test-only route. This
+collapses most of the original Phase 3 surface:
+
+- **No** `lib/env.ts` / `IS_E2E_TEST_MODE`.
+- **No** `app/api/test/orgs/*` routes.
+- **No** `next.config.ts` / `instrumentation.ts` startup assertion.
+- **No** "three defenses" and **no** `x-test-token` shared secret.
+
+Those existed only to make a *test-only* API safe to expose. Because tenant
+creation now flows through the real super-admin API, the security boundary is
+the `SUPER_ADMIN_EMAILS` allowlist that already exists — production-grade, and
+the same gate operators use. The endpoint is meant to be live in every
+environment; access is gated by *who you are authenticated as*, not by an env
+flag.
+
+This also sidesteps a trap in the original design: CI runs Playwright against
+the **Vercel preview deployment** (`playwright.config.ts` honours `BASE_URL`;
+`.github/workflows/pr.yml` waits for the preview and points the suite at it),
+not a local dev server. Vercel preview deployments run with
+`NODE_ENV=production`, so the original `IS_E2E_TEST_MODE && NODE_ENV ===
+"production"` startup assertion would have crashed every preview build. The
+super-admin approach has no env gate to trip.
+
+**Configuration (not code):** `SUPER_ADMIN_EMAILS` must include the bootstrap
+super-admin `admin@sqft.dev` on the Vercel **Preview** environment and in the
+local `.env`. The seed already creates `admin@sqft.dev` / `demo1234` as a
+super-admin (`prisma/seed.ts`). Production must not carry these CI
+credentials. *(Already configured on Vercel Preview.)*
+
+**No teardown.** Phase 2 ships no org-deletion path and Phase 3 adds none.
+Instead, every org the fixtures create uses a **unique** org name and admin
+email (`{label}-{workerIndex}-{timestamp}-{rand}` /
+`…+{timestamp}-{rand}@playwright.test`), so reruns never collide
+(`createOrganization` already auto-suffixes slugs; the unique email satisfies
+the global `User.email` constraint). Orgs accumulate within a run in the
+ephemeral per-PR Neon preview branch, which is dropped afterward
+(`delete-neon-branch.yml`).
 
 **Deliverables:**
 
-1. `lib/env.ts` exposes `IS_E2E_TEST_MODE = process.env.E2E_TEST_MODE ===
-   "true"`.
-2. Startup assertion in `next.config.ts` (or `instrumentation.ts`) that throws
-   on `IS_E2E_TEST_MODE && NODE_ENV === "production" &&
-   !process.env.ALLOW_E2E_IN_PROD`. The `ALLOW_E2E_IN_PROD` escape hatch
-   exists only so a future preview-prod test environment can opt in
-   deliberately.
-3. `app/api/test/orgs/route.ts`:
-   - First line of every handler: `if (!IS_E2E_TEST_MODE) return new
-     Response(null, { status: 404 })`.
-   - `POST` — body: `{ orgName?, adminEmail?, adminPassword? }`, all optional
-     with random defaults. Calls `createOrganization({ billing: { kind:
-     "manual" }, seed: "minimal" })`. Returns `{ orgId, slug, adminEmail,
-     adminPassword }`.
-4. `app/api/test/orgs/[id]/route.ts`:
-   - `DELETE` — same 404 gate. Hard-deletes the org by id. Existing
-     `onDelete: Cascade` FKs clean up all child rows.
-5. Playwright fixtures rewrite in `tests/e2e/fixtures/`:
-   - `workerOrg` (worker-scoped): one `POST /api/test/orgs` per worker;
-     returns `{ orgId, adminEmail, adminPassword, storageStatePath }`. The
-     storage state is captured by logging in via `/login` once.
-   - `authedPage` (existing fixture, rewritten): now sources its storage
-     state from `workerOrg`. Drop-in for every test that uses it today.
-   - `freshOrgPage` (new, test-scoped): creates a fresh org per test,
-     auto-deletes via test-info `attach` cleanup hook.
-   - `secondaryOrgPage` (new, test-scoped): for tenant-isolation tests that
-     need a second org in the same test.
-6. Spec migration:
-   - **Workers-cope sufficient** — `customers.spec.ts`,
-     `customers-pagination.spec.ts`, `crew.spec.ts`, `quote-builder.spec.ts`,
-     `estimate-builder.spec.ts`, `schedule.spec.ts`, `quotes-list.spec.ts`,
-     `estimates-list.spec.ts`, `quote-send.spec.ts`,
-     `quote-accept-decline.spec.ts`, `quote-lockdown.spec.ts`,
-     `quote-revise.spec.ts`, `quote-sibling-decline.spec.ts`,
-     `public-quote.spec.ts`. These swap `loginAsDemo` → `workerOrg` +
-     `authedPage`.
-   - **Per-test isolation needed** — `org-settings.spec.ts`,
+1. **Playwright fixtures** in `tests/e2e/fixtures/`:
+   - `superAdminContext` (worker-scoped): logs in once as `admin@sqft.dev`,
+     holds an authed `APIRequestContext` used only to `POST /api/admin/orgs`.
+   - `createOrg(label)` helper: posts a unique `orgName` + `adminEmail` + a
+     generated password to the endpoint; returns the credentials. Uniqueness
+     gives rerun-safety with no cleanup.
+   - `workerOrg` (worker-scoped): one fresh org per worker; logs in as its
+     admin once and captures `storageState` to a per-worker file.
+   - `authedPage` (existing fixture, rewritten): sources its `storageState`
+     from `workerOrg` instead of the demo user. Drop-in for every test that
+     uses it today.
+   - `freshOrgPage` (new, test-scoped): a brand-new org per test, for
+     org-state mutators.
+   - `secondaryOrgPage` (new, test-scoped): a second org in the same test,
+     for cross-org / tenant-isolation tests.
+   - `createTestUser` / `loginAsTestUser` (adapted): `createTestUser` takes an
+     authed org-admin context (the fixture's fresh org) instead of hardcoding
+     `demo@sqft.dev`, so role/members specs create their lead/crew users
+     inside their own org.
+
+   Login stays via the existing `/login` form flow for fidelity. Each org
+   creation is a single `createOrganization` call (bcrypt + transaction + 6
+   templates), expected well under 500ms against Neon.
+
+2. **Spec migration — all specs.** Every spec moves off the shared demo orgs:
+   - `loginAsDemo` → `workerOrg` + `authedPage` (read-mostly specs) or
+     `freshOrgPage` (org-state mutators: `org-settings.spec.ts`,
      `members.spec.ts`, `role-crew.spec.ts`, `role-lead.spec.ts`,
-     `auth.spec.ts`. These use `freshOrgPage`.
-   - **Two-org tests** — anywhere `loginAsOtherDemo` is used: switch to
-     `secondaryOrgPage`.
-7. Seed simplification: drop `other-floors-demo`, `demo2@sqft.dev`,
-   `lead@sqft.dev`, and `crew@sqft.dev`. Keep `johnson-flooring-demo` +
-   `demo@sqft.dev` as a manual-exploration fixture only.
-8. `admin-orgs.spec.ts` (deferred from Phase 2) — uses `freshOrgPage` plus a
-   bootstrap super-admin (set via `SUPER_ADMIN_EMAILS` in the CI test env).
-   Spec: super-admin signs in, creates a new org via the UI, signs out, signs
-   in as the new admin, sees no data from any other org.
+     `auth.spec.ts`).
+   - `loginAsOtherDemo` → `secondaryOrgPage`.
+   - Cross-org 404 tests (e.g. `customers.spec.ts` 10.1.4–10.1.6) use
+     `authedPage` + `secondaryOrgPage`.
+   - The now-unused `loginAsDemo` / `loginAsOtherDemo` helpers in
+     `tests/e2e/fixtures/seed.ts` are removed.
 
-**Security defenses for the test API (defense in depth):**
+3. **`admin-orgs.spec.ts`** (deferred from Phase 2): super-admin signs in,
+   creates a new org via the `/admin/orgs` UI, signs out, signs in as the new
+   admin, confirms zero data from any other org.
 
-- Env gate (`E2E_TEST_MODE=true`) — must be explicitly set.
-- Per-route 404 early-return when the env gate is off.
-- Startup assertion preventing it from running in production.
-
-If we want a fourth layer, we can add a shared-secret header check
-(`x-test-token`) — happy to include this if you want belt-and-suspenders,
-otherwise omitted to keep the fixture code simple.
+4. **Seed left intact.** `johnson-flooring-demo` + `demo@sqft.dev` (plus
+   `lead@`, `crew@`, `other-floors-demo` / `demo2@`, and the `admin@sqft.dev`
+   super-admin) all remain as the manual-exploration fallback. Trimming the
+   now-unreferenced demo users/orgs is a trivial follow-up, deliberately not
+   bundled here (it would otherwise force the spec migration and the seed
+   change to land together).
 
 **Acceptance:**
 
-- `E2E_TEST_MODE` unset → `POST /api/test/orgs` returns 404 in dev.
-- `E2E_TEST_MODE=true` → fixture creates orgs in <500ms each.
-- Full Playwright suite green in parallel (current default workers).
-- No test depends on the removed seed orgs.
-- `biome ci .` clean.
+- Full Playwright suite green against the Vercel preview in CI
+  (`workers: 1`) and locally (parallel default workers), with
+  `SUPER_ADMIN_EMAILS=admin@sqft.dev` set in the target environment.
+- No spec references `demo@sqft.dev`, `demo2@sqft.dev`, or `loginAs*`.
+- Fixture org creation completes in <500ms each.
+- `npm test` (Vitest) unaffected; `biome ci .` clean.
 
 ## Phase 4 — Self-Serve Signup + Stripe
 
@@ -497,20 +530,18 @@ orgs see a reactivate banner.
 | --- | --- |
 | Webhook delivered before `PendingSignup` row visible (race) | Webhook handler retries the lookup with short backoff (3 × 200ms) before failing. Stripe will redeliver on 5xx. |
 | Two webhook deliveries for the same `checkout.session.completed` | `Organization.stripeSubscriptionId @unique` catches the second. Handler catches Prisma `P2002`, no-ops, returns 200. |
-| Test API accidentally on in production | Three defenses: env gate, per-route 404 guard, startup assertion. |
+| E2E tenant-creation endpoint reachable in production | No test-only endpoint exists. E2E reuses `POST /api/admin/orgs`, gated by the `SUPER_ADMIN_EMAILS` allowlist. Production simply does not carry CI super-admin credentials. |
 | Slug collisions during high-volume signup | 20-attempt retry loop with numeric suffix; throws `SlugExhaustedError` (effectively impossible). |
 | Manual org admin forgets their password | Phase 2: super-admin creates a new manual org with the same email isn't possible (email is unique). Workaround until a password-reset flow ships: super-admin updates the User row directly via the admin UI in a follow-up, or manually via SQL. Not in scope for this design. |
 | Stripe outage during signup | Checkout creation fails → user sees error on `/signup`, retries. No partial state because no org is created before the webhook. |
 | Lapsed customer wants their data back after months | Data is retained read-only forever. They reactivate via Customer Portal; webhook flips status to `active`; mutations resume. |
-| E2E test org leaks (creation succeeds, deletion fails) | Periodic cleanup: a follow-up cron deletes orgs older than 24h whose names match the test prefix. Not in initial scope — the Playwright afterAll deletion is the primary path. |
+| E2E test orgs accumulate | No teardown by design. Fixtures use unique org names + admin emails per run, so reruns never collide. Orgs live in the ephemeral per-PR Neon preview branch, dropped afterward (`delete-neon-branch.yml`). |
 
 ## Open Questions
 
 - Should the marketing site's "Start free trial" CTA link to `/signup` on the
   app domain, or live on `www/` and redirect? Assumed same-origin for now;
   trivially flippable during implementation.
-- Should we add a shared-secret header (`x-test-token`) as a fourth defense
-  on the test API? Omitted by default; happy to add if requested.
 - Future password-reset flow for manual-org admins. Deliberately out of scope
   here, but worth flagging.
 
@@ -521,8 +552,10 @@ orgs see a reactivate banner.
 2. **Phase 2** — Super-admin allowlist + `/admin/orgs` UI. You can onboard
    real customer orgs immediately. Vitest covers route logic; Playwright spec
    deferred to Phase 3.
-3. **Phase 3** — `E2E_TEST_MODE` + `/api/test/orgs` + Playwright fixture
-   rewrite + seed simplification. Unblocks the admin-UI Playwright spec.
+3. **Phase 3** — Playwright fixtures that mint isolated tenants via the
+   existing super-admin `POST /api/admin/orgs` endpoint + full spec migration
+   off the shared demo orgs. No new API, no env gate. Unblocks the admin-UI
+   Playwright spec.
 4. **Phase 4** — Stripe Checkout + webhook + `/signup` + paywall +
    `/settings/billing`. Most external-dependency-heavy; everything else is
    battle-tested by the time this lands.

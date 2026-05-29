@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { loginAsDemo, loginAsOtherDemo } from "./fixtures/seed";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 
 test.describe("12.1 Org settings GET", () => {
   test("12.1.1 demo user GETs their org", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const res = await ctx.request.get("/api/org");
     expect(res.status()).toBe(200);
     const body = await res.json();
@@ -21,11 +21,11 @@ test.describe("12.1 Org settings GET", () => {
 
   test("12.1.3 two demo users see different orgs", async ({ browser }) => {
     const ctxA = await browser.newContext();
-    await loginAsDemo(ctxA);
+    await loginAsWorkerOrg(browser, ctxA);
     const orgA = await (await ctxA.request.get("/api/org")).json();
 
     const ctxB = await browser.newContext();
-    await loginAsOtherDemo(ctxB);
+    await loginAsSecondaryOrg(browser, ctxB);
     const orgB = await (await ctxB.request.get("/api/org")).json();
 
     expect(orgA.id).not.toBe(orgB.id);

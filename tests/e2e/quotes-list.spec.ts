@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
+  createCustomer,
   createCustomerAndEstimate,
-  loginAsDemo,
-  loginAsOtherDemo,
+  createEstimate,
   seedAcceptedQuote,
   seedQuoteWithLineItem,
 } from "./fixtures/seed";
@@ -10,7 +11,7 @@ import {
 test.describe("13.1 Quotes list page", () => {
   test("13.1.1 seeded quote appears in the list", async ({ browser }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedQuoteWithLineItem(ctx.request, estimateId);
 
@@ -33,7 +34,7 @@ test.describe("13.1 Quotes list page", () => {
 
   test("13.1.2 revised quote shows ↶ rev badge", async ({ browser }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsDemo(ctx);
+    const page = await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
     const revRes = await ctx.request.post(`/api/quotes/${quoteId}/revise`);
@@ -47,25 +48,33 @@ test.describe("13.1 Quotes list page", () => {
   test("13.1.3 other-org quote does not appear in this org's list", async ({
     browser,
   }) => {
+    // Quote numbers are per-org sequential, so they collide across orgs and
+    // can't distinguish tenants. Assert isolation via uniquely-named customers:
+    // the worker org's own quote is listed; the secondary org's is not.
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const mineCustomerName = `Worker ${suffix}`;
+    const otherCustomerName = `Secondary ${suffix}`;
+
     const ctxB = await browser.newContext();
-    await loginAsOtherDemo(ctxB);
-    const { estimateId } = await createCustomerAndEstimate(ctxB.request);
-    const { quoteId: otherQuoteId } = await seedQuoteWithLineItem(
-      ctxB.request,
-      estimateId
-    );
-    const otherQuote = await (
-      await ctxB.request.get(`/api/quotes/${otherQuoteId}`)
-    ).json();
-    const otherQuoteNumber = otherQuote.quoteNumber as number;
+    await loginAsSecondaryOrg(browser, ctxB);
+    const otherCust = await createCustomer(ctxB.request, {
+      name: otherCustomerName,
+    });
+    const otherEst = await createEstimate(ctxB.request, otherCust.id);
+    await seedQuoteWithLineItem(ctxB.request, otherEst.id);
     await ctxB.close();
 
     const ctxA = await browser.newContext();
-    const page = await loginAsDemo(ctxA);
+    const page = await loginAsWorkerOrg(browser, ctxA);
+    const mineCust = await createCustomer(ctxA.request, {
+      name: mineCustomerName,
+    });
+    const mineEst = await createEstimate(ctxA.request, mineCust.id);
+    await seedQuoteWithLineItem(ctxA.request, mineEst.id);
+
     await page.goto("/quotes");
-    await expect(
-      page.locator("button").filter({ hasText: `#${otherQuoteNumber}` })
-    ).toHaveCount(0);
+    await expect(page.getByText(mineCustomerName)).toBeVisible();
+    await expect(page.getByText(otherCustomerName)).toHaveCount(0);
     await ctxA.close();
   });
 });

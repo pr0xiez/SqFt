@@ -1,8 +1,7 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
-  loginAsDemo,
-  loginAsOtherDemo,
   seedAcceptedQuote,
   seedQuoteWithLineItem,
 } from "./fixtures/seed";
@@ -17,7 +16,7 @@ test.describe
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
-      await loginAsDemo(ctx);
+      await loginAsWorkerOrg(browser, ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
       estimateId = ids.estimateId;
       const seed = await seedQuoteWithLineItem(ctx.request, estimateId);
@@ -64,7 +63,7 @@ test.describe
 
     test("5.1.4 cross-org POST returns 404", async ({ browser }) => {
       const otherCtx = await browser.newContext();
-      await loginAsOtherDemo(otherCtx);
+      await loginAsSecondaryOrg(browser, otherCtx);
       const res = await otherCtx.request.post(`/api/quotes/${quoteId}/send`, {
         data: { to: "c@example.com", subject: "Quote" },
       });
@@ -78,7 +77,7 @@ test.describe
 test.describe("5.2 Send lockdown", () => {
   test("5.2.1 sending an accepted quote returns 409", async ({ browser }) => {
     const ctx = await browser.newContext();
-    await loginAsDemo(ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { estimateId } = await createCustomerAndEstimate(ctx.request);
     const { quoteId } = await seedAcceptedQuote(ctx.request, estimateId);
 

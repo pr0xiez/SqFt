@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { loginAsDemo, reloadFresh } from "./fixtures/seed";
+import { loginAsWorkerOrg } from "./fixtures/org";
+import { reloadFresh } from "./fixtures/seed";
 
 // Golden-path test for the new list-table primitives: pagination,
 // URL state persistence, and density localStorage persistence. We
@@ -15,7 +16,7 @@ test.describe
       browser,
     }) => {
       const ctx = await browser.newContext();
-      const page = await loginAsDemo(ctx);
+      const page = await loginAsWorkerOrg(browser, ctx);
 
       // Seed N customers with a unique prefix so we can isolate them with
       // the search filter, regardless of how many seed/demo rows exist.
@@ -67,7 +68,7 @@ test.describe
       browser,
     }) => {
       const ctx = await browser.newContext();
-      const page = await loginAsDemo(ctx);
+      const page = await loginAsWorkerOrg(browser, ctx);
 
       await page.goto("/customers");
       await expect(page.getByText("Loading…")).toHaveCount(0);
@@ -96,7 +97,7 @@ test.describe
       browser,
     }) => {
       const ctx = await browser.newContext();
-      const page = await loginAsDemo(ctx);
+      const page = await loginAsWorkerOrg(browser, ctx);
 
       await page.goto("/customers");
       await expect(page.getByText("Loading…")).toHaveCount(0);

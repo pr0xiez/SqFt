@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
-  createTestUser,
+  addUserToOrg,
+  createOrgWithAdmin,
   loginAsTestUser,
   type TestUser,
 } from "./fixtures/users";
@@ -9,8 +10,9 @@ let admin: TestUser;
 let target: TestUser;
 
 test.beforeAll(async ({ browser }) => {
-  admin = await createTestUser(browser, "admin");
-  target = await createTestUser(browser, "crew");
+  const { org, admin: orgAdmin } = await createOrgWithAdmin(browser);
+  admin = orgAdmin;
+  target = await addUserToOrg(browser, org, "crew");
 });
 
 // The row containing a given email is the parent of the email cell. The email
