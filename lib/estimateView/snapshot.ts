@@ -1,11 +1,9 @@
-import { createHash } from "node:crypto";
 import { computeEstimateView } from "./compute";
 import type { EstimateInput, LineItemCalc, RoomItem } from "./types";
 
 /** Side-channel metadata attached to a snapshot but not part of the math.
- *  These fields are copied into the canonicalized snapshot verbatim and
- *  contribute to the hash, so renaming or restructuring them is a breaking
- *  change for already-signed estimates. */
+ *  `customer.address` is sourced from the estimate's Location (passed in by
+ *  the caller), not a customer.address field. */
 export interface EstimateSnapshotMeta {
   estimateNumber: number;
   date: Date | string;
@@ -43,7 +41,7 @@ export interface EstimateSnapshot {
   };
 }
 
-/** Build a serializable, hashable snapshot of a estimate — the customer-signed
+/** Build a serializable snapshot of an estimate — the customer-approved
  *  artifact. Computes the view internally so totals can never diverge from
  *  what the editor or public page showed. */
 export function snapshotEstimate(
@@ -92,16 +90,4 @@ export function snapshotEstimate(
       deposit: view.deposit,
     },
   };
-}
-
-export function canonicalize(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
-  return `{${keys.map((k) => `${JSON.stringify(k)}:${canonicalize(obj[k])}`).join(",")}}`;
-}
-
-export function sha256(input: string): string {
-  return createHash("sha256").update(input, "utf8").digest("hex");
 }

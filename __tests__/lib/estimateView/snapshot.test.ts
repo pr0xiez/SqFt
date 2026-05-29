@@ -1,43 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { EstimateInput } from "@/lib/estimateView";
 import {
-  canonicalize,
   type EstimateSnapshotMeta,
-  sha256,
   snapshotEstimate,
 } from "@/lib/estimateView/snapshot";
-
-describe("canonicalize", () => {
-  it("produces deterministic JSON regardless of key insertion order", () => {
-    const a = { b: 1, a: 2, c: { y: 1, x: 2 } };
-    const b = { c: { x: 2, y: 1 }, a: 2, b: 1 };
-    expect(canonicalize(a)).toBe(canonicalize(b));
-  });
-
-  it("preserves array order", () => {
-    expect(canonicalize([3, 1, 2])).toBe("[3,1,2]");
-  });
-
-  it("emits no whitespace", () => {
-    expect(canonicalize({ a: 1, b: [2, 3] })).toBe('{"a":1,"b":[2,3]}');
-  });
-
-  it("handles null and missing keys", () => {
-    expect(canonicalize({ a: null })).toBe('{"a":null}');
-  });
-});
-
-describe("sha256", () => {
-  it("produces the expected hex digest for a known input", () => {
-    expect(sha256("hello")).toBe(
-      "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
-    );
-  });
-
-  it("is deterministic", () => {
-    expect(sha256("x")).toBe(sha256("x"));
-  });
-});
 
 describe("snapshotEstimate", () => {
   const input: EstimateInput = {
@@ -75,6 +41,8 @@ describe("snapshotEstimate", () => {
     date: new Date("2026-05-01T00:00:00Z"),
     customer: {
       name: "J. Henderson",
+      // Address comes from the estimate's Location (passed in by the caller),
+      // not a customer.address field.
       address: "1247 Elm St",
       email: "h@example.com",
       phone: "555",
@@ -107,20 +75,9 @@ describe("snapshotEstimate", () => {
     });
   });
 
-  it("produces a stable hash for the same input", () => {
-    const a = sha256(canonicalize(snapshotEstimate(input, meta)));
-    const b = sha256(canonicalize(snapshotEstimate(input, meta)));
-    expect(a).toBe(b);
-  });
-
-  it("changes the hash when a line item rate changes", () => {
-    const a = sha256(canonicalize(snapshotEstimate(input, meta)));
-    const modified: EstimateInput = {
-      ...input,
-      lineItems: [{ ...input.lineItems[0], rate: 4.86 }],
-    };
-    const b = sha256(canonicalize(snapshotEstimate(modified, meta)));
-    expect(a).not.toBe(b);
+  it("sources the customer block's address from the passed location address", () => {
+    const snap = snapshotEstimate(input, meta);
+    expect(snap.customer?.address).toBe("1247 Elm St");
   });
 
   it("preserves note items in the snapshot's items array", () => {
