@@ -480,19 +480,13 @@ async function main() {
     },
   });
 
-  // 1×1 transparent PNG used as a placeholder signature for seeded accepts:
-  const placeholderSig =
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
-  const seedConsentText =
-    "By typing my name and signing below, I consent to use an electronic signature, and agree this signature has the same legal effect as a handwritten signature on this estimate.";
-
-  // #5002 — Martinez HW (accepted) — winning estimate, drives the job event
+  // #5002 — Martinez HW (approved) — winning estimate, drives the job event
   const q5002 = await prisma.estimate.create({
     data: {
       orgId: org.id,
       siteMeasureId: est1041.id,
       estimateNumber: 5002,
-      status: "accepted",
+      status: "approved",
       convenienceFeeRate: 0.03,
       markupPct: 35,
       depositPct: 0.5,
@@ -502,7 +496,7 @@ async function main() {
       sentByEmail: user.email,
       sentByName: user.name,
       viewedAt: new Date("2026-04-21T09:30:00Z"),
-      acceptedAt: new Date("2026-04-21T17:42:00Z"),
+      approvedAt: new Date("2026-04-21T17:42:00Z"),
       lineItems: {
         create: [
           {
@@ -543,7 +537,7 @@ async function main() {
       orgId: org.id,
       siteMeasureId: est1040.id,
       estimateNumber: 5003,
-      status: "accepted",
+      status: "approved",
       convenienceFeeRate: 0.03,
       markupPct: 35,
       depositPct: 0.5,
@@ -553,7 +547,7 @@ async function main() {
       sentByEmail: user.email,
       sentByName: user.name,
       viewedAt: new Date("2026-04-18T20:05:00Z"),
-      acceptedAt: new Date("2026-04-19T08:21:00Z"),
+      approvedAt: new Date("2026-04-19T08:21:00Z"),
       lineItems: {
         create: [
           {
@@ -588,27 +582,20 @@ async function main() {
     },
   });
 
-  // Signatures + accept-flow events for the two winning estimates above. The app
-  // only flips a estimate to `accepted` inside `acceptEstimateByToken`, which writes
-  // a EstimateSignature in the same transaction — so accepted estimates in seed data
-  // need matching signatures to preserve that invariant (and to keep the
-  // /estimates/[id]/signed audit page reachable).
-  await prisma.estimateSignature.create({
+  // Approval + approve-flow events for the two winning estimates above. The app
+  // only flips an estimate to `approved` inside `approveEstimateByToken`, which
+  // writes an EstimateApproval in the same transaction — so approved estimates in
+  // seed data need a matching approval to preserve that invariant.
+  await prisma.estimateApproval.create({
     data: {
       estimateId: q5002.id,
-      signedByName: "Roberto Martinez",
-      signedByEmail: "rmartinez@email.com",
-      signatureData: placeholderSig,
-      signedAt: new Date("2026-04-21T17:42:00Z"),
-      signedIp: "198.51.100.22",
-      signedUserAgent: "Mozilla/5.0 (seed fixture)",
-      consentText: seedConsentText,
-      estimateSnapshot: {
+      approvedAt: new Date("2026-04-21T17:42:00Z"),
+      ip: "198.51.100.22",
+      userAgent: "Mozilla/5.0 (seed fixture)",
+      snapshot: {
         estimateNumber: q5002.estimateNumber,
         seedFixture: true,
       },
-      snapshotHash:
-        "0000000000000000000000000000000000000000000000000000000000000000",
     },
   });
   for (const evt of [
@@ -631,7 +618,7 @@ async function main() {
       userAgent: "Mozilla/5.0 (seed fixture)",
     },
     {
-      type: "accepted",
+      type: "approved",
       source: "customer",
       actorEmail: "rmartinez@email.com",
       actorName: "Roberto Martinez",
@@ -654,22 +641,16 @@ async function main() {
     });
   }
 
-  await prisma.estimateSignature.create({
+  await prisma.estimateApproval.create({
     data: {
       estimateId: q5003.id,
-      signedByName: "Linda Chen",
-      signedByEmail: "lchen@email.com",
-      signatureData: placeholderSig,
-      signedAt: new Date("2026-04-19T08:21:00Z"),
-      signedIp: "198.51.100.51",
-      signedUserAgent: "Mozilla/5.0 (seed fixture)",
-      consentText: seedConsentText,
-      estimateSnapshot: {
+      approvedAt: new Date("2026-04-19T08:21:00Z"),
+      ip: "198.51.100.51",
+      userAgent: "Mozilla/5.0 (seed fixture)",
+      snapshot: {
         estimateNumber: q5003.estimateNumber,
         seedFixture: true,
       },
-      snapshotHash:
-        "0000000000000000000000000000000000000000000000000000000000000000",
     },
   });
   for (const evt of [
@@ -692,7 +673,7 @@ async function main() {
       userAgent: "Mozilla/5.0 (seed fixture)",
     },
     {
-      type: "accepted",
+      type: "approved",
       source: "customer",
       actorEmail: "lchen@email.com",
       actorName: "Linda Chen",
@@ -794,7 +775,7 @@ async function main() {
       orgId: org.id,
       siteMeasureId: est1042.id,
       estimateNumber: 5006,
-      status: "accepted",
+      status: "approved",
       convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
@@ -804,7 +785,7 @@ async function main() {
       sentByEmail: user.email,
       sentByName: user.name,
       viewedAt: new Date("2026-05-01T16:12:00Z"),
-      acceptedAt: new Date("2026-05-02T10:45:00Z"),
+      approvedAt: new Date("2026-05-02T10:45:00Z"),
       lineItems: {
         create: [
           {
@@ -828,22 +809,16 @@ async function main() {
     },
   });
 
-  await prisma.estimateSignature.create({
+  await prisma.estimateApproval.create({
     data: {
       estimateId: acceptedEstimate.id,
-      signedByName: "Janet Henderson",
-      signedByEmail: "henderson@example.com",
-      signatureData: placeholderSig,
-      signedAt: new Date("2026-05-02T10:45:00Z"),
-      signedIp: "203.0.113.42",
-      signedUserAgent: "Mozilla/5.0 (seed fixture)",
-      consentText: seedConsentText,
-      estimateSnapshot: {
+      approvedAt: new Date("2026-05-02T10:45:00Z"),
+      ip: "203.0.113.42",
+      userAgent: "Mozilla/5.0 (seed fixture)",
+      snapshot: {
         estimateNumber: acceptedEstimate.estimateNumber,
         seedFixture: true,
       },
-      snapshotHash:
-        "0000000000000000000000000000000000000000000000000000000000000000",
     },
   });
   for (const evt of [
@@ -862,7 +837,7 @@ async function main() {
       createdAt: new Date("2026-05-01T16:12:00Z"),
     },
     {
-      type: "accepted",
+      type: "approved",
       source: "customer",
       actorEmail: "henderson@example.com",
       actorName: "Janet Henderson",
@@ -877,11 +852,11 @@ async function main() {
         actorEmail: evt.actorEmail,
         actorName: evt.actorName,
         ip:
-          evt.type === "viewed" || evt.type === "accepted"
+          evt.type === "viewed" || evt.type === "approved"
             ? "203.0.113.42"
             : null,
         userAgent:
-          evt.type === "viewed" || evt.type === "accepted"
+          evt.type === "viewed" || evt.type === "approved"
             ? "Mozilla/5.0 (seed fixture)"
             : null,
         createdAt: evt.createdAt,

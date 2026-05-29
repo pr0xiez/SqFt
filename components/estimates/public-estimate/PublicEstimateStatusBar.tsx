@@ -1,7 +1,7 @@
 interface Props {
-  status: "draft" | "sent" | "viewed" | "accepted" | "declined";
+  status: "draft" | "sent" | "viewed" | "approved" | "declined";
   sentAt?: Date | string | null;
-  acceptedAt?: Date | string | null;
+  approvedAt?: Date | string | null;
   declinedAt?: Date | string | null;
 }
 
@@ -15,17 +15,17 @@ const fmtDate = (d: Date | string) =>
 export function PublicEstimateStatusBar({
   status,
   sentAt,
-  acceptedAt,
+  approvedAt,
   declinedAt,
 }: Props) {
   let pillClass = "text-[var(--gold)]";
   let label = "Awaiting your response";
   let meta: string | null = null;
 
-  if (status === "accepted" && acceptedAt) {
+  if (status === "approved" && approvedAt) {
     pillClass = "text-[var(--sage)] bg-[rgba(61,107,74,0.08)]";
-    label = "Accepted";
-    meta = `Signed ${fmtDate(acceptedAt)}`;
+    label = "Approved";
+    meta = `Approved ${fmtDate(approvedAt)}`;
   } else if (status === "declined" && declinedAt) {
     pillClass = "text-[var(--muted)]";
     label = "Declined";

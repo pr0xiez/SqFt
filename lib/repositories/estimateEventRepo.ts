@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 export type EstimateEventType =
   | "sent"
   | "viewed"
-  | "accepted"
+  | "approved"
   | "declined"
   | "link_rotated"
   | "resent"

@@ -60,7 +60,6 @@ export type EstimateWithDetails = Prisma.EstimateGetPayload<{
     };
     lineItems: { orderBy: { sortOrder: "asc" } };
     org: { select: { name: true } };
-    signature: { select: { signedByName: true } };
     estimateEvents: {
       where: { type: "declined" };
       orderBy: { createdAt: "desc" };
@@ -95,7 +94,7 @@ export type EstimateWithPublicView = Prisma.EstimateGetPayload<{
         };
       };
     };
-    signature: true;
+    approval: true;
   };
 }>;
 
@@ -105,7 +104,7 @@ type LineItemInput = Omit<
 > & { id?: number };
 
 export type EstimatePatch = {
-  status?: "draft" | "sent" | "accepted" | "declined";
+  status?: "draft" | "sent" | "approved" | "declined";
   convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;
@@ -182,7 +181,6 @@ export async function getEstimate(
       },
       lineItems: { orderBy: { sortOrder: "asc" } },
       org: { select: { name: true } },
-      signature: { select: { signedByName: true } },
       estimateEvents: {
         where: { type: "declined" },
         orderBy: { createdAt: "desc" },
@@ -245,7 +243,6 @@ export async function createEstimate(
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
         org: { select: { name: true } },
-        signature: { select: { signedByName: true } },
         estimateEvents: {
           where: { type: "declined" },
           orderBy: { createdAt: "desc" },
@@ -271,7 +268,7 @@ export async function saveEstimate(
       select: { id: true, status: true },
     });
     if (!existing) return null;
-    if (existing.status === "accepted" || existing.status === "declined") {
+    if (existing.status === "approved" || existing.status === "declined") {
       throw new EstimateLockedError(existing.status);
     }
 
@@ -309,7 +306,6 @@ export async function saveEstimate(
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
         org: { select: { name: true } },
-        signature: { select: { signedByName: true } },
         estimateEvents: {
           where: { type: "declined" },
           orderBy: { createdAt: "desc" },
@@ -457,7 +453,7 @@ export async function markEstimateSent(
       where: { id, orgId },
       data: {
         status:
-          existing.status === "accepted" || existing.status === "declined"
+          existing.status === "approved" || existing.status === "declined"
             ? existing.status
             : "sent",
         sentAt: new Date(),
@@ -502,7 +498,7 @@ export async function markEstimateViewed(
       select: { status: true },
     });
     if (!q) return;
-    if (q.status === "accepted" || q.status === "declined") return;
+    if (q.status === "approved" || q.status === "declined") return;
 
     if (q.status === "sent") {
       await tx.estimate.updateMany({
@@ -531,7 +527,7 @@ export interface DeclineEstimateInput {
 
 export type DeclineResult =
   | "ok"
-  | "already_signed"
+  | "already_approved"
   | "already_declined"
   | "not_found";
 
@@ -550,7 +546,7 @@ export async function declineEstimateByToken(
       select: { status: true },
     });
     if (!q) return "not_found";
-    if (q.status === "accepted") return "already_signed";
+    if (q.status === "approved") return "already_approved";
     if (q.status === "declined") return "already_declined";
 
     await tx.estimate.updateMany({
@@ -609,7 +605,7 @@ export async function getEstimateByToken(
           },
         },
       },
-      signature: true,
+      approval: true,
     },
   });
 }

@@ -4,7 +4,7 @@ interface EstimateTimestamps {
   status: EstimateStatus | string;
   sentAt: string | null;
   viewedAt: string | null;
-  acceptedAt: string | null;
+  approvedAt: string | null;
   declinedAt: string | null;
   createdAt: string;
 }
@@ -14,7 +14,7 @@ export function isOpenEstimate(q: { status: string }): boolean {
 }
 
 export function lastTouchAt(q: EstimateTimestamps): string {
-  return q.acceptedAt ?? q.declinedAt ?? q.viewedAt ?? q.sentAt ?? q.createdAt;
+  return q.approvedAt ?? q.declinedAt ?? q.viewedAt ?? q.sentAt ?? q.createdAt;
 }
 
 export function estimateStatusTone(status: EstimateStatus | string): {
@@ -24,12 +24,12 @@ export function estimateStatusTone(status: EstimateStatus | string): {
   label: string;
 } {
   switch (status) {
-    case "accepted":
+    case "approved":
       return {
         fg: "var(--sage)",
         border: "color-mix(in srgb, var(--sage) 50%, transparent)",
         bg: "color-mix(in srgb, var(--sage) 10%, transparent)",
-        label: "Accepted",
+        label: "Approved",
       };
     case "sent":
       return {

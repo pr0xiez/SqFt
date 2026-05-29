@@ -77,7 +77,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
   }
 
   const locked =
-    estimate.status === "accepted" || estimate.status === "declined";
+    estimate.status === "approved" || estimate.status === "declined";
 
   const rooms = (estimate.siteMeasure.items ?? []).filter(
     (i): i is RoomItem => i.type === "room"
@@ -120,14 +120,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
               day: "numeric",
               year: "numeric",
             })}
-            {estimate.status === "accepted" && (
-              <Link
-                href={`/estimates/${estimate.id}/signed`}
-                className="ml-3 font-[var(--font-mono)] text-[11px] text-[var(--accent)] underline"
-              >
-                View signed estimate →
-              </Link>
-            )}
           </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
             Line Items &amp; Pricing
@@ -189,9 +181,8 @@ export function EstimateBuilderView({ estimateId }: Props) {
       {/* Lock banner — shown when estimate is accepted or declined */}
       {locked && (
         <EstimateLockBanner
-          status={estimate.status as "accepted" | "declined"}
-          acceptedByName={estimate.signature?.signedByName ?? null}
-          acceptedAt={estimate.acceptedAt ?? null}
+          status={estimate.status as "approved" | "declined"}
+          approvedAt={estimate.approvedAt ?? null}
           declinedAt={estimate.declinedAt ?? null}
           declineReason={estimate.declineReason ?? null}
           declineSource={estimate.estimateEvents?.[0]?.source ?? null}
@@ -202,7 +193,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
               } | null
             )?.supersededByEstimateNumber ?? null
           }
-          signedHref={`/estimates/${estimate.id}/signed`}
         />
       )}
 

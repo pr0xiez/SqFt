@@ -5,7 +5,7 @@ const LIST_ESTIMATE_SELECT = {
   status: true,
   sentAt: true,
   viewedAt: true,
-  acceptedAt: true,
+  approvedAt: true,
   declinedAt: true,
   createdAt: true,
 } as const;
@@ -17,7 +17,7 @@ const DETAIL_ESTIMATE_SELECT = {
   date: true,
   sentAt: true,
   viewedAt: true,
-  acceptedAt: true,
+  approvedAt: true,
   declinedAt: true,
   createdAt: true,
   _count: { select: { lineItems: true } },

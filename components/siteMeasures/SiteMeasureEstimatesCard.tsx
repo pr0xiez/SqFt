@@ -56,7 +56,7 @@ function statusClass(status: string): string {
   switch (status) {
     case "sent":
       return "text-[var(--gold)] border-[var(--gold)]";
-    case "accepted":
+    case "approved":
       return "text-[var(--sage)] border-[var(--sage)]";
     case "declined":
       return "text-[var(--accent)] border-[var(--accent)]";

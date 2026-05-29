@@ -6,7 +6,7 @@ export type EstimateStatus =
   | "draft"
   | "sent"
   | "viewed"
-  | "accepted"
+  | "approved"
   | "declined";
 
 export interface CustomerEstimateSummary {
@@ -16,7 +16,7 @@ export interface CustomerEstimateSummary {
   date: string;
   sentAt: string | null;
   viewedAt: string | null;
-  acceptedAt: string | null;
+  approvedAt: string | null;
   declinedAt: string | null;
   createdAt: string;
   _count: { lineItems: number };
@@ -26,7 +26,7 @@ export interface CustomerListEstimateSummary {
   status: EstimateStatus;
   sentAt: string | null;
   viewedAt: string | null;
-  acceptedAt: string | null;
+  approvedAt: string | null;
   declinedAt: string | null;
   createdAt: string;
 }

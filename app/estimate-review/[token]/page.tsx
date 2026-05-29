@@ -26,7 +26,7 @@ export default async function PublicEstimatePage({ params }: Props) {
   const estimate = await getEstimateByToken(token);
   if (!estimate) notFound();
 
-  if (estimate.status !== "accepted" && estimate.status !== "declined") {
+  if (estimate.status !== "approved" && estimate.status !== "declined") {
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = h.get("user-agent") ?? null;
@@ -84,17 +84,9 @@ export default async function PublicEstimatePage({ params }: Props) {
     },
     sentAt: estimate.sentAt,
     viewedAt: estimate.viewedAt,
-    acceptedAt: estimate.acceptedAt,
+    approvedAt: estimate.approvedAt,
     declinedAt: estimate.declinedAt,
     declineReason: estimate.declineReason,
-    signature: estimate.signature
-      ? {
-          signedByName: estimate.signature.signedByName,
-          signedByEmail: estimate.signature.signedByEmail,
-          signedAt: estimate.signature.signedAt,
-          signatureData: estimate.signature.signatureData,
-        }
-      : null,
   };
 
   return <PublicEstimateView estimate={view} token={token} />;

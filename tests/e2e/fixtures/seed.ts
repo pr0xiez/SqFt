@@ -178,34 +178,24 @@ export async function getApprovalToken(
   return approvalToken;
 }
 
-// Smallest valid 1×1 transparent PNG — accept route requires
-// "data:image/png;base64,…" and ≤100KB decoded. This is ~70 bytes.
-export const TEST_SIGNATURE_PNG =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
-
 /**
- * Seed a estimate and drive it to accepted via the public accept endpoint.
- * Uses a tiny PNG signature to satisfy the accept route's schema.
+ * Seed an estimate and drive it to approved via the public one-click approve
+ * endpoint (no body — approval requires no signature).
  */
-export async function seedAcceptedEstimate(
+export async function seedApprovedEstimate(
   request: APIRequestContext,
   siteMeasureId: number
 ): Promise<{ estimateId: number; approvalToken: string }> {
   const { estimateId } = await seedEstimateWithLineItem(request, siteMeasureId);
   const approvalToken = await getApprovalToken(request, estimateId);
-  const res = await request.post(`/api/q/${approvalToken}/accept`, {
-    data: {
-      name: "Test Customer",
-      email: "customer@example.com",
-      signatureDataUrl: TEST_SIGNATURE_PNG,
-      consentText: "I agree to the terms.",
-    },
-  });
+  const res = await request.post(
+    `/api/estimate-review/${approvalToken}/approve`
+  );
   expect(res.status()).toBe(200);
   return { estimateId, approvalToken };
 }
 
-/** Seed a estimate and drive it to declined via the public decline endpoint. */
+/** Seed an estimate and drive it to declined via the public decline endpoint. */
 export async function seedDeclinedEstimate(
   request: APIRequestContext,
   siteMeasureId: number,
@@ -213,9 +203,12 @@ export async function seedDeclinedEstimate(
 ): Promise<{ estimateId: number; approvalToken: string }> {
   const { estimateId } = await seedEstimateWithLineItem(request, siteMeasureId);
   const approvalToken = await getApprovalToken(request, estimateId);
-  const res = await request.post(`/api/q/${approvalToken}/decline`, {
-    data: { reason },
-  });
+  const res = await request.post(
+    `/api/estimate-review/${approvalToken}/decline`,
+    {
+      data: { reason },
+    }
+  );
   expect(res.status()).toBe(200);
   return { estimateId, approvalToken };
 }

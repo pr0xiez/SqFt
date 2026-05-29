@@ -6,19 +6,14 @@ import { PublicEstimateAcceptBlock } from "./PublicEstimateAcceptBlock";
 
 interface Props {
   token: string;
-  customerEmail: string | null;
 }
 
-export function PublicEstimateAcceptBlockWithDecline({
-  token,
-  customerEmail,
-}: Props) {
+export function PublicEstimateAcceptBlockWithDecline({ token }: Props) {
   const [declineOpen, setDeclineOpen] = useState(false);
   return (
     <>
       <PublicEstimateAcceptBlock
         token={token}
-        customerEmail={customerEmail}
         onDeclineClick={() => setDeclineOpen(true)}
       />
       <DeclineModal

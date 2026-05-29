@@ -29,8 +29,8 @@ const tx = (prisma as any).__tx;
 beforeEach(() => vi.clearAllMocks());
 
 describe("saveEstimate lockdown", () => {
-  it("throws EstimateLockedError and does not mutate when estimate is accepted", async () => {
-    tx.estimate.findFirst.mockResolvedValue({ id: 7, status: "accepted" });
+  it("throws EstimateLockedError and does not mutate when estimate is approved", async () => {
+    tx.estimate.findFirst.mockResolvedValue({ id: 7, status: "approved" });
     await expect(
       saveEstimate(7, "org_1", { convenienceFeeRate: 0.1 })
     ).rejects.toBeInstanceOf(EstimateLockedError);

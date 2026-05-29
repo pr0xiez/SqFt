@@ -57,7 +57,7 @@ export class ConflictError extends ApiError {
 }
 
 export class EstimateLockedError extends ConflictError {
-  constructor(status: "accepted" | "declined") {
+  constructor(status: "approved" | "declined") {
     super(`Estimate is locked (status: ${status})`, "ESTIMATE_LOCKED");
   }
 }

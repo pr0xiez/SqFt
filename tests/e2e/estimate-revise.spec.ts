@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
-  seedAcceptedEstimate,
+  seedApprovedEstimate,
   seedEstimateWithLineItem,
 } from "./fixtures/seed";
 
@@ -15,7 +15,7 @@ test.describe("7.1 Estimate revise — API", () => {
     const ctx = await browser.newContext();
     await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );
@@ -59,7 +59,7 @@ test.describe("7.1 Estimate revise — API", () => {
     const ctx = await browser.newContext();
     await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );
@@ -84,7 +84,7 @@ test.describe("7.2 Revise button UI", () => {
     const ctx = await browser.newContext();
     const page = await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );
@@ -117,7 +117,7 @@ test.describe("7.2 Revise button UI", () => {
     const ctx = await browser.newContext();
     const page = await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );
@@ -143,7 +143,7 @@ test.describe("7.3 Revision badge", () => {
     const ctx = await browser.newContext();
     const page = await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );

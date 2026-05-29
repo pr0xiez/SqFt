@@ -113,7 +113,7 @@ describe("POST /api/estimates/[id]/send", () => {
         to: "henderson@example.com",
         subject: "Q5001",
         replyTo: "alex@org.com",
-        publicUrl: "https://app.sqft.dev/q/token-xyz",
+        publicUrl: "https://app.sqft.dev/estimate-review/token-xyz",
       })
     );
     expect(mockMarkSent).toHaveBeenCalledWith(1, "org1", expect.any(Object));
@@ -157,16 +157,16 @@ describe("POST /api/estimates/[id]/send", () => {
     );
     expect(mockSendEstimateEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        publicUrl: "https://app.sqft.dev/q/new-token-aaa",
+        publicUrl: "https://app.sqft.dev/estimate-review/new-token-aaa",
       })
     );
   });
 
-  it("returns CONFLICT when the estimate is already accepted", async () => {
+  it("returns CONFLICT when the estimate is already approved", async () => {
     mockGetEstimate.mockResolvedValue({
       id: 1,
       orgId: "org1",
-      status: "accepted",
+      status: "approved",
       approvalToken: "t",
     } as never);
     const res = await POST(

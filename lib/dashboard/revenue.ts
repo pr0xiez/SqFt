@@ -28,7 +28,7 @@ const revenueSelect = {
   markupPct: true,
   convenienceFeeRate: true,
   depositPct: true,
-  acceptedAt: true,
+  approvedAt: true,
   lineItems: {
     select: {
       id: true,
@@ -73,12 +73,12 @@ export async function getDashboardRevenue(
   const monthStart = new Date(year, month, 1);
 
   const acceptedMtd = await prisma.estimate.findMany({
-    where: { orgId, status: "accepted", acceptedAt: { gte: monthStart } },
+    where: { orgId, status: "approved", approvedAt: { gte: monthStart } },
     select: revenueSelect,
   });
 
   type AcceptedEstimateRow = PrismaEstimateForView & {
-    acceptedAt: Date | null;
+    approvedAt: Date | null;
   };
 
   const mtdTotal = (acceptedMtd as AcceptedEstimateRow[]).reduce(
@@ -110,7 +110,7 @@ export async function getDashboardRevenue(
     const amount = (acceptedMtd as AcceptedEstimateRow[])
       .filter(
         (q) =>
-          q.acceptedAt && q.acceptedAt >= weekStart && q.acceptedAt <= weekEnd
+          q.approvedAt && q.approvedAt >= weekStart && q.approvedAt <= weekEnd
       )
       .reduce(
         (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,

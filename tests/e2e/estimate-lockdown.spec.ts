@@ -2,18 +2,18 @@ import { expect, test } from "@playwright/test";
 import { loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
-  seedAcceptedEstimate,
+  seedApprovedEstimate,
   seedDeclinedEstimate,
 } from "./fixtures/seed";
 
 // ── 9.1 PATCH lockdown ───────────────────────────────────────────────────────
 
 test.describe("9.1 PATCH lockdown", () => {
-  test("9.1.1 PATCH on accepted estimate returns 409", async ({ browser }) => {
+  test("9.1.1 PATCH on approved estimate returns 409", async ({ browser }) => {
     const ctx = await browser.newContext();
     await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );
@@ -48,19 +48,19 @@ test.describe("9.1 PATCH lockdown", () => {
 // ── 9.2 Lock banners on the builder ──────────────────────────────────────────
 
 test.describe("9.2 Lock banners", () => {
-  test("9.2.1 accepted estimate shows the accepted banner", async ({
+  test("9.2.1 approved estimate shows the approved banner", async ({
     browser,
   }) => {
     const ctx = await browser.newContext();
     const page = await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );
 
     await page.goto(`/estimates/${estimateId}`);
-    await expect(page.getByText(/^Accepted/)).toBeVisible();
+    await expect(page.getByText(/^Approved/)).toBeVisible();
     await expect(
       page.getByText(/This estimate is locked\. Use Revise to make changes\./)
     ).toBeVisible();

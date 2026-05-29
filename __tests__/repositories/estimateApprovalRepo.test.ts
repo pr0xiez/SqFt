@@ -32,7 +32,11 @@ async function makeSentEstimate() {
       approvalToken: `tok-${Date.now()}-${Math.round(performance.now())}`,
     },
   });
-  return { orgId: org.id, siteMeasureId: siteMeasure.id, estimateId: estimate.id };
+  return {
+    orgId: org.id,
+    siteMeasureId: siteMeasure.id,
+    estimateId: estimate.id,
+  };
 }
 
 describe("approveEstimateByToken", () => {

@@ -66,7 +66,7 @@ describe("reviseEstimate", () => {
     const createArgs = tx.estimate.create.mock.calls[0][0];
     expect(createArgs.data.status).toBe("draft");
     expect(createArgs.data.revisedFromId).toBe(7);
-    expect(createArgs.data.acceptedAt).toBeUndefined();
+    expect(createArgs.data.approvedAt).toBeUndefined();
     expect(createArgs.data.declinedAt).toBeUndefined();
     expect(createArgs.data.approvalToken).toBeDefined();
     expect(tx.lineItem.createMany).toHaveBeenCalledTimes(1);

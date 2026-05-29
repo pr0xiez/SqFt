@@ -18,14 +18,17 @@ export default auth((req) => {
   const isAuth = !!req.auth;
   const isAuthRoute = req.nextUrl.pathname.startsWith("/login");
   const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");
-  const isPublicQuote = req.nextUrl.pathname.startsWith("/q/");
-  // /api/q/[token]/accept and /api/q/[token]/decline are unauthenticated — the
-  // token itself is the credential, so let them through just like the page route.
-  // Any new route under /api/q/ must enforce its own auth inside the handler.
-  const isPublicQuoteApi = req.nextUrl.pathname.startsWith("/api/q/");
+  const isPublicReview = req.nextUrl.pathname.startsWith("/estimate-review/");
+  // /api/estimate-review/[token]/approve and .../decline are unauthenticated —
+  // the token itself is the credential, so let them through just like the page
+  // route. Any new route under /api/estimate-review/ must enforce its own auth
+  // inside the handler.
+  const isPublicReviewApi = req.nextUrl.pathname.startsWith(
+    "/api/estimate-review/"
+  );
 
-  // Allow auth API routes and public token-authed quote pages through unconditionally
-  if (isApiAuth || isPublicQuote || isPublicQuoteApi)
+  // Allow auth API routes and public token-authed estimate pages through unconditionally
+  if (isApiAuth || isPublicReview || isPublicReviewApi)
     return NextResponse.next();
 
   const isApiRoute = req.nextUrl.pathname.startsWith("/api/");

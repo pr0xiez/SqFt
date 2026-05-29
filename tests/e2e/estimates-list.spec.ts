@@ -4,7 +4,7 @@ import {
   createCustomer,
   createCustomerAndEstimate,
   createSiteMeasure,
-  seedAcceptedEstimate,
+  seedApprovedEstimate,
   seedEstimateWithLineItem,
 } from "./fixtures/seed";
 
@@ -39,7 +39,7 @@ test.describe("13.1 Estimates list page", () => {
     const ctx = await browser.newContext();
     const page = await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );

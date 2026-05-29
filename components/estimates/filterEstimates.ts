@@ -2,7 +2,7 @@ export type EstimateStatusFilter =
   | "all"
   | "draft"
   | "sent"
-  | "accepted"
+  | "approved"
   | "declined";
 
 export type EstimateFilterInput = {

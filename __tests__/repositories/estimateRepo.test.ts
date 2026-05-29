@@ -444,10 +444,10 @@ describe("markEstimateViewed", () => {
     expect(eventCreate).toHaveBeenCalled();
   });
 
-  it("does nothing when status is accepted or declined", async () => {
+  it("does nothing when status is approved or declined", async () => {
     const eventCreate = vi.fn();
     txMock.estimateEvent = { create: eventCreate };
-    estimateFindFirst.mockResolvedValue({ id: 1, status: "accepted" });
+    estimateFindFirst.mockResolvedValue({ id: 1, status: "approved" });
     const { markEstimateViewed } = await import(
       "@/lib/repositories/estimateRepo"
     );
@@ -490,12 +490,12 @@ describe("declineEstimateByToken", () => {
     );
   });
 
-  it("returns 'already_signed' on accepted; 'already_declined' on declined", async () => {
-    estimateFindFirst.mockResolvedValueOnce({ id: 1, status: "accepted" });
+  it("returns 'already_approved' on approved; 'already_declined' on declined", async () => {
+    estimateFindFirst.mockResolvedValueOnce({ id: 1, status: "approved" });
     let r = await (
       await import("@/lib/repositories/estimateRepo")
     ).declineEstimateByToken(1, { reason: null, ip: null, userAgent: null });
-    expect(r).toBe("already_signed");
+    expect(r).toBe("already_approved");
     estimateFindFirst.mockResolvedValueOnce({ id: 1, status: "declined" });
     r = await (
       await import("@/lib/repositories/estimateRepo")

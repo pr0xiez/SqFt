@@ -71,7 +71,7 @@ function summarize(customer: CustomerListItem): CustomerSummary {
     (sm) => sm.estimates
   );
   const open = estimates.filter(isOpenEstimate).length;
-  const accepted = estimates.filter((q) => q.status === "accepted").length;
+  const accepted = estimates.filter((q) => q.status === "approved").length;
   const last =
     estimates.length > 0
       ? estimates.map(lastTouchAt).sort().reverse()[0]

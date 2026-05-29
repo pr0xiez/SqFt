@@ -189,7 +189,7 @@ describe("apiRoute — error envelope", () => {
   it("maps EstimateLockedError with code ESTIMATE_LOCKED", async () => {
     mockGetOrgId.mockResolvedValue("org1");
     const handler = apiRoute(async () => {
-      throw new EstimateLockedError("accepted");
+      throw new EstimateLockedError("approved");
     });
 
     const res = await handler(makeRequest("PATCH"), ctx);
@@ -198,7 +198,7 @@ describe("apiRoute — error envelope", () => {
     expect(await res.json()).toEqual({
       error: {
         code: "ESTIMATE_LOCKED",
-        message: "Estimate is locked (status: accepted)",
+        message: "Estimate is locked (status: approved)",
       },
     });
   });

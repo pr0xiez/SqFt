@@ -2,7 +2,7 @@ import { type BrowserContext, expect, test } from "@playwright/test";
 import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
-  seedAcceptedEstimate,
+  seedApprovedEstimate,
   seedEstimateWithLineItem,
 } from "./fixtures/seed";
 
@@ -78,13 +78,13 @@ test.describe
 // ── 5.2 Lockdown: cannot re-send a terminal estimate ────────────────────────────
 
 test.describe("5.2 Send lockdown", () => {
-  test("5.2.1 sending an accepted estimate returns 409", async ({
+  test("5.2.1 sending an approved estimate returns 409", async ({
     browser,
   }) => {
     const ctx = await browser.newContext();
     await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
-    const { estimateId } = await seedAcceptedEstimate(
+    const { estimateId } = await seedApprovedEstimate(
       ctx.request,
       siteMeasureId
     );
@@ -94,7 +94,7 @@ test.describe("5.2 Send lockdown", () => {
     });
     expect(res.status()).toBe(409);
     const body = await res.json();
-    expect(body.error.message).toMatch(/accepted/);
+    expect(body.error.message).toMatch(/approved/);
     await ctx.close();
   });
 });

@@ -26,7 +26,7 @@ const statusStyles: Record<
 > = {
   sent: { bg: "rgba(176,122,26,.1)", color: "var(--gold)" },
   viewed: { bg: "rgba(61,107,74,.1)", color: "var(--sage)" },
-  accepted: { bg: "var(--accent)", color: "#fff" },
+  approved: { bg: "var(--accent)", color: "#fff" },
   declined: {
     bg: "rgba(20,18,12,.06)",
     color: "var(--ink-2)",

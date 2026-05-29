@@ -31,7 +31,7 @@ export const POST = apiRoute(
 
     const estimate = await getEstimate(estimateId, orgId);
     if (!estimate) throw new NotFoundError();
-    if (estimate.status === "accepted" || estimate.status === "declined") {
+    if (estimate.status === "approved" || estimate.status === "declined") {
       throw new ConflictError(`Cannot re-send a ${estimate.status} estimate`);
     }
 
@@ -47,7 +47,7 @@ export const POST = apiRoute(
       });
     }
 
-    const publicUrl = `${getPublicBaseUrl()}/q/${token}`;
+    const publicUrl = `${getPublicBaseUrl()}/estimate-review/${token}`;
     const total =
       estimate.lineItems.length === 0
         ? 0

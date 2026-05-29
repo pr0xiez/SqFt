@@ -51,7 +51,7 @@ export interface EstimateDetail {
   markupPct: number;
   depositPct: number;
   approvalToken?: string | null;
-  acceptedAt?: string | null;
+  approvedAt?: string | null;
   declinedAt?: string | null;
   declineReason?: string | null;
   createdAt: string;
@@ -72,14 +72,13 @@ export interface EstimateDetail {
   };
   lineItems: LineItemCalc[];
   org?: { name: string } | null;
-  signature?: { signedByName: string } | null;
   estimateEvents?: EstimateDeclineEvent[];
   revisedFrom?: { id: number; estimateNumber: number } | null;
   revisedBy?: { id: number; estimateNumber: number }[];
 }
 
 export interface UpdateEstimateInput {
-  status?: "draft" | "sent" | "accepted" | "declined";
+  status?: "draft" | "sent" | "approved" | "declined";
   convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;

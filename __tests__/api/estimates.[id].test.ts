@@ -94,7 +94,7 @@ describe("PATCH /api/estimates/[id]", () => {
   });
 
   it("maps EstimateLockedError thrown by saveEstimate to ESTIMATE_LOCKED", async () => {
-    mockSaveEstimate.mockRejectedValue(new EstimateLockedError("accepted"));
+    mockSaveEstimate.mockRejectedValue(new EstimateLockedError("approved"));
     const res = await PATCH(
       makeRequest("PATCH", "http://x/api/estimates/1", { status: "sent" }),
       params({ id: "1" })

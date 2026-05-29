@@ -8,9 +8,9 @@ export const POST = apiRoute({ minRole: "lead" }, async ({ orgId, params }) => {
 
   const original = await getEstimate(id, orgId);
   if (!original) throw new NotFoundError();
-  if (original.status !== "accepted" && original.status !== "declined") {
+  if (original.status !== "approved" && original.status !== "declined") {
     throw new ConflictError(
-      "Only accepted or declined estimates can be revised"
+      "Only approved or declined estimates can be revised"
     );
   }
 

@@ -1,27 +1,23 @@
 interface Props {
-  status: "accepted" | "declined";
-  acceptedByName?: string | null;
-  acceptedAt?: Date | string | null;
+  status: "approved" | "declined";
+  approvedAt?: Date | string | null;
   declinedAt?: Date | string | null;
   declineReason?: string | null;
   declineSource?: string | null; // "customer" | "system_supersede" | null
   supersededByEstimateNumber?: number | null;
-  signedHref?: string;
 }
 
 export function EstimateLockBanner({
   status,
-  acceptedByName,
-  acceptedAt,
+  approvedAt,
   declinedAt,
   declineReason,
   declineSource,
   supersededByEstimateNumber,
-  signedHref,
 }: Props) {
-  if (status === "accepted") {
-    const date = acceptedAt
-      ? new Date(acceptedAt).toLocaleDateString("en-US", {
+  if (status === "approved") {
+    const date = approvedAt
+      ? new Date(approvedAt).toLocaleDateString("en-US", {
           year: "numeric",
           month: "long",
           day: "numeric",
@@ -34,21 +30,12 @@ export function EstimateLockBanner({
         </div>
         <div className="flex-1">
           <div className="text-[14px] font-[600] text-[var(--sage)]">
-            Accepted{acceptedByName ? ` by ${acceptedByName}` : ""}
-            {date ? ` on ${date}` : ""}
+            Approved{date ? ` on ${date}` : ""}
           </div>
           <div className="text-[12px] text-[var(--ink-2)]">
             This estimate is locked. Use Revise to make changes.
           </div>
         </div>
-        {signedHref && (
-          <a
-            href={signedHref}
-            className="text-[12px] font-[var(--font-mono)] text-[var(--accent)] underline"
-          >
-            View signed estimate →
-          </a>
-        )}
       </div>
     );
   }
@@ -64,7 +51,7 @@ export function EstimateLockBanner({
   const heading = isSuperseded
     ? `Auto-declined${
         supersededByEstimateNumber
-          ? ` when Estimate #${supersededByEstimateNumber} was accepted`
+          ? ` when Estimate #${supersededByEstimateNumber} was approved`
           : ""
       }`
     : `Declined by customer${date ? ` on ${date}` : ""}`;

@@ -9,7 +9,6 @@ import { LineItemsTable } from "./public-estimate/LineItemsTable";
 import { PartiesBlock } from "./public-estimate/PartiesBlock";
 import { PublicEstimateAcceptBlockWithDecline } from "./public-estimate/PublicEstimateAcceptBlockWithDecline";
 import { PublicEstimateHeader } from "./public-estimate/PublicEstimateHeader";
-import { PublicEstimateSignedView } from "./public-estimate/PublicEstimateSignedView";
 import { PublicEstimateStatusBar } from "./public-estimate/PublicEstimateStatusBar";
 import { RoomsList } from "./public-estimate/RoomsList";
 import { TotalsBlock } from "./public-estimate/TotalsBlock";
@@ -17,7 +16,7 @@ import { TotalsBlock } from "./public-estimate/TotalsBlock";
 export interface PublicEstimate {
   id: number;
   estimateNumber: number;
-  status: "draft" | "sent" | "viewed" | "accepted" | "declined";
+  status: "draft" | "sent" | "viewed" | "approved" | "declined";
   date: string | Date;
   convenienceFeeRate: number;
   markupPct: number;
@@ -40,15 +39,9 @@ export interface PublicEstimate {
   };
   sentAt?: Date | string | null;
   viewedAt?: Date | string | null;
-  acceptedAt?: Date | string | null;
+  approvedAt?: Date | string | null;
   declinedAt?: Date | string | null;
   declineReason?: string | null;
-  signature?: {
-    signedByName: string;
-    signedByEmail: string;
-    signedAt: Date | string;
-    signatureData: string;
-  } | null;
 }
 
 interface Props {
@@ -76,7 +69,7 @@ export function PublicEstimateView({ estimate, token }: Props) {
       <PublicEstimateStatusBar
         status={estimate.status}
         sentAt={estimate.sentAt}
-        acceptedAt={estimate.acceptedAt}
+        approvedAt={estimate.approvedAt}
         declinedAt={estimate.declinedAt}
       />
       <div className="max-w-[880px] mx-auto mb-8 px-7">
@@ -107,17 +100,9 @@ export function PublicEstimateView({ estimate, token }: Props) {
               deposit={deposit}
               depositPct={estimate.depositPct}
             />
-            {estimate.status === "accepted" && estimate.signature ? (
-              <PublicEstimateSignedView
-                signedByName={estimate.signature.signedByName}
-                signedAt={estimate.signature.signedAt}
-                signatureData={estimate.signature.signatureData}
-              />
-            ) : estimate.status === "declined" ? null : (
-              <PublicEstimateAcceptBlockWithDecline
-                token={token}
-                customerEmail={estimate.customer?.email ?? null}
-              />
+            {estimate.status === "approved" ||
+            estimate.status === "declined" ? null : (
+              <PublicEstimateAcceptBlockWithDecline token={token} />
             )}
             {estimate.status === "declined" && (
               <div className="mt-9 pt-6 border-t border-[var(--line)]">

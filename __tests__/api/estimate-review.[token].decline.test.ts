@@ -16,7 +16,9 @@ vi.mock("next/server", async (importOriginal) => {
 const { getEstimateByToken, declineEstimateByToken } = await import(
   "@/lib/repositories"
 );
-const { POST } = await import("@/app/api/q/[token]/decline/route");
+const { POST } = await import(
+  "@/app/api/estimate-review/[token]/decline/route"
+);
 
 const validToken = "seed-token-1234567890";
 
@@ -24,7 +26,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("POST /api/q/[token]/decline", () => {
+describe("POST /api/estimate-review/[token]/decline", () => {
   it("declines with optional reason", async () => {
     vi.mocked(getEstimateByToken).mockResolvedValue({
       id: 1,
@@ -35,9 +37,11 @@ describe("POST /api/q/[token]/decline", () => {
     } as never);
     vi.mocked(declineEstimateByToken).mockResolvedValue("ok");
     const res = await POST(
-      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {
-        reason: "too expensive",
-      }),
+      makeRequest(
+        "POST",
+        `http://x/api/estimate-review/${validToken}/decline`,
+        { reason: "too expensive" }
+      ),
       params({ token: validToken })
     );
     expect(res.status).toBe(200);
@@ -53,19 +57,27 @@ describe("POST /api/q/[token]/decline", () => {
     } as never);
     vi.mocked(declineEstimateByToken).mockResolvedValue("ok");
     const res = await POST(
-      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
+      makeRequest(
+        "POST",
+        `http://x/api/estimate-review/${validToken}/decline`,
+        {}
+      ),
       params({ token: validToken })
     );
     expect(res.status).toBe(200);
   });
 
-  it("returns CONFLICT when already accepted", async () => {
+  it("returns CONFLICT when already approved", async () => {
     vi.mocked(getEstimateByToken).mockResolvedValue({
       id: 1,
-      status: "accepted",
+      status: "approved",
     } as never);
     const res = await POST(
-      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
+      makeRequest(
+        "POST",
+        `http://x/api/estimate-review/${validToken}/decline`,
+        {}
+      ),
       params({ token: validToken })
     );
     expect(res.status).toBe(409);
@@ -74,7 +86,11 @@ describe("POST /api/q/[token]/decline", () => {
   it("returns NOT_FOUND on unknown token", async () => {
     vi.mocked(getEstimateByToken).mockResolvedValue(null);
     const res = await POST(
-      makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
+      makeRequest(
+        "POST",
+        `http://x/api/estimate-review/${validToken}/decline`,
+        {}
+      ),
       params({ token: validToken })
     );
     expect(res.status).toBe(404);

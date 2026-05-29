@@ -127,7 +127,7 @@ export function CustomerDetailView({ customerId }: Props) {
       (e) => e.estimates ?? []
     );
     const open = allEstimates.filter(isOpenEstimate).length;
-    const accepted = allEstimates.filter((q) => q.status === "accepted").length;
+    const accepted = allEstimates.filter((q) => q.status === "approved").length;
     const declined = allEstimates.filter((q) => q.status === "declined").length;
     const lastActivityIso = allEstimates.map(lastTouchAt).sort().reverse()[0];
     return {
@@ -513,7 +513,7 @@ function SiteMeasureRow({
 }) {
   const estimates = siteMeasure.estimates ?? [];
   const openCount = estimates.filter(isOpenEstimate).length;
-  const acceptedCount = estimates.filter((q) => q.status === "accepted").length;
+  const acceptedCount = estimates.filter((q) => q.status === "approved").length;
 
   return (
     <div className="border border-[var(--line)] rounded-md overflow-hidden">
@@ -582,8 +582,8 @@ function SiteMeasureRow({
                   <StatusPill status={q.status} />
                   <div className="flex-1 min-w-0 flex items-baseline gap-2">
                     <span className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] tracking-[.02em]">
-                      {q.status === "accepted"
-                        ? "Accepted"
+                      {q.status === "approved"
+                        ? "Approved"
                         : q.status === "declined"
                           ? "Declined"
                           : q.status === "viewed"

@@ -19,7 +19,7 @@ export const estimateCreateSchema = z.object({
 });
 
 export const estimateUpdateSchema = z.object({
-  status: z.enum(["draft", "sent", "accepted", "declined"]).optional(),
+  status: z.enum(["draft", "sent", "approved", "declined"]).optional(),
   convenienceFeeRate: z.number().min(0).max(1).optional(),
   markupPct: z.number().min(0).optional(),
   depositPct: z.number().min(0).max(1).optional(),
@@ -37,15 +37,6 @@ export const estimateSendSchema = z.object({
   regenerateLink: z.boolean().optional(),
 });
 
-export const estimateAcceptSchema = z.object({
-  name: z.string().min(2).max(120),
-  email: z.string().email(),
-  signatureDataUrl: z
-    .string()
-    .startsWith("data:image/png;base64,", "Signature must be a base64 PNG"),
-  consentText: z.string().min(1).max(2000),
-});
-
 export const estimateDeclineSchema = z.object({
   reason: z.string().max(1000).optional(),
 });
@@ -57,5 +48,4 @@ export const estimateTokenParams = z.object({
 export type EstimateCreateInput = z.infer<typeof estimateCreateSchema>;
 export type EstimateUpdateInput = z.infer<typeof estimateUpdateSchema>;
 export type EstimateSendInput = z.infer<typeof estimateSendSchema>;
-export type EstimateAcceptInput = z.infer<typeof estimateAcceptSchema>;
 export type EstimateDeclineInput = z.infer<typeof estimateDeclineSchema>;

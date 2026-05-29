@@ -13,7 +13,7 @@ export const POST = publicRoute(
 
     const estimate = await getEstimateByToken(token);
     if (!estimate) throw new NotFoundError();
-    if (estimate.status === "accepted" || estimate.status === "declined") {
+    if (estimate.status === "approved" || estimate.status === "declined") {
       throw new ConflictError(`Estimate already ${estimate.status}`);
     }
 

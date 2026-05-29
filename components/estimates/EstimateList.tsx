@@ -22,14 +22,14 @@ const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "draft", label: "Draft" },
   { value: "sent", label: "Sent" },
-  { value: "accepted", label: "Accepted" },
+  { value: "approved", label: "Approved" },
   { value: "declined", label: "Declined" },
 ];
 
 const STATUS_PILL_COLOR: Record<string, string> = {
   draft: "text-[var(--muted)]",
   sent: "text-[var(--gold)]",
-  accepted: "text-[var(--sage)]",
+  approved: "text-[var(--sage)]",
   declined: "text-[var(--accent)]",
 };
 
@@ -83,7 +83,7 @@ export function EstimateListView() {
       all: estimates.length,
       draft: 0,
       sent: 0,
-      accepted: 0,
+      approved: 0,
       declined: 0,
     };
     for (const q of estimates) {

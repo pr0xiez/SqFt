@@ -22,7 +22,7 @@ export function DeclineModal({ token, open, onClose }: Props) {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/q/${token}/decline`, {
+      const res = await fetch(`/api/estimate-review/${token}/decline`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ reason: reason.trim() || undefined }),

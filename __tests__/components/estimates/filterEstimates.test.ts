@@ -38,7 +38,7 @@ const sample: Q[] = [
   {
     id: 103,
     estimateNumber: 9,
-    status: "accepted",
+    status: "approved",
     siteMeasure: {
       id: 13,
       siteMeasureNumber: null,
@@ -68,8 +68,8 @@ describe("filterEstimates", () => {
     expect(filterEstimates(sample, "", "sent").map((q) => q.id)).toEqual([102]);
   });
 
-  it("status='accepted' keeps only accepted estimates", () => {
-    expect(filterEstimates(sample, "", "accepted").map((q) => q.id)).toEqual([
+  it("status='approved' keeps only approved estimates", () => {
+    expect(filterEstimates(sample, "", "approved").map((q) => q.id)).toEqual([
       103,
     ]);
   });

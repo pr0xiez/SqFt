@@ -110,7 +110,7 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
       select: { id: true, sentAt: true, validityDays: true },
     }),
     prisma.estimate.count({
-      where: { orgId, status: "accepted", acceptedAt: { gte: thirtyDaysAgo } },
+      where: { orgId, status: "approved", approvedAt: { gte: thirtyDaysAgo } },
     }),
     prisma.estimate.count({
       where: { orgId, status: "declined", declinedAt: { gte: thirtyDaysAgo } },
@@ -118,8 +118,8 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     prisma.estimate.count({
       where: {
         orgId,
-        status: "accepted",
-        acceptedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
+        status: "approved",
+        approvedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
       },
     }),
     prisma.estimate.count({
@@ -130,14 +130,14 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
       },
     }),
     prisma.estimate.findMany({
-      where: { orgId, status: "accepted", acceptedAt: { gte: monthStart } },
+      where: { orgId, status: "approved", approvedAt: { gte: monthStart } },
       select: revenueSelect,
     }),
     prisma.estimate.findMany({
       where: {
         orgId,
-        status: "accepted",
-        acceptedAt: { gte: lastMonthStart, lte: lastMonthSamePeriodEnd },
+        status: "approved",
+        approvedAt: { gte: lastMonthStart, lte: lastMonthSamePeriodEnd },
       },
       select: revenueSelect,
     }),
