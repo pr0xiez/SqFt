@@ -14,7 +14,7 @@ export interface CalEvent {
   type: "job" | "visit" | "other";
   title: string;
   customerId?: number | null;
-  quoteId?: number | null;
+  estimateId?: number | null;
   date: string;
   endDate?: string | null;
   startTime: string;
@@ -29,7 +29,7 @@ export interface CreateEventInput {
   type: "job" | "visit" | "other";
   title: string;
   customerId?: number;
-  quoteId?: number;
+  estimateId?: number;
   date: string;
   endDate?: string;
   startTime: string;

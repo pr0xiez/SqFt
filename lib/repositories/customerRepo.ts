@@ -1,7 +1,7 @@
 import type { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-const LIST_QUOTE_SELECT = {
+const LIST_ESTIMATE_SELECT = {
   status: true,
   sentAt: true,
   viewedAt: true,
@@ -10,9 +10,9 @@ const LIST_QUOTE_SELECT = {
   createdAt: true,
 } as const;
 
-const DETAIL_QUOTE_SELECT = {
+const DETAIL_ESTIMATE_SELECT = {
   id: true,
-  quoteNumber: true,
+  estimateNumber: true,
   status: true,
   date: true,
   sentAt: true,
@@ -25,10 +25,10 @@ const DETAIL_QUOTE_SELECT = {
 
 export type CustomerWithCount = Prisma.CustomerGetPayload<{
   include: {
-    _count: { select: { estimates: true } };
-    estimates: {
+    _count: { select: { siteMeasures: true } };
+    siteMeasures: {
       select: {
-        quotes: { select: typeof LIST_QUOTE_SELECT };
+        estimates: { select: typeof LIST_ESTIMATE_SELECT };
       };
     };
   };
@@ -36,16 +36,16 @@ export type CustomerWithCount = Prisma.CustomerGetPayload<{
 
 export type CustomerWithEstimates = Prisma.CustomerGetPayload<{
   include: {
-    estimates: {
+    siteMeasures: {
       orderBy: { createdAt: "desc" };
       include: {
-        quotes: {
+        estimates: {
           orderBy: { createdAt: "desc" };
-          select: typeof DETAIL_QUOTE_SELECT;
+          select: typeof DETAIL_ESTIMATE_SELECT;
         };
       };
     };
-    _count: { select: { estimates: true } };
+    _count: { select: { siteMeasures: true } };
   };
 }>;
 
@@ -64,10 +64,10 @@ export async function listCustomers(
     where: { orgId },
     orderBy: { createdAt: "desc" },
     include: {
-      _count: { select: { estimates: true } },
-      estimates: {
+      _count: { select: { siteMeasures: true } },
+      siteMeasures: {
         select: {
-          quotes: { select: LIST_QUOTE_SELECT },
+          estimates: { select: LIST_ESTIMATE_SELECT },
         },
       },
     },
@@ -81,16 +81,16 @@ export async function getCustomer(
   return prisma.customer.findFirst({
     where: { id, orgId },
     include: {
-      estimates: {
+      siteMeasures: {
         orderBy: { createdAt: "desc" },
         include: {
-          quotes: {
+          estimates: {
             orderBy: { createdAt: "desc" },
-            select: DETAIL_QUOTE_SELECT,
+            select: DETAIL_ESTIMATE_SELECT,
           },
         },
       },
-      _count: { select: { estimates: true } },
+      _count: { select: { siteMeasures: true } },
     },
   });
 }

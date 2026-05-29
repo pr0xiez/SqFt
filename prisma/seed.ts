@@ -19,11 +19,11 @@ async function main() {
 
   // ── Reset demo data so the seed is safely re-runnable ─────────────────────
   // The seed populates demo orgs (johnson-flooring-demo, other-floors-demo)
-  // via `create`, not upsert, for child rows — quotes, line items, events,
-  // estimates, etc. Without a wipe step, re-running duplicates everything and
+  // via `create`, not upsert, for child rows — estimates, line items, events,
+  // siteMeasures, etc. Without a wipe step, re-running duplicates everything and
   // trips unique constraints (e.g. approvalToken). Clear the demo orgs' data
-  // first; cascades take care of LineItem/QuoteSignature/QuoteEvent/
-  // EstimateItem rows automatically.
+  // first; cascades take care of LineItem/EstimateSignature/EstimateEvent/
+  // SiteMeasureItem rows automatically.
   const demoOrgSlugs = ["johnson-flooring-demo", "other-floors-demo"];
   const demoOrgs = await prisma.organization.findMany({
     where: { slug: { in: demoOrgSlugs } },
@@ -218,18 +218,18 @@ async function main() {
   }
   console.log(`  ✓ ${customers.length} customers`);
 
-  // ── Estimates (rooms only) ────────────────────────────────────────────────
+  // ── SiteMeasures (rooms only) ────────────────────────────────────────────────
 
-  // Each estimate gets its org-wide estimateNumber allocated explicitly here
-  // (the repository allocates from Organization.nextEstimateNumber in app
+  // Each siteMeasure gets its org-wide siteMeasureNumber allocated explicitly here
+  // (the repository allocates from Organization.nextSiteMeasureNumber in app
   // code; the seed sets it directly for stable demo numbers).
 
   // #1042 — Henderson — 3 rooms
-  const est1042 = await prisma.estimate.create({
+  const est1042 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
       customerId: customers[0].id,
-      estimateNumber: 1042,
+      siteMeasureNumber: 1042,
       items: {
         create: [
           {
@@ -265,11 +265,11 @@ async function main() {
   });
 
   // #1043 — Sharma — Tile, 2 rooms
-  const est1043 = await prisma.estimate.create({
+  const est1043 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
       customerId: customers[5].id,
-      estimateNumber: 1043,
+      siteMeasureNumber: 1043,
       items: {
         create: [
           {
@@ -296,11 +296,11 @@ async function main() {
   });
 
   // #1044 — Park — Living + Dining, L-shape
-  const _est1044 = await prisma.estimate.create({
+  const _est1044 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
       customerId: customers[3].id,
-      estimateNumber: 1044,
+      siteMeasureNumber: 1044,
       items: {
         create: [
           {
@@ -318,16 +318,20 @@ async function main() {
   });
 
   // #1045 — Nguyen — empty (new lead)
-  const _est1045 = await prisma.estimate.create({
-    data: { orgId: org.id, customerId: customers[4].id, estimateNumber: 1045 },
+  const _est1045 = await prisma.siteMeasure.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[4].id,
+      siteMeasureNumber: 1045,
+    },
   });
 
   // #1040 — Chen — Staircase
-  const est1040 = await prisma.estimate.create({
+  const est1040 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
       customerId: customers[2].id,
-      estimateNumber: 1040,
+      siteMeasureNumber: 1040,
       items: {
         create: [
           {
@@ -354,11 +358,11 @@ async function main() {
   });
 
   // #1041 — Martinez — Hardwood, 3 rooms
-  const est1041 = await prisma.estimate.create({
+  const est1041 = await prisma.siteMeasure.create({
     data: {
       orgId: org.id,
       customerId: customers[1].id,
-      estimateNumber: 1041,
+      siteMeasureNumber: 1041,
       items: {
         create: [
           {
@@ -392,16 +396,16 @@ async function main() {
       },
     },
   });
-  console.log("  ✓ 6 estimates");
+  console.log("  ✓ 6 siteMeasures");
 
-  // ── Quotes ────────────────────────────────────────────────────────────────
+  // ── Estimates ────────────────────────────────────────────────────────────────
 
   // #5001 — Henderson LVP (sent)
-  const q5001 = await prisma.quote.create({
+  const q5001 = await prisma.estimate.create({
     data: {
       orgId: org.id,
-      estimateId: est1042.id,
-      quoteNumber: 5001,
+      siteMeasureId: est1042.id,
+      estimateNumber: 5001,
       status: "sent",
       convenienceFeeRate: 0.03,
       markupPct: 35,
@@ -471,14 +475,14 @@ async function main() {
   const placeholderSig =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII=";
   const seedConsentText =
-    "By typing my name and signing below, I consent to use an electronic signature, and agree this signature has the same legal effect as a handwritten signature on this quote.";
+    "By typing my name and signing below, I consent to use an electronic signature, and agree this signature has the same legal effect as a handwritten signature on this estimate.";
 
-  // #5002 — Martinez HW (accepted) — winning quote, drives the job event
-  const q5002 = await prisma.quote.create({
+  // #5002 — Martinez HW (accepted) — winning estimate, drives the job event
+  const q5002 = await prisma.estimate.create({
     data: {
       orgId: org.id,
-      estimateId: est1041.id,
-      quoteNumber: 5002,
+      siteMeasureId: est1041.id,
+      estimateNumber: 5002,
       status: "accepted",
       convenienceFeeRate: 0.03,
       markupPct: 35,
@@ -524,12 +528,12 @@ async function main() {
     },
   });
 
-  // #5003 — Chen Staircase (accepted) — winning quote, drives the job events
-  const q5003 = await prisma.quote.create({
+  // #5003 — Chen Staircase (accepted) — winning estimate, drives the job events
+  const q5003 = await prisma.estimate.create({
     data: {
       orgId: org.id,
-      estimateId: est1040.id,
-      quoteNumber: 5003,
+      siteMeasureId: est1040.id,
+      estimateNumber: 5003,
       status: "accepted",
       convenienceFeeRate: 0.03,
       markupPct: 35,
@@ -575,14 +579,14 @@ async function main() {
     },
   });
 
-  // Signatures + accept-flow events for the two winning quotes above. The app
-  // only flips a quote to `accepted` inside `acceptQuoteByToken`, which writes
-  // a QuoteSignature in the same transaction — so accepted quotes in seed data
+  // Signatures + accept-flow events for the two winning estimates above. The app
+  // only flips a estimate to `accepted` inside `acceptEstimateByToken`, which writes
+  // a EstimateSignature in the same transaction — so accepted estimates in seed data
   // need matching signatures to preserve that invariant (and to keep the
-  // /quotes/[id]/signed audit page reachable).
-  await prisma.quoteSignature.create({
+  // /estimates/[id]/signed audit page reachable).
+  await prisma.estimateSignature.create({
     data: {
-      quoteId: q5002.id,
+      estimateId: q5002.id,
       signedByName: "Roberto Martinez",
       signedByEmail: "rmartinez@email.com",
       signatureData: placeholderSig,
@@ -590,8 +594,8 @@ async function main() {
       signedIp: "198.51.100.22",
       signedUserAgent: "Mozilla/5.0 (seed fixture)",
       consentText: seedConsentText,
-      quoteSnapshot: {
-        quoteNumber: q5002.quoteNumber,
+      estimateSnapshot: {
+        estimateNumber: q5002.estimateNumber,
         seedFixture: true,
       },
       snapshotHash:
@@ -627,9 +631,9 @@ async function main() {
       userAgent: "Mozilla/5.0 (seed fixture)",
     },
   ] as const) {
-    await prisma.quoteEvent.create({
+    await prisma.estimateEvent.create({
       data: {
-        quoteId: q5002.id,
+        estimateId: q5002.id,
         type: evt.type,
         source: evt.source,
         actorEmail: evt.actorEmail,
@@ -641,9 +645,9 @@ async function main() {
     });
   }
 
-  await prisma.quoteSignature.create({
+  await prisma.estimateSignature.create({
     data: {
-      quoteId: q5003.id,
+      estimateId: q5003.id,
       signedByName: "Linda Chen",
       signedByEmail: "lchen@email.com",
       signatureData: placeholderSig,
@@ -651,8 +655,8 @@ async function main() {
       signedIp: "198.51.100.51",
       signedUserAgent: "Mozilla/5.0 (seed fixture)",
       consentText: seedConsentText,
-      quoteSnapshot: {
-        quoteNumber: q5003.quoteNumber,
+      estimateSnapshot: {
+        estimateNumber: q5003.estimateNumber,
         seedFixture: true,
       },
       snapshotHash:
@@ -688,9 +692,9 @@ async function main() {
       userAgent: "Mozilla/5.0 (seed fixture)",
     },
   ] as const) {
-    await prisma.quoteEvent.create({
+    await prisma.estimateEvent.create({
       data: {
-        quoteId: q5003.id,
+        estimateId: q5003.id,
         type: evt.type,
         source: evt.source,
         actorEmail: evt.actorEmail,
@@ -703,11 +707,11 @@ async function main() {
   }
 
   // #5004 — Sharma Tile (draft)
-  const q5004 = await prisma.quote.create({
+  const q5004 = await prisma.estimate.create({
     data: {
       orgId: org.id,
-      estimateId: est1043.id,
-      quoteNumber: 5004,
+      siteMeasureId: est1043.id,
+      estimateNumber: 5004,
       status: "draft",
       convenienceFeeRate: 0.03,
       markupPct: 35,
@@ -728,20 +732,20 @@ async function main() {
     },
   });
 
-  // Park (#1044) gets no quote yet — demonstrates "no quotes yet" empty state
-  // Nguyen (#1045) is a brand-new lead with no rooms and no quote
+  // Park (#1044) gets no estimate yet — demonstrates "no estimates yet" empty state
+  // Nguyen (#1045) is a brand-new lead with no rooms and no estimate
 
-  // ── Sent quote: emailed but not yet viewed ────────────────────────────────
-  const sentQuote = await prisma.quote.create({
+  // ── Sent estimate: emailed but not yet viewed ────────────────────────────────
+  const sentEstimate = await prisma.estimate.create({
     data: {
       orgId: org.id,
-      estimateId: est1042.id,
-      quoteNumber: 5005,
+      siteMeasureId: est1042.id,
+      estimateNumber: 5005,
       status: "sent",
       convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
-      approvalToken: "seed-token-sent-quote-aaaaaaaaaaaaaaaaaaaa",
+      approvalToken: "seed-token-sent-estimate-aaaaaaaaaaaaaaaaaaaa",
       sentAt: new Date("2026-05-08T15:30:00Z"),
       sentToEmail: "buyer@example.com",
       sentByEmail: user.email,
@@ -760,32 +764,32 @@ async function main() {
       },
     },
   });
-  await prisma.quoteEvent.create({
+  await prisma.estimateEvent.create({
     data: {
-      quoteId: sentQuote.id,
+      estimateId: sentEstimate.id,
       type: "sent",
       source: "builder",
       actorEmail: user.email,
       actorName: user.name,
       metadata: {
         to: "buyer@example.com",
-        subject: `Quote #${sentQuote.quoteNumber} from ${org.name}`,
+        subject: `Estimate #${sentEstimate.estimateNumber} from ${org.name}`,
       },
     },
   });
-  console.log(`  ✓ Sent quote: #${sentQuote.quoteNumber}`);
+  console.log(`  ✓ Sent estimate: #${sentEstimate.estimateNumber}`);
 
-  // ── Accepted quote: signed by customer ────────────────────────────────────
-  const acceptedQuote = await prisma.quote.create({
+  // ── Accepted estimate: signed by customer ────────────────────────────────────
+  const acceptedEstimate = await prisma.estimate.create({
     data: {
       orgId: org.id,
-      estimateId: est1042.id,
-      quoteNumber: 5006,
+      siteMeasureId: est1042.id,
+      estimateNumber: 5006,
       status: "accepted",
       convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
-      approvalToken: "seed-token-accepted-quote-bbbbbbbbbbbbbbbb",
+      approvalToken: "seed-token-accepted-estimate-bbbbbbbbbbbbbbbb",
       sentAt: new Date("2026-05-01T14:00:00Z"),
       sentToEmail: "henderson@example.com",
       sentByEmail: user.email,
@@ -815,9 +819,9 @@ async function main() {
     },
   });
 
-  await prisma.quoteSignature.create({
+  await prisma.estimateSignature.create({
     data: {
-      quoteId: acceptedQuote.id,
+      estimateId: acceptedEstimate.id,
       signedByName: "Janet Henderson",
       signedByEmail: "henderson@example.com",
       signatureData: placeholderSig,
@@ -825,8 +829,8 @@ async function main() {
       signedIp: "203.0.113.42",
       signedUserAgent: "Mozilla/5.0 (seed fixture)",
       consentText: seedConsentText,
-      quoteSnapshot: {
-        quoteNumber: acceptedQuote.quoteNumber,
+      estimateSnapshot: {
+        estimateNumber: acceptedEstimate.estimateNumber,
         seedFixture: true,
       },
       snapshotHash:
@@ -856,9 +860,9 @@ async function main() {
       createdAt: new Date("2026-05-02T10:45:00Z"),
     },
   ] as const) {
-    await prisma.quoteEvent.create({
+    await prisma.estimateEvent.create({
       data: {
-        quoteId: acceptedQuote.id,
+        estimateId: acceptedEstimate.id,
         type: evt.type,
         source: evt.source,
         actorEmail: evt.actorEmail,
@@ -875,15 +879,15 @@ async function main() {
       },
     });
   }
-  console.log(`  ✓ Accepted quote: #${acceptedQuote.quoteNumber}`);
+  console.log(`  ✓ Accepted estimate: #${acceptedEstimate.estimateNumber}`);
 
   // Bump the org counters past the seeded values so newly created records
   // start fresh sequences.
   await prisma.organization.update({
     where: { id: org.id },
-    data: { nextEstimateNumber: 1046, nextQuoteNumber: 5007 },
+    data: { nextSiteMeasureNumber: 1046, nextEstimateNumber: 5007 },
   });
-  console.log("  ✓ 6 quotes");
+  console.log("  ✓ 6 estimates");
 
   // ── Calendar events ───────────────────────────────────────────────────────
   const today = new Date();
@@ -900,7 +904,7 @@ async function main() {
         type: "job",
         title: "Chen Staircase · Day 2",
         customerId: customers[2].id,
-        quoteId: q5003.id,
+        estimateId: q5003.id,
         date: d(0),
         startTime: "08:00",
         endTime: "16:00",
@@ -914,7 +918,7 @@ async function main() {
         type: "job",
         title: "Williams Tile Bath · Day 1",
         customerId: customers[5].id,
-        quoteId: q5004.id,
+        estimateId: q5004.id,
         date: d(0),
         startTime: "08:30",
         endTime: "15:30",
@@ -954,7 +958,7 @@ async function main() {
         type: "job",
         title: "Chen Staircase · Day 3",
         customerId: customers[2].id,
-        quoteId: q5003.id,
+        estimateId: q5003.id,
         date: d(1),
         startTime: "08:00",
         endTime: "15:00",
@@ -970,7 +974,7 @@ async function main() {
         type: "job",
         title: "Martinez HW",
         customerId: customers[1].id,
-        quoteId: q5002.id,
+        estimateId: q5002.id,
         date: d(3),
         startTime: "08:00",
         endTime: "16:00",
@@ -997,7 +1001,7 @@ async function main() {
         type: "job",
         title: "Henderson — Floor install",
         customerId: customers[0].id,
-        quoteId: q5001.id,
+        estimateId: q5001.id,
         date: d(6),
         startTime: "08:00",
         endTime: "16:00",

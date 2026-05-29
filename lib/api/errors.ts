@@ -56,18 +56,18 @@ export class ConflictError extends ApiError {
   }
 }
 
-export class QuoteLockedError extends ConflictError {
+export class EstimateLockedError extends ConflictError {
   constructor(status: "accepted" | "declined") {
-    super(`Quote is locked (status: ${status})`, "QUOTE_LOCKED");
+    super(`Estimate is locked (status: ${status})`, "ESTIMATE_LOCKED");
   }
 }
 
-export class QuoteHasEventsError extends ConflictError {
+export class EstimateHasEventsError extends ConflictError {
   readonly eventCount: number;
   constructor(eventCount: number) {
     super(
-      `Reassign or delete the ${eventCount} scheduled job(s) for this quote first.`,
-      "QUOTE_HAS_EVENTS"
+      `Reassign or delete the ${eventCount} scheduled job(s) for this estimate first.`,
+      "ESTIMATE_HAS_EVENTS"
     );
     this.eventCount = eventCount;
   }

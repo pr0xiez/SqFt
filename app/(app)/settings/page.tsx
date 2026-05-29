@@ -13,7 +13,7 @@ function settingsLinksFor(role: string): SettingsLink[] {
       href: "/settings/workspace",
       title: "Workspace",
       description:
-        "Company identity, brand, and the defaults that new quotes inherit.",
+        "Company identity, brand, and the defaults that new estimates inherit.",
     });
     links.push({
       href: "/settings/members",
@@ -25,7 +25,7 @@ function settingsLinksFor(role: string): SettingsLink[] {
     href: "/settings/line-item-templates",
     title: "Line item templates",
     description:
-      "Predefined line items your team can drop into any quote — name, description, rate, unit.",
+      "Predefined line items your team can drop into any estimate — name, description, rate, unit.",
   });
   return links;
 }

@@ -11,7 +11,7 @@ export async function reloadFresh(page: Page): Promise<void> {
   await page.reload();
 }
 
-// ── customer / estimate ──────────────────────────────────────────────────────
+// ── customer / siteMeasure ──────────────────────────────────────────────────────
 
 export async function createCustomer(
   request: APIRequestContext,
@@ -27,34 +27,36 @@ export async function createCustomer(
   return res.json();
 }
 
-export async function createEstimate(
+export async function createSiteMeasure(
   request: APIRequestContext,
   customerId: number
 ): Promise<{ id: number }> {
-  const res = await request.post("/api/estimates", { data: { customerId } });
+  const res = await request.post("/api/site-measures", {
+    data: { customerId },
+  });
   expect(res.ok()).toBeTruthy();
   return res.json();
 }
 
 export async function createCustomerAndEstimate(
   request: APIRequestContext
-): Promise<{ customerId: number; estimateId: number }> {
+): Promise<{ customerId: number; siteMeasureId: number }> {
   const customer = await createCustomer(request);
-  const estimate = await createEstimate(request, customer.id);
-  return { customerId: customer.id, estimateId: estimate.id };
+  const siteMeasure = await createSiteMeasure(request, customer.id);
+  return { customerId: customer.id, siteMeasureId: siteMeasure.id };
 }
 
 /**
- * Seed an estimate with two rect rooms (Kitchen 12×10=120 sqft, Dining 10×8=80
+ * Seed an siteMeasure with two rect rooms (Kitchen 12×10=120 sqft, Dining 10×8=80
  * sqft). The PATCH renumbers item ids server-side, so we read them back.
  */
 export async function seedEstimateWithRooms(
   request: APIRequestContext
-): Promise<{ estimateId: number; kitchenId: number; diningId: number }> {
-  const customer = await createCustomer(request, { name: "Quote Customer" });
-  const estimate = await createEstimate(request, customer.id);
+): Promise<{ siteMeasureId: number; kitchenId: number; diningId: number }> {
+  const customer = await createCustomer(request, { name: "Estimate Customer" });
+  const siteMeasure = await createSiteMeasure(request, customer.id);
 
-  await request.patch(`/api/estimates/${estimate.id}`, {
+  await request.patch(`/api/site-measures/${siteMeasure.id}`, {
     data: {
       items: [
         {
@@ -81,7 +83,7 @@ export async function seedEstimateWithRooms(
     },
   });
 
-  const res = await request.get(`/api/estimates/${estimate.id}`);
+  const res = await request.get(`/api/site-measures/${siteMeasure.id}`);
   const fetched = await res.json();
   const rooms = (
     fetched.items as Array<{ id: number; name: string; type: string }>
@@ -89,35 +91,35 @@ export async function seedEstimateWithRooms(
   const kitchen = rooms.find((r) => r.name === "Kitchen");
   const dining = rooms.find((r) => r.name === "Dining");
   if (!kitchen || !dining)
-    throw new Error("seed estimate missing expected rooms");
+    throw new Error("seed siteMeasure missing expected rooms");
   return {
-    estimateId: estimate.id,
+    siteMeasureId: siteMeasure.id,
     kitchenId: kitchen.id,
     diningId: dining.id,
   };
 }
 
-// ── quote ────────────────────────────────────────────────────────────────────
+// ── estimate ────────────────────────────────────────────────────────────────────
 
-export async function createQuote(
+export async function createEstimate(
   request: APIRequestContext,
-  estimateId: number
+  siteMeasureId: number
 ): Promise<{ id: number }> {
-  const res = await request.post("/api/quotes", { data: { estimateId } });
+  const res = await request.post("/api/estimates", { data: { siteMeasureId } });
   expect(res.ok()).toBeTruthy();
   return res.json();
 }
 
 /**
- * Seed a draft quote on `estimateId` with one manual line item. The PATCH
+ * Seed a draft estimate on `siteMeasureId` with one manual line item. The PATCH
  * renumbers line item ids, so we read them back.
  */
-export async function seedQuoteWithLineItem(
+export async function seedEstimateWithLineItem(
   request: APIRequestContext,
-  estimateId: number
-): Promise<{ quoteId: number; lineItemId: number }> {
-  const quote = await createQuote(request, estimateId);
-  await request.patch(`/api/quotes/${quote.id}`, {
+  siteMeasureId: number
+): Promise<{ estimateId: number; lineItemId: number }> {
+  const estimate = await createEstimate(request, siteMeasureId);
+  await request.patch(`/api/estimates/${estimate.id}`, {
     data: {
       lineItems: [
         {
@@ -134,21 +136,21 @@ export async function seedQuoteWithLineItem(
       ],
     },
   });
-  const res = await request.get(`/api/quotes/${quote.id}`);
+  const res = await request.get(`/api/estimates/${estimate.id}`);
   const fetched = await res.json();
   const li = (fetched.lineItems as Array<{ id: number; name: string }>).find(
     (i) => i.name === "Engineered hardwood"
   );
-  if (!li) throw new Error("seed quote missing expected line item");
-  return { quoteId: quote.id, lineItemId: li.id };
+  if (!li) throw new Error("seed estimate missing expected line item");
+  return { estimateId: estimate.id, lineItemId: li.id };
 }
 
-/** Rotate (and obtain) the public approval token for a quote. */
+/** Rotate (and obtain) the public approval token for a estimate. */
 export async function getApprovalToken(
   request: APIRequestContext,
-  quoteId: number
+  estimateId: number
 ): Promise<string> {
-  const res = await request.post(`/api/quotes/${quoteId}/approval-token`);
+  const res = await request.post(`/api/estimates/${estimateId}/approval-token`);
   expect(res.ok()).toBeTruthy();
   const { approvalToken } = (await res.json()) as { approvalToken: string };
   return approvalToken;
@@ -160,15 +162,15 @@ export const TEST_SIGNATURE_PNG =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
 /**
- * Seed a quote and drive it to accepted via the public accept endpoint.
+ * Seed a estimate and drive it to accepted via the public accept endpoint.
  * Uses a tiny PNG signature to satisfy the accept route's schema.
  */
-export async function seedAcceptedQuote(
+export async function seedAcceptedEstimate(
   request: APIRequestContext,
-  estimateId: number
-): Promise<{ quoteId: number; approvalToken: string }> {
-  const { quoteId } = await seedQuoteWithLineItem(request, estimateId);
-  const approvalToken = await getApprovalToken(request, quoteId);
+  siteMeasureId: number
+): Promise<{ estimateId: number; approvalToken: string }> {
+  const { estimateId } = await seedEstimateWithLineItem(request, siteMeasureId);
+  const approvalToken = await getApprovalToken(request, estimateId);
   const res = await request.post(`/api/q/${approvalToken}/accept`, {
     data: {
       name: "Test Customer",
@@ -178,20 +180,20 @@ export async function seedAcceptedQuote(
     },
   });
   expect(res.status()).toBe(200);
-  return { quoteId, approvalToken };
+  return { estimateId, approvalToken };
 }
 
-/** Seed a quote and drive it to declined via the public decline endpoint. */
-export async function seedDeclinedQuote(
+/** Seed a estimate and drive it to declined via the public decline endpoint. */
+export async function seedDeclinedEstimate(
   request: APIRequestContext,
-  estimateId: number,
+  siteMeasureId: number,
   reason = "Too expensive"
-): Promise<{ quoteId: number; approvalToken: string }> {
-  const { quoteId } = await seedQuoteWithLineItem(request, estimateId);
-  const approvalToken = await getApprovalToken(request, quoteId);
+): Promise<{ estimateId: number; approvalToken: string }> {
+  const { estimateId } = await seedEstimateWithLineItem(request, siteMeasureId);
+  const approvalToken = await getApprovalToken(request, estimateId);
   const res = await request.post(`/api/q/${approvalToken}/decline`, {
     data: { reason },
   });
   expect(res.status()).toBe(200);
-  return { quoteId, approvalToken };
+  return { estimateId, approvalToken };
 }

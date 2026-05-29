@@ -13,26 +13,26 @@ datasource db {
 // ── TENANCY ─────────────────────────────────────────────────────────────────
 
 model Organization {
-  id                 String   @id @default(cuid())
-  name               String
-  slug               String   @unique
-  plan               String   @default("free") // free | pro
-  phone              String?
-  address            String?
-  licenseNumber      String?
-  logo               String?
-  nextEstimateNumber Int      @default(1)
-  nextQuoteNumber    Int      @default(1)
-  timezone           String   @default("America/New_York")
-  locale             String   @default("en-US")
-  brandColor         String   @default("#c0341a")
-  tagline            String?
-  showLicenseOnQuotes Boolean @default(true)
-  defaultDepositPct  Float    @default(0.30)
-  defaultValidityDays Int     @default(21)
-  defaultUnitLabel   String   @default("ft²")
-  defaultTerms       String   @default("")
-  createdAt          DateTime @default(now())
+  id                     String   @id @default(cuid())
+  name                   String
+  slug                   String   @unique
+  plan                   String   @default("free") // free | pro
+  phone                  String?
+  address                String?
+  licenseNumber          String?
+  logo                   String?
+  nextSiteMeasureNumber  Int      @default(1)
+  nextEstimateNumber     Int      @default(1)
+  timezone               String   @default("America/New_York")
+  locale                 String   @default("en-US")
+  brandColor             String   @default("#c0341a")
+  tagline                String?
+  showLicenseOnEstimates Boolean  @default(true)
+  defaultDepositPct      Float    @default(0.30)
+  defaultValidityDays    Int      @default(21)
+  defaultUnitLabel       String   @default("ft²")
+  defaultTerms           String   @default("")
+  createdAt              DateTime @default(now())
 
   // ── BILLING (added 2026-05-25) ────────────────────────────────────────────
   stripeCustomerId     String?   @unique
@@ -44,8 +44,8 @@ model Organization {
 
   users             User[]
   customers         Customer[]
+  siteMeasures      SiteMeasure[]
   estimates         Estimate[]
-  quotes            Quote[]
   events            Event[]
   crewMembers       CrewMember[]
   lineItemTemplates LineItemTemplate[]
@@ -76,32 +76,32 @@ model Customer {
   notes     String?
   createdAt DateTime     @default(now())
 
+  siteMeasures SiteMeasure[]
+  events       Event[]
+}
+
+model SiteMeasure {
+  id                Int          @id @default(autoincrement())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customerId        Int
+  customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  title             String       @default("")
+  siteMeasureNumber Int?
+  date              DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+
+  items     SiteMeasureItem[]
   estimates Estimate[]
-  events    Event[]
 }
 
-model Estimate {
-  id             Int          @id @default(autoincrement())
-  orgId          String
-  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  customerId     Int
-  customer       Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  title          String       @default("")
-  estimateNumber Int?
-  date           DateTime     @default(now())
-  createdAt      DateTime     @default(now())
-
-  items  EstimateItem[]
-  quotes Quote[]
-}
-
-// A room measurement or a text note inside an estimate
-model EstimateItem {
-  id         Int      @id @default(autoincrement())
-  estimateId Int
-  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
-  type       String // room | note
-  sortOrder  Int      @default(0)
+// A room measurement or a text note inside a site measure
+model SiteMeasureItem {
+  id            Int         @id @default(autoincrement())
+  siteMeasureId Int
+  siteMeasure   SiteMeasure @relation(fields: [siteMeasureId], references: [id], onDelete: Cascade)
+  type          String // room | note
+  sortOrder     Int         @default(0)
 
   // Room fields
   name  String?
@@ -114,13 +114,13 @@ model EstimateItem {
   text String?
 }
 
-model Quote {
+model Estimate {
   id            Int          @id @default(autoincrement())
   orgId         String
   org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  estimateId    Int
-  estimate      Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
-  quoteNumber   Int
+  siteMeasureId Int
+  siteMeasure   SiteMeasure  @relation(fields: [siteMeasureId], references: [id], onDelete: Cascade)
+  estimateNumber Int
   status        String       @default("draft") // draft | sent | viewed | accepted | declined
   date          DateTime     @default(now())
   convenienceFeeRate Float   @default(0.03)
@@ -139,38 +139,38 @@ model Quote {
   declineReason String?
   createdAt     DateTime     @default(now())
 
-  lineItems LineItem[]
-  events    Event[]
-  signature QuoteSignature?
-  quoteEvents QuoteEvent[]
+  lineItems      LineItem[]
+  events         Event[]
+  signature      EstimateSignature?
+  estimateEvents EstimateEvent[]
 
-  // Revision chain — Revise on an accepted/declined quote clones it
+  // Revision chain — Revise on an accepted/declined estimate clones it
   // into a new draft with this field set to the predecessor's id.
   revisedFromId Int?
-  revisedFrom   Quote?  @relation("QuoteRevisions", fields: [revisedFromId], references: [id], onDelete: SetNull)
-  revisedBy     Quote[] @relation("QuoteRevisions")
+  revisedFrom   Estimate?  @relation("EstimateRevisions", fields: [revisedFromId], references: [id], onDelete: SetNull)
+  revisedBy     Estimate[] @relation("EstimateRevisions")
 }
 
-// A line item (material/labor) in a quote
+// A line item (material/labor) in an estimate
 model LineItem {
-  id            Int     @id @default(autoincrement())
-  quoteId       Int
-  quote         Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  id            Int      @id @default(autoincrement())
+  estimateId    Int
+  estimate      Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   name          String
   description   String?
-  rate          Float   @default(0)
-  qtyMode       String  @default("manual") // manual | linked_area | linked_perimeter — see lib/utils.ts QtyMode
+  rate          Float    @default(0)
+  qtyMode       String   @default("manual") // manual | linked_area | linked_perimeter — see lib/utils.ts QtyMode
   qty           Float?
-  wastePct      Float   @default(0)
-  unitLabel     String  @default("ft²")
-  linkedRoomIds Int[] // EstimateItem ids linked to this line item
-  sortOrder     Int     @default(0)
+  wastePct      Float    @default(0)
+  unitLabel     String   @default("ft²")
+  linkedRoomIds Int[] // SiteMeasureItem ids linked to this line item
+  sortOrder     Int      @default(0)
 }
 
 // Reusable line-item presets, scoped to an Organization. When the user picks
 // a template from the LineItemSection dropdown, its name/description/rate/
 // unitLabel are copied onto a new LineItem — there is no FK back to the
-// template, so editing a template never mutates historical quotes.
+// template, so editing a template never mutates historical estimates.
 model LineItemTemplate {
   id          Int          @id @default(autoincrement())
   orgId       String
@@ -186,10 +186,10 @@ model LineItemTemplate {
   @@index([orgId, archived])
 }
 
-model QuoteSignature {
+model EstimateSignature {
   id              Int      @id @default(autoincrement())
-  quoteId         Int      @unique
-  quote           Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  estimateId      Int      @unique
+  estimate        Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   signedByName    String
   signedByEmail   String
   signatureData   String // base64 PNG data URL, ~5-30KB
@@ -197,14 +197,14 @@ model QuoteSignature {
   signedIp        String
   signedUserAgent String
   consentText     String
-  quoteSnapshot   Json
+  estimateSnapshot Json
   snapshotHash    String
 }
 
-model QuoteEvent {
+model EstimateEvent {
   id         Int      @id @default(autoincrement())
-  quoteId    Int
-  quote      Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  estimateId Int
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
   type       String // sent | viewed | accepted | declined | link_rotated | resent | revised_from
   actorEmail String?
   actorName  String?
@@ -214,7 +214,7 @@ model QuoteEvent {
   source     String?  // "customer" | "builder" | "system_supersede" — null = legacy
   createdAt  DateTime @default(now())
 
-  @@index([quoteId, createdAt])
+  @@index([estimateId, createdAt])
 }
 
 // Calendar events: job installations, measurement visits, etc.
@@ -226,8 +226,8 @@ model Event {
   title       String
   customerId  Int?
   customer    Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  quoteId     Int?
-  quote       Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  estimateId  Int?
+  estimate    Estimate?    @relation(fields: [estimateId], references: [id], onDelete: SetNull)
   date        DateTime
   endDate     DateTime?
   startTime   String // "08:00"

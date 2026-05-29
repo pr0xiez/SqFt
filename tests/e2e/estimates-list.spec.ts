@@ -1,59 +1,90 @@
 import { expect, test } from "@playwright/test";
 import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
-import { createCustomerAndEstimate } from "./fixtures/seed";
+import {
+  createCustomer,
+  createCustomerAndEstimate,
+  createSiteMeasure,
+  seedAcceptedEstimate,
+  seedEstimateWithLineItem,
+} from "./fixtures/seed";
 
-test.describe("15.1 Estimates list page", () => {
-  test("15.1.1 seeded estimate appears in the list", async ({ browser }) => {
+test.describe("13.1 Estimates list page", () => {
+  test("13.1.1 seeded estimate appears in the list", async ({ browser }) => {
     const ctx = await browser.newContext();
     const page = await loginAsWorkerOrg(browser, ctx);
-    const { estimateId } = await createCustomerAndEstimate(ctx.request);
+    const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
+    const { estimateId } = await seedEstimateWithLineItem(
+      ctx.request,
+      siteMeasureId
+    );
 
-    // EstimateList renders <button onClick={router.push}> not <a href> links.
-    // Row buttons show customer name; the estimate # is in a hidden-md:block
-    // span. Wait for loading to finish then match the row button by its #{id}.
-    //
-    // Two robustness steps before the visibility check:
-    //   1. Poll /api/estimates until the just-created row is observable. The
-    //      preview deploy sometimes races: POST commits, but the next GET on a
-    //      different pooled connection still returns the prior snapshot.
-    //   2. Clear localStorage so the persisted React Query cache (Dashboard at
-    //      "/" hydrated useEstimates with a 60s staleTime) doesn't replay a
-    //      stale list on /estimates.
-    await expect
-      .poll(
-        async () => {
-          const res = await ctx.request.get("/api/estimates");
-          const list = (await res.json()) as Array<{ id: number }>;
-          return list.some((e) => e.id === estimateId);
-        },
-        { timeout: 10000 }
-      )
-      .toBe(true);
-    await page.evaluate(() => localStorage.clear());
+    // EstimateList renders buttons (not <a> links). Fetch the estimate number to
+    // find the row via the mono #N label.
+    const estimate = await (
+      await ctx.request.get(`/api/estimates/${estimateId}`)
+    ).json();
+    const estimateNumber = estimate.estimateNumber as number;
+
     await page.goto("/estimates");
-    // Wait for loading indicator to disappear.
-    await expect(page.getByText("Loading…")).toHaveCount(0);
     await expect(
       page
         .locator("button")
-        .filter({ hasText: `#${estimateId}` })
+        .filter({ hasText: `#${estimateNumber}` })
         .first()
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible();
     await ctx.close();
   });
 
-  test("15.1.2 other-org estimate does not appear", async ({ browser }) => {
+  test("13.1.2 revised estimate shows ↶ rev badge", async ({ browser }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
+    const { estimateId } = await seedAcceptedEstimate(
+      ctx.request,
+      siteMeasureId
+    );
+    const revRes = await ctx.request.post(
+      `/api/estimates/${estimateId}/revise`
+    );
+    expect(revRes.status()).toBe(200);
+
+    await page.goto("/estimates");
+    await expect(
+      page.locator('[title="Revised estimate"]').first()
+    ).toBeVisible();
+    await ctx.close();
+  });
+
+  test("13.1.3 other-org estimate does not appear in this org's list", async ({
+    browser,
+  }) => {
+    // Estimate numbers are per-org sequential, so they collide across orgs and
+    // can't distinguish tenants. Assert isolation via uniquely-named customers:
+    // the worker org's own estimate is listed; the secondary org's is not.
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const mineCustomerName = `Worker ${suffix}`;
+    const otherCustomerName = `Secondary ${suffix}`;
+
     const ctxB = await browser.newContext();
     await loginAsSecondaryOrg(browser, ctxB);
-    const { estimateId } = await createCustomerAndEstimate(ctxB.request);
+    const otherCust = await createCustomer(ctxB.request, {
+      name: otherCustomerName,
+    });
+    const otherEst = await createSiteMeasure(ctxB.request, otherCust.id);
+    await seedEstimateWithLineItem(ctxB.request, otherEst.id);
     await ctxB.close();
 
     const ctxA = await browser.newContext();
     const page = await loginAsWorkerOrg(browser, ctxA);
+    const mineCust = await createCustomer(ctxA.request, {
+      name: mineCustomerName,
+    });
+    const mineEst = await createSiteMeasure(ctxA.request, mineCust.id);
+    await seedEstimateWithLineItem(ctxA.request, mineEst.id);
+
     await page.goto("/estimates");
-    await expect(
-      page.locator("button").filter({ hasText: `#${estimateId}` })
-    ).toHaveCount(0);
+    await expect(page.getByText(mineCustomerName)).toBeVisible();
+    await expect(page.getByText(otherCustomerName)).toHaveCount(0);
     await ctxA.close();
   });
 });

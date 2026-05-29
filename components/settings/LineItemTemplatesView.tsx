@@ -36,8 +36,8 @@ export function LineItemTemplatesView() {
         )}
       </div>
       <p className="text-[13px] text-[var(--muted)] mb-6">
-        Predefined line items your team can drop into any quote. Editing a
-        template does not change quotes that already used it.
+        Predefined line items your team can drop into any estimate. Editing a
+        template does not change estimates that already used it.
       </p>
 
       {adding && (
@@ -60,7 +60,7 @@ export function LineItemTemplatesView() {
       ) : active.length === 0 ? (
         <div className="text-[var(--muted)] py-6">
           No templates yet. Add one above so it shows up in the line item
-          dropdown on every quote.
+          dropdown on every estimate.
         </div>
       ) : (
         <ul className="divide-y divide-[var(--line)] border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)]">

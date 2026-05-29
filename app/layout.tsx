@@ -17,7 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SqFt — Estimate Book",
+  title: "SqFt — Site Measure Book",
   description: "Flooring contractor estimating and scheduling",
   manifest: "/manifest.json",
   icons: {

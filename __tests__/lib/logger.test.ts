@@ -84,13 +84,13 @@ describe("logMutation", () => {
 
     logMutation({
       method: "PATCH",
-      path: "/api/estimates/42",
+      path: "/api/site-measures/42",
       status: 200,
       orgId: "org1",
     });
 
     const entry = JSON.parse(lines[0]);
-    expect(entry.resource).toBe("estimates");
+    expect(entry.resource).toBe("site-measures");
   });
 });
 
@@ -100,7 +100,7 @@ describe("logError", () => {
 
     logError({
       method: "PATCH",
-      path: "/api/estimates/1",
+      path: "/api/site-measures/1",
       orgId: "org1",
       errorMessage: "DB failure",
     });

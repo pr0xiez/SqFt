@@ -39,7 +39,7 @@ describe("listEvents", () => {
 });
 
 describe("createEvent", () => {
-  it("creates a visit without a quoteId", async () => {
+  it("creates a visit without a estimateId", async () => {
     eventCreate.mockResolvedValue({ id: 1 });
     await createEvent("org1", {
       type: "visit",
@@ -51,19 +51,19 @@ describe("createEvent", () => {
     expect(eventCreate).toHaveBeenCalled();
   });
 
-  it("creates a job when quoteId is present", async () => {
+  it("creates a job when estimateId is present", async () => {
     eventCreate.mockResolvedValue({ id: 1 });
     await createEvent("org1", {
       type: "job",
       title: "Install",
-      quoteId: 42,
+      estimateId: 42,
       date: new Date(),
       startTime: "08:00",
       endTime: "16:00",
     });
     expect(eventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ orgId: "org1", quoteId: 42 }),
+        data: expect.objectContaining({ orgId: "org1", estimateId: 42 }),
       })
     );
   });
@@ -87,7 +87,7 @@ describe("createEvent", () => {
     );
   });
 
-  it("rejects a job without a quoteId", async () => {
+  it("rejects a job without a estimateId", async () => {
     await expect(
       createEvent("org1", {
         type: "job",
@@ -107,29 +107,29 @@ describe("updateEvent", () => {
     expect(await updateEvent(99, "org1", { title: "x" })).toBeNull();
   });
 
-  it("rejects when changing an existing job's quoteId to null", async () => {
-    eventFindFirst.mockResolvedValueOnce({ type: "job", quoteId: 1 });
+  it("rejects when changing an existing job's estimateId to null", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "job", estimateId: 1 });
     await expect(
-      updateEvent(1, "org1", { quoteId: null })
+      updateEvent(1, "org1", { estimateId: null })
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it("rejects when changing a visit's type to job without supplying a quoteId", async () => {
-    eventFindFirst.mockResolvedValueOnce({ type: "visit", quoteId: null });
+  it("rejects when changing a visit's type to job without supplying a estimateId", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "visit", estimateId: null });
     await expect(
       updateEvent(1, "org1", { type: "job" })
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it("allows changing a job's quoteId to another quote", async () => {
-    eventFindFirst.mockResolvedValueOnce({ type: "job", quoteId: 1 });
+  it("allows changing a job's estimateId to another estimate", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "job", estimateId: 1 });
     eventUpdate.mockResolvedValue({ id: 1 });
-    await updateEvent(1, "org1", { quoteId: 2 });
+    await updateEvent(1, "org1", { estimateId: 2 });
     expect(eventUpdate).toHaveBeenCalled();
   });
 
   it("uses set semantics when crewMemberIds is supplied", async () => {
-    eventFindFirst.mockResolvedValueOnce({ type: "visit", quoteId: null });
+    eventFindFirst.mockResolvedValueOnce({ type: "visit", estimateId: null });
     eventUpdate.mockResolvedValue({ id: 1 });
     await updateEvent(1, "org1", { crewMemberIds: [10] });
     expect(eventUpdate).toHaveBeenCalledWith(

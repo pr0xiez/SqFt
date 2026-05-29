@@ -28,7 +28,7 @@ export function BrandSection({ form, licenseNumber, onChange }: Props) {
     <section className="mb-16 scroll-mt-20" id="brand">
       <SectionHead
         n="02"
-        title="Brand & Quote Style"
+        title="Brand & Estimate Style"
         kicker="The look of every customer-facing page"
       />
 
@@ -87,7 +87,7 @@ export function BrandSection({ form, licenseNumber, onChange }: Props) {
 
           <FieldRow
             label="Tagline"
-            hint="Optional. Shown beneath the company name on the customer quote page."
+            hint="Optional. Shown beneath the company name on the customer estimate page."
           >
             <input
               type="text"
@@ -102,9 +102,9 @@ export function BrandSection({ form, licenseNumber, onChange }: Props) {
             <label className="inline-flex items-start gap-3 cursor-pointer py-1">
               <input
                 type="checkbox"
-                checked={form.showLicenseOnQuotes}
+                checked={form.showLicenseOnEstimates}
                 onChange={(e) =>
-                  onChange({ showLicenseOnQuotes: e.target.checked })
+                  onChange({ showLicenseOnEstimates: e.target.checked })
                 }
                 className="sr-only peer"
               />
@@ -112,7 +112,7 @@ export function BrandSection({ form, licenseNumber, onChange }: Props) {
                 <span className="absolute top-px left-px w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform peer-checked:translate-x-4" />
               </span>
               <span className="text-[13px] leading-[1.4]">
-                Print license number on every quote
+                Print license number on every estimate
               </span>
             </label>
           </FieldRow>

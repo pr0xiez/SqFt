@@ -1,14 +1,14 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
-  type PublicQuote,
-  PublicQuoteView,
-} from "@/components/estimates/PublicQuoteView";
-import { getQuoteByToken, markQuoteViewed } from "@/lib/repositories";
+  type PublicEstimate,
+  PublicEstimateView,
+} from "@/components/estimates/PublicEstimateView";
+import { getEstimateByToken, markEstimateViewed } from "@/lib/repositories";
 import { parseQtyMode } from "@/lib/utils";
 
 export const metadata = {
-  title: "Quote — SqFt",
+  title: "Estimate — SqFt",
   // Public token URLs must not be indexed.
   robots: { index: false, follow: false },
 };
@@ -17,43 +17,43 @@ interface Props {
   params: Promise<{ token: string }>;
 }
 
-export default async function PublicQuotePage({ params }: Props) {
+export default async function PublicEstimatePage({ params }: Props) {
   const { token } = await params;
 
   // Reject any token shape that couldn't have been issued, before hitting the DB.
   if (!token || token.length < 16 || token.length > 128) notFound();
 
-  const quote = await getQuoteByToken(token);
-  if (!quote) notFound();
+  const estimate = await getEstimateByToken(token);
+  if (!estimate) notFound();
 
-  if (quote.status !== "accepted" && quote.status !== "declined") {
+  if (estimate.status !== "accepted" && estimate.status !== "declined") {
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = h.get("user-agent") ?? null;
-    void markQuoteViewed(quote.id, { ip, userAgent });
+    void markEstimateViewed(estimate.id, { ip, userAgent });
   }
 
-  const view: PublicQuote = {
-    id: quote.id,
-    quoteNumber: quote.quoteNumber,
-    status: quote.status as PublicQuote["status"],
-    date: quote.date,
-    convenienceFeeRate: quote.convenienceFeeRate,
-    markupPct: quote.markupPct,
-    depositPct: quote.depositPct,
-    estimate: {
-      id: quote.estimate.id,
-      estimateNumber: quote.estimate.estimateNumber,
-      title: quote.estimate.title,
+  const view: PublicEstimate = {
+    id: estimate.id,
+    estimateNumber: estimate.estimateNumber,
+    status: estimate.status as PublicEstimate["status"],
+    date: estimate.date,
+    convenienceFeeRate: estimate.convenienceFeeRate,
+    markupPct: estimate.markupPct,
+    depositPct: estimate.depositPct,
+    siteMeasure: {
+      id: estimate.siteMeasure.id,
+      siteMeasureNumber: estimate.siteMeasure.siteMeasureNumber,
+      title: estimate.siteMeasure.title,
     },
-    customer: quote.estimate.customer
+    customer: estimate.siteMeasure.customer
       ? {
-          name: quote.estimate.customer.name,
-          address: quote.estimate.customer.address,
-          email: quote.estimate.customer.email,
+          name: estimate.siteMeasure.customer.name,
+          address: estimate.siteMeasure.customer.address,
+          email: estimate.siteMeasure.customer.email,
         }
       : null,
-    items: quote.estimate.items.map((i) => ({
+    items: estimate.siteMeasure.items.map((i) => ({
       id: i.id,
       type: i.type === "room" ? "room" : "note",
       shape: i.shape === "rect" || i.shape === "tri" ? i.shape : null,
@@ -63,7 +63,7 @@ export default async function PublicQuotePage({ params }: Props) {
       note: i.note,
       text: i.text,
     })),
-    lineItems: quote.lineItems.map((li) => ({
+    lineItems: estimate.lineItems.map((li) => ({
       id: li.id,
       name: li.name,
       rate: li.rate,
@@ -75,27 +75,27 @@ export default async function PublicQuotePage({ params }: Props) {
       sortOrder: li.sortOrder,
     })),
     org: {
-      name: quote.org.name,
-      phone: quote.org.phone,
-      address: quote.org.address,
-      licenseNumber: quote.org.licenseNumber,
-      logo: quote.org.logo,
-      ownerEmail: quote.org.users[0]?.email ?? null,
+      name: estimate.org.name,
+      phone: estimate.org.phone,
+      address: estimate.org.address,
+      licenseNumber: estimate.org.licenseNumber,
+      logo: estimate.org.logo,
+      ownerEmail: estimate.org.users[0]?.email ?? null,
     },
-    sentAt: quote.sentAt,
-    viewedAt: quote.viewedAt,
-    acceptedAt: quote.acceptedAt,
-    declinedAt: quote.declinedAt,
-    declineReason: quote.declineReason,
-    signature: quote.signature
+    sentAt: estimate.sentAt,
+    viewedAt: estimate.viewedAt,
+    acceptedAt: estimate.acceptedAt,
+    declinedAt: estimate.declinedAt,
+    declineReason: estimate.declineReason,
+    signature: estimate.signature
       ? {
-          signedByName: quote.signature.signedByName,
-          signedByEmail: quote.signature.signedByEmail,
-          signedAt: quote.signature.signedAt,
-          signatureData: quote.signature.signatureData,
+          signedByName: estimate.signature.signedByName,
+          signedByEmail: estimate.signature.signedByEmail,
+          signedAt: estimate.signature.signedAt,
+          signatureData: estimate.signature.signatureData,
         }
       : null,
   };
 
-  return <PublicQuoteView quote={view} token={token} />;
+  return <PublicEstimateView estimate={view} token={token} />;
 }

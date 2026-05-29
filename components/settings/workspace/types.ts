@@ -6,7 +6,7 @@ export type WorkspaceSettingsInitial = {
   locale: string;
   brandColor: string;
   tagline: string | null;
-  showLicenseOnQuotes: boolean;
+  showLicenseOnEstimates: boolean;
   defaultDepositPct: number;
   defaultValidityDays: number;
   defaultUnitLabel: string;
@@ -19,7 +19,7 @@ export type WorkspaceSettingsForm = {
   locale: string;
   brandColor: string;
   tagline: string;
-  showLicenseOnQuotes: boolean;
+  showLicenseOnEstimates: boolean;
   defaultDepositPct: number;
   defaultValidityDays: number;
   defaultUnitLabel: string;
@@ -33,7 +33,7 @@ export function toForm(i: WorkspaceSettingsInitial): WorkspaceSettingsForm {
     locale: i.locale,
     brandColor: i.brandColor,
     tagline: i.tagline ?? "",
-    showLicenseOnQuotes: i.showLicenseOnQuotes,
+    showLicenseOnEstimates: i.showLicenseOnEstimates,
     defaultDepositPct: i.defaultDepositPct,
     defaultValidityDays: i.defaultValidityDays,
     defaultUnitLabel: i.defaultUnitLabel,

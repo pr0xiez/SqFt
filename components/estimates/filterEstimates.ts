@@ -1,32 +1,42 @@
-export type EstimateStatus = "all" | "empty" | "measured" | "quoted";
+export type EstimateStatusFilter =
+  | "all"
+  | "draft"
+  | "sent"
+  | "accepted"
+  | "declined";
 
 export type EstimateFilterInput = {
   id: number;
-  customer?: { name: string } | null;
-  items?: { type: string }[];
-  quotes?: unknown[];
+  estimateNumber: number;
+  status: string;
+  siteMeasure: {
+    id: number;
+    siteMeasureNumber?: number | null;
+    customer?: { name: string } | null | undefined;
+  };
 };
 
 export function filterEstimates<T extends EstimateFilterInput>(
   estimates: T[],
   query: string,
-  status: EstimateStatus
+  status: EstimateStatusFilter
 ): T[] {
-  const q = query.trim().toLowerCase().replace(/^#/, "");
-  return estimates.filter((e) => {
-    if (status !== "all") {
-      const roomCount = (e.items ?? []).filter((i) => i.type === "room").length;
-      const quoteCount = e.quotes?.length ?? 0;
-      if (status === "empty" && roomCount > 0) return false;
-      if (status === "measured" && (roomCount === 0 || quoteCount > 0))
-        return false;
-      if (status === "quoted" && quoteCount === 0) return false;
-    }
-    if (q.length > 0) {
-      const idMatch = String(e.id).includes(q);
-      const nameMatch = (e.customer?.name ?? "").toLowerCase().includes(q);
-      if (!idMatch && !nameMatch) return false;
-    }
-    return true;
+  const cleaned = query.trim().toLowerCase().replace(/^#/, "");
+  return estimates.filter((q) => {
+    if (status !== "all" && q.status !== status) return false;
+    if (cleaned.length === 0) return true;
+
+    const estimateNumStr = String(q.estimateNumber);
+    if (estimateNumStr.includes(cleaned)) return true;
+
+    const estimateLabel = String(
+      q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id
+    );
+    if (estimateLabel.includes(cleaned)) return true;
+
+    const customerName = q.siteMeasure.customer?.name ?? "";
+    if (customerName.toLowerCase().includes(cleaned)) return true;
+
+    return false;
   });
 }

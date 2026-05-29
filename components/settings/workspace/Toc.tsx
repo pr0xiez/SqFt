@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const ENTRIES = [
   { id: "identity", n: "01", label: "Identity" },
-  { id: "brand", n: "02", label: "Brand & Quote Style" },
+  { id: "brand", n: "02", label: "Brand & Estimate Style" },
   { id: "defaults", n: "03", label: "Estimating Defaults" },
 ];
 

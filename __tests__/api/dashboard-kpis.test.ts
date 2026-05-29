@@ -29,8 +29,8 @@ describe("GET /api/dashboard/kpis", () => {
     const mockKpis = {
       estimatesTotal: 14,
       estimatesDelta: 3,
-      quotesSentTotal: 9,
-      quotesSentDelta: 0,
+      estimatesSentTotal: 9,
+      estimatesSentDelta: 0,
       awaitingSignature: 6,
       expiringSoonCount: 2,
       winRate30d: 68,

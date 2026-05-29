@@ -29,8 +29,8 @@ const { apiRoute, publicRoute } = await import("../../../lib/api/route");
 const {
   ConflictError,
   NotFoundError,
-  QuoteHasEventsError,
-  QuoteLockedError,
+  EstimateHasEventsError,
+  EstimateLockedError,
   UnauthorizedError,
 } = await import("../../../lib/api/errors");
 
@@ -186,10 +186,10 @@ describe("apiRoute — error envelope", () => {
     });
   });
 
-  it("maps QuoteLockedError with code QUOTE_LOCKED", async () => {
+  it("maps EstimateLockedError with code ESTIMATE_LOCKED", async () => {
     mockGetOrgId.mockResolvedValue("org1");
     const handler = apiRoute(async () => {
-      throw new QuoteLockedError("accepted");
+      throw new EstimateLockedError("accepted");
     });
 
     const res = await handler(makeRequest("PATCH"), ctx);
@@ -197,23 +197,23 @@ describe("apiRoute — error envelope", () => {
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({
       error: {
-        code: "QUOTE_LOCKED",
-        message: "Quote is locked (status: accepted)",
+        code: "ESTIMATE_LOCKED",
+        message: "Estimate is locked (status: accepted)",
       },
     });
   });
 
-  it("maps QuoteHasEventsError with code QUOTE_HAS_EVENTS", async () => {
+  it("maps EstimateHasEventsError with code ESTIMATE_HAS_EVENTS", async () => {
     mockGetOrgId.mockResolvedValue("org1");
     const handler = apiRoute(async () => {
-      throw new QuoteHasEventsError(3);
+      throw new EstimateHasEventsError(3);
     });
 
     const res = await handler(makeRequest("DELETE"), ctx);
 
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.error.code).toBe("QUOTE_HAS_EVENTS");
+    expect(body.error.code).toBe("ESTIMATE_HAS_EVENTS");
     expect(body.error.message).toContain("3");
   });
 

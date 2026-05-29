@@ -1,64 +1,62 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CustomerPickerPanel } from "@/components/estimates/CustomerPickerPanel";
-import { EstimateQuotesCard } from "@/components/estimates/EstimateQuotesCard";
-import { RoomSection } from "@/components/estimates/RoomSection";
+import { EstimateLockBanner } from "@/components/estimates/EstimateLockBanner";
+import { LineItemSection } from "@/components/estimates/LineItemSection";
+import { ReviseButton } from "@/components/estimates/ReviseButton";
+import { SendEstimateDialog } from "@/components/estimates/SendEstimateDialog";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import { useCustomers } from "@/lib/hooks/useCustomers";
-import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
-import { useCreateQuote } from "@/lib/hooks/useQuotes";
-import { estTotalArea } from "@/lib/utils";
+import {
+  useEstimate,
+  useRotateEstimateToken,
+  useUpdateEstimate,
+} from "@/lib/hooks/useEstimates";
+import { useLineItemTemplates } from "@/lib/hooks/useLineItemTemplates";
+import { estTotalArea, type RoomItem } from "@/lib/utils";
 
 interface Props {
   estimateId: number;
 }
 
 export function EstimateBuilderView({ estimateId }: Props) {
-  const router = useRouter();
   const { data: estimate, isLoading } = useEstimate(estimateId);
+  const { data: templates = [] } = useLineItemTemplates();
   const updateEstimate = useUpdateEstimate(estimateId);
-  const createQuote = useCreateQuote();
+  const rotateToken = useRotateEstimateToken(estimateId);
   const { showToast } = useToast();
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
-  const titleInputRef = useRef<HTMLInputElement>(null);
-  const changeCustomerBtnRef = useRef<HTMLButtonElement>(null);
-  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
-  const { data: customers } = useCustomers();
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (editingTitle) titleInputRef.current?.focus();
-  }, [editingTitle]);
-
-  async function saveTitle() {
-    const trimmed = titleDraft.trim();
-    setEditingTitle(false);
-    if (trimmed === (estimate?.title ?? "")) return;
-    try {
-      await updateEstimate.mutateAsync({ title: trimmed });
-    } catch {
-      showToast("Failed to save title");
+    if (!actionsOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        actionsRef.current &&
+        !actionsRef.current.contains(e.target as Node)
+      ) {
+        setActionsOpen(false);
+      }
     }
-  }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [actionsOpen]);
 
-  async function handleChangeCustomer(customerId: number) {
+  async function copyShareLink(forceNew: boolean) {
+    setActionsOpen(false);
     try {
-      await updateEstimate.mutateAsync({ customerId });
-      showToast("Customer changed");
+      let token = estimate?.approvalToken ?? null;
+      if (!token || forceNew) {
+        const res = await rotateToken.mutateAsync();
+        token = res.approvalToken;
+      }
+      const url = `${window.location.origin}/q/${token}`;
+      await navigator.clipboard.writeText(url);
+      showToast(forceNew ? "New link copied" : "Link copied");
     } catch {
-      showToast("Failed to change customer");
-    }
-  }
-
-  async function handleCreateQuote() {
-    try {
-      const newQuote = await createQuote.mutateAsync({ estimateId });
-      router.push(`/quotes/${newQuote.id}`);
-    } catch {
-      showToast("Failed to create quote");
+      showToast("Failed to generate link");
     }
   }
 
@@ -78,130 +76,180 @@ export function EstimateBuilderView({ estimateId }: Props) {
     );
   }
 
-  const rooms = (estimate.items ?? []).filter((i) => i.type === "room");
-  const totalArea = estTotalArea(estimate.items ?? []);
+  const locked =
+    estimate.status === "accepted" || estimate.status === "declined";
+
+  const rooms = (estimate.siteMeasure.items ?? []).filter(
+    (i): i is RoomItem => i.type === "room"
+  );
+  const grossArea = Math.round(estTotalArea(estimate.siteMeasure.items ?? []));
 
   return (
     <>
+      {/* Revision chain links */}
+      {(estimate.revisedFrom ||
+        (estimate.revisedBy && estimate.revisedBy.length > 0)) && (
+        <div className="mb-3 font-[var(--font-mono)] text-[11px] text-[var(--muted)] flex gap-3 flex-wrap">
+          {estimate.revisedFrom && (
+            <a
+              href={`/estimates/${estimate.revisedFrom.id}`}
+              className="text-[var(--accent)] underline"
+            >
+              ← Revision of E#{estimate.revisedFrom.estimateNumber}
+            </a>
+          )}
+          {estimate.revisedBy?.map((rev) => (
+            <a
+              key={rev.id}
+              href={`/estimates/${rev.id}`}
+              className="text-[var(--accent)] underline"
+            >
+              Revised by E#{rev.estimateNumber} →
+            </a>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            Estimate #{estimate.estimateNumber ?? estimate.id} ·{" "}
+            Estimate #{estimate.estimateNumber} · {estimate.status} ·{" "}
             {new Date(estimate.date).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
             })}
+            {estimate.status === "accepted" && (
+              <Link
+                href={`/estimates/${estimate.id}/signed`}
+                className="ml-3 font-[var(--font-mono)] text-[11px] text-[var(--accent)] underline"
+              >
+                View signed estimate →
+              </Link>
+            )}
           </div>
-          {editingTitle ? (
-            <input
-              ref={titleInputRef}
-              type="text"
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") titleInputRef.current?.blur();
-                if (e.key === "Escape") {
-                  setEditingTitle(false);
-                }
-              }}
-              className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em] bg-transparent border-b border-[var(--ink-2)] outline-none w-full max-w-[480px]"
-              placeholder="Untitled estimate"
-            />
-          ) : (
-            <button
-              type="button"
-              className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em] cursor-text hover:opacity-70 transition-opacity text-left"
-              onClick={() => {
-                setTitleDraft(estimate.title ?? "");
-                setEditingTitle(true);
-              }}
-              title="Click to edit title"
-            >
-              {estimate.title || (
-                <span className="text-[var(--muted)]">Untitled estimate</span>
-              )}
-            </button>
-          )}
+          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
+            Line Items &amp; Pricing
+          </h1>
           <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
-            {rooms.length} room{rooms.length === 1 ? "" : "s"} ·{" "}
-            {Math.round(totalArea)} sqft
+            Tied to Site Measure #
+            {estimate.siteMeasure.siteMeasureNumber ?? estimate.siteMeasure.id}{" "}
+            · {rooms.length} room{rooms.length === 1 ? "" : "s"} · {grossArea}{" "}
+            sqft
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => router.push("/estimates")}>
-            ← All estimates
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleCreateQuote}
-            disabled={createQuote.isPending}
-          >
-            {createQuote.isPending ? "Creating…" : "+ Create Quote"}
-          </Button>
+          <Link href={`/site-measures/${estimate.siteMeasureId}`}>
+            <Button variant="ghost">← Back to site measure</Button>
+          </Link>
+          {!locked && (
+            <Button variant="primary" onClick={() => setSendDialogOpen(true)}>
+              Send to customer →
+            </Button>
+          )}
+          {locked && <ReviseButton estimateId={estimate.id} />}
+          <div className="relative" ref={actionsRef}>
+            <Button
+              variant="ghost"
+              onClick={() => setActionsOpen((v) => !v)}
+              aria-label="More actions"
+              type="button"
+            >
+              ⋮
+            </Button>
+            {actionsOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[180px] py-1">
+                <button
+                  type="button"
+                  className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={() => copyShareLink(false)}
+                  disabled={rotateToken.isPending}
+                >
+                  {estimate.approvalToken
+                    ? "Copy share link"
+                    : "Create share link"}
+                </button>
+                {estimate.approvalToken ? (
+                  <button
+                    type="button"
+                    className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => copyShareLink(true)}
+                    disabled={rotateToken.isPending}
+                  >
+                    Regenerate link
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Lock banner — shown when estimate is accepted or declined */}
+      {locked && (
+        <EstimateLockBanner
+          status={estimate.status as "accepted" | "declined"}
+          acceptedByName={estimate.signature?.signedByName ?? null}
+          acceptedAt={estimate.acceptedAt ?? null}
+          declinedAt={estimate.declinedAt ?? null}
+          declineReason={estimate.declineReason ?? null}
+          declineSource={estimate.estimateEvents?.[0]?.source ?? null}
+          supersededByEstimateNumber={
+            (
+              estimate.estimateEvents?.[0]?.metadata as {
+                supersededByEstimateNumber?: number;
+              } | null
+            )?.supersededByEstimateNumber ?? null
+          }
+          signedHref={`/estimates/${estimate.id}/signed`}
+        />
+      )}
+
       {/* Customer bar */}
-      {estimate.customer && (
+      {estimate.siteMeasure.customer && (
         <div className="flex items-center gap-3.5 px-[18px] py-[14px] bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--accent)] rounded-lg mb-4">
           <div className="flex-1">
             <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.04em] mb-0.5">
               Customer
             </div>
             <div className="text-[16px] font-[600] tracking-[-0.01em]">
-              {estimate.customer.name}
+              {estimate.siteMeasure.customer.name}
             </div>
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-0.5">
-              {estimate.customer.address ?? ""}
+              {estimate.siteMeasure.customer.address ?? ""}
             </div>
           </div>
-          <Button
-            size="sm"
-            onClick={() => router.push(`/customers/${estimate.customer?.id}`)}
-          >
-            View
-          </Button>
-          <Button
-            ref={changeCustomerBtnRef}
-            size="sm"
-            onClick={() => {
-              const rect =
-                changeCustomerBtnRef.current?.getBoundingClientRect();
-              if (rect) setPickerAnchor(rect);
-            }}
-          >
-            Change
-          </Button>
         </div>
       )}
 
-      {pickerAnchor && estimate.customer && (
-        <CustomerPickerPanel
-          customers={customers ?? []}
-          currentCustomerId={estimate.customer.id}
-          anchorRect={pickerAnchor}
-          onSelect={handleChangeCustomer}
-          onClose={() => setPickerAnchor(null)}
-        />
-      )}
-
-      {/* Quotes card */}
-      <EstimateQuotesCard quotes={estimate.quotes ?? []} />
-
-      {/* Rooms */}
-      <RoomSection
-        estimate={estimate}
-        onSave={async (items) => {
+      {/* Line Items + inline totals/settings */}
+      <LineItemSection
+        lineItems={estimate.lineItems ?? []}
+        rooms={rooms}
+        convenienceFeeRate={estimate.convenienceFeeRate}
+        markupPct={estimate.markupPct}
+        depositPct={estimate.depositPct}
+        readOnly={locked}
+        templates={templates}
+        onSave={async (patch) => {
           try {
-            await updateEstimate.mutateAsync({ items });
+            await updateEstimate.mutateAsync(patch);
             showToast("Saved");
           } catch {
             showToast("Save failed");
           }
         }}
+      />
+
+      <SendEstimateDialog
+        estimateId={estimate.id}
+        estimateNumber={estimate.estimateNumber}
+        orgName={estimate.org?.name ?? ""}
+        customerEmail={estimate.siteMeasure.customer?.email ?? null}
+        hasToken={Boolean(estimate.approvalToken)}
+        open={sendDialogOpen}
+        onClose={() => setSendDialogOpen(false)}
       />
     </>
   );

@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { RoomLinkPicker } from "@/components/quotes/RoomLinkPicker";
+import { RoomLinkPicker } from "@/components/estimates/RoomLinkPicker";
 import { DecimalInput } from "@/components/ui/DecimalInput";
 import { cn } from "@/lib/cn";
+import { computeEstimateView } from "@/lib/estimateView";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
-import { computeQuoteView } from "@/lib/quoteView";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 import { fmtDollar, isLinkedQtyMode, QtyMode, roomSqft } from "@/lib/utils";
 
-export interface QuoteSavePatch {
+export interface EstimateSavePatch {
   lineItems?: LineItemCalc[];
   convenienceFeeRate?: number;
   markupPct?: number;
@@ -24,7 +24,7 @@ interface Props {
   depositPct: number;
   readOnly?: boolean;
   templates?: LineItemTemplate[];
-  onSave: (patch: QuoteSavePatch) => Promise<void>;
+  onSave: (patch: EstimateSavePatch) => Promise<void>;
 }
 
 let _liNextId = Date.now() + 100000;
@@ -61,7 +61,7 @@ export function LineItemSection({
   } | null>(null);
 
   const save = useCallback(
-    async (patch: QuoteSavePatch) => {
+    async (patch: EstimateSavePatch) => {
       await onSave(patch);
     },
     [onSave]
@@ -118,7 +118,7 @@ export function LineItemSection({
 
   const view = useMemo(
     () =>
-      computeQuoteView({
+      computeEstimateView({
         lineItems: items,
         items: rooms,
         markupPct,
@@ -445,7 +445,7 @@ export function LineItemSection({
             {/* Total */}
             <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center bg-[var(--ink)] text-[var(--bg)] [html[data-theme=dark]_&]:bg-[var(--surface-2)] [html[data-theme=dark]_&]:border-t [html[data-theme=dark]_&]:border-[var(--line)]">
               <div className="px-3.5 py-3.5 font-[var(--font-mono)] text-[11px] uppercase tracking-[.04em] opacity-80 col-span-4">
-                Quote total
+                Estimate total
               </div>
               <div className="px-3.5 py-3.5 text-[22px] font-[700] tracking-[-0.025em]">
                 {fmtDollar(total)}

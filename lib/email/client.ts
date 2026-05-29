@@ -16,7 +16,7 @@ export interface SendEmailResult {
   error?: string;
 }
 
-const FROM = process.env.EMAIL_FROM ?? "SqFt Quotes <quotes@sqft.dev>";
+const FROM = process.env.EMAIL_FROM ?? "SqFt Estimates <estimates@sqft.dev>";
 
 // RFC 2606 reserved-for-testing domains. Never resolve to real mailboxes,
 // so e2e tests can use them to exercise the send flow without burning Resend

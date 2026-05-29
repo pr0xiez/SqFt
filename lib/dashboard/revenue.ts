@@ -1,10 +1,11 @@
 // lib/dashboard/revenue.ts
-import { prisma } from "@/lib/prisma";
-import { computeQuoteView } from "@/lib/quoteView/compute";
+
+import { computeEstimateView } from "@/lib/estimateView/compute";
 import {
-  fromPrismaQuote,
-  type PrismaQuoteForView,
-} from "@/lib/quoteView/fromPrisma";
+  fromPrismaEstimate,
+  type PrismaEstimateForView,
+} from "@/lib/estimateView/fromPrisma";
+import { prisma } from "@/lib/prisma";
 
 export interface WeekSummary {
   label: string;
@@ -42,7 +43,7 @@ const revenueSelect = {
       sortOrder: true,
     },
   },
-  estimate: {
+  siteMeasure: {
     select: {
       items: {
         select: {
@@ -71,15 +72,17 @@ export async function getDashboardRevenue(
   const daysLeft = totalDays - today;
   const monthStart = new Date(year, month, 1);
 
-  const acceptedMtd = await prisma.quote.findMany({
+  const acceptedMtd = await prisma.estimate.findMany({
     where: { orgId, status: "accepted", acceptedAt: { gte: monthStart } },
     select: revenueSelect,
   });
 
-  type AcceptedQuoteRow = PrismaQuoteForView & { acceptedAt: Date | null };
+  type AcceptedEstimateRow = PrismaEstimateForView & {
+    acceptedAt: Date | null;
+  };
 
-  const mtdTotal = (acceptedMtd as AcceptedQuoteRow[]).reduce(
-    (sum, q) => sum + computeQuoteView(fromPrismaQuote(q)).total,
+  const mtdTotal = (acceptedMtd as AcceptedEstimateRow[]).reduce(
+    (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
     0
   );
 
@@ -104,12 +107,15 @@ export async function getDashboardRevenue(
 
     const weekStart = new Date(year, month, start);
     const weekEnd = new Date(year, month, end, 23, 59, 59, 999);
-    const amount = (acceptedMtd as AcceptedQuoteRow[])
+    const amount = (acceptedMtd as AcceptedEstimateRow[])
       .filter(
         (q) =>
           q.acceptedAt && q.acceptedAt >= weekStart && q.acceptedAt <= weekEnd
       )
-      .reduce((sum, q) => sum + computeQuoteView(fromPrismaQuote(q)).total, 0);
+      .reduce(
+        (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
+        0
+      );
 
     return { label, amount, isCurrent, isFuture };
   });

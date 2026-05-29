@@ -25,12 +25,12 @@ export async function listEvents(orgId: string): Promise<EventWithRelations[]> {
   });
 }
 
-function assertJobHasQuote(
+function assertJobHasEstimate(
   type: string | undefined,
-  quoteId: number | null | undefined
+  estimateId: number | null | undefined
 ) {
-  if (type === "job" && (quoteId === null || quoteId === undefined)) {
-    throw new ValidationError("Job events require a quoteId");
+  if (type === "job" && (estimateId === null || estimateId === undefined)) {
+    throw new ValidationError("Job events require a estimateId");
   }
 }
 
@@ -46,7 +46,7 @@ export type EventUpdateInput = Prisma.EventUncheckedUpdateInput & {
 };
 
 export async function createEvent(orgId: string, data: EventCreateInput) {
-  assertJobHasQuote(data.type, data.quoteId ?? null);
+  assertJobHasEstimate(data.type, data.estimateId ?? null);
   const { crewMemberIds, ...rest } = data;
   return prisma.event.create({
     data: {
@@ -67,16 +67,16 @@ export async function updateEvent(
 ) {
   const current = await prisma.event.findFirst({
     where: { id, orgId },
-    select: { type: true, quoteId: true },
+    select: { type: true, estimateId: true },
   });
   if (!current) return null;
 
   const nextType = typeof data.type === "string" ? data.type : current.type;
-  const nextQuoteId =
-    data.quoteId === undefined
-      ? current.quoteId
-      : (data.quoteId as number | null);
-  assertJobHasQuote(nextType, nextQuoteId);
+  const nextEstimateId =
+    data.estimateId === undefined
+      ? current.estimateId
+      : (data.estimateId as number | null);
+  assertJobHasEstimate(nextType, nextEstimateId);
 
   const { crewMemberIds, ...rest } = data;
 

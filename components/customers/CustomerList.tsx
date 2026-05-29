@@ -14,12 +14,16 @@ import { SortableHeader } from "@/components/ui/SortableHeader";
 import { SourceBadge } from "@/components/ui/SourceBadge";
 import { cn } from "@/lib/cn";
 import {
+  isOpenEstimate,
+  lastTouchAt,
+  relativeTime,
+} from "@/lib/estimateStatus";
+import {
+  type CustomerListEstimateSummary,
   type CustomerListItem,
-  type CustomerListQuoteSummary,
   useCustomers,
 } from "@/lib/hooks/useCustomers";
 import { paginate, useTableQueryState } from "@/lib/hooks/useTableQueryState";
-import { isOpenQuote, lastTouchAt, relativeTime } from "@/lib/quoteStatus";
 import { cycleSort, sortBy } from "@/lib/sort";
 import { sourceName } from "@/lib/utils";
 
@@ -42,14 +46,14 @@ const SOURCE_ROW_BORDERS: Record<string, string> = {
 
 const PIPELINE_FILTERS = [
   { id: "any", label: "Any pipeline" },
-  { id: "open", label: "Open quote" },
+  { id: "open", label: "Open estimate" },
   { id: "accepted", label: "Won" },
   { id: "cold", label: "No activity" },
 ] as const;
 
 type PipelineFilter = (typeof PIPELINE_FILTERS)[number]["id"];
 
-type SortKey = "name" | "source" | "estimates" | "open" | "lastActivity";
+type SortKey = "name" | "source" | "siteMeasures" | "open" | "lastActivity";
 
 interface CustomerSummary {
   open: number;
@@ -59,16 +63,16 @@ interface CustomerSummary {
 }
 
 function summarize(customer: CustomerListItem): CustomerSummary {
-  const quotes: CustomerListQuoteSummary[] = (customer.estimates ?? []).flatMap(
-    (e) => e.quotes
-  );
-  const open = quotes.filter(isOpenQuote).length;
-  const accepted = quotes.filter((q) => q.status === "accepted").length;
+  const estimates: CustomerListEstimateSummary[] = (
+    customer.siteMeasures ?? []
+  ).flatMap((e) => e.estimates);
+  const open = estimates.filter(isOpenEstimate).length;
+  const accepted = estimates.filter((q) => q.status === "accepted").length;
   const last =
-    quotes.length > 0
-      ? quotes.map(lastTouchAt).sort().reverse()[0]
+    estimates.length > 0
+      ? estimates.map(lastTouchAt).sort().reverse()[0]
       : (customer.createdAt ?? null);
-  return { open, accepted, total: quotes.length, lastActivity: last };
+  return { open, accepted, total: estimates.length, lastActivity: last };
 }
 
 const matchesPipeline = (s: CustomerSummary, p: PipelineFilter) => {
@@ -97,7 +101,7 @@ export function CustomerListView() {
     setDensity,
   } = useTableQueryState<SortKey>({
     storageKey: "customers",
-    validSortKeys: ["name", "source", "estimates", "open", "lastActivity"],
+    validSortKeys: ["name", "source", "siteMeasures", "open", "lastActivity"],
     defaultSort: { key: "lastActivity", direction: "desc" },
   });
 
@@ -124,15 +128,15 @@ export function CustomerListView() {
   );
 
   const totals = useMemo(() => {
-    let openQuotes = 0;
+    let openEstimates = 0;
     let won = 0;
     let withOpen = 0;
     for (const { summary } of summarized) {
-      openQuotes += summary.open;
+      openEstimates += summary.open;
       won += summary.accepted;
       if (summary.open > 0) withOpen += 1;
     }
-    return { openQuotes, won, withOpen };
+    return { openEstimates, won, withOpen };
   }, [summarized]);
 
   // Single pass: produces the filtered rows plus the pill counts for *other*
@@ -181,7 +185,7 @@ export function CustomerListView() {
       sortBy(filtered, sort, {
         name: (r) => r.customer.name,
         source: (r) => r.customer.source,
-        estimates: (r) => r.customer._count?.estimates ?? 0,
+        siteMeasures: (r) => r.customer._count?.siteMeasures ?? 0,
         open: (r) => r.summary.open,
         lastActivity: (r) => r.summary.lastActivity ?? "",
       }),
@@ -216,12 +220,12 @@ export function CustomerListView() {
               <span
                 className={cn(
                   "font-[600]",
-                  totals.openQuotes > 0
+                  totals.openEstimates > 0
                     ? "text-[var(--gold)]"
                     : "text-[var(--muted)]"
                 )}
               >
-                {totals.openQuotes}
+                {totals.openEstimates}
               </span>{" "}
               open
             </span>
@@ -305,7 +309,7 @@ export function CustomerListView() {
             onSort={handleSort}
           />
           <SortableHeader
-            sortKey="estimates"
+            sortKey="siteMeasures"
             label="Est."
             sort={sort}
             onSort={handleSort}
@@ -338,7 +342,7 @@ export function CustomerListView() {
         ) : (
           <>
             {slice.map(({ customer: c, summary }) => {
-              const estCount = c._count?.estimates ?? 0;
+              const estCount = c._count?.siteMeasures ?? 0;
               const won = summary.accepted > 0;
               return (
                 <button
@@ -408,7 +412,7 @@ export function CustomerListView() {
                     </div>
                     {summary.total > 0 && (
                       <div className="font-[var(--font-mono)] text-[9.5px] text-[var(--muted)] uppercase tracking-[.08em] mt-0.5">
-                        {summary.total} quote{summary.total === 1 ? "" : "s"}
+                        {summary.total} estimate{summary.total === 1 ? "" : "s"}
                       </div>
                     )}
                   </div>

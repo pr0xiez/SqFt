@@ -6,18 +6,18 @@ import { Button } from "@/components/ui/Button";
 import { SourceBadge } from "@/components/ui/SourceBadge";
 import { useToast } from "@/components/ui/Toast";
 import {
+  estimateStatusTone,
+  isOpenEstimate,
+  lastTouchAt,
+  relativeTime,
+} from "@/lib/estimateStatus";
+import {
   type CustomerEstimateSummary,
-  type CustomerQuoteSummary,
+  type CustomerSiteMeasureSummary,
   useCustomer,
   useUpdateCustomer,
 } from "@/lib/hooks/useCustomers";
-import { useCreateEstimate } from "@/lib/hooks/useEstimates";
-import {
-  isOpenQuote,
-  lastTouchAt,
-  quoteStatusTone,
-  relativeTime,
-} from "@/lib/quoteStatus";
+import { useCreateSiteMeasure } from "@/lib/hooks/useSiteMeasures";
 import { sourceName } from "@/lib/utils";
 
 interface Props {
@@ -34,7 +34,7 @@ function formatShortDate(iso: string | null | undefined): string {
 }
 
 function StatusPill({ status }: { status: string }) {
-  const tone = quoteStatusTone(status);
+  const tone = estimateStatusTone(status);
   return (
     <span
       className="inline-flex items-center gap-1.5 font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.08em] px-2 py-[3px] rounded-[4px] border"
@@ -92,31 +92,31 @@ export function CustomerDetailView({ customerId }: Props) {
   const router = useRouter();
   const { data: customer, isLoading } = useCustomer(customerId);
   const updateCustomer = useUpdateCustomer(customerId);
-  const createEstimate = useCreateEstimate();
+  const createSiteMeasure = useCreateSiteMeasure();
   const { showToast } = useToast();
 
-  const estimates: CustomerEstimateSummary[] = useMemo(
-    () => customer?.estimates ?? [],
-    [customer?.estimates]
+  const siteMeasures: CustomerSiteMeasureSummary[] = useMemo(
+    () => customer?.siteMeasures ?? [],
+    [customer?.siteMeasures]
   );
 
   const stats = useMemo(() => {
-    const allQuotes: CustomerQuoteSummary[] = estimates.flatMap(
-      (e) => e.quotes ?? []
+    const allEstimates: CustomerEstimateSummary[] = siteMeasures.flatMap(
+      (e) => e.estimates ?? []
     );
-    const open = allQuotes.filter(isOpenQuote).length;
-    const accepted = allQuotes.filter((q) => q.status === "accepted").length;
-    const declined = allQuotes.filter((q) => q.status === "declined").length;
-    const lastActivityIso = allQuotes.map(lastTouchAt).sort().reverse()[0];
+    const open = allEstimates.filter(isOpenEstimate).length;
+    const accepted = allEstimates.filter((q) => q.status === "accepted").length;
+    const declined = allEstimates.filter((q) => q.status === "declined").length;
+    const lastActivityIso = allEstimates.map(lastTouchAt).sort().reverse()[0];
     return {
-      estimateCount: estimates.length,
-      quoteCount: allQuotes.length,
+      siteMeasureCount: siteMeasures.length,
+      estimateCount: allEstimates.length,
       open,
       accepted,
       declined,
       lastActivity: lastActivityIso ?? customer?.createdAt ?? null,
     };
-  }, [estimates, customer?.createdAt]);
+  }, [siteMeasures, customer?.createdAt]);
 
   async function handleField(field: string, value: string) {
     try {
@@ -126,12 +126,12 @@ export function CustomerDetailView({ customerId }: Props) {
     }
   }
 
-  async function handleNewEstimate() {
+  async function handleNewSiteMeasure() {
     try {
-      const est = await createEstimate.mutateAsync({ customerId });
-      router.push(`/estimates/${est.id}`);
+      const est = await createSiteMeasure.mutateAsync({ customerId });
+      router.push(`/site-measures/${est.id}`);
     } catch {
-      showToast("Failed to create estimate");
+      showToast("Failed to create site measure");
     }
   }
 
@@ -174,10 +174,10 @@ export function CustomerDetailView({ customerId }: Props) {
           <Button onClick={() => router.push("/customers")}>← Customers</Button>
           <Button
             variant="primary"
-            onClick={handleNewEstimate}
-            disabled={createEstimate.isPending}
+            onClick={handleNewSiteMeasure}
+            disabled={createSiteMeasure.isPending}
           >
-            + New Estimate
+            + New Site Measure
           </Button>
         </div>
       </div>
@@ -185,9 +185,9 @@ export function CustomerDetailView({ customerId }: Props) {
       {/* Stat strip */}
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg mb-4 flex flex-wrap divide-x divide-[var(--line)] overflow-hidden">
         <Stat
-          label="Estimates"
-          value={stats.estimateCount}
-          hint={`${stats.quoteCount} quote${stats.quoteCount === 1 ? "" : "s"} total`}
+          label="Site Measures"
+          value={stats.siteMeasureCount}
+          hint={`${stats.estimateCount} estimate${stats.estimateCount === 1 ? "" : "s"} total`}
         />
         <Stat
           label="Open"
@@ -293,7 +293,7 @@ export function CustomerDetailView({ customerId }: Props) {
               Pipeline
             </h2>
             <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] uppercase tracking-[.08em] mt-0.5">
-              Estimates & quotes
+              SiteMeasures & estimates
             </div>
           </div>
           {stats.open > 0 && (
@@ -303,28 +303,30 @@ export function CustomerDetailView({ customerId }: Props) {
           )}
         </div>
 
-        {estimates.length === 0 ? (
+        {siteMeasures.length === 0 ? (
           <div className="py-10 text-center">
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mb-3">
-              No estimates yet.
+              No siteMeasures yet.
             </div>
             <Button
               variant="primary"
               size="sm"
-              onClick={handleNewEstimate}
-              disabled={createEstimate.isPending}
+              onClick={handleNewSiteMeasure}
+              disabled={createSiteMeasure.isPending}
             >
-              + Start first estimate
+              + Start first site measure
             </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {estimates.map((est) => (
-              <EstimateRow
+            {siteMeasures.map((est) => (
+              <SiteMeasureRow
                 key={est.id}
-                estimate={est}
-                onOpenEstimate={() => router.push(`/estimates/${est.id}`)}
-                onOpenQuote={(qid) => router.push(`/quotes/${qid}`)}
+                siteMeasure={est}
+                onOpenSiteMeasure={() =>
+                  router.push(`/site-measures/${est.id}`)
+                }
+                onOpenEstimate={(qid) => router.push(`/estimates/${qid}`)}
               />
             ))}
           </div>
@@ -334,40 +336,40 @@ export function CustomerDetailView({ customerId }: Props) {
   );
 }
 
-function EstimateRow({
-  estimate,
+function SiteMeasureRow({
+  siteMeasure,
+  onOpenSiteMeasure,
   onOpenEstimate,
-  onOpenQuote,
 }: {
-  estimate: CustomerEstimateSummary;
-  onOpenEstimate: () => void;
-  onOpenQuote: (id: number) => void;
+  siteMeasure: CustomerSiteMeasureSummary;
+  onOpenSiteMeasure: () => void;
+  onOpenEstimate: (id: number) => void;
 }) {
-  const quotes = estimate.quotes ?? [];
-  const openCount = quotes.filter(isOpenQuote).length;
-  const acceptedCount = quotes.filter((q) => q.status === "accepted").length;
+  const estimates = siteMeasure.estimates ?? [];
+  const openCount = estimates.filter(isOpenEstimate).length;
+  const acceptedCount = estimates.filter((q) => q.status === "accepted").length;
 
   return (
     <div className="border border-[var(--line)] rounded-md overflow-hidden">
-      {/* Estimate header */}
+      {/* SiteMeasure header */}
       <button
         type="button"
-        onClick={onOpenEstimate}
+        onClick={onOpenSiteMeasure}
         className="w-full text-left flex items-center gap-3 px-4 py-3 bg-[var(--surface-2)] hover:bg-[color-mix(in_srgb,var(--surface-2)_70%,var(--line))] transition-colors duration-150 cursor-pointer"
       >
         <span className="font-[var(--font-mono)] text-[10.5px] uppercase tracking-[.09em] text-[var(--muted)] shrink-0">
-          Estimate{" "}
+          Site Measure{" "}
           <span className="text-[var(--ink)]">
-            #{estimate.estimateNumber ?? estimate.id}
+            #{siteMeasure.siteMeasureNumber ?? siteMeasure.id}
           </span>
         </span>
         <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-          {formatShortDate(estimate.date)}
+          {formatShortDate(siteMeasure.date)}
         </span>
         <div className="flex-1 min-w-0">
-          {estimate.title && (
+          {siteMeasure.title && (
             <span className="text-[12.5px] font-[600] tracking-[-0.005em] truncate block">
-              {estimate.title}
+              {siteMeasure.title}
             </span>
           )}
         </div>
@@ -388,28 +390,28 @@ function EstimateRow({
         </div>
       </button>
 
-      {/* Quote thread */}
-      {quotes.length === 0 ? (
+      {/* Estimate thread */}
+      {estimates.length === 0 ? (
         <div className="px-4 py-3 font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] italic">
-          No quotes drafted on this estimate yet.
+          No estimates drafted on this siteMeasure yet.
         </div>
       ) : (
         <ul className="divide-y divide-[var(--line)]">
-          {quotes.map((q) => {
-            const tone = quoteStatusTone(q.status);
+          {estimates.map((q) => {
+            const tone = estimateStatusTone(q.status);
             const touch = lastTouchAt(q);
             return (
               <li key={q.id}>
                 <button
                   type="button"
-                  onClick={() => onOpenQuote(q.id)}
+                  onClick={() => onOpenEstimate(q.id)}
                   className="w-full text-left flex items-center gap-3 pl-4 pr-4 py-3 hover:bg-[var(--surface-2)] cursor-pointer transition-[background,padding] duration-[120ms] hover:pl-5 group"
                   style={{
                     borderLeft: `3px solid ${tone.fg}`,
                   }}
                 >
                   <span className="font-[var(--font-mono)] text-[11px] font-[600] tabular-nums text-[var(--ink)] min-w-[44px]">
-                    Q#{q.quoteNumber}
+                    E#{q.estimateNumber}
                   </span>
                   <StatusPill status={q.status} />
                   <div className="flex-1 min-w-0 flex items-baseline gap-2">

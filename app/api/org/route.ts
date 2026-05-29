@@ -14,7 +14,7 @@ const ORG_SELECT = {
   locale: true,
   brandColor: true,
   tagline: true,
-  showLicenseOnQuotes: true,
+  showLicenseOnEstimates: true,
   defaultDepositPct: true,
   defaultValidityDays: true,
   defaultUnitLabel: true,
@@ -48,7 +48,7 @@ const PatchBody = z
       .max(120)
       .optional()
       .transform((v) => (v === undefined ? undefined : v === "" ? null : v)),
-    showLicenseOnQuotes: z.boolean().optional(),
+    showLicenseOnEstimates: z.boolean().optional(),
     defaultDepositPct: z.number().min(0).max(1).optional(),
     defaultValidityDays: z.number().int().min(1).max(365).optional(),
     defaultUnitLabel: z.enum(["ft²", "yd²", "m²"]).optional(),

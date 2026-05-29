@@ -64,14 +64,14 @@ export function roomPerimeter(room: RoomItem): number {
   return 2 * (w + l);
 }
 
-/** Sum square footage of all room items in an estimate */
+/** Sum square footage of all room items in an siteMeasure */
 export function estTotalArea(items: RoomItem[]): number {
   return items
     .filter((item) => item.type === "room")
     .reduce((sum, room) => sum + roomSqft(room), 0);
 }
 
-// ── Quote calculations ────────────────────────────────────────────────────
+// ── Estimate calculations ────────────────────────────────────────────────────
 
 /** Source of truth for LineItem.qtyMode string values. Persisted as plain
  *  strings in the DB and over the wire, so renaming a value requires a data

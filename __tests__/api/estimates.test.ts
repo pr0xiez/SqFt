@@ -2,11 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
-  listEstimates: vi.fn(),
+  listEstimates: vi.fn().mockResolvedValue([]),
   createEstimate: vi.fn(),
-  getEstimate: vi.fn(),
-  saveEstimate: vi.fn(),
-  deleteEstimate: vi.fn(),
 }));
 
 const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
@@ -22,31 +19,21 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const {
-  listEstimates,
-  createEstimate,
-  getEstimate,
-  saveEstimate,
-  deleteEstimate,
-} = await import("@/lib/repositories");
-const { GET: listGET, POST } = await import("@/app/api/estimates/route");
-const { GET, PATCH, DELETE } = await import("@/app/api/estimates/[id]/route");
+const { listEstimates, createEstimate } = await import("@/lib/repositories");
+const { GET, POST } = await import("@/app/api/estimates/route");
 
 const mockList = vi.mocked(listEstimates);
 const mockCreate = vi.mocked(createEstimate);
-const mockGet = vi.mocked(getEstimate);
-const mockSave = vi.mocked(saveEstimate);
-const mockDelete = vi.mocked(deleteEstimate);
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
 describe("GET /api/estimates", () => {
-  it("returns the list", async () => {
+  it("calls listEstimates scoped to org", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockList.mockResolvedValue([{ id: 1, title: "Job A" }] as any);
-    const res = await listGET(
+    mockList.mockResolvedValue([] as any);
+    const res = await GET(
       makeRequest("GET", "http://x/api/estimates"),
       params({})
     );
@@ -56,123 +43,33 @@ describe("GET /api/estimates", () => {
 });
 
 describe("POST /api/estimates", () => {
-  it("creates and returns 201", async () => {
+  it("creates a estimate and returns 201", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockCreate.mockResolvedValue({ id: 5 } as any);
+    mockCreate.mockResolvedValue({ id: 5, siteMeasureId: 9 } as any);
     const res = await POST(
-      makeRequest("POST", "http://x/api/estimates", {
-        customerId: 1,
-        title: "New",
-      }),
+      makeRequest("POST", "http://x/api/estimates", { siteMeasureId: 9 }),
       params({})
     );
     expect(res.status).toBe(201);
-    expect(mockCreate).toHaveBeenCalledWith(
-      "org1",
-      expect.objectContaining({ customerId: 1 })
-    );
-  });
-});
-
-describe("GET /api/estimates/[id]", () => {
-  it("calls getEstimate with parsed id and org", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockGet.mockResolvedValue({ id: 1, title: "Job A" } as any);
-    const res = await GET(
-      makeRequest("GET", "http://x/api/estimates/1"),
-      params({ id: "1" })
-    );
-    expect(res.status).toBe(200);
-    expect(mockGet).toHaveBeenCalledWith(1, "org1");
+    expect(mockCreate).toHaveBeenCalledWith("org1", { siteMeasureId: 9 });
   });
 
-  it("returns NOT_FOUND when estimate missing", async () => {
-    mockGet.mockResolvedValue(null);
-    const res = await GET(
-      makeRequest("GET", "http://x/api/estimates/99"),
-      params({ id: "99" })
+  it("returns NOT_FOUND when the siteMeasure isn't in the org", async () => {
+    mockCreate.mockResolvedValue(null);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates", { siteMeasureId: 99 }),
+      params({})
     );
     expect(res.status).toBe(404);
-  });
-});
-
-describe("PATCH /api/estimates/[id]", () => {
-  it("forwards title updates to saveEstimate", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockSave.mockResolvedValue({ id: 5, title: "Updated" } as any);
-    const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/estimates/5", { title: "Updated" }),
-      params({ id: "5" })
-    );
-    expect(res.status).toBe(200);
-    expect(mockSave).toHaveBeenCalledWith(
-      5,
-      "org1",
-      expect.objectContaining({ title: "Updated" })
-    );
+    expect((await res.json()).error.code).toBe("NOT_FOUND");
   });
 
-  it("forwards item arrays to saveEstimate", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockSave.mockResolvedValue({ id: 5 } as any);
-    const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/estimates/5", {
-        items: [{ id: 1, type: "room", sortOrder: 0, name: "Living room" }],
-      }),
-      params({ id: "5" })
-    );
-    expect(res.status).toBe(200);
-    expect(mockSave).toHaveBeenCalledWith(
-      5,
-      "org1",
-      expect.objectContaining({
-        items: [expect.objectContaining({ id: 1, type: "room" })],
-      })
-    );
-  });
-
-  it("omits items from the patch when not provided", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockSave.mockResolvedValue({ id: 7 } as any);
-    await PATCH(
-      makeRequest("PATCH", "http://x/api/estimates/7", { title: "Title only" }),
-      params({ id: "7" })
-    );
-    expect(mockSave).toHaveBeenCalledWith(
-      7,
-      "org1",
-      expect.not.objectContaining({ items: expect.anything() })
-    );
-  });
-
-  it("rejects invalid customerId with VALIDATION_FAILED", async () => {
-    const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/estimates/5", { customerId: -1 }),
-      params({ id: "5" })
+  it("returns VALIDATION_FAILED when siteMeasureId is missing", async () => {
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates", {}),
+      params({})
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
-    expect(mockSave).not.toHaveBeenCalled();
-  });
-
-  it("returns NOT_FOUND when saveEstimate returns null", async () => {
-    mockSave.mockResolvedValue(null);
-    const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/estimates/99", { title: "Gone" }),
-      params({ id: "99" })
-    );
-    expect(res.status).toBe(404);
-  });
-});
-
-describe("DELETE /api/estimates/[id]", () => {
-  it("calls deleteEstimate and returns 204", async () => {
-    mockDelete.mockResolvedValue(true);
-    const res = await DELETE(
-      makeRequest("DELETE", "http://x/api/estimates/1"),
-      params({ id: "1" })
-    );
-    expect(res.status).toBe(204);
-    expect(mockDelete).toHaveBeenCalledWith(1, "org1");
   });
 });

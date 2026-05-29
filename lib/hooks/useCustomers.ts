@@ -2,12 +2,17 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export type QuoteStatus = "draft" | "sent" | "viewed" | "accepted" | "declined";
+export type EstimateStatus =
+  | "draft"
+  | "sent"
+  | "viewed"
+  | "accepted"
+  | "declined";
 
-export interface CustomerQuoteSummary {
+export interface CustomerEstimateSummary {
   id: number;
-  quoteNumber: number;
-  status: QuoteStatus;
+  estimateNumber: number;
+  status: EstimateStatus;
   date: string;
   sentAt: string | null;
   viewedAt: string | null;
@@ -17,8 +22,8 @@ export interface CustomerQuoteSummary {
   _count: { lineItems: number };
 }
 
-export interface CustomerListQuoteSummary {
-  status: QuoteStatus;
+export interface CustomerListEstimateSummary {
+  status: EstimateStatus;
   sentAt: string | null;
   viewedAt: string | null;
   acceptedAt: string | null;
@@ -26,13 +31,13 @@ export interface CustomerListQuoteSummary {
   createdAt: string;
 }
 
-export interface CustomerEstimateSummary {
+export interface CustomerSiteMeasureSummary {
   id: number;
-  estimateNumber: number | null;
+  siteMeasureNumber: number | null;
   title: string;
   date: string;
   createdAt: string;
-  quotes: CustomerQuoteSummary[];
+  estimates: CustomerEstimateSummary[];
 }
 
 /**
@@ -54,21 +59,21 @@ export interface Customer {
 }
 
 /**
- * Shape returned by GET /api/customers — each estimate carries only a
- * slim quote summary used to derive pipeline state on the list view.
+ * Shape returned by GET /api/customers — each siteMeasure carries only a
+ * slim estimate summary used to derive pipeline state on the list view.
  */
 export interface CustomerListItem extends Customer {
-  _count?: { estimates: number };
-  estimates?: { quotes: CustomerListQuoteSummary[] }[];
+  _count?: { siteMeasures: number };
+  siteMeasures?: { estimates: CustomerListEstimateSummary[] }[];
 }
 
 /**
- * Shape returned by GET /api/customers/:id — full estimate + quote
+ * Shape returned by GET /api/customers/:id — full siteMeasure + estimate
  * details for the customer detail page.
  */
 export interface CustomerDetail extends Customer {
-  _count?: { estimates: number };
-  estimates?: CustomerEstimateSummary[];
+  _count?: { siteMeasures: number };
+  siteMeasures?: CustomerSiteMeasureSummary[];
 }
 
 export interface CreateCustomerInput {

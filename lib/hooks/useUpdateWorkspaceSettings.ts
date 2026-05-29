@@ -10,7 +10,7 @@ export type WorkspaceSettingsPatch = Partial<{
   locale: string;
   brandColor: string;
   tagline: string;
-  showLicenseOnQuotes: boolean;
+  showLicenseOnEstimates: boolean;
   defaultDepositPct: number;
   defaultValidityDays: number;
   defaultUnitLabel: string;

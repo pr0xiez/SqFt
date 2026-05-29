@@ -5,21 +5,21 @@ vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockRejectedValue(new Error("public")),
 }));
 vi.mock("@/lib/repositories", () => ({
-  getQuoteByToken: vi.fn(),
-  acceptQuoteByToken: vi.fn(),
+  getEstimateByToken: vi.fn(),
+  acceptEstimateByToken: vi.fn(),
 }));
 vi.mock("next/server", async (importOriginal) => {
   const mod = await importOriginal<typeof import("next/server")>();
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const { getQuoteByToken, acceptQuoteByToken } = await import(
+const { getEstimateByToken, acceptEstimateByToken } = await import(
   "@/lib/repositories"
 );
 const { POST } = await import("@/app/api/q/[token]/accept/route");
 
-const mockGetByToken = vi.mocked(getQuoteByToken);
-const mockAccept = vi.mocked(acceptQuoteByToken);
+const mockGetByToken = vi.mocked(getEstimateByToken);
+const mockAccept = vi.mocked(acceptEstimateByToken);
 
 const validBody = {
   name: "Janet Henderson",
@@ -37,18 +37,17 @@ beforeEach(() => {
 
 describe("POST /api/q/[token]/accept", () => {
   it("accepts a valid sign", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockGetByToken.mockResolvedValue({
       id: 1,
       orgId: "org1",
-      quoteNumber: 5001,
+      estimateNumber: 5001,
       status: "viewed",
       convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
       lineItems: [],
       date: new Date(),
-      estimate: {
+      siteMeasure: {
         customer: {
           name: "Janet",
           email: "h@example.com",
@@ -85,7 +84,7 @@ describe("POST /api/q/[token]/accept", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns CONFLICT when the quote is already accepted", async () => {
+  it("returns CONFLICT when the estimate is already accepted", async () => {
     mockGetByToken.mockResolvedValue({ id: 1, status: "accepted" } as never);
     const res = await POST(
       makeRequest("POST", `http://x/api/q/${validToken}/accept`, validBody),

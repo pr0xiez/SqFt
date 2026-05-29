@@ -23,7 +23,7 @@ export function Masthead({ companyName, licenseNumber: _ }: Props) {
               {companyName || "your business"}
             </strong>{" "}
             shows up to customers, what your defaults look like, and who can do
-            what. Changes apply to every quote and invoice going forward.
+            what. Changes apply to every estimate and invoice going forward.
           </p>
         </div>
       </div>

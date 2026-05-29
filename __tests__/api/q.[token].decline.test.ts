@@ -5,15 +5,15 @@ vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockRejectedValue(new Error("public")),
 }));
 vi.mock("@/lib/repositories", () => ({
-  getQuoteByToken: vi.fn(),
-  declineQuoteByToken: vi.fn(),
+  getEstimateByToken: vi.fn(),
+  declineEstimateByToken: vi.fn(),
 }));
 vi.mock("next/server", async (importOriginal) => {
   const mod = await importOriginal<typeof import("next/server")>();
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const { getQuoteByToken, declineQuoteByToken } = await import(
+const { getEstimateByToken, declineEstimateByToken } = await import(
   "@/lib/repositories"
 );
 const { POST } = await import("@/app/api/q/[token]/decline/route");
@@ -26,14 +26,14 @@ beforeEach(() => {
 
 describe("POST /api/q/[token]/decline", () => {
   it("declines with optional reason", async () => {
-    vi.mocked(getQuoteByToken).mockResolvedValue({
+    vi.mocked(getEstimateByToken).mockResolvedValue({
       id: 1,
       status: "viewed",
       orgId: "o",
-      quoteNumber: 1,
-      estimate: { customer: { name: "C", email: "c@x.com" } },
+      estimateNumber: 1,
+      siteMeasure: { customer: { name: "C", email: "c@x.com" } },
     } as never);
-    vi.mocked(declineQuoteByToken).mockResolvedValue("ok");
+    vi.mocked(declineEstimateByToken).mockResolvedValue("ok");
     const res = await POST(
       makeRequest("POST", `http://x/api/q/${validToken}/decline`, {
         reason: "too expensive",
@@ -44,14 +44,14 @@ describe("POST /api/q/[token]/decline", () => {
   });
 
   it("accepts an empty body", async () => {
-    vi.mocked(getQuoteByToken).mockResolvedValue({
+    vi.mocked(getEstimateByToken).mockResolvedValue({
       id: 1,
       status: "viewed",
       orgId: "o",
-      quoteNumber: 1,
-      estimate: { customer: { name: "C", email: "c@x.com" } },
+      estimateNumber: 1,
+      siteMeasure: { customer: { name: "C", email: "c@x.com" } },
     } as never);
-    vi.mocked(declineQuoteByToken).mockResolvedValue("ok");
+    vi.mocked(declineEstimateByToken).mockResolvedValue("ok");
     const res = await POST(
       makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
       params({ token: validToken })
@@ -60,7 +60,7 @@ describe("POST /api/q/[token]/decline", () => {
   });
 
   it("returns CONFLICT when already accepted", async () => {
-    vi.mocked(getQuoteByToken).mockResolvedValue({
+    vi.mocked(getEstimateByToken).mockResolvedValue({
       id: 1,
       status: "accepted",
     } as never);
@@ -72,7 +72,7 @@ describe("POST /api/q/[token]/decline", () => {
   });
 
   it("returns NOT_FOUND on unknown token", async () => {
-    vi.mocked(getQuoteByToken).mockResolvedValue(null);
+    vi.mocked(getEstimateByToken).mockResolvedValue(null);
     const res = await POST(
       makeRequest("POST", `http://x/api/q/${validToken}/decline`, {}),
       params({ token: validToken })

@@ -21,7 +21,7 @@ export default async function WorkspaceSettingsPage() {
       locale: true,
       brandColor: true,
       tagline: true,
-      showLicenseOnQuotes: true,
+      showLicenseOnEstimates: true,
       defaultDepositPct: true,
       defaultValidityDays: true,
       defaultUnitLabel: true,

@@ -11,8 +11,8 @@ import { cn } from "@/lib/cn";
 const NAV_TABS = [
   { href: "/", label: "Dashboard", screen: "dashboard" },
   { href: "/customers", label: "Customers", screen: "customers" },
-  { href: "/estimates", label: "Estimates", screen: "estimates" },
-  { href: "/quotes", label: "Quotes", screen: "quote-list" },
+  { href: "/site-measures", label: "Site Measures", screen: "siteMeasures" },
+  { href: "/estimates", label: "Estimates", screen: "estimate-list" },
   { href: "/schedule", label: "Schedule", screen: "schedule" },
   { href: "/settings", label: "Settings", screen: "settings" },
 ];
@@ -204,14 +204,14 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
         <path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" />
       </svg>
     ),
-    Estimates: (
+    "Site Measures": (
       <svg {...props}>
         <title>{label}</title>
         <rect x="5" y="3" width="14" height="18" rx="1.5" />
         <path d="M9 8h6M9 12h6M9 16h4" />
       </svg>
     ),
-    Quotes: (
+    Estimates: (
       <svg {...props}>
         <title>{label}</title>
         <rect x="5" y="3" width="14" height="18" rx="1.5" />

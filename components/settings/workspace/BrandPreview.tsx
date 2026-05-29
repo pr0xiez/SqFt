@@ -14,7 +14,7 @@ export function BrandPreview({ form, licenseNumber }: Props) {
     <div className="sticky top-20" style={previewStyle}>
       <div className="flex justify-between font-mono text-[10px] tracking-[.18em] uppercase text-[var(--muted)] mb-2">
         <span>Live preview</span>
-        <span>Quote · sample</span>
+        <span>Estimate · sample</span>
       </div>
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded overflow-hidden shadow-[var(--shadow)]">
         <div className="h-1.5" style={{ background: "var(--brand)" }} />
@@ -32,7 +32,7 @@ export function BrandPreview({ form, licenseNumber }: Props) {
             </div>
             <div className="text-right">
               <div className="font-mono text-[9px] tracking-[.16em] uppercase text-[var(--muted)]">
-                Quote
+                Estimate
               </div>
               <div className="font-mono text-[12px] tabular-nums">#Q-1047</div>
             </div>
@@ -67,14 +67,14 @@ export function BrandPreview({ form, licenseNumber }: Props) {
 
           <div className="mt-3.5 pt-3 border-t border-[var(--line)] flex justify-between font-mono text-[9px] tracking-[.12em] uppercase text-[var(--muted)]">
             <span>Valid {form.defaultValidityDays} days</span>
-            {form.showLicenseOnQuotes && licenseNumber && (
+            {form.showLicenseOnEstimates && licenseNumber && (
               <span>{licenseNumber}</span>
             )}
           </div>
         </div>
       </div>
       <div className="mt-2 font-mono text-[10px] text-center text-[var(--muted)] italic">
-        Sample numbers — your saved settings apply to new quotes.
+        Sample numbers — your saved settings apply to new estimates.
       </div>
     </div>
   );

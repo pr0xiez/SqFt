@@ -123,7 +123,7 @@ describe("PATCH /api/org", () => {
       locale: "en-US",
       brandColor: "#3d6b4a",
       tagline: null,
-      showLicenseOnQuotes: true,
+      showLicenseOnEstimates: true,
       defaultDepositPct: 0.4,
       defaultValidityDays: 21,
       defaultUnitLabel: "ft²",
