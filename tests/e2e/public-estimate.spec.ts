@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { loginAsWorkerOrg, workerOrg } from "./fixtures/org";
+import { createLocation } from "./fixtures/seed";
 
 // ── 1.4 Public token-authed estimate view ────────────────────────────────────────
 //
@@ -24,8 +25,12 @@ test.describe
       });
       const customer = await custRes.json();
 
+      const location = await createLocation(ctx.request, customer.id, {
+        address: "500 Public Way",
+      });
+
       const estRes = await ctx.request.post("/api/site-measures", {
-        data: { customerId: customer.id },
+        data: { locationId: location.id },
       });
       const siteMeasure = await estRes.json();
       const siteMeasureId = siteMeasure.id;

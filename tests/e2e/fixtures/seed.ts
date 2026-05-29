@@ -27,12 +27,34 @@ export async function createCustomer(
   return res.json();
 }
 
+export async function createLocation(
+  request: APIRequestContext,
+  customerId: number,
+  args: { address?: string; label?: string } = {}
+): Promise<{ id: number }> {
+  const res = await request.post("/api/locations", {
+    data: {
+      customerId,
+      address: args.address ?? "100 Test Ave",
+      ...(args.label ? { label: args.label } : {}),
+    },
+  });
+  expect(res.ok()).toBeTruthy();
+  return res.json();
+}
+
+/**
+ * Create a site measure for a customer. Site measures now hang off a Location,
+ * so this creates a Location for the customer first (keeping the `customerId`
+ * signature so existing callers keep working) and sends `locationId`.
+ */
 export async function createSiteMeasure(
   request: APIRequestContext,
   customerId: number
 ): Promise<{ id: number }> {
+  const location = await createLocation(request, customerId);
   const res = await request.post("/api/site-measures", {
-    data: { customerId },
+    data: { locationId: location.id },
   });
   expect(res.ok()).toBeTruthy();
   return res.json();
