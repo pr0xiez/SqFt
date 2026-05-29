@@ -22,8 +22,9 @@ async function main() {
   // via `create`, not upsert, for child rows — estimates, line items, events,
   // siteMeasures, etc. Without a wipe step, re-running duplicates everything and
   // trips unique constraints (e.g. approvalToken). Clear the demo orgs' data
-  // first; cascades take care of LineItem/EstimateSignature/EstimateEvent/
-  // SiteMeasureItem rows automatically.
+  // first; deleting the customers cascades to Location → SiteMeasure →
+  // Estimate → LineItem/EstimateApproval/EstimateEvent and SiteMeasureItem
+  // rows automatically.
   const demoOrgSlugs = ["johnson-flooring-demo", "other-floors-demo"];
   const demoOrgs = await prisma.organization.findMany({
     where: { slug: { in: demoOrgSlugs } },
@@ -405,7 +406,7 @@ async function main() {
       },
     },
   });
-  console.log("  ✓ 6 siteMeasures");
+  console.log("  ✓ 6 siteMeasures (base set)");
 
   // ── Estimates ────────────────────────────────────────────────────────────────
 
@@ -865,13 +866,245 @@ async function main() {
   }
   console.log(`  ✓ Accepted estimate: #${acceptedEstimate.estimateNumber}`);
 
+  // ── Second location for Henderson (a customer with two locations) ─────────
+  // Demonstrates the Customer → Location → SiteMeasure hierarchy: one customer
+  // owns multiple physical sites.
+  const hendersonRental = await prisma.location.create({
+    data: {
+      orgId: org.id,
+      customerId: customers[0].id,
+      address: "456 Rental Rd, Columbus",
+      label: "Rental Unit",
+      notes: "Tenant-occupied — call ahead",
+    },
+  });
+
+  // Second site measure under Henderson's PRIMARY location (locations[0]),
+  // so that location has two site measures (#1042 above + #1046 here).
+  const est1046 = await prisma.siteMeasure.create({
+    data: {
+      orgId: org.id,
+      locationId: locations[0].id,
+      siteMeasureNumber: 1046,
+      title: "Basement",
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Basement",
+            shape: "rect",
+            w: 24,
+            l: 20,
+            note: "egress window wall",
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+
+  // Site measure at the rental unit — carries the declined/revision chain below.
+  const est1047 = await prisma.siteMeasure.create({
+    data: {
+      orgId: org.id,
+      locationId: hendersonRental.id,
+      siteMeasureNumber: 1047,
+      title: "Rental refresh",
+      items: {
+        create: [
+          {
+            type: "room",
+            name: "Unit Kitchen",
+            shape: "rect",
+            w: 12,
+            l: 10,
+            note: "",
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+  console.log("  ✓ +1 location, +2 site measures (Henderson multi-site)");
+
+  // ── Viewed estimate: opened by the customer, not yet approved or declined ──
+  const viewedEstimate = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      siteMeasureId: est1046.id,
+      estimateNumber: 5007,
+      status: "viewed",
+      convenienceFeeRate: 0.03,
+      markupPct: 30,
+      depositPct: 0.5,
+      approvalToken: "seed-token-viewed-estimate-eeeeeeeeeeeeeeee",
+      sentAt: new Date("2026-05-10T13:00:00Z"),
+      sentToEmail: "henderson@email.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      viewedAt: new Date("2026-05-10T18:20:00Z"),
+      lineItems: {
+        create: [
+          {
+            name: "LVP — basement grade",
+            rate: 3.95,
+            qtyMode: "linked_area",
+            wastePct: 10,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+  for (const evt of [
+    {
+      type: "sent",
+      source: "builder",
+      createdAt: new Date("2026-05-10T13:00:00Z"),
+    },
+    {
+      type: "viewed",
+      source: "builder",
+      createdAt: new Date("2026-05-10T18:20:00Z"),
+    },
+  ] as const) {
+    await prisma.estimateEvent.create({
+      data: {
+        estimateId: viewedEstimate.id,
+        type: evt.type,
+        source: evt.source,
+        ip: evt.type === "viewed" ? "198.51.100.77" : null,
+        userAgent: evt.type === "viewed" ? "Mozilla/5.0 (seed fixture)" : null,
+        createdAt: evt.createdAt,
+      },
+    });
+  }
+  console.log(`  ✓ Viewed estimate: #${viewedEstimate.estimateNumber}`);
+
+  // ── Declined estimate + its revision (a revision chain) ───────────────────
+  // The customer declined #5008; the builder revised it into a fresh draft
+  // #5009 via `revisedFromId`, preserving the lineage.
+  const declinedEstimate = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      siteMeasureId: est1047.id,
+      estimateNumber: 5008,
+      status: "declined",
+      convenienceFeeRate: 0.03,
+      markupPct: 40,
+      depositPct: 0.5,
+      approvalToken: "seed-token-declined-estimate-ffffffffffffffff",
+      sentAt: new Date("2026-05-05T11:00:00Z"),
+      sentToEmail: "henderson@email.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      viewedAt: new Date("2026-05-05T15:30:00Z"),
+      declinedAt: new Date("2026-05-06T09:10:00Z"),
+      declineReason: "Over budget — asked for a revised quote",
+      lineItems: {
+        create: [
+          {
+            name: "Premium LVP — Coretec",
+            rate: 6.25,
+            qtyMode: "linked_area",
+            wastePct: 10,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+  for (const evt of [
+    {
+      type: "sent",
+      source: "builder",
+      createdAt: new Date("2026-05-05T11:00:00Z"),
+    },
+    {
+      type: "viewed",
+      source: "builder",
+      createdAt: new Date("2026-05-05T15:30:00Z"),
+    },
+    {
+      type: "declined",
+      source: "customer",
+      createdAt: new Date("2026-05-06T09:10:00Z"),
+    },
+  ] as const) {
+    await prisma.estimateEvent.create({
+      data: {
+        estimateId: declinedEstimate.id,
+        type: evt.type,
+        source: evt.source,
+        actorEmail: evt.type === "declined" ? "henderson@email.com" : null,
+        actorName: evt.type === "declined" ? "Janet Henderson" : null,
+        ip:
+          evt.type === "viewed" || evt.type === "declined"
+            ? "198.51.100.77"
+            : null,
+        userAgent:
+          evt.type === "viewed" || evt.type === "declined"
+            ? "Mozilla/5.0 (seed fixture)"
+            : null,
+        createdAt: evt.createdAt,
+      },
+    });
+  }
+
+  // The revised draft, cloned from the declined estimate. Cheaper materials.
+  const revisedEstimate = await prisma.estimate.create({
+    data: {
+      orgId: org.id,
+      siteMeasureId: est1047.id,
+      estimateNumber: 5009,
+      status: "draft",
+      convenienceFeeRate: 0.03,
+      markupPct: 30,
+      depositPct: 0.5,
+      revisedFromId: declinedEstimate.id,
+      lineItems: {
+        create: [
+          {
+            name: "LVP — value grade",
+            rate: 4.1,
+            qtyMode: "linked_area",
+            wastePct: 10,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
+            sortOrder: 0,
+          },
+        ],
+      },
+    },
+  });
+  await prisma.estimateEvent.create({
+    data: {
+      estimateId: revisedEstimate.id,
+      type: "revised_from",
+      source: "builder",
+      actorEmail: user.email,
+      actorName: user.name,
+      metadata: {
+        revisedFromEstimateId: declinedEstimate.id,
+        revisedFromEstimateNumber: declinedEstimate.estimateNumber,
+      },
+    },
+  });
+  console.log(
+    `  ✓ Declined estimate #${declinedEstimate.estimateNumber} → revised draft #${revisedEstimate.estimateNumber}`
+  );
+
   // Bump the org counters past the seeded values so newly created records
   // start fresh sequences.
   await prisma.organization.update({
     where: { id: org.id },
-    data: { nextSiteMeasureNumber: 1046, nextEstimateNumber: 5007 },
+    data: { nextSiteMeasureNumber: 1048, nextEstimateNumber: 5010 },
   });
-  console.log("  ✓ 6 estimates");
+  console.log("  ✓ 9 estimates");
 
   // ── Calendar events ───────────────────────────────────────────────────────
   const today = new Date();
