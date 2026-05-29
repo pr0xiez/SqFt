@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { acceptEstimateByToken } from "@/lib/repositories/estimateSignatureRepo";
+import { approveEstimateByToken } from "@/lib/repositories/estimateApprovalRepo";
 
 vi.mock("@/lib/prisma", () => {
   const tx = {
@@ -8,7 +8,7 @@ vi.mock("@/lib/prisma", () => {
       findMany: vi.fn(),
       updateMany: vi.fn(),
     },
-    estimateSignature: {
+    estimateApproval: {
       create: vi.fn(),
     },
     estimateEvent: {
@@ -33,17 +33,12 @@ beforeEach(() => vi.clearAllMocks());
 
 const baseInput = {
   estimateId: 7,
-  signedByName: "Jane",
-  signedByEmail: "jane@example.com",
-  signatureData: "data:image/png;base64,xxxx",
-  signedIp: "127.0.0.1",
-  signedUserAgent: "vitest",
-  consentText: "consent",
-  estimateSnapshot: { totals: {} },
-  snapshotHash: "hash",
+  ip: "127.0.0.1",
+  userAgent: "vitest",
+  snapshot: { totals: {} },
 };
 
-describe("acceptEstimateByToken — sibling auto-decline", () => {
+describe("approveEstimateByToken — sibling auto-decline", () => {
   it("auto-declines open sibling estimates on the same siteMeasure", async () => {
     tx.estimate.findFirst.mockResolvedValueOnce({
       id: 7,
@@ -51,12 +46,9 @@ describe("acceptEstimateByToken — sibling auto-decline", () => {
       siteMeasureId: 42,
       estimateNumber: 5002,
     });
-    tx.estimate.findMany.mockResolvedValueOnce([
-      { id: 8, estimateNumber: 5003 },
-      { id: 9, estimateNumber: 5004 },
-    ]);
+    tx.estimate.findMany.mockResolvedValueOnce([{ id: 8 }, { id: 9 }]);
 
-    const result = await acceptEstimateByToken(baseInput);
+    const result = await approveEstimateByToken(baseInput);
 
     expect(result).toBe("ok");
     // sibling sweep updateMany
@@ -74,7 +66,7 @@ describe("acceptEstimateByToken — sibling auto-decline", () => {
     expect(where.status).toEqual({ in: ["draft", "sent", "viewed"] });
     expect(data.status).toBe("declined");
     expect(data.declineReason).toMatch(
-      /^Superseded — customer accepted Estimate #5002/
+      /^Superseded — customer approved Estimate #5002/
     );
     // one EstimateEvent per affected sibling
     expect(tx.estimateEvent.createMany).toHaveBeenCalledWith({
@@ -102,7 +94,7 @@ describe("acceptEstimateByToken — sibling auto-decline", () => {
     });
     tx.estimate.findMany.mockResolvedValueOnce([]);
 
-    await acceptEstimateByToken(baseInput);
+    await approveEstimateByToken(baseInput);
 
     // updateMany still called, but with an empty in-scope set
     const siblingCall = tx.estimate.updateMany.mock.calls.find(

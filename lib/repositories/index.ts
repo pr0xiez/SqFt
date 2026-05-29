@@ -2,7 +2,7 @@ export * from "./crewMemberRepo";
 export * from "./customerRepo";
 export * from "./estimateEventRepo";
 export * from "./estimateRepo";
-export * from "./estimateSignatureRepo";
+export * from "./estimateApprovalRepo";
 export * from "./eventRepo";
 export * from "./lineItemTemplateRepo";
 export * from "./locationRepo";

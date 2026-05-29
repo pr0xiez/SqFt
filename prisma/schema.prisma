@@ -141,7 +141,7 @@ model Estimate {
   siteMeasureId Int
   siteMeasure   SiteMeasure  @relation(fields: [siteMeasureId], references: [id], onDelete: Cascade)
   estimateNumber Int
-  status        String       @default("draft") // draft | sent | viewed | accepted | declined
+  status        String       @default("draft") // draft | sent | viewed | approved | declined
   date          DateTime     @default(now())
   convenienceFeeRate Float   @default(0.03)
   markupPct     Float        @default(0)
@@ -154,14 +154,14 @@ model Estimate {
   sentByEmail   String?
   sentByName    String?
   viewedAt      DateTime?
-  acceptedAt    DateTime?
+  approvedAt    DateTime?
   declinedAt    DateTime?
   declineReason String?
   createdAt     DateTime     @default(now())
 
   lineItems      LineItem[]
   events         Event[]
-  signature      EstimateSignature?
+  approval       EstimateApproval?
   estimateEvents EstimateEvent[]
 
   // Revision chain — Revise on an accepted/declined estimate clones it
@@ -206,19 +206,16 @@ model LineItemTemplate {
   @@index([orgId, archived])
 }
 
-model EstimateSignature {
-  id              Int      @id @default(autoincrement())
-  estimateId      Int      @unique
-  estimate        Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
-  signedByName    String
-  signedByEmail   String
-  signatureData   String // base64 PNG data URL, ~5-30KB
-  signedAt        DateTime @default(now())
-  signedIp        String
-  signedUserAgent String
-  consentText     String
-  estimateSnapshot Json
-  snapshotHash    String
+// One-click customer approval. Lightweight, append-only record of the
+// approval action plus a snapshot of the estimate as the customer saw it.
+model EstimateApproval {
+  id         Int      @id @default(autoincrement())
+  estimateId Int      @unique
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  approvedAt DateTime @default(now())
+  ip         String
+  userAgent  String
+  snapshot   Json
 }
 
 model EstimateEvent {
