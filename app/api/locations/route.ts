@@ -1,4 +1,4 @@
-import { ValidationError } from "@/lib/api/errors";
+import { NotFoundError, ValidationError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import {
   locationCreateSchema,
@@ -21,5 +21,9 @@ export const GET = apiRoute({ minRole: "lead" }, async ({ req, orgId }) => {
 
 export const POST = apiRoute(
   { minRole: "lead", input: locationCreateSchema, status: 201 },
-  async ({ orgId, input }) => createLocation({ orgId, ...input })
+  async ({ orgId, input }) => {
+    const location = await createLocation({ orgId, ...input });
+    if (!location) throw new NotFoundError("Customer not found");
+    return location;
+  }
 );

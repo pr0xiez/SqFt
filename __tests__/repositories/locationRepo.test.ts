@@ -35,4 +35,22 @@ describe("locationRepo", () => {
       "9 Elm Ave",
     ]);
   });
+
+  it("returns null (creates nothing) when the customer is not in the org", async () => {
+    const otherOrg = await prisma.organization.create({
+      data: { name: "Other Co", slug: `other-${Date.now()}` },
+    });
+    try {
+      const res = await createLocation({
+        orgId: otherOrg.id,
+        customerId, // belongs to the first org, not otherOrg
+        address: "999 Hijack Rd",
+      });
+      expect(res).toBeNull();
+      const leaked = await listLocationsForCustomer(otherOrg.id, customerId);
+      expect(leaked).toHaveLength(0);
+    } finally {
+      await prisma.organization.delete({ where: { id: otherOrg.id } });
+    }
+  });
 });

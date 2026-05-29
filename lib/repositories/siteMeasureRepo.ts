@@ -98,6 +98,14 @@ export async function createSiteMeasure(
   >
 ) {
   return prisma.$transaction(async (tx) => {
+    // The location must belong to the caller's org — otherwise a site measure
+    // could be attached to another tenant's location (mirrors createEstimate).
+    const location = await tx.location.findFirst({
+      where: { id: data.locationId, orgId },
+      select: { id: true },
+    });
+    if (!location) return null;
+
     const org = await tx.organization.findUnique({
       where: { id: orgId },
       select: { nextSiteMeasureNumber: true },
@@ -121,6 +129,15 @@ export async function saveSiteMeasure(
   const { items, ...topLevel } = patch;
 
   return prisma.$transaction(async (tx) => {
+    // Re-pointing to a location must stay within the caller's org.
+    if (topLevel.locationId !== undefined) {
+      const location = await tx.location.findFirst({
+        where: { id: topLevel.locationId, orgId },
+        select: { id: true },
+      });
+      if (!location) return null;
+    }
+
     if (Object.keys(topLevel).length > 0) {
       const result = await tx.siteMeasure.updateMany({
         where: { id, orgId },

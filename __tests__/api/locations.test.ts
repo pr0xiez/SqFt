@@ -70,6 +70,20 @@ describe("POST /api/locations", () => {
     );
   });
 
+  it("returns 404 when the repo reports the customer is not in the org", async () => {
+    mockCreate.mockResolvedValue(null);
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/locations", {
+        customerId: 999,
+        address: "12 Oak St",
+      }),
+      noParams
+    );
+
+    expect(res.status).toBe(404);
+  });
+
   it("rejects a missing address with VALIDATION_FAILED", async () => {
     const res = await POST(
       makeRequest("POST", "http://x/api/locations", { customerId: 1 }),

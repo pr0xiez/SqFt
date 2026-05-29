@@ -8,7 +8,15 @@ export interface CreateLocationInput {
   notes?: string | null;
 }
 
-export function createLocation(input: CreateLocationInput) {
+// Returns null when the customer doesn't belong to the caller's org, so the
+// route can surface a 404 — a location must never link to another org's
+// customer (mirrors createEstimate's siteMeasure ownership check).
+export async function createLocation(input: CreateLocationInput) {
+  const customer = await prisma.customer.findFirst({
+    where: { id: input.customerId, orgId: input.orgId },
+    select: { id: true },
+  });
+  if (!customer) return null;
   return prisma.location.create({ data: { ...input } });
 }
 

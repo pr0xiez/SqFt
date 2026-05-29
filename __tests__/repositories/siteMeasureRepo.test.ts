@@ -11,6 +11,7 @@ const estimateItemDeleteMany = vi.fn();
 const estimateItemCreateMany = vi.fn();
 const organizationFindUnique = vi.fn();
 const organizationUpdate = vi.fn();
+const locationFindFirst = vi.fn();
 
 const txMock = {
   siteMeasure: {
@@ -26,6 +27,9 @@ const txMock = {
   organization: {
     findUnique: organizationFindUnique,
     update: organizationUpdate,
+  },
+  location: {
+    findFirst: locationFindFirst,
   },
 };
 
@@ -107,6 +111,7 @@ describe("getSiteMeasure", () => {
 
 describe("createSiteMeasure", () => {
   it("allocates the next siteMeasureNumber from Organization.nextSiteMeasureNumber", async () => {
+    locationFindFirst.mockResolvedValue({ id: 9 });
     organizationFindUnique.mockResolvedValue({ nextSiteMeasureNumber: 42 });
     organizationUpdate.mockResolvedValue({});
     txEstimateCreate.mockResolvedValue({ id: 1, siteMeasureNumber: 42 });
@@ -127,6 +132,7 @@ describe("createSiteMeasure", () => {
   });
 
   it("defaults siteMeasureNumber to 1 when org counter missing", async () => {
+    locationFindFirst.mockResolvedValue({ id: 9 });
     organizationFindUnique.mockResolvedValue(null);
     organizationUpdate.mockResolvedValue({});
     txEstimateCreate.mockResolvedValue({ id: 1, siteMeasureNumber: 1 });
@@ -136,6 +142,20 @@ describe("createSiteMeasure", () => {
     expect(txEstimateCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({ siteMeasureNumber: 1 }),
     });
+  });
+
+  it("returns null without creating when the location is not in the org", async () => {
+    locationFindFirst.mockResolvedValue(null);
+
+    const result = await createSiteMeasure("org1", { locationId: 999 });
+
+    expect(result).toBeNull();
+    expect(locationFindFirst).toHaveBeenCalledWith({
+      where: { id: 999, orgId: "org1" },
+      select: { id: true },
+    });
+    expect(txEstimateCreate).not.toHaveBeenCalled();
+    expect(organizationUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -156,6 +176,7 @@ describe("saveSiteMeasure", () => {
   });
 
   it("forwards locationId to siteMeasure.updateMany", async () => {
+    locationFindFirst.mockResolvedValue({ id: 42 });
     estimateUpdateMany.mockResolvedValue({ count: 1 });
     estimateFindFirst.mockResolvedValue({ id: 1 });
 
@@ -166,6 +187,19 @@ describe("saveSiteMeasure", () => {
       data: { locationId: 42 },
     });
     expect(estimateItemDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it("returns null when a patched locationId is not in the org", async () => {
+    locationFindFirst.mockResolvedValue(null);
+
+    const result = await saveSiteMeasure(1, "org1", { locationId: 999 });
+
+    expect(result).toBeNull();
+    expect(locationFindFirst).toHaveBeenCalledWith({
+      where: { id: 999, orgId: "org1" },
+      select: { id: true },
+    });
+    expect(estimateUpdateMany).not.toHaveBeenCalled();
   });
 
   it("returns null when nothing matches the id+org", async () => {

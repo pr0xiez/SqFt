@@ -48,7 +48,14 @@ export async function approveEstimateByToken(
         },
       });
     } catch (err) {
-      if (err instanceof Error && err.message.includes("Unique")) {
+      // EstimateApproval.estimateId is @unique, so a concurrent double-approval
+      // races to insert and one loses with P2002. Match on the stable error
+      // code, not the human-readable message.
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        (err as { code?: string }).code === "P2002"
+      ) {
         return "already_approved" as const;
       }
       throw err;
