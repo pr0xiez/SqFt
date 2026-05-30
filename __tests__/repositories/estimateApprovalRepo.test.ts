@@ -39,7 +39,10 @@ async function makeSentEstimate() {
   };
 }
 
-describe("approveEstimateByToken", () => {
+// Integration test against the real database. Runs locally (DATABASE_URL is
+// loaded from .env by vitest.setup.ts) and is skipped in CI's DB-less unit
+// job, where database behavior is covered by the Playwright e2e suite instead.
+describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("approveEstimateByToken", () => {
   it("sets status=approved, writes EstimateApproval (no signature), logs event", async () => {
     const { estimateId } = await makeSentEstimate();
     const res = await approveEstimateByToken({

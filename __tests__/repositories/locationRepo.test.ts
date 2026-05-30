@@ -8,7 +8,7 @@ import {
 // Integration test against the real database. Runs locally (DATABASE_URL is
 // loaded from .env by vitest.setup.ts) and is skipped in CI's DB-less unit
 // job, where database behavior is covered by the Playwright e2e suite instead.
-describe.skipIf(!process.env.DATABASE_URL)("locationRepo", () => {
+describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("locationRepo", () => {
   let orgId: string;
   let customerId: number;
 
