@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npx prisma migrate resolve --rolled-back 0_init; npx prisma migrate deploy && next build --webpack"
+  "buildCommand": "npx prisma migrate deploy && next build --webpack"
 }
