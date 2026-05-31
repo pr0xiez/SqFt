@@ -194,3 +194,71 @@ test.describe("18.2 Line item section — subtotal & templates", () => {
     await ctx.close();
   });
 });
+
+test.describe("18.3 Line item section — totals", () => {
+  test("18.3.1 fee, markup and deposit percentages persist", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
+    const estimate = await createEstimate(ctx.request, siteMeasureId);
+    // One line item with a known subtotal: qty=10, rate=10 → subtotal 100.
+    await ctx.request.patch(`/api/estimates/${estimate.id}`, {
+      data: {
+        lineItems: [
+          {
+            id: 6001,
+            name: "Totals item",
+            rate: 10,
+            qtyMode: "manual",
+            qty: 10,
+            wastePct: 0,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
+            sortOrder: 0,
+          },
+        ],
+      },
+    });
+
+    await page.goto(`/estimates/${estimate.id}`);
+    await expect(
+      page.getByRole("heading", { name: /^Estimate #/ })
+    ).toBeVisible();
+
+    // Totals % inputs are the decimal inputs after qty/rate/subtotal:
+    // index 3 = convenience fee %, 4 = markup %, 5 = deposit %.
+    // Each commit waits for its own PATCH so the saves don't interleave.
+    const decimals = page.locator('input[inputmode="decimal"]');
+    const waitPatch = () =>
+      page.waitForResponse(
+        (r) =>
+          r.url().endsWith(`/api/estimates/${estimate.id}`) &&
+          r.request().method() === "PATCH" &&
+          r.status() === 200
+      );
+
+    const fee = decimals.nth(3);
+    await fee.fill("10");
+    const [feePatch] = await Promise.all([waitPatch(), fee.blur()]);
+    expect(feePatch.status()).toBe(200);
+
+    const markup = decimals.nth(4);
+    await markup.fill("20");
+    await Promise.all([waitPatch(), markup.blur()]);
+
+    const deposit = decimals.nth(5);
+    await deposit.fill("25");
+    await Promise.all([waitPatch(), deposit.blur()]);
+
+    const get = await ctx.request.get(`/api/estimates/${estimate.id}`);
+    const body = await get.json();
+    // Fee/deposit persist as rates (0–1); markup persists as a percent.
+    expect(body.convenienceFeeRate).toBeCloseTo(0.1, 5);
+    expect(body.markupPct).toBe(20);
+    expect(body.depositPct).toBeCloseTo(0.25, 5);
+
+    await ctx.close();
+  });
+});
