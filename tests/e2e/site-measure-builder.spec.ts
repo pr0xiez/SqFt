@@ -358,7 +358,9 @@ test.describe
 
       // Should navigate to the estimate builder
       await expect(page).toHaveURL(/\/estimates\/\d+/);
-      await expect(page.getByText("Line Items & Pricing")).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: /^Estimate #/ })
+      ).toBeVisible();
     });
   });
 

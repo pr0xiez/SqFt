@@ -14,7 +14,7 @@ import {
   useUpdateEstimate,
 } from "@/lib/hooks/useEstimates";
 import { useLineItemTemplates } from "@/lib/hooks/useLineItemTemplates";
-import { estTotalArea, type RoomItem } from "@/lib/utils";
+import type { RoomItem } from "@/lib/utils";
 
 interface Props {
   estimateId: number;
@@ -82,7 +82,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const rooms = (estimate.siteMeasure.items ?? []).filter(
     (i): i is RoomItem => i.type === "room"
   );
-  const grossArea = Math.round(estTotalArea(estimate.siteMeasure.items ?? []));
 
   return (
     <>
@@ -113,23 +112,12 @@ export function EstimateBuilderView({ estimateId }: Props) {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            Estimate #{estimate.estimateNumber} · {estimate.status} ·{" "}
-            {new Date(estimate.date).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Line Items &amp; Pricing
+            Estimate #{estimate.estimateNumber}{" "}
+            <span className="font-[400] text-[var(--ink-2)]">
+              · {estimate.status}
+            </span>
           </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
-            Tied to Site Measure #
-            {estimate.siteMeasure.siteMeasureNumber ?? estimate.siteMeasure.id}{" "}
-            · {rooms.length} room{rooms.length === 1 ? "" : "s"} · {grossArea}{" "}
-            sqft
-          </div>
         </div>
         <div className="flex gap-2">
           <Link href={`/site-measures/${estimate.siteMeasureId}`}>

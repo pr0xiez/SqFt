@@ -6,7 +6,6 @@ import {
   filterSiteMeasures,
   type SiteMeasureStatus,
 } from "@/components/siteMeasures/filterSiteMeasures";
-import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -100,19 +99,14 @@ export function SiteMeasureListView() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
-        <div>
-          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Site Measures
-          </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
-            {siteMeasures.length} site measure
-            {siteMeasures.length === 1 ? "" : "s"}
-          </div>
+      <div className="mb-7">
+        <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
+          Site Measures
+        </h1>
+        <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
+          {siteMeasures.length} site measure
+          {siteMeasures.length === 1 ? "" : "s"}
         </div>
-        <Button variant="primary" onClick={() => router.push("/customers")}>
-          + New Site Measure
-        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
