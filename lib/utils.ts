@@ -164,6 +164,16 @@ export function fmtDayHead(date: Date): string {
   return date.toLocaleDateString("en-US", { weekday: "short", day: "numeric" });
 }
 
+/** "Mar 3, 2026" — short, human date. Returns "—" for null/undefined. */
+export function formatShortDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 /** Convert "08:30" to minutes since midnight (510) */
 export function timeToMinutes(t: string): number {
   const [h, m] = t.split(":").map(Number);

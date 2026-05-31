@@ -20,19 +20,10 @@ import {
 } from "@/lib/hooks/useCustomers";
 import { useCreateLocation } from "@/lib/hooks/useLocations";
 import { useCreateSiteMeasure } from "@/lib/hooks/useSiteMeasures";
-import { sourceName } from "@/lib/utils";
+import { formatShortDate, sourceName } from "@/lib/utils";
 
 interface Props {
   customerId: number;
-}
-
-function formatShortDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function StatusPill({ status }: { status: string }) {
