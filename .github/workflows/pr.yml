@@ -4,10 +4,55 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel superseded runs when a PR is pushed again — saves time and frees the
+# single self-hosted runner for the latest commit.
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+# =============================================================================
+# PHASE 2 — prefer self-hosted, fall back to GitHub-hosted
+# -----------------------------------------------------------------------------
+# Today every job is pinned to `self-hosted` (see jobs below) because hosted
+# minutes are exhausted; a hosted dispatcher job would block the whole run.
+#
+# When hosted minutes are available again, enable graceful fallback:
+#   1. Create a PAT with repo "Administration: read" (or classic `repo`) and
+#      save it as the RUNNER_CHECK_PAT secret. The default GITHUB_TOKEN lacks
+#      permission to list runners, so without this the API call fails.
+#   2. Uncomment the `pick-runner` job below.
+#   3. In every job, replace:
+#          runs-on: self-hosted
+#      with:
+#          needs: pick-runner
+#          runs-on: ${{ needs.pick-runner.outputs.runner }}
+#
+# pick-runner:
+#   name: Pick Runner
+#   runs-on: ubuntu-latest # ~seconds of hosted time; negligible
+#   outputs:
+#     runner: ${{ steps.choose.outputs.runner }}
+#   steps:
+#     - id: choose
+#       env:
+#         GH_TOKEN: ${{ secrets.RUNNER_CHECK_PAT || secrets.GITHUB_TOKEN }}
+#       run: |
+#         set +e
+#         ONLINE=$(gh api "repos/${{ github.repository }}/actions/runners" \
+#           --jq '[.runners[] | select(.status=="online" and .busy==false)] | length' 2>/dev/null)
+#         if [ -n "$ONLINE" ] && [ "$ONLINE" -gt 0 ]; then
+#           echo "Self-hosted runner online and idle → using self-hosted."
+#           echo "runner=self-hosted" >> "$GITHUB_OUTPUT"
+#         else
+#           echo "No idle self-hosted runner (or no API access) → using ubuntu-latest."
+#           echo "runner=ubuntu-latest" >> "$GITHUB_OUTPUT"
+#         fi
+# =============================================================================
+
 jobs:
   typecheck:
     name: Type Check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,7 +64,7 @@ jobs:
 
   lint:
     name: Lint & Format
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,7 +76,7 @@ jobs:
 
   test:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,7 +88,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,7 +105,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
     permissions:
       contents: read
       pull-requests: read
@@ -73,7 +118,16 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        # --with-deps is Linux-only (apt). Skip it on the macOS self-hosted
+        # runner; the conditional keeps this correct if Phase 2 ever lands a
+        # job on hosted ubuntu.
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            npx playwright install --with-deps chromium
+          else
+            npx playwright install chromium
+          fi
       - name: Wait for Vercel preview
         id: vercel
         uses: patrickedqvist/wait-for-vercel-preview@v1.3.3
