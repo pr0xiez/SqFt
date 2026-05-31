@@ -3,26 +3,69 @@
 Terms that show up in the code and in conversation about it. Keep updated as
 concepts are added or sharpened.
 
-## Quote View
+## Domain Hierarchy
 
-The fully-computed read model of a quote: per-line `effectiveQty` and
+The core record chain is:
+
+`Customer → Location → SiteMeasure → Estimate`
+
+A **Customer** is a person or household. A **Location** is one of that
+customer's physical sites (a customer can have several — e.g. a primary
+residence and a rental). A **Site Measure** is the room-by-room measurement
+taken at a location. An **Estimate** is a priced, customer-facing document
+built from a site measure; a site measure can spawn several estimates (e.g. a
+revision after a decline).
+
+## Location
+
+A physical site address belonging to a customer (`address`, optional `label`
+and `notes`). Site measures hang off a Location, not directly off the
+Customer, so addresses live in one place and a customer's multiple sites stay
+distinct. Org-scoped like everything else. Repo: `lib/repositories/locationRepo.ts`.
+
+## Site Measure
+
+The measurement record for a location: a set of room measurements
+(`SiteMeasureItem` rows — rect rooms with width/length, or text notes) plus a
+`siteMeasureNumber`. It carries no pricing. The measurement UI lives in
+`components/siteMeasures/` and `app/(app)/site-measures/`; the repo is
+`lib/repositories/siteMeasureRepo.ts`.
+
+## Estimate View
+
+The fully-computed read model of an estimate: per-line `effectiveQty` and
 `subtotal`, plus totals (`subtotal`, `markup`, `convenienceFee`, `total`,
 `deposit`) and a `hasUnresolvedLines` flag.
 
-Single source of truth for quote math. Produced by `computeQuoteView` in
-`lib/quoteView/`. Every caller — the editor (`LineItemSection`), the
-customer-facing public quote page (`PublicQuoteView`), the send-email route,
-the quote list endpoint, and the signed snapshot — derives its numbers from
-this one function so the labeled breakdown can never diverge across
-surfaces.
+Single source of truth for estimate math. Produced by `computeEstimateView` in
+`lib/estimateView/` (`compute.ts`). Every caller — the editor
+(`LineItemSection`), the customer-facing public page (`PublicEstimateView`),
+the send-email route, the estimate list endpoint, and the approval snapshot —
+derives its numbers from this one function so the labeled breakdown can never
+diverge across surfaces.
 
-**Snapshot** = Quote View + identifying metadata (`quoteNumber`, `date`,
-`customer`, `org`), serialized via `canonicalize` and hashed via `sha256` to
-produce the tamper-evident `snapshotHash` stored on `QuoteSignature`.
+Callers map their concrete representation (Prisma row, public payload, editor
+form state) to `EstimateInput` at the seam. The Prisma adapter lives at
+`lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).
 
-Callers map their concrete representation (Prisma row, public quote payload,
-editor form state) to `QuoteInput` at the seam. The Prisma adapter lives at
-`lib/quoteView/fromPrisma.ts`.
+## Estimate Approval
+
+Approval is **one-click**: the customer opens the public estimate-review page
+(`/estimate-review/[token]`) and presses a single button, which POSTs to
+`/api/estimate-review/[token]/approve` with no body. There is no drawn
+signature, no name/email entry, and no consent text.
+
+The approve transaction flips the estimate's status to `approved`, stamps
+`approvedAt`, logs an `approved` EstimateEvent, and writes an
+`EstimateApproval` row capturing `ip`, `userAgent`, and a lightweight
+`snapshot` (the Estimate View + identifying metadata such as `estimateNumber`,
+`date`, `customer`, and the location `address`). The snapshot is a plain JSON
+record of what the customer saw — there is **no** `snapshotHash` and no
+tamper-evidence hashing. Approving an estimate also supersedes any other open
+estimates under the same site measure (they're marked `declined` with a
+"Superseded" reason and a `system_supersede` event).
+
+Estimate status values: `draft | sent | viewed | approved | declined`.
 
 ## API Error Codes
 
@@ -44,14 +87,14 @@ Standard codes:
 
 Domain codes:
 
-- `QUOTE_LOCKED` (409) — caller tried to mutate a quote whose status is
-  `accepted` or `declined`.
-- `QUOTE_HAS_EVENTS` (409) — caller tried to delete a quote that still has
-  scheduled Events (jobs) referencing it.
+- `ESTIMATE_LOCKED` (409) — caller tried to mutate an estimate whose status is
+  `approved` or `declined`.
+- `ESTIMATE_HAS_EVENTS` (409) — caller tried to delete an estimate that still
+  has scheduled Events (jobs) referencing it.
 - `CREW_MEMBER_IN_USE` (409) — caller tried to delete a crew member who is
   still assigned to one or more Events.
 - `EMAIL_FAILED` (502) — upstream email provider rejected the send. Returned
-  by the quote-send route when Resend reports a non-OK result.
+  by the estimate-send route when Resend reports a non-OK result.
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.

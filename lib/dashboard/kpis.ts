@@ -1,17 +1,17 @@
 // lib/dashboard/kpis.ts
 
-import { prisma } from "@/lib/prisma";
-import { computeQuoteView } from "@/lib/quoteView/compute";
+import { computeEstimateView } from "@/lib/estimateView/compute";
 import {
-  fromPrismaQuote,
-  type PrismaQuoteForView,
-} from "@/lib/quoteView/fromPrisma";
+  fromPrismaEstimate,
+  type PrismaEstimateForView,
+} from "@/lib/estimateView/fromPrisma";
+import { prisma } from "@/lib/prisma";
 
 export interface DashboardKpis {
   estimatesTotal: number;
   estimatesDelta: number;
-  quotesSentTotal: number;
-  quotesSentDelta: number;
+  estimatesSentTotal: number;
+  estimatesSentDelta: number;
   awaitingSignature: number;
   expiringSoonCount: number;
   winRate30d: number;
@@ -38,7 +38,7 @@ const revenueSelect = {
       sortOrder: true,
     },
   },
-  estimate: {
+  siteMeasure: {
     select: {
       items: {
         select: {
@@ -78,10 +78,10 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     estimatesTotal,
     estimatesThisWeek,
     estimatesLastWeek,
-    quotesSentTotal,
-    quotesSentThisWeek,
-    quotesSentLastWeek,
-    awaitingQuotes,
+    estimatesSentTotal,
+    estimatesSentThisWeek,
+    estimatesSentLastWeek,
+    awaitingEstimates,
     won30d,
     lost30d,
     won60to30d,
@@ -89,72 +89,73 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     acceptedMtd,
     acceptedLastMonthSamePeriod,
   ] = await Promise.all([
-    prisma.estimate.count({ where: { orgId } }),
-    prisma.estimate.count({ where: { orgId, createdAt: { gte: weekAgo } } }),
-    prisma.estimate.count({
+    prisma.siteMeasure.count({ where: { orgId } }),
+    prisma.siteMeasure.count({ where: { orgId, createdAt: { gte: weekAgo } } }),
+    prisma.siteMeasure.count({
       where: { orgId, createdAt: { gte: twoWeeksAgo, lt: weekAgo } },
     }),
-    prisma.quote.count({ where: { orgId, status: { not: "draft" } } }),
-    prisma.quote.count({
+    prisma.estimate.count({ where: { orgId, status: { not: "draft" } } }),
+    prisma.estimate.count({
       where: { orgId, status: { not: "draft" }, createdAt: { gte: weekAgo } },
     }),
-    prisma.quote.count({
+    prisma.estimate.count({
       where: {
         orgId,
         status: { not: "draft" },
         createdAt: { gte: twoWeeksAgo, lt: weekAgo },
       },
     }),
-    prisma.quote.findMany({
+    prisma.estimate.findMany({
       where: { orgId, status: { in: ["sent", "viewed"] } },
       select: { id: true, sentAt: true, validityDays: true },
     }),
-    prisma.quote.count({
-      where: { orgId, status: "accepted", acceptedAt: { gte: thirtyDaysAgo } },
+    prisma.estimate.count({
+      where: { orgId, status: "approved", approvedAt: { gte: thirtyDaysAgo } },
     }),
-    prisma.quote.count({
+    prisma.estimate.count({
       where: { orgId, status: "declined", declinedAt: { gte: thirtyDaysAgo } },
     }),
-    prisma.quote.count({
+    prisma.estimate.count({
       where: {
         orgId,
-        status: "accepted",
-        acceptedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
+        status: "approved",
+        approvedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
       },
     }),
-    prisma.quote.count({
+    prisma.estimate.count({
       where: {
         orgId,
         status: "declined",
         declinedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
       },
     }),
-    prisma.quote.findMany({
-      where: { orgId, status: "accepted", acceptedAt: { gte: monthStart } },
+    prisma.estimate.findMany({
+      where: { orgId, status: "approved", approvedAt: { gte: monthStart } },
       select: revenueSelect,
     }),
-    prisma.quote.findMany({
+    prisma.estimate.findMany({
       where: {
         orgId,
-        status: "accepted",
-        acceptedAt: { gte: lastMonthStart, lte: lastMonthSamePeriodEnd },
+        status: "approved",
+        approvedAt: { gte: lastMonthStart, lte: lastMonthSamePeriodEnd },
       },
       select: revenueSelect,
     }),
   ]);
 
-  const bookedRevenueMtd = (acceptedMtd as PrismaQuoteForView[]).reduce(
-    (sum: number, q) => sum + computeQuoteView(fromPrismaQuote(q)).total,
+  const bookedRevenueMtd = (acceptedMtd as PrismaEstimateForView[]).reduce(
+    (sum: number, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
     0
   );
   const bookedRevenueDelta =
     bookedRevenueMtd -
-    (acceptedLastMonthSamePeriod as PrismaQuoteForView[]).reduce(
-      (sum: number, q) => sum + computeQuoteView(fromPrismaQuote(q)).total,
+    (acceptedLastMonthSamePeriod as PrismaEstimateForView[]).reduce(
+      (sum: number, q) =>
+        sum + computeEstimateView(fromPrismaEstimate(q)).total,
       0
     );
 
-  const expiringSoonCount = awaitingQuotes.filter((q) => {
+  const expiringSoonCount = awaitingEstimates.filter((q) => {
     if (!q.sentAt) return false;
     const expiresAt = new Date(q.sentAt);
     expiresAt.setDate(expiresAt.getDate() + q.validityDays);
@@ -170,9 +171,9 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
   return {
     estimatesTotal,
     estimatesDelta: estimatesThisWeek - estimatesLastWeek,
-    quotesSentTotal,
-    quotesSentDelta: quotesSentThisWeek - quotesSentLastWeek,
-    awaitingSignature: awaitingQuotes.length,
+    estimatesSentTotal,
+    estimatesSentDelta: estimatesSentThisWeek - estimatesSentLastWeek,
+    awaitingSignature: awaitingEstimates.length,
     expiringSoonCount,
     winRate30d,
     winRateDelta: winRate30d - winRatePrev,

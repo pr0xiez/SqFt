@@ -13,7 +13,7 @@ export interface Org {
   locale: string;
   brandColor: string;
   tagline: string | null;
-  showLicenseOnQuotes: boolean;
+  showLicenseOnEstimates: boolean;
   defaultDepositPct: number;
   defaultValidityDays: number;
   defaultUnitLabel: string;

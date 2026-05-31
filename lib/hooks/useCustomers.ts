@@ -2,37 +2,51 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export type QuoteStatus = "draft" | "sent" | "viewed" | "accepted" | "declined";
+export type EstimateStatus =
+  | "draft"
+  | "sent"
+  | "viewed"
+  | "approved"
+  | "declined";
 
-export interface CustomerQuoteSummary {
+export interface CustomerEstimateSummary {
   id: number;
-  quoteNumber: number;
-  status: QuoteStatus;
+  estimateNumber: number;
+  status: EstimateStatus;
   date: string;
   sentAt: string | null;
   viewedAt: string | null;
-  acceptedAt: string | null;
+  approvedAt: string | null;
   declinedAt: string | null;
   createdAt: string;
   _count: { lineItems: number };
 }
 
-export interface CustomerListQuoteSummary {
-  status: QuoteStatus;
+export interface CustomerListEstimateSummary {
+  status: EstimateStatus;
   sentAt: string | null;
   viewedAt: string | null;
-  acceptedAt: string | null;
+  approvedAt: string | null;
   declinedAt: string | null;
   createdAt: string;
 }
 
-export interface CustomerEstimateSummary {
+export interface CustomerSiteMeasureSummary {
   id: number;
-  estimateNumber: number | null;
+  siteMeasureNumber: number | null;
   title: string;
   date: string;
   createdAt: string;
-  quotes: CustomerQuoteSummary[];
+  estimates: CustomerEstimateSummary[];
+}
+
+export interface CustomerLocationSummary {
+  id: number;
+  address: string;
+  label: string | null;
+  notes: string | null;
+  createdAt: string;
+  siteMeasures: CustomerSiteMeasureSummary[];
 }
 
 /**
@@ -47,35 +61,35 @@ export interface Customer {
   name: string;
   phone?: string | null;
   email?: string | null;
-  address?: string | null;
   source: string;
   notes?: string | null;
   createdAt: string;
 }
 
 /**
- * Shape returned by GET /api/customers — each estimate carries only a
- * slim quote summary used to derive pipeline state on the list view.
+ * Shape returned by GET /api/customers — each siteMeasure carries only a
+ * slim estimate summary used to derive pipeline state on the list view.
  */
 export interface CustomerListItem extends Customer {
-  _count?: { estimates: number };
-  estimates?: { quotes: CustomerListQuoteSummary[] }[];
+  _count?: { locations: number };
+  locations?: {
+    siteMeasures: { estimates: CustomerListEstimateSummary[] }[];
+  }[];
 }
 
 /**
- * Shape returned by GET /api/customers/:id — full estimate + quote
- * details for the customer detail page.
+ * Shape returned by GET /api/customers/:id — locations, each with their
+ * siteMeasure + estimate details, for the customer detail page.
  */
 export interface CustomerDetail extends Customer {
-  _count?: { estimates: number };
-  estimates?: CustomerEstimateSummary[];
+  _count?: { locations: number };
+  locations?: CustomerLocationSummary[];
 }
 
 export interface CreateCustomerInput {
   name: string;
   phone?: string;
   email?: string;
-  address?: string;
   source?: string;
   notes?: string;
 }

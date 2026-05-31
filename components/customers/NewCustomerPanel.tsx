@@ -32,7 +32,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
     name: "",
     phone: "",
     email: "",
-    address: "",
     source: "phone",
     notes: "",
   });
@@ -43,7 +42,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
       name: "",
       phone: "",
       email: "",
-      address: "",
       source: "phone",
       notes: "",
     });
@@ -133,11 +131,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
             label: "Email",
             placeholder: "name@email.com",
           },
-          {
-            field: "address" as const,
-            label: "Address",
-            placeholder: "Street, City",
-          },
         ].map(({ field, label, placeholder }) => (
           <div key={field} className="mb-4">
             <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
@@ -175,7 +168,7 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
             className="accent-[var(--accent)]"
           />
           <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            Also create an estimate
+            Also create an siteMeasure
           </span>
         </label>
       </div>

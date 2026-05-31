@@ -25,7 +25,7 @@ export function DefaultsSection({ form, onChange }: Props) {
       <SectionHead
         n="03"
         title="Estimating Defaults"
-        kicker="What new quotes inherit"
+        kicker="What new estimates inherit"
       />
 
       <div className="border border-[var(--line)] rounded bg-[var(--surface)] p-4 mb-4">
@@ -57,7 +57,7 @@ export function DefaultsSection({ form, onChange }: Props) {
         </div>
       </div>
 
-      <FieldRow label="Quote validity">
+      <FieldRow label="Estimate validity">
         <div className="flex items-center gap-2.5 text-[13px] text-[var(--muted)]">
           <input
             type="number"
@@ -103,7 +103,7 @@ export function DefaultsSection({ form, onChange }: Props) {
 
       <FieldRow
         label="Default terms"
-        hint="Pre-fills the Terms field on a fresh quote."
+        hint="Pre-fills the Terms field on a fresh estimate."
       >
         <textarea
           rows={4}

@@ -71,7 +71,7 @@ export function ScheduleCard({ events }: Props) {
           todayEvents.map((ev, idx) => {
             const completed = isPast(ev);
             const isLast = idx === todayEvents.length - 1;
-            const address = ev.customer?.address?.split(",")[0];
+            const customerName = ev.customer?.name;
 
             return (
               <div
@@ -124,10 +124,10 @@ export function ScheduleCard({ events }: Props) {
                       </span>
                     )}
 
-                    {address && (
+                    {customerName && (
                       <>
                         <span className="w-1 h-1 rounded-full bg-[var(--line-2)]" />
-                        <span>{address}</span>
+                        <span>{customerName}</span>
                       </>
                     )}
                   </div>

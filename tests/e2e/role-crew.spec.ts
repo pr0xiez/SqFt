@@ -35,10 +35,12 @@ test("crew nav shows only Schedule", async ({ browser }) => {
   await expect(desktopNav.getByRole("link", { name: "Customers" })).toHaveCount(
     0
   );
+  await expect(
+    desktopNav.getByRole("link", { name: "Site Measures" })
+  ).toHaveCount(0);
   await expect(desktopNav.getByRole("link", { name: "Estimates" })).toHaveCount(
     0
   );
-  await expect(desktopNav.getByRole("link", { name: "Quotes" })).toHaveCount(0);
   await expect(desktopNav.getByRole("link", { name: "Settings" })).toHaveCount(
     0
   );
@@ -49,8 +51,8 @@ test.describe("crew page redirects", () => {
   const restricted = [
     "/",
     "/customers",
+    "/site-measures",
     "/estimates",
-    "/quotes",
     "/settings",
     "/settings/workspace",
     "/settings/members",

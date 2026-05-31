@@ -35,7 +35,7 @@ describe("sendEmail (test mode)", () => {
     try {
       const result = await sendEmail({
         to: "customer@example.com",
-        subject: "Quote",
+        subject: "Estimate",
         react: { type: "div", props: {} } as never,
       });
       expect(result).toEqual({ ok: true, id: "test-mode" });

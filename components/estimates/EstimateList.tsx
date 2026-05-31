@@ -3,10 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
-  type EstimateStatus,
+  type EstimateStatusFilter,
   filterEstimates,
 } from "@/components/estimates/filterEstimates";
-import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -17,21 +16,36 @@ import { cn } from "@/lib/cn";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { paginate, useTableQueryState } from "@/lib/hooks/useTableQueryState";
 import { cycleSort, sortBy } from "@/lib/sort";
+import { fmtBig } from "@/lib/utils";
 
-const STATUS_FILTERS: { value: EstimateStatus; label: string }[] = [
+const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "empty", label: "No rooms" },
-  { value: "measured", label: "Measured" },
-  { value: "quoted", label: "Quoted" },
+  { value: "draft", label: "Draft" },
+  { value: "sent", label: "Sent" },
+  { value: "approved", label: "Approved" },
+  { value: "declined", label: "Declined" },
 ];
 
-type SortKey = "id" | "customer" | "date";
+const STATUS_PILL_COLOR: Record<string, string> = {
+  draft: "text-[var(--muted)]",
+  sent: "text-[var(--gold)]",
+  approved: "text-[var(--sage)]",
+  declined: "text-[var(--accent)]",
+};
+
+type SortKey =
+  | "number"
+  | "customer"
+  | "siteMeasure"
+  | "total"
+  | "status"
+  | "date";
 
 export function EstimateListView() {
   const router = useRouter();
   const { data: estimates = [], isLoading } = useEstimates();
   const [query, setQueryState] = useState<string>("");
-  const [status, setStatusState] = useState<EstimateStatus>("all");
+  const [status, setStatusState] = useState<EstimateStatusFilter>("all");
 
   const {
     sort,
@@ -44,7 +58,14 @@ export function EstimateListView() {
     setDensity,
   } = useTableQueryState<SortKey>({
     storageKey: "estimates",
-    validSortKeys: ["id", "customer", "date"],
+    validSortKeys: [
+      "number",
+      "customer",
+      "siteMeasure",
+      "total",
+      "status",
+      "date",
+    ],
     defaultSort: { key: "date", direction: "desc" },
   });
 
@@ -52,24 +73,23 @@ export function EstimateListView() {
     setQueryState(v);
     setPage(1);
   };
-  const setStatus = (v: EstimateStatus) => {
+  const setStatus = (v: EstimateStatusFilter) => {
     setStatusState(v);
     setPage(1);
   };
 
   const statusCounts = useMemo(() => {
-    const counts: Record<EstimateStatus, number> = {
+    const counts: Record<EstimateStatusFilter, number> = {
       all: estimates.length,
-      empty: 0,
-      measured: 0,
-      quoted: 0,
+      draft: 0,
+      sent: 0,
+      approved: 0,
+      declined: 0,
     };
-    for (const e of estimates) {
-      const roomCount = (e.items ?? []).filter((i) => i.type === "room").length;
-      const quoteCount = e.quotes?.length ?? 0;
-      if (roomCount === 0) counts.empty += 1;
-      else if (quoteCount === 0) counts.measured += 1;
-      else counts.quoted += 1;
+    for (const q of estimates) {
+      if (q.status in counts) {
+        counts[q.status as EstimateStatusFilter] += 1;
+      }
     }
     return counts;
   }, [estimates]);
@@ -82,9 +102,12 @@ export function EstimateListView() {
   const sorted = useMemo(
     () =>
       sortBy(filtered, sort, {
-        id: (e) => e.id,
-        customer: (e) => e.customer?.name ?? e.title ?? "",
-        date: (e) => new Date(e.date),
+        number: (q) => q.estimateNumber,
+        customer: (q) => q.siteMeasure.location?.customer?.name ?? "",
+        siteMeasure: (q) => q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id,
+        total: (q) => q.total ?? 0,
+        status: (q) => q.status,
+        date: (q) => new Date(q.date),
       }),
     [filtered, sort]
   );
@@ -92,7 +115,9 @@ export function EstimateListView() {
   const { slice, safePage, total } = paginate(sorted, page, perPage);
 
   const handleSort = (key: SortKey) => {
-    setSort(cycleSort(sort, key, key === "date" ? "desc" : "asc"));
+    const defaultDir =
+      key === "date" || key === "total" || key === "number" ? "desc" : "asc";
+    setSort(cycleSort(sort, key, defaultDir));
   };
 
   const isNarrowed = filtered.length !== estimates.length;
@@ -109,16 +134,13 @@ export function EstimateListView() {
             {estimates.length} estimate{estimates.length === 1 ? "" : "s"}
           </div>
         </div>
-        <Button variant="primary" onClick={() => router.push("/customers")}>
-          + New Estimate
-        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <SearchInput
           value={query}
           onChange={setQuery}
-          placeholder="Search by # or customer name…"
+          placeholder="Search estimate #, customer, site measure…"
         />
         {STATUS_FILTERS.map(({ value, label }) => (
           <FilterPill
@@ -143,9 +165,9 @@ export function EstimateListView() {
       </div>
 
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        <div className="hidden md:grid grid-cols-[80px_1fr_110px_80px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+        <div className="hidden md:grid grid-cols-[80px_1fr_120px_120px_110px_110px] bg-[var(--surface-2)] border-b border-[var(--line)]">
           <SortableHeader
-            sortKey="id"
+            sortKey="number"
             label="#"
             sort={sort}
             onSort={handleSort}
@@ -158,12 +180,30 @@ export function EstimateListView() {
             onSort={handleSort}
           />
           <SortableHeader
+            sortKey="siteMeasure"
+            label="Site Measure"
+            sort={sort}
+            onSort={handleSort}
+          />
+          <SortableHeader
+            sortKey="total"
+            label="Total"
+            sort={sort}
+            onSort={handleSort}
+            className="tabular-nums"
+          />
+          <SortableHeader
+            sortKey="status"
+            label="Status"
+            sort={sort}
+            onSort={handleSort}
+          />
+          <SortableHeader
             sortKey="date"
             label="Date"
             sort={sort}
             onSort={handleSort}
           />
-          <div className="px-3.5 py-2.5" />
         </div>
 
         {isLoading ? (
@@ -172,53 +212,90 @@ export function EstimateListView() {
           </div>
         ) : estimates.length === 0 ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            No estimates yet. Create one from a customer record.
+            No estimates yet.
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState noun="estimate" query={query} />
         ) : (
           <>
-            {slice.map((est) => (
-              <button
-                key={est.id}
-                type="button"
-                onClick={() => router.push(`/estimates/${est.id}`)}
-                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_110px_80px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
-              >
-                <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                  <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
-                    #{est.id}
-                  </span>
-                </div>
-                <div className={cn("px-3.5", rowPad)}>
-                  <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                    {est.title || est.customer?.name || "—"}
-                  </div>
-                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
-                    {est.title
-                      ? (est.customer?.name ?? "")
-                      : (est.customer?.address ?? "")}
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
-                    rowPad
-                  )}
+            {slice.map((q) => {
+              const customer = q.siteMeasure.location?.customer;
+              const locationAddress = q.siteMeasure.location?.address;
+              const estimateLabel = `#${q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id}`;
+              const totalLabel = q.total === null ? "—" : `${fmtBig(q.total)}`;
+              const pillColor =
+                STATUS_PILL_COLOR[q.status] ?? "text-[var(--muted)]";
+
+              return (
+                <button
+                  key={q.id}
+                  type="button"
+                  onClick={() => router.push(`/estimates/${q.id}`)}
+                  className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_120px_120px_110px_110px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
                 >
-                  {new Date(est.date).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </div>
-                <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                  <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
-                    Open →
-                  </span>
-                </div>
-              </button>
-            ))}
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
+                        #{q.estimateNumber}
+                      </span>
+                      {q.revisedFromId && (
+                        <span
+                          className="ml-1.5 font-[var(--font-mono)] text-[10px] uppercase tracking-[.04em] text-[var(--muted)] border border-[var(--line-2)] rounded-sm px-1"
+                          title="Revised estimate"
+                        >
+                          ↶ rev
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={cn("px-3.5", rowPad)}>
+                    <div className="text-[14px] font-[600] tracking-[-0.01em]">
+                      {customer?.name ?? "—"}
+                    </div>
+                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap md:hidden">
+                      #{q.estimateNumber} · {totalLabel} ·{" "}
+                      <span className={pillColor}>{q.status}</span>
+                    </div>
+                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap hidden md:block">
+                      {locationAddress ?? ""}
+                    </div>
+                  </div>
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <div className="font-[var(--font-mono)] text-[13px] tabular-nums">
+                      {estimateLabel}
+                    </div>
+                  </div>
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <div className="text-[13px] font-[600] tabular-nums">
+                      {totalLabel}
+                    </div>
+                  </div>
+                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                    <span
+                      className={cn(
+                        "inline-block font-[var(--font-mono)] text-[9px] px-2 py-[3px] border rounded-[4px] tracking-[.04em] font-[500] capitalize",
+                        pillColor,
+                        "border-current"
+                      )}
+                    >
+                      {q.status}
+                    </span>
+                  </div>
+                  <div
+                    className={cn(
+                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
+                      rowPad
+                    )}
+                  >
+                    {new Date(q.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                </button>
+              );
+            })}
             <Pagination
               total={total}
               page={safePage}

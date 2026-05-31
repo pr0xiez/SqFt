@@ -9,12 +9,12 @@ import { cn } from "@/lib/cn";
 import { useCrewMembers } from "@/lib/hooks/useCrewMembers";
 import type { CalEvent, CreateEventInput } from "@/lib/hooks/useEvents";
 
-interface QuoteOption {
+interface EstimateOption {
   id: number;
-  quoteNumber: number;
-  estimate: {
+  estimateNumber: number;
+  siteMeasure: {
     title: string;
-    customer?: { id: number } | null | undefined;
+    location?: { customer?: { id: number } | null } | null | undefined;
   };
 }
 
@@ -24,7 +24,7 @@ interface EventFormPanelProps {
   defaultDate: string;
   editingEvent: CalEvent | null;
   customers: { id: number; name: string }[];
-  quotes: QuoteOption[];
+  estimates: EstimateOption[];
   onSave: (data: CreateEventInput) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }
@@ -40,7 +40,7 @@ export function EventFormPanel({
   defaultDate,
   editingEvent,
   customers,
-  quotes,
+  estimates,
   onSave,
   onDelete,
 }: EventFormPanelProps) {
@@ -51,7 +51,7 @@ export function EventFormPanel({
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("09:00");
   const [customerId, setCustomerId] = useState<number | undefined>();
-  const [quoteId, setQuoteId] = useState<number | undefined>();
+  const [estimateId, setEstimateId] = useState<number | undefined>();
   const [crewMemberIds, setCrewMemberIds] = useState<Set<number>>(new Set());
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -59,12 +59,14 @@ export function EventFormPanel({
   const { data: crew = [], isLoading: crewLoading } = useCrewMembers();
 
   const ev = editingEvent;
-  const customerQuotes = useMemo(
+  const customerEstimates = useMemo(
     () =>
       customerId
-        ? quotes.filter((q) => q.estimate.customer?.id === customerId)
+        ? estimates.filter(
+            (q) => q.siteMeasure.location?.customer?.id === customerId
+          )
         : [],
-    [customerId, quotes]
+    [customerId, estimates]
   );
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export function EventFormPanel({
       setStartTime(ev.startTime);
       setEndTime(ev.endTime);
       setCustomerId(ev.customerId ?? undefined);
-      setQuoteId(ev.quoteId ?? undefined);
+      setEstimateId(ev.estimateId ?? undefined);
       setCrewMemberIds(new Set((ev.crewMembers ?? []).map((m) => m.id)));
       setNotes(ev.notes ?? "");
     } else {
@@ -88,7 +90,7 @@ export function EventFormPanel({
       setStartTime("08:00");
       setEndTime("09:00");
       setCustomerId(undefined);
-      setQuoteId(undefined);
+      setEstimateId(undefined);
       setCrewMemberIds(new Set());
       setNotes("");
     }
@@ -106,7 +108,7 @@ export function EventFormPanel({
         startTime,
         endTime,
         customerId,
-        quoteId,
+        estimateId,
         crewMemberIds: Array.from(crewMemberIds),
         notes,
       });
@@ -190,7 +192,7 @@ export function EventFormPanel({
               setCustomerId(
                 e.target.value ? parseInt(e.target.value, 10) : undefined
               );
-              setQuoteId(undefined);
+              setEstimateId(undefined);
             }}
             className={inputClass}
           >
@@ -205,16 +207,16 @@ export function EventFormPanel({
           </select>
         </div>
 
-        {/* Quote (only for jobs) */}
+        {/* Estimate (only for jobs) */}
         {type === "job" && (
           <div className="mb-4">
             <div className={labelClass}>
-              Quote <span className="text-[var(--accent)]">*</span>
+              Estimate <span className="text-[var(--accent)]">*</span>
             </div>
             <select
-              value={quoteId ?? ""}
+              value={estimateId ?? ""}
               onChange={(e) =>
-                setQuoteId(
+                setEstimateId(
                   e.target.value ? parseInt(e.target.value, 10) : undefined
                 )
               }
@@ -223,15 +225,15 @@ export function EventFormPanel({
             >
               {!customerId ? (
                 <option value="">— Pick a customer first —</option>
-              ) : customerQuotes.length === 0 ? (
-                <option value="">— No quotes for this customer —</option>
+              ) : customerEstimates.length === 0 ? (
+                <option value="">— No estimates for this customer —</option>
               ) : (
                 <>
-                  <option value="">— Select quote —</option>
-                  {customerQuotes.map((q) => (
+                  <option value="">— Select estimate —</option>
+                  {customerEstimates.map((q) => (
                     <option key={q.id} value={q.id}>
-                      Quote #{q.quoteNumber}
-                      {q.estimate.title ? ` — ${q.estimate.title}` : ""}
+                      Estimate #{q.estimateNumber}
+                      {q.siteMeasure.title ? ` — ${q.siteMeasure.title}` : ""}
                     </option>
                   ))}
                 </>

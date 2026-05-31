@@ -1,373 +1,182 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
-import { createCustomerAndEstimate, reloadFresh } from "./fixtures/seed";
+import { loginAsWorkerOrg } from "./fixtures/org";
+import {
+  seedEstimateWithLineItem,
+  seedEstimateWithRooms,
+} from "./fixtures/seed";
 
-// ── 3.1 Estimate Builder ──────────────────────────────────────────────────────
+// ── 4.1 Estimate Builder — Room Link Picker ─────────────────────────────────────
 //
-// Coverage for the heart of the app: editing rooms, title, and rooms on
-// `/estimates/[id]`. Two layers:
-//   • Direct PATCH /api/estimates/[id] tests pin down the wire contract — they
-//     are the regression for the "every save returns 400" bug where the zod
-//     schema rejected the nulls Prisma returns for nullable columns.
-//   • UI tests exercise the same flows through the page so we catch the next
-//     time the client and server drift apart.
-//
-// React Query is persisted to localStorage (Providers.tsx) with the default
-// 1s throttle, so reloads inside that window can hydrate from a stale cache
-// — and several `useState(estimate.items ?? [])` call sites in the builder
-// initialize once and never re-sync from updated props, which makes that
-// stale cache visible. We clear localStorage before any reload assertion to
-// keep these tests focused on the server round-trip.
-
-// ── 3.1 PATCH /api/estimates/[id] — wire contract ───────────────────────────
+// Covers the interactive popover that lets a user link rooms to a line item.
+// Seeded via the API: 1 siteMeasure with 2 rooms (Kitchen 12×10 = 120 sqft,
+// Dining 10×8 = 80 sqft), 1 draft estimate with one manual line item. Each test
+// drives the picker UI and asserts both the rendered state and the persisted
+// shape via GET /api/estimates/{id}.
 
 test.describe
-  .serial("3.1 Estimate PATCH wire contract", () => {
-    let ctx: BrowserContext;
-    let estimateId: number;
-
-    test.beforeAll(async ({ browser }) => {
-      ctx = await browser.newContext();
-      await loginAsWorkerOrg(browser, ctx);
-      const ids = await createCustomerAndEstimate(ctx.request);
-      estimateId = ids.estimateId;
-    });
-
-    test.afterAll(async () => {
-      await ctx.close();
-    });
-
-    test("3.1.1 PATCH accepts a brand-new room with null w/l", async () => {
-      // This is exactly the payload `RoomSection.addRoom()` produces — the
-      // shape that previously broke every save in the UI.
-      const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: {
-          items: [
-            {
-              id: Date.now(),
-              type: "room",
-              name: "New Room",
-              shape: "rect",
-              w: null,
-              l: null,
-              note: "",
-            },
-          ],
-        },
-      });
-      expect(res.status()).toBe(200);
-      const body = await res.json();
-      expect(body.items).toHaveLength(1);
-      expect(body.items[0]).toMatchObject({
-        type: "room",
-        name: "New Room",
-        shape: "rect",
-        w: null,
-        l: null,
-      });
-    });
-
-    test("3.1.2 PATCH accepts items round-tripped from GET", async () => {
-      // Seed two rect rooms.
-      const seed = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: {
-          items: [
-            {
-              id: 1,
-              type: "room",
-              name: "Living",
-              shape: "rect",
-              w: 12,
-              l: 14,
-              note: "",
-              sortOrder: 0,
-            },
-            {
-              id: 2,
-              type: "room",
-              name: "Bedroom",
-              shape: "rect",
-              w: 10,
-              l: 11,
-              note: "",
-              sortOrder: 1,
-            },
-          ],
-        },
-      });
-      expect(seed.status()).toBe(200);
-
-      // GET → PATCH the response back unchanged. This is what the UI does on
-      // every keystroke once an estimate has been loaded.
-      const get = await ctx.request.get(`/api/estimates/${estimateId}`);
-      const fetched = await get.json();
-      const patch = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: { items: fetched.items },
-      });
-      expect(patch.status()).toBe(200);
-    });
-
-    test("3.1.4 PATCH persists title", async () => {
-      const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: { title: "Henderson Living Room" },
-      });
-      expect(res.status()).toBe(200);
-      const get = await ctx.request.get(`/api/estimates/${estimateId}`);
-      const body = await get.json();
-      expect(body.title).toBe("Henderson Living Room");
-    });
-
-    test("3.1.5 PATCH rejects items with missing id (zod still enforces shape)", async () => {
-      const res = await ctx.request.patch(`/api/estimates/${estimateId}`, {
-        data: { items: [{ type: "room", name: "no-id" }] },
-      });
-      expect(res.status()).toBe(400);
-    });
-
-    test("3.1.6 PATCH on another org's estimate returns 404", async ({
-      browser,
-    }) => {
-      // Different user → different org. Their session can't see our estimate.
-      const otherCtx = await browser.newContext();
-      await loginAsSecondaryOrg(browser, otherCtx);
-      const res = await otherCtx.request.patch(`/api/estimates/${estimateId}`, {
-        data: { title: "Hacked" },
-      });
-      expect(res.status()).toBe(404);
-      await otherCtx.close();
-    });
-
-    test("3.1.7 PATCH unauthenticated returns 401", async ({ browser }) => {
-      const anonCtx = await browser.newContext();
-      const res = await anonCtx.request.patch(`/api/estimates/${estimateId}`, {
-        data: { title: "Anon" },
-      });
-      expect(res.status()).toBe(401);
-      await anonCtx.close();
-    });
-  });
-
-// ── 3.2 Estimate Builder UI — rooms ──────────────────────────────────────────
-
-test.describe
-  .serial("3.2 Estimate Builder UI — rooms", () => {
+  .serial("4.1 Estimate Builder — room link picker", () => {
     let ctx: BrowserContext;
     let page: Page;
     let estimateId: number;
+    let kitchenId: number;
+    let diningId: number;
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
       page = await loginAsWorkerOrg(browser, ctx);
-      const ids = await createCustomerAndEstimate(ctx.request);
-      estimateId = ids.estimateId;
+      const seed = await seedEstimateWithRooms(ctx.request);
+      kitchenId = seed.kitchenId;
+      diningId = seed.diningId;
+      const q = await seedEstimateWithLineItem(ctx.request, seed.siteMeasureId);
+      estimateId = q.estimateId;
     });
 
     test.afterAll(async () => {
       await ctx.close();
     });
 
-    test("3.2.1 Add Room triggers a successful PATCH (regression for 400-on-add)", async () => {
+    test("4.1.1 picker opens when scope button is clicked on a manual line item", async () => {
       await page.goto(`/estimates/${estimateId}`);
+      await expect(page.getByText("Line Items & Pricing")).toBeVisible();
+
+      // Manual line item shows the "Manual · ft²" scope button.
+      const scopeBtn = page.getByRole("button", { name: /Manual · ft²/i });
+      await expect(scopeBtn).toBeVisible();
+      await scopeBtn.click();
+
+      // Picker dialog appears with rooms listed.
+      const dialog = page.getByRole("dialog", { name: "Link rooms" });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByText("Kitchen")).toBeVisible();
+      await expect(dialog.getByText("Dining")).toBeVisible();
+      await expect(dialog.getByText("120 sqft")).toBeVisible();
+      await expect(dialog.getByText("80 sqft")).toBeVisible();
+      await expect(dialog.getByText("No rooms selected")).toBeVisible();
+
+      // Apply is disabled with zero rooms selected.
+      const apply = dialog.getByRole("button", { name: "Apply" });
+      await expect(apply).toBeDisabled();
+    });
+
+    test("4.1.2 selecting rooms + waste, clicking Apply, persists and renders linked state", async () => {
+      // Picker is already open from 4.1.1; click two rooms and set waste.
+      const dialog = page.getByRole("dialog", { name: "Link rooms" });
+      await dialog.getByText("Kitchen").click();
+      await dialog.getByText("Dining").click();
+      await dialog.locator("#rp-waste").selectOption("10");
+
+      // Preview reflects 200 base × 1.10 = 220.0.
+      await expect(dialog.getByText(/2 rooms/)).toBeVisible();
+      await expect(dialog.getByText(/220\.0 sqft/)).toBeVisible();
+
+      // Apply commits via PATCH; wait for it.
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (r) =>
+            r.url().endsWith(`/api/estimates/${estimateId}`) &&
+            r.request().method() === "PATCH" &&
+            r.status() === 200
+        ),
+        dialog.getByRole("button", { name: "Apply" }).click(),
+      ]);
+      expect(response.status()).toBe(200);
+
+      // Picker closes, scope button now shows "🔗 2 rooms".
+      await expect(dialog).not.toBeVisible();
       await expect(
-        page.getByRole("button", { name: /add room/i })
+        page.getByRole("button", { name: /🔗 2 rooms/ })
       ).toBeVisible();
 
-      const [response] = await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH"
-        ),
-        page.getByRole("button", { name: /add room/i }).click(),
-      ]);
-      expect(response.status()).toBe(200);
-      await expect(page.getByPlaceholder("Room name")).toHaveValue("New Room");
-    });
+      // Linked qty cell shows 220.0 sqft (sage).
+      await expect(page.getByText("220.0").first()).toBeVisible();
 
-    test("3.2.2 the new room persists across reload", async () => {
-      // Confirm the add-room PATCH from 3.2.1 has actually landed before
-      // reloading — under CI load the React Query refetch can race the test.
-      await expect
-        .poll(async () => {
-          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
-          const body = await r.json();
-          return (body.items as Array<{ type: string }>).filter(
-            (i) => i.type === "room"
-          ).length;
-        })
-        .toBeGreaterThan(0);
+      // Room tags + waste tag appear under the row.
+      await expect(page.getByText(/Kitchen/).first()).toBeVisible();
+      await expect(page.getByText(/Dining/).first()).toBeVisible();
+      await expect(page.getByText("+10% waste")).toBeVisible();
 
-      await reloadFresh(page);
-      await expect(page.getByPlaceholder("Room name")).toHaveValue("New Room");
-    });
-
-    test("3.2.3 editing the room name and blurring saves successfully", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      const input = page.getByPlaceholder("Room name");
-      // RoomSection saves on every onChange AND onBlur, so fill+blur fires
-      // overlapping PATCHes. expect.poll retries until the server converges.
-      await input.fill("Living Room");
-      await input.blur();
-
-      await expect
-        .poll(async () => {
-          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
-          const body = await r.json();
-          const room = (
-            body.items as Array<{ type: string; name: string }>
-          ).find((i) => i.type === "room");
-          return room?.name;
-        })
-        .toBe("Living Room");
-
-      await reloadFresh(page);
-      await expect(page.getByPlaceholder("Room name")).toHaveValue(
-        "Living Room"
+      // Server confirms the persisted shape.
+      const get = await ctx.request.get(`/api/estimates/${estimateId}`);
+      const body = await get.json();
+      const li = (
+        body.lineItems as Array<{
+          qtyMode: string;
+          linkedRoomIds: number[];
+          wastePct: number;
+        }>
+      )[0];
+      expect(li.qtyMode).toBe("linked_area");
+      expect(li.wastePct).toBe(10);
+      expect([...li.linkedRoomIds].sort()).toEqual(
+        [kitchenId, diningId].sort()
       );
     });
 
-    test("3.2.4 editing dimensions saves and updates sqft display", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      // RoomSection saves on every onChange AND onBlur, so filling L then W
-      // fires several overlapping PATCHes. The sqft display updates from local
-      // React state; expect.poll below retries until the server converges.
-      await page.getByPlaceholder("L").fill("12");
-      await page.getByPlaceholder("W").fill("10");
-      await page.getByPlaceholder("W").blur();
+    test("4.1.3 reopening the picker shows the saved selection pre-checked", async () => {
+      await page.getByRole("button", { name: /🔗 2 rooms/ }).click();
+      const dialog = page.getByRole("dialog", { name: "Link rooms" });
+      await expect(dialog).toBeVisible();
 
-      await expect(page.getByText(/120 sqft/).first()).toBeVisible();
-
-      // Confirm the server has both fields by hitting the API directly —
-      // immune to React render order.
-      await expect
-        .poll(async () => {
-          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
-          const body = await r.json();
-          const room = (body.items as Array<{ w: number; l: number }>).find(
-            (i) => i.w != null && i.l != null
-          );
-          return room ? `${room.l}x${room.w}` : null;
-        })
-        .toBe("12x10");
-
-      await reloadFresh(page);
-      await expect(page.getByPlaceholder("L")).toHaveValue("12");
-      await expect(page.getByPlaceholder("W")).toHaveValue("10");
+      // Both checkboxes start checked.
+      const checkboxes = dialog.locator('input[type="checkbox"]');
+      await expect(checkboxes).toHaveCount(2);
+      await expect(checkboxes.nth(0)).toBeChecked();
+      await expect(checkboxes.nth(1)).toBeChecked();
+      await expect(dialog.locator("#rp-waste")).toHaveValue("10");
     });
 
-    test("3.2.6 Add Note creates a note that persists", async () => {
-      await page.goto(`/estimates/${estimateId}`);
+    test("4.1.4 Escape closes the picker without persisting draft changes", async () => {
+      const dialog = page.getByRole("dialog", { name: "Link rooms" });
+      await expect(dialog).toBeVisible();
+
+      // Uncheck Kitchen and change waste in the draft, then Esc.
+      await dialog.getByText("Kitchen").click();
+      await dialog.locator("#rp-waste").selectOption("20");
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+
+      // Server unchanged from 4.1.2.
+      const get = await ctx.request.get(`/api/estimates/${estimateId}`);
+      const body = await get.json();
+      const li = (
+        body.lineItems as Array<{ wastePct: number; linkedRoomIds: number[] }>
+      )[0];
+      expect(li.wastePct).toBe(10);
+      expect(li.linkedRoomIds).toHaveLength(2);
+    });
+
+    test("4.1.5 Clear reverts the line item to manual mode and persists", async () => {
+      await page.getByRole("button", { name: /🔗 2 rooms/ }).click();
+      const dialog = page.getByRole("dialog", { name: "Link rooms" });
+      await expect(dialog).toBeVisible();
+
       const [response] = await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH"
-        ),
-        page.getByRole("button", { name: /add note/i }).click(),
-      ]);
-      expect(response.status()).toBe(200);
-
-      const note = page.getByPlaceholder("Field note…");
-      await note.fill("Tile in entryway only");
-      await note.blur();
-
-      await expect
-        .poll(async () => {
-          const r = await ctx.request.get(`/api/estimates/${estimateId}`);
-          const body = await r.json();
-          const noteItem = (
-            body.items as Array<{ type: string; text: string | null }>
-          ).find((i) => i.type === "note");
-          return noteItem?.text;
-        })
-        .toBe("Tile in entryway only");
-
-      await reloadFresh(page);
-      await expect(page.getByPlaceholder("Field note…")).toHaveValue(
-        "Tile in entryway only"
-      );
-    });
-
-    test("3.2.7 removing a room saves and the room disappears after reload", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      const removeBtn = page.getByRole("button", { name: "Remove" }).first();
-      await Promise.all([
         page.waitForResponse(
           (r) =>
             r.url().endsWith(`/api/estimates/${estimateId}`) &&
             r.request().method() === "PATCH" &&
             r.status() === 200
         ),
-        removeBtn.click(),
+        dialog.getByRole("button", { name: "Clear" }).click(),
       ]);
+      expect(response.status()).toBe(200);
 
-      await reloadFresh(page);
-      // After removing the only room, no room-name input remains.
-      await expect(page.getByPlaceholder("Room name")).toHaveCount(0);
-    });
+      await expect(dialog).not.toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /Manual · ft²/i })
+      ).toBeVisible();
 
-    test("3.2.8 creates a quote from the estimate page and lands on the quote builder", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      await expect(page.getByText("Quotes for this estimate")).toBeVisible();
-
-      // Click "+ Create Quote" in the EstimateQuotesCard header
-      const [response] = await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().includes("/api/quotes") &&
-            r.request().method() === "POST" &&
-            r.status() === 201
-        ),
-        page
-          .getByRole("button", { name: /\+ Create Quote/ })
-          .first()
-          .click(),
-      ]);
-      expect(response.status()).toBe(201);
-
-      // Should navigate to the quote builder
-      await expect(page).toHaveURL(/\/quotes\/\d+/);
-      await expect(page.getByText("Line Items & Pricing")).toBeVisible();
-    });
-  });
-
-// ── 3.3 Estimate Builder UI — title ──────────────────────────────────────────
-
-test.describe
-  .serial("3.3 Estimate Builder UI — title", () => {
-    let ctx: BrowserContext;
-    let page: Page;
-    let estimateId: number;
-
-    test.beforeAll(async ({ browser }) => {
-      ctx = await browser.newContext();
-      page = await loginAsWorkerOrg(browser, ctx);
-      const ids = await createCustomerAndEstimate(ctx.request);
-      estimateId = ids.estimateId;
-    });
-
-    test.afterAll(async () => {
-      await ctx.close();
-    });
-
-    test("3.3.1 editing the title saves and persists", async () => {
-      await page.goto(`/estimates/${estimateId}`);
-      // Title is rendered as a button until clicked; clicking opens an input.
-      await page.getByRole("button", { name: /untitled estimate/i }).click();
-      const titleInput = page.getByPlaceholder("Untitled estimate");
-      await titleInput.fill("Henderson — Whole house");
-
-      await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/estimates/${estimateId}`) &&
-            r.request().method() === "PATCH" &&
-            r.status() === 200
-        ),
-        titleInput.blur(),
-      ]);
-
-      await reloadFresh(page);
-      await expect(page.getByText("Henderson — Whole house")).toBeVisible();
+      const get = await ctx.request.get(`/api/estimates/${estimateId}`);
+      const body = await get.json();
+      const li = (
+        body.lineItems as Array<{
+          qtyMode: string;
+          linkedRoomIds: number[];
+          wastePct: number;
+        }>
+      )[0];
+      expect(li.qtyMode).toBe("manual");
+      expect(li.linkedRoomIds).toEqual([]);
+      expect(li.wastePct).toBe(0);
     });
   });

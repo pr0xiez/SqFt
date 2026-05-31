@@ -74,20 +74,20 @@ describe("POST /api/events", () => {
     );
   });
 
-  it("creates a job with a quoteId", async () => {
+  it("creates a job with a estimateId", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockCreate.mockResolvedValue({ id: 1 } as any);
     const res = await POST(
       makeRequest("POST", "http://x/api/events", {
         ...validPayload,
-        quoteId: 42,
+        estimateId: 42,
       }),
       params({})
     );
     expect(res.status).toBe(201);
     expect(mockCreate).toHaveBeenCalledWith(
       "org1",
-      expect.objectContaining({ type: "job", quoteId: 42 })
+      expect.objectContaining({ type: "job", estimateId: 42 })
     );
   });
 
@@ -104,7 +104,7 @@ describe("POST /api/events", () => {
 
   it("maps ValidationError from the repo to a 400 VALIDATION_FAILED", async () => {
     mockCreate.mockRejectedValue(
-      new ValidationError("Job events require a quoteId")
+      new ValidationError("Job events require a estimateId")
     );
     const res = await POST(
       makeRequest("POST", "http://x/api/events", validPayload),
@@ -113,7 +113,7 @@ describe("POST /api/events", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe("VALIDATION_FAILED");
-    expect(body.error.message).toBe("Job events require a quoteId");
+    expect(body.error.message).toBe("Job events require a estimateId");
   });
 });
 

@@ -56,7 +56,7 @@ export default function LoginPage() {
       </h1>
 
       <p className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mb-8">
-        Flooring estimates, jobs, and crews.
+        Flooring siteMeasures, jobs, and crews.
       </p>
 
       <form onSubmit={handleSubmit} autoComplete="on" noValidate>

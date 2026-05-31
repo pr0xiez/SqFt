@@ -6,15 +6,15 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { CrewCard } from "@/components/dashboard/CrewCard";
-import { EstimatesTable } from "@/components/dashboard/EstimatesTable";
 import { KpiPipeline } from "@/components/dashboard/KpiPipeline";
 import { RevenueCard } from "@/components/dashboard/RevenueCard";
 import { ScheduleCard } from "@/components/dashboard/ScheduleCard";
+import { SiteMeasuresTable } from "@/components/dashboard/SiteMeasuresTable";
 import { Button } from "@/components/ui/Button";
 import { useDashboardKPIs } from "@/lib/hooks/useDashboardKPIs";
 import { useDashboardRevenue } from "@/lib/hooks/useDashboardRevenue";
-import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useEvents } from "@/lib/hooks/useEvents";
+import { useSiteMeasures } from "@/lib/hooks/useSiteMeasures";
 import { getGreeting } from "@/lib/utils";
 
 export function DashboardView() {
@@ -22,7 +22,7 @@ export function DashboardView() {
   const { data: session } = useSession();
   const { data: kpis } = useDashboardKPIs();
   const { data: revenue } = useDashboardRevenue();
-  const { data: estimates = [] } = useEstimates();
+  const { data: siteMeasures = [] } = useSiteMeasures();
   const { data: events = [] } = useEvents();
   const [newCustomerOpen, setNewCustomerOpen] = useState(false);
   const [greeting, setGreeting] = useState("");
@@ -41,7 +41,7 @@ export function DashboardView() {
   }, []);
 
   const firstName = session?.user?.name?.split(" ")[0] ?? "there";
-  const recentEstimates = estimates.slice(0, 8);
+  const recentEstimates = siteMeasures.slice(0, 8);
 
   return (
     <>
@@ -70,11 +70,14 @@ export function DashboardView() {
           <Button onClick={() => setNewCustomerOpen(true)}>
             + New Customer
           </Button>
-          <Button onClick={() => router.push("/estimates")}>
-            + Quick Quote
+          <Button onClick={() => router.push("/site-measures")}>
+            + Quick Estimate
           </Button>
-          <Button variant="primary" onClick={() => router.push("/estimates")}>
-            + New Estimate
+          <Button
+            variant="primary"
+            onClick={() => router.push("/site-measures")}
+          >
+            + New Site Measure
           </Button>
         </div>
       </div>
@@ -96,8 +99,8 @@ export function DashboardView() {
         <CrewCard events={events} />
       </div>
 
-      {/* Estimates table */}
-      <EstimatesTable estimates={recentEstimates} />
+      {/* SiteMeasures table */}
+      <SiteMeasuresTable siteMeasures={recentEstimates} />
 
       <NewCustomerPanel
         open={newCustomerOpen}

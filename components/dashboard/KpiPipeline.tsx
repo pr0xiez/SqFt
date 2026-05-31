@@ -26,17 +26,17 @@ function deltaDir(n: number): "up" | "down" | "flat" {
 function buildCells(kpis: DashboardKpis): KpiCell[] {
   return [
     {
-      label: "Estimates",
+      label: "Site Measures",
       value: String(kpis.estimatesTotal),
       delta: formatDelta(kpis.estimatesDelta),
       deltaDir: deltaDir(kpis.estimatesDelta),
       sparkHeights: [30, 50, 35, 65, 48, 80, 90],
     },
     {
-      label: "Quotes Sent",
-      value: String(kpis.quotesSentTotal),
-      delta: formatDelta(kpis.quotesSentDelta),
-      deltaDir: deltaDir(kpis.quotesSentDelta),
+      label: "Estimates Sent",
+      value: String(kpis.estimatesSentTotal),
+      delta: formatDelta(kpis.estimatesSentDelta),
+      deltaDir: deltaDir(kpis.estimatesSentDelta),
       sparkHeights: [60, 55, 62, 58, 60, 65, 60],
     },
     {

@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { useCrewMembers } from "@/lib/hooks/useCrewMembers";
 import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useEstimates } from "@/lib/hooks/useEstimates";
 import {
   type CalEvent,
   useCreateEvent,
@@ -20,7 +21,6 @@ import {
   useEvents,
 } from "@/lib/hooks/useEvents";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
-import { useQuotes } from "@/lib/hooks/useQuotes";
 import {
   addDays,
   dateStr,
@@ -110,7 +110,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
 
   const { data: events = [] } = useEvents();
   const { data: customers = [] } = useCustomers();
-  const { data: quotes = [] } = useQuotes();
+  const { data: estimates = [] } = useEstimates();
   const { data: crew = [] } = useCrewMembers();
   const createEvent = useCreateEvent();
   const deleteEvent = useDeleteEvent();
@@ -426,7 +426,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
           defaultDate={selectedDate}
           editingEvent={editingEvent}
           customers={customers}
-          quotes={quotes}
+          estimates={estimates}
           onSave={async (data) => {
             try {
               await createEvent.mutateAsync(data);
