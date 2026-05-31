@@ -26,6 +26,10 @@ concurrency:
 #      with:
 #          needs: pick-runner
 #          runs-on: ${{ needs.pick-runner.outputs.runner }}
+#   4. Consider moving delete-neon-branch.yml back to ubuntu-latest. It fires
+#      on PR *close*, so a sleeping runner delays the cleanup and leaves an
+#      orphaned Neon preview branch. It's a ~3-second job, so hosted is the
+#      more reliable home for it once minutes are available.
 #
 # pick-runner:
 #   name: Pick Runner
