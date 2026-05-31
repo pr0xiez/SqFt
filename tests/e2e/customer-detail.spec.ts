@@ -110,7 +110,10 @@ test.describe("17.2 Customer detail — stats & pipeline", () => {
     // Back on the detail page, the site-measure header links to the site measure.
     await page.goBack();
     await expect(page.getByText("Loading…")).toHaveCount(0);
-    await page.getByText(/Site Measure #\d+/i).first().click();
+    await page
+      .getByText(/Site Measure #\d+/i)
+      .first()
+      .click();
     await expect(page).toHaveURL(new RegExp(`/site-measures/${sm.id}$`));
 
     await ctx.close();
@@ -146,9 +149,7 @@ test.describe("17.3 Customer detail — locations & start site measure", () => {
     expect(post.status()).toBe(201);
 
     // Address renders in both the header subtitle and the locations card.
-    await expect(
-      page.getByText("742 Evergreen Terrace").first()
-    ).toBeVisible();
+    await expect(page.getByText("742 Evergreen Terrace").first()).toBeVisible();
 
     // Persisted: GET lists the location for this customer.
     const list = await ctx.request.get(
