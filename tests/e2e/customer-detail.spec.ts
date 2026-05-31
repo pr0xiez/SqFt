@@ -52,3 +52,67 @@ test.describe("17.1 Customer detail — info card", () => {
     await ctx.close();
   });
 });
+
+test.describe("17.2 Customer detail — stats & pipeline", () => {
+  test("17.2.1 stat strip reflects seeded estimate statuses", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const customer = await createCustomer(ctx.request, {
+      name: `Stats ${Date.now()}`,
+    });
+    const sm = await createSiteMeasure(ctx.request, customer.id);
+    // 1 approved, 1 declined, 1 open on this site measure. Approving an estimate
+    // supersedes (auto-declines) its open siblings, so the plain draft is seeded
+    // LAST — after the approval — to leave exactly one open estimate.
+    await seedApprovedEstimate(ctx.request, sm.id);
+    await seedDeclinedEstimate(ctx.request, sm.id);
+    await seedEstimateWithLineItem(ctx.request, sm.id);
+
+    await page.goto(`/customers/${customer.id}`);
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+
+    // "Accepted" stat shows 1; the declined hint reads "1 declined".
+    // Exact match avoids the "✓ Accepted" pill in the site-measure row.
+    await expect(page.getByText("Accepted", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 declined")).toBeVisible();
+    // Site Measures stat label (scoped to main to avoid the nav link / title).
+    await expect(
+      page.getByRole("main").getByText("Site Measures", { exact: true })
+    ).toBeVisible();
+
+    await ctx.close();
+  });
+
+  test("17.2.2 pipeline rows render and navigate to estimate + site measure", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const customer = await createCustomer(ctx.request, {
+      name: `Pipeline ${Date.now()}`,
+    });
+    const sm = await createSiteMeasure(ctx.request, customer.id);
+    const { estimateId } = await seedEstimateWithLineItem(ctx.request, sm.id);
+
+    await page.goto(`/customers/${customer.id}`);
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    // Exact heading avoids matching the customer name if it contains "Pipeline".
+    await expect(
+      page.getByRole("heading", { name: "Pipeline", exact: true })
+    ).toBeVisible();
+
+    // The estimate row shows its E# and links to the estimate.
+    await page.getByText(/E#\d+/).first().click();
+    await expect(page).toHaveURL(new RegExp(`/estimates/${estimateId}$`));
+
+    // Back on the detail page, the site-measure header links to the site measure.
+    await page.goBack();
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    await page.getByText(/Site Measure #\d+/i).first().click();
+    await expect(page).toHaveURL(new RegExp(`/site-measures/${sm.id}$`));
+
+    await ctx.close();
+  });
+});
