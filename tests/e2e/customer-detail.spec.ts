@@ -116,3 +116,90 @@ test.describe("17.2 Customer detail — stats & pipeline", () => {
     await ctx.close();
   });
 });
+
+test.describe("17.3 Customer detail — locations & start site measure", () => {
+  test("17.3.1 add-location form creates and persists a location", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const customer = await createCustomer(ctx.request, {
+      name: `AddLoc ${Date.now()}`,
+    });
+
+    await page.goto(`/customers/${customer.id}`);
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "+ Add location" }).click();
+    await page.getByPlaceholder("Street, City").fill("742 Evergreen Terrace");
+    await page.getByPlaceholder("e.g. Rental, Main house").fill("Main");
+
+    const [post] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.url().includes("/api/locations") &&
+          r.request().method() === "POST" &&
+          r.status() === 201
+      ),
+      page.getByRole("button", { name: "Save location" }).click(),
+    ]);
+    expect(post.status()).toBe(201);
+
+    // Address renders in both the header subtitle and the locations card.
+    await expect(
+      page.getByText("742 Evergreen Terrace").first()
+    ).toBeVisible();
+
+    // Persisted: GET lists the location for this customer.
+    const list = await ctx.request.get(
+      `/api/locations?customerId=${customer.id}`
+    );
+    const locs = (await list.json()) as Array<{ address: string }>;
+    expect(locs.map((l) => l.address)).toContain("742 Evergreen Terrace");
+
+    await ctx.close();
+  });
+
+  test("17.3.2 single-location customer: Start first site measure navigates", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const customer = await createCustomer(ctx.request, {
+      name: `OneLoc ${Date.now()}`,
+    });
+    await createLocation(ctx.request, customer.id, { address: "1 Only St" });
+
+    await page.goto(`/customers/${customer.id}`);
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+
+    await page
+      .getByRole("button", { name: "+ Start first site measure" })
+      .click();
+    await expect(page).toHaveURL(/\/site-measures\/\d+$/);
+
+    await ctx.close();
+  });
+
+  test("17.3.3 zero-location customer: Start first site measure shows a toast", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const customer = await createCustomer(ctx.request, {
+      name: `NoLoc ${Date.now()}`,
+    });
+
+    await page.goto(`/customers/${customer.id}`);
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+
+    await page
+      .getByRole("button", { name: "+ Start first site measure" })
+      .click();
+    await expect(page.getByText("Add a location first")).toBeVisible();
+    // Stays on the customer page (no navigation).
+    await expect(page).toHaveURL(new RegExp(`/customers/${customer.id}$`));
+
+    await ctx.close();
+  });
+});
