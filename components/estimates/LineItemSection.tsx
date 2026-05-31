@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { EstimateTotals } from "@/components/estimates/EstimateTotals";
 import { LineItemRow } from "@/components/estimates/LineItemRow";
 import { RoomLinkPicker } from "@/components/estimates/RoomLinkPicker";
-import { DecimalInput } from "@/components/ui/DecimalInput";
 import { computeEstimateView } from "@/lib/estimateView";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
-import { fmtDollar, QtyMode, roomSqft } from "@/lib/utils";
+import { QtyMode, roomSqft } from "@/lib/utils";
 
 export interface EstimateSavePatch {
   lineItems?: LineItemCalc[];
@@ -205,73 +205,30 @@ export function LineItemSection({
 
         {/* Calc section */}
         {items.length > 0 && (
-          <div className="border-t border-[var(--line)] bg-[var(--surface-2)]">
-            {/* Subtotal */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-                Subtotal
-              </div>
-              <div />
-              <div className="px-3.5 py-2.5 text-[14px] font-[600]">
-                {fmtDollar(subtotal)}
-              </div>
-              <div />
-            </div>
-            {/* Convenience fee */}
-            <PctRow
-              label="Convenience fee"
-              valuePct={feePct}
-              suffix={fmtDollar(feeAmt)}
-              readOnly={readOnly}
-              onCommit={(next) => {
-                setFeePct(next);
-                save({ convenienceFeeRate: next / 100 });
-              }}
-            />
-            {/* Markup */}
-            <PctRow
-              label="Markup (on subtotal + fee)"
-              valuePct={markupPct}
-              suffix={fmtDollar(markupAmt)}
-              readOnly={readOnly}
-              onCommit={(next) => {
-                setMarkupPct(next);
-                save({ markupPct: next });
-              }}
-            />
-            {/* Total */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center bg-[var(--ink)] text-[var(--bg)] [html[data-theme=dark]_&]:bg-[var(--surface-2)] [html[data-theme=dark]_&]:border-t [html[data-theme=dark]_&]:border-[var(--line)]">
-              <div className="px-3.5 py-3.5 font-[var(--font-mono)] text-[11px] uppercase tracking-[.04em] opacity-80 col-span-4">
-                Estimate total
-              </div>
-              <div className="px-3.5 py-3.5 text-[22px] font-[700] tracking-[-0.025em]">
-                {fmtDollar(total)}
-              </div>
-              <div />
-            </div>
-            {/* Deposit + margin footer */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-t border-[var(--line)]">
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-2 flex items-center gap-2">
-                <span>Deposit</span>
-                <PctInline
-                  value={depositPctState}
-                  readOnly={readOnly}
-                  onCommit={(next) => {
-                    setDepositPctState(next);
-                    save({ depositPct: next / 100 });
-                  }}
-                />
-              </div>
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em]">
-                Margin {margin.toFixed(1)}%
-              </div>
-              <div />
-              <div className="px-3.5 py-2.5 text-[13px] font-[600] text-[var(--sage)]">
-                {fmtDollar(deposit)}
-              </div>
-              <div />
-            </div>
-          </div>
+          <EstimateTotals
+            subtotal={subtotal}
+            feePct={feePct}
+            markupPct={markupPct}
+            depositPct={depositPctState}
+            feeAmt={feeAmt}
+            markupAmt={markupAmt}
+            total={total}
+            deposit={deposit}
+            margin={margin}
+            readOnly={readOnly}
+            onCommitFee={(next) => {
+              setFeePct(next);
+              save({ convenienceFeeRate: next / 100 });
+            }}
+            onCommitMarkup={(next) => {
+              setMarkupPct(next);
+              save({ markupPct: next });
+            }}
+            onCommitDeposit={(next) => {
+              setDepositPctState(next);
+              save({ depositPct: next / 100 });
+            }}
+          />
         )}
       </div>
 
@@ -319,55 +276,5 @@ export function LineItemSection({
           );
         })()}
     </div>
-  );
-}
-
-interface PctRowProps {
-  label: string;
-  valuePct: number;
-  suffix: string;
-  readOnly: boolean;
-  onCommit: (nextPct: number) => void;
-}
-
-function PctRow({ label, valuePct, suffix, readOnly, onCommit }: PctRowProps) {
-  return (
-    <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-      <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-        {label}
-      </div>
-      <div className="px-2 py-2 flex items-center gap-1.5">
-        <PctInline value={valuePct} readOnly={readOnly} onCommit={onCommit} />
-      </div>
-      <div className="px-3.5 py-2.5 text-[14px] font-[600]">{suffix}</div>
-      <div />
-    </div>
-  );
-}
-
-interface PctInlineProps {
-  value: number;
-  readOnly: boolean;
-  onCommit: (next: number) => void;
-}
-
-function PctInline({ value, readOnly, onCommit }: PctInlineProps) {
-  return (
-    <>
-      <DecimalInput
-        value={value}
-        onCommit={(next) => {
-          if (next === null) return;
-          const clamped = Math.max(0, Math.min(100, next));
-          if (clamped !== value) onCommit(clamped);
-        }}
-        formatOnBlur={false}
-        disabled={readOnly}
-        className="w-[50px] font-[var(--font-mono)] text-[13px] font-[600] text-right bg-transparent border-none p-0 focus:outline-none focus:bg-[var(--surface)] disabled:cursor-default"
-      />
-      <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-        %
-      </span>
-    </>
   );
 }
