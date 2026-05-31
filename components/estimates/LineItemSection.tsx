@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { EstimateTotals } from "@/components/estimates/EstimateTotals";
+import { LineItemRow } from "@/components/estimates/LineItemRow";
 import { RoomLinkPicker } from "@/components/estimates/RoomLinkPicker";
-import { DecimalInput } from "@/components/ui/DecimalInput";
-import { cn } from "@/lib/cn";
 import { computeEstimateView } from "@/lib/estimateView";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
-import { fmtDollar, isLinkedQtyMode, QtyMode, roomSqft } from "@/lib/utils";
+import { QtyMode, roomSqft } from "@/lib/utils";
 
 export interface EstimateSavePatch {
   lineItems?: LineItemCalc[];
@@ -30,13 +30,6 @@ interface Props {
 let _liNextId = Date.now() + 100000;
 function tempLiId() {
   return ++_liNextId;
-}
-
-/** Normalize legacy "ft²" unit label to "sqft" for toggle UI. */
-function normalizeUnit(label: string): "sqft" | "lf" | "other" {
-  if (label === "sqft" || label === "ft²") return "sqft";
-  if (label === "lf") return "lf";
-  return "other";
 }
 
 export function LineItemSection({
@@ -188,293 +181,54 @@ export function LineItemSection({
         ) : (
           items.map((li) => {
             const lineView = lineById.get(li.id);
-            const effectiveQty = lineView?.effectiveQty ?? null;
-            const sub = lineView?.subtotal ?? null;
-            const linked =
-              isLinkedQtyMode(li.qtyMode) && li.linkedRoomIds.length > 0;
-            const linkedUnit =
-              li.qtyMode === QtyMode.LinkedPerimeter ? "lf" : "sqft";
-            const linkedRooms = rooms.filter((r) =>
-              li.linkedRoomIds.includes(r.id)
-            );
-            const unitKind = normalizeUnit(li.unitLabel);
-            const canEditSubtotal =
-              !readOnly && effectiveQty !== null && effectiveQty > 0;
-
             return (
-              <div
+              <LineItemRow
                 key={li.id}
-                className={cn(
-                  "border-b border-[var(--line)] last:border-b-0 transition-[background] duration-[120ms] hover:bg-[var(--surface-2)]",
-                  linked && "border-l-[3px] border-l-[var(--sage)]"
-                )}
-              >
-                {/* Main row */}
-                <div className="grid grid-cols-1 md:grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-start">
-                  <div className="px-3.5 py-[11px] space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={li.name}
-                        onChange={(e) =>
-                          updateItem(li.id, { name: e.target.value })
-                        }
-                        onBlur={() => save({ lineItems: items })}
-                        disabled={readOnly}
-                        className="text-[14px] font-[500] flex-1 min-w-0 border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default"
-                      />
-                      {!readOnly && templates.length > 0 && (
-                        <select
-                          aria-label="Apply template"
-                          value=""
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val) applyTemplate(li.id, Number(val));
-                            e.target.value = "";
-                          }}
-                          className="font-[var(--font-mono)] text-[10px] px-1.5 py-1 border border-[var(--line)] rounded-[4px] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)] cursor-pointer"
-                        >
-                          <option value="">Use template…</option>
-                          {templates.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                    <textarea
-                      value={li.description ?? ""}
-                      onChange={(e) =>
-                        updateItem(li.id, {
-                          description: e.target.value || null,
-                        })
-                      }
-                      onBlur={() => save({ lineItems: items })}
-                      disabled={readOnly}
-                      placeholder={readOnly ? "" : "Description (optional)"}
-                      rows={1}
-                      className="text-[12px] text-[var(--muted)] w-full border-none bg-transparent p-0 resize-y focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default placeholder:text-[var(--muted)] placeholder:opacity-60"
-                    />
-                  </div>
-                  <div className="px-3 py-2">
-                    <button
-                      type="button"
-                      onClick={(e) =>
-                        !readOnly &&
-                        setPicker({
-                          lineId: li.id,
-                          rect: e.currentTarget.getBoundingClientRect(),
-                        })
-                      }
-                      disabled={readOnly}
-                      className={cn(
-                        "font-[var(--font-mono)] text-[10px] px-2.5 py-1 border rounded-[4px] transition-colors duration-150 inline-flex items-center gap-[5px]",
-                        readOnly
-                          ? "cursor-default opacity-70"
-                          : "cursor-pointer",
-                        linked
-                          ? "border-[var(--sage)] text-[var(--sage)] bg-[rgba(61,107,74,0.08)]"
-                          : "border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
-                      )}
-                    >
-                      {linked
-                        ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"} · ${linkedUnit}`
-                        : li.qtyMode === QtyMode.Manual
-                          ? `Manual · ${li.unitLabel || ""}`
-                          : "Set scope…"}
-                    </button>
-                  </div>
-                  <div className="px-3.5 py-[11px]">
-                    {linked ? (
-                      <div className="flex items-baseline gap-[5px]">
-                        <span className="text-[14px] font-[600] text-[var(--sage)]">
-                          {effectiveQty !== null
-                            ? effectiveQty.toFixed(1)
-                            : "—"}
-                        </span>
-                        <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] opacity-80">
-                          {linkedUnit}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-baseline gap-2">
-                        <DecimalInput
-                          value={li.qty}
-                          onCommit={(next) => updateItem(li.id, { qty: next })}
-                          allowEmpty
-                          disabled={readOnly}
-                          className="w-[64px] text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
-                        />
-                        {unitKind === "other" ? (
-                          <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-                            {li.unitLabel}
-                          </span>
-                        ) : (
-                          <select
-                            value={unitKind}
-                            onChange={(e) =>
-                              updateItem(li.id, { unitLabel: e.target.value })
-                            }
-                            disabled={readOnly}
-                            className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] bg-transparent border-none focus:outline-none disabled:cursor-default cursor-pointer hover:text-[var(--ink)]"
-                          >
-                            <option value="sqft">sqft</option>
-                            <option value="lf">lf</option>
-                          </select>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="px-3.5 py-[11px] relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none">
-                      $
-                    </span>
-                    <DecimalInput
-                      value={li.rate}
-                      onCommit={(next) =>
-                        updateItem(li.id, { rate: next ?? 0 })
-                      }
-                      formatOnBlur
-                      disabled={readOnly}
-                      className="w-full text-[14px] font-[500] pl-3 border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
-                    />
-                  </div>
-                  <div className="px-3.5 py-[11px] relative">
-                    {canEditSubtotal ? (
-                      <>
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none">
-                          $
-                        </span>
-                        <DecimalInput
-                          value={sub ?? 0}
-                          onCommit={(next) => commitSubtotal(li, next)}
-                          formatOnBlur
-                          title="Edit subtotal — rate will be recalculated from quantity"
-                          className={cn(
-                            "w-full text-[14px] font-[600] tracking-[-0.01em] pl-3 border-none bg-transparent p-0 focus:outline-none",
-                            sub && sub > 0 ? "text-[var(--accent)]" : ""
-                          )}
-                        />
-                      </>
-                    ) : (
-                      <span
-                        className={cn(
-                          "text-[14px] font-[600] tracking-[-0.01em]",
-                          sub && sub > 0 ? "text-[var(--accent)]" : ""
-                        )}
-                      >
-                        ${(sub ?? 0).toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                  {!readOnly && (
-                    <button
-                      type="button"
-                      onClick={() => removeItem(li.id)}
-                      className="px-[11px] py-[11px] bg-transparent border-none text-[var(--muted)] cursor-pointer text-[14px] leading-none hover:text-[var(--accent)]"
-                    >
-                      ✕
-                    </button>
-                  )}
-                  {readOnly && <div />}
-                </div>
-
-                {/* Room tags */}
-                {linked && linkedRooms.length > 0 && (
-                  <div className="px-3.5 py-[7px] bg-[var(--surface-2)] border-t border-[var(--line)] flex gap-1.5 flex-wrap items-center">
-                    {linkedRooms.map((r) => (
-                      <span
-                        key={r.id}
-                        className="font-[var(--font-mono)] text-[10px] px-2 py-0.5 border border-[var(--sage)] text-[var(--sage)] bg-[rgba(61,107,74,0.06)] rounded-[4px] inline-flex items-center gap-[5px]"
-                      >
-                        {r.name}{" "}
-                        <span className="opacity-70">
-                          ({Math.round(roomSqft(r))})
-                        </span>
-                      </span>
-                    ))}
-                    {li.wastePct > 0 && (
-                      <span className="font-[var(--font-mono)] text-[10px] text-[var(--gold)] px-2 py-0.5 border border-[var(--gold)] bg-[rgba(176,122,26,0.06)] rounded-[4px] ml-1">
-                        +{li.wastePct}% waste
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+                li={li}
+                effectiveQty={lineView?.effectiveQty ?? null}
+                subtotal={lineView?.subtotal ?? null}
+                rooms={rooms}
+                templates={templates}
+                readOnly={readOnly}
+                onUpdate={(patch) => updateItem(li.id, patch)}
+                onRemove={() => removeItem(li.id)}
+                onCommitSubtotal={(next) => commitSubtotal(li, next)}
+                onSaveBlur={() => save({ lineItems: items })}
+                onOpenPicker={(rect) => setPicker({ lineId: li.id, rect })}
+                onApplyTemplate={(templateId) =>
+                  applyTemplate(li.id, templateId)
+                }
+              />
             );
           })
         )}
 
         {/* Calc section */}
         {items.length > 0 && (
-          <div className="border-t border-[var(--line)] bg-[var(--surface-2)]">
-            {/* Subtotal */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-                Subtotal
-              </div>
-              <div />
-              <div className="px-3.5 py-2.5 text-[14px] font-[600]">
-                {fmtDollar(subtotal)}
-              </div>
-              <div />
-            </div>
-            {/* Convenience fee */}
-            <PctRow
-              label="Convenience fee"
-              valuePct={feePct}
-              suffix={fmtDollar(feeAmt)}
-              readOnly={readOnly}
-              onCommit={(next) => {
-                setFeePct(next);
-                save({ convenienceFeeRate: next / 100 });
-              }}
-            />
-            {/* Markup */}
-            <PctRow
-              label="Markup (on subtotal + fee)"
-              valuePct={markupPct}
-              suffix={fmtDollar(markupAmt)}
-              readOnly={readOnly}
-              onCommit={(next) => {
-                setMarkupPct(next);
-                save({ markupPct: next });
-              }}
-            />
-            {/* Total */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center bg-[var(--ink)] text-[var(--bg)] [html[data-theme=dark]_&]:bg-[var(--surface-2)] [html[data-theme=dark]_&]:border-t [html[data-theme=dark]_&]:border-[var(--line)]">
-              <div className="px-3.5 py-3.5 font-[var(--font-mono)] text-[11px] uppercase tracking-[.04em] opacity-80 col-span-4">
-                Estimate total
-              </div>
-              <div className="px-3.5 py-3.5 text-[22px] font-[700] tracking-[-0.025em]">
-                {fmtDollar(total)}
-              </div>
-              <div />
-            </div>
-            {/* Deposit + margin footer */}
-            <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-t border-[var(--line)]">
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-2 flex items-center gap-2">
-                <span>Deposit</span>
-                <PctInline
-                  value={depositPctState}
-                  readOnly={readOnly}
-                  onCommit={(next) => {
-                    setDepositPctState(next);
-                    save({ depositPct: next / 100 });
-                  }}
-                />
-              </div>
-              <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em]">
-                Margin {margin.toFixed(1)}%
-              </div>
-              <div />
-              <div className="px-3.5 py-2.5 text-[13px] font-[600] text-[var(--sage)]">
-                {fmtDollar(deposit)}
-              </div>
-              <div />
-            </div>
-          </div>
+          <EstimateTotals
+            subtotal={subtotal}
+            feePct={feePct}
+            markupPct={markupPct}
+            depositPct={depositPctState}
+            feeAmt={feeAmt}
+            markupAmt={markupAmt}
+            total={total}
+            deposit={deposit}
+            margin={margin}
+            readOnly={readOnly}
+            onCommitFee={(next) => {
+              setFeePct(next);
+              save({ convenienceFeeRate: next / 100 });
+            }}
+            onCommitMarkup={(next) => {
+              setMarkupPct(next);
+              save({ markupPct: next });
+            }}
+            onCommitDeposit={(next) => {
+              setDepositPctState(next);
+              save({ depositPct: next / 100 });
+            }}
+          />
         )}
       </div>
 
@@ -522,55 +276,5 @@ export function LineItemSection({
           );
         })()}
     </div>
-  );
-}
-
-interface PctRowProps {
-  label: string;
-  valuePct: number;
-  suffix: string;
-  readOnly: boolean;
-  onCommit: (nextPct: number) => void;
-}
-
-function PctRow({ label, valuePct, suffix, readOnly, onCommit }: PctRowProps) {
-  return (
-    <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-      <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-        {label}
-      </div>
-      <div className="px-2 py-2 flex items-center gap-1.5">
-        <PctInline value={valuePct} readOnly={readOnly} onCommit={onCommit} />
-      </div>
-      <div className="px-3.5 py-2.5 text-[14px] font-[600]">{suffix}</div>
-      <div />
-    </div>
-  );
-}
-
-interface PctInlineProps {
-  value: number;
-  readOnly: boolean;
-  onCommit: (next: number) => void;
-}
-
-function PctInline({ value, readOnly, onCommit }: PctInlineProps) {
-  return (
-    <>
-      <DecimalInput
-        value={value}
-        onCommit={(next) => {
-          if (next === null) return;
-          const clamped = Math.max(0, Math.min(100, next));
-          if (clamped !== value) onCommit(clamped);
-        }}
-        formatOnBlur={false}
-        disabled={readOnly}
-        className="w-[50px] font-[var(--font-mono)] text-[13px] font-[600] text-right bg-transparent border-none p-0 focus:outline-none focus:bg-[var(--surface)] disabled:cursor-default"
-      />
-      <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-        %
-      </span>
-    </>
   );
 }
