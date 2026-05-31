@@ -338,7 +338,7 @@ test.describe
     test("3.2.8 creates a estimate from the siteMeasure page and lands on the estimate builder", async () => {
       await page.goto(`/site-measures/${siteMeasureId}`);
       await expect(
-        page.getByText("Estimates for this siteMeasure")
+        page.getByText("Estimates for this site measure")
       ).toBeVisible();
 
       // Click "+ Create Estimate" in the SiteMeasureEstimatesCard header
