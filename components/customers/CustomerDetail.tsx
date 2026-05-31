@@ -233,13 +233,6 @@ export function CustomerDetailView({ customerId }: Props) {
         </div>
         <div className="flex gap-2 shrink-0">
           <Button onClick={() => router.push("/customers")}>← Customers</Button>
-          <Button
-            variant="primary"
-            onClick={startSiteMeasure}
-            disabled={createSiteMeasure.isPending}
-          >
-            + New Site Measure
-          </Button>
         </div>
       </div>
 
@@ -345,9 +338,6 @@ export function CustomerDetailView({ customerId }: Props) {
             <h2 className="text-[15px] font-[700] tracking-[-0.015em]">
               Locations
             </h2>
-            <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] uppercase tracking-[.08em] mt-0.5">
-              Sites measured for this customer
-            </div>
           </div>
           {!addingLocation && (
             <Button size="sm" onClick={() => setAddingLocation(true)}>
@@ -459,7 +449,7 @@ export function CustomerDetailView({ customerId }: Props) {
               Pipeline
             </h2>
             <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] uppercase tracking-[.08em] mt-0.5">
-              SiteMeasures & estimates
+              Site measures & estimates
             </div>
           </div>
           {stats.open > 0 && (
@@ -472,7 +462,7 @@ export function CustomerDetailView({ customerId }: Props) {
         {siteMeasures.length === 0 ? (
           <div className="py-10 text-center">
             <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mb-3">
-              No siteMeasures yet.
+              No site measures yet.
             </div>
             <Button
               variant="primary"
@@ -559,7 +549,7 @@ function SiteMeasureRow({
       {/* Estimate thread */}
       {estimates.length === 0 ? (
         <div className="px-4 py-3 font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] italic">
-          No estimates drafted on this siteMeasure yet.
+          No estimates drafted on this site measure yet.
         </div>
       ) : (
         <ul className="divide-y divide-[var(--line)]">

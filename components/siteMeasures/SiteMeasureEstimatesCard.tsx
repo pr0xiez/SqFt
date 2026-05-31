@@ -12,7 +12,7 @@ export function SiteMeasureEstimatesCard({ estimates }: Props) {
     <section className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-5 mb-4">
       <header className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold tracking-tight">
-          Estimates for this siteMeasure ({estimates.length})
+          Estimates for this site measure ({estimates.length})
         </h2>
       </header>
 
