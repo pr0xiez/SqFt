@@ -167,7 +167,8 @@ export function RoomLinkPicker({
           })
         ) : (
           <div className="px-3.5 py-5 text-center font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            No rooms — add rooms in the siteMeasure to enable room-linked items.
+            No rooms — add rooms in the site measure to enable room-linked
+            items.
           </div>
         )}
       </div>

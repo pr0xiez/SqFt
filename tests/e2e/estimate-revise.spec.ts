@@ -106,7 +106,9 @@ test.describe("7.2 Revise button UI", () => {
     );
 
     await page.goto(`/estimates/${estimateId}`);
-    await expect(page.getByText("Line Items & Pricing")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^Estimate #/ })
+    ).toBeVisible();
     await expect(page.getByRole("button", { name: /^Revise$/ })).toHaveCount(0);
     await ctx.close();
   });
@@ -129,7 +131,9 @@ test.describe("7.2 Revise button UI", () => {
       const match = url.pathname.match(/^\/estimates\/(\d+)$/);
       return match !== null && Number(match[1]) !== estimateId;
     });
-    await expect(page.getByText("Line Items & Pricing")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /^Estimate #/ })
+    ).toBeVisible();
     await ctx.close();
   });
 });

@@ -35,7 +35,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
     source: "phone",
     notes: "",
   });
-  const [alsoEstimate, setAlsoEstimate] = useState(false);
 
   function resetForm() {
     setForm({
@@ -45,7 +44,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
       source: "phone",
       notes: "",
     });
-    setAlsoEstimate(false);
   }
 
   async function handleSave() {
@@ -159,18 +157,6 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
             className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 resize-none"
           />
         </div>
-
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={alsoEstimate}
-            onChange={(e) => setAlsoEstimate(e.target.checked)}
-            className="accent-[var(--accent)]"
-          />
-          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            Also create an siteMeasure
-          </span>
-        </label>
       </div>
     </SlidePanel>
   );

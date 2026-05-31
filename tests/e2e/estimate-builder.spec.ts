@@ -37,7 +37,9 @@ test.describe
 
     test("4.1.1 picker opens when scope button is clicked on a manual line item", async () => {
       await page.goto(`/estimates/${estimateId}`);
-      await expect(page.getByText("Line Items & Pricing")).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: /^Estimate #/ })
+      ).toBeVisible();
 
       // Manual line item shows the "Manual · ft²" scope button.
       const scopeBtn = page.getByRole("button", { name: /Manual · ft²/i });
