@@ -25,6 +25,13 @@ ALTER TABLE "QuoteEvent" DROP CONSTRAINT "QuoteEvent_quoteId_fkey";
 -- DropForeignKey
 ALTER TABLE "Event" DROP CONSTRAINT "Event_quoteId_fkey";
 
+-- Pre-launch clean restructure (disposable data per the approved remodel design).
+-- The remodel repurposes "Estimate" as the priced doc and adds NOT NULL columns
+-- ("Estimate"."siteMeasureId", "LineItem"."estimateId") that cannot be backfilled
+-- for pre-existing rows. Clear those rows so the schema change applies. Safe now
+-- that the inbound foreign keys above have been dropped.
+TRUNCATE TABLE "Estimate", "LineItem";
+
 -- AlterTable
 ALTER TABLE "Organization" DROP COLUMN "nextQuoteNumber",
 DROP COLUMN "showLicenseOnQuotes",
