@@ -92,3 +92,105 @@ test.describe("18.1 Line item section — rows", () => {
     await ctx.close();
   });
 });
+
+test.describe("18.2 Line item section — subtotal & templates", () => {
+  test("18.2.1 editing the subtotal back-calculates the rate from qty", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
+    const estimate = await createEstimate(ctx.request, siteMeasureId);
+    // Seed a manual line item with qty=4, rate=10 directly.
+    await ctx.request.patch(`/api/estimates/${estimate.id}`, {
+      data: {
+        lineItems: [
+          {
+            id: 7001,
+            name: "Backcalc item",
+            rate: 10,
+            qtyMode: "manual",
+            qty: 4,
+            wastePct: 0,
+            unitLabel: "sqft",
+            linkedRoomIds: [],
+            sortOrder: 0,
+          },
+        ],
+      },
+    });
+
+    await page.goto(`/estimates/${estimate.id}`);
+    await expect(
+      page.getByRole("heading", { name: /^Estimate #/ })
+    ).toBeVisible();
+
+    // Subtotal column is the 3rd decimal input in the row (qty, rate, subtotal).
+    const subtotal = page.locator('input[inputmode="decimal"]').nth(2);
+    await subtotal.fill("100"); // 100 / qty(4) = rate 25
+    const [patch] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.url().endsWith(`/api/estimates/${estimate.id}`) &&
+          r.request().method() === "PATCH" &&
+          r.status() === 200
+      ),
+      subtotal.blur(),
+    ]);
+    expect(patch.status()).toBe(200);
+
+    const get = await ctx.request.get(`/api/estimates/${estimate.id}`);
+    const li = (await get.json()).lineItems[0];
+    expect(li.qty).toBe(4);
+    expect(li.rate).toBe(25);
+
+    await ctx.close();
+  });
+
+  test("18.2.2 applying a template populates name, rate and unit", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+
+    // Seed a line-item template for this org (no fixture helper — POST directly).
+    const tplRes = await ctx.request.post("/api/line-item-templates", {
+      data: { name: "Laminate Install", rate: 4.25, unitLabel: "sqft" },
+    });
+    expect(tplRes.status()).toBe(201);
+
+    const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
+    const { estimateId } = await seedEstimateWithLineItem(
+      ctx.request,
+      siteMeasureId
+    );
+
+    await page.goto(`/estimates/${estimateId}`);
+    await expect(
+      page.getByRole("heading", { name: /^Estimate #/ })
+    ).toBeVisible();
+
+    // The per-row "Use template…" select applies the template on change.
+    const [patch] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.url().endsWith(`/api/estimates/${estimateId}`) &&
+          r.request().method() === "PATCH" &&
+          r.status() === 200
+      ),
+      page
+        .getByRole("combobox", { name: "Apply template" })
+        .first()
+        .selectOption({ label: "Laminate Install" }),
+    ]);
+    expect(patch.status()).toBe(200);
+
+    const get = await ctx.request.get(`/api/estimates/${estimateId}`);
+    const li = (await get.json()).lineItems[0];
+    expect(li.name).toBe("Laminate Install");
+    expect(li.rate).toBe(4.25);
+    expect(li.unitLabel).toBe("sqft");
+
+    await ctx.close();
+  });
+});
