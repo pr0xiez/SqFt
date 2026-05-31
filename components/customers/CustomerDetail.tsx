@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { CustomerHeader } from "@/components/customers/CustomerHeader";
 import { CustomerInfoCard } from "@/components/customers/CustomerInfoCard";
 import { CustomerStatStrip } from "@/components/customers/CustomerStatStrip";
+import { LocationsCard } from "@/components/customers/LocationsCard";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -54,8 +55,6 @@ export function CustomerDetailView({ customerId }: Props) {
   const { showToast } = useToast();
 
   const [addingLocation, setAddingLocation] = useState(false);
-  const [locAddress, setLocAddress] = useState("");
-  const [locLabel, setLocLabel] = useState("");
 
   const locations: CustomerLocationSummary[] = useMemo(
     () => customer?.locations ?? [],
@@ -130,23 +129,20 @@ export function CustomerDetailView({ customerId }: Props) {
     showToast("Pick a location below to start");
   }
 
-  async function handleAddLocation() {
-    const address = locAddress.trim();
+  async function handleAddLocation(address: string, label: string) {
     if (!address) {
       showToast("Address required");
-      return;
+      throw new Error("address required");
     }
     try {
       await createLocation.mutateAsync({
         customerId,
         address,
-        label: locLabel.trim() || undefined,
+        label: label || undefined,
       });
-      setLocAddress("");
-      setLocLabel("");
-      setAddingLocation(false);
     } catch {
       showToast("Failed to add location");
+      throw new Error("create failed");
     }
   }
 
@@ -178,118 +174,15 @@ export function CustomerDetailView({ customerId }: Props) {
 
       <CustomerInfoCard customer={customer} onField={handleField} />
 
-      {/* Locations */}
-      <div
-        id="locations-card"
-        className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5 mb-4"
-      >
-        <div className="flex items-baseline justify-between mb-4">
-          <div>
-            <h2 className="text-[15px] font-[700] tracking-[-0.015em]">
-              Locations
-            </h2>
-          </div>
-          {!addingLocation && (
-            <Button size="sm" onClick={() => setAddingLocation(true)}>
-              + Add location
-            </Button>
-          )}
-        </div>
-
-        {locations.length === 0 && !addingLocation ? (
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
-            No locations yet. Add one to start a site measure.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {locations.map((loc) => (
-              <div
-                key={loc.id}
-                className="flex items-center gap-3 border border-[var(--line)] rounded-md px-4 py-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-[600] tracking-[-0.01em]">
-                    {loc.address}
-                    {loc.label ? (
-                      <span className="ml-2 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] font-[400]">
-                        {loc.label}
-                      </span>
-                    ) : null}
-                  </div>
-                  {loc.notes && (
-                    <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] mt-0.5">
-                      {loc.notes}
-                    </div>
-                  )}
-                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
-                    {loc.siteMeasures.length} site measure
-                    {loc.siteMeasures.length === 1 ? "" : "s"}
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => handleNewSiteMeasure(loc.id)}
-                  disabled={createSiteMeasure.isPending}
-                >
-                  + Site measure
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {addingLocation && (
-          <div className="mt-3 border border-dashed border-[var(--line-2)] rounded-md p-4 flex flex-col gap-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
-                  Address *
-                </div>
-                <input
-                  type="text"
-                  value={locAddress}
-                  onChange={(e) => setLocAddress(e.target.value)}
-                  placeholder="Street, City"
-                  className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
-                />
-              </div>
-              <div>
-                <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
-                  Label
-                </div>
-                <input
-                  type="text"
-                  value={locLabel}
-                  onChange={(e) => setLocLabel(e.target.value)}
-                  placeholder="e.g. Rental, Main house"
-                  className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button
-                size="sm"
-                onClick={() => {
-                  setAddingLocation(false);
-                  setLocAddress("");
-                  setLocLabel("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={handleAddLocation}
-                disabled={createLocation.isPending || !locAddress.trim()}
-              >
-                {createLocation.isPending ? "Saving…" : "Save location"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
+      <LocationsCard
+        locations={locations}
+        adding={addingLocation}
+        onAddingChange={setAddingLocation}
+        onAddLocation={handleAddLocation}
+        onStartSiteMeasure={handleNewSiteMeasure}
+        isAdding={createLocation.isPending}
+        isStarting={createSiteMeasure.isPending}
+      />
 
       {/* Pipeline */}
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5">
