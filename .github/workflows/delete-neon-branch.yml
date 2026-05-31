@@ -4,7 +4,12 @@ on:
     types: [closed]
 jobs:
   delete-branch:
-    runs-on: ubuntu-latest
+    # Pinned to self-hosted while hosted minutes are exhausted. This is a
+    # Node/API action, so it runs fine on macOS.
+    # PHASE 2: move back to ubuntu-latest once minutes are available. This job
+    # fires on PR *close*, so a sleeping self-hosted runner delays cleanup and
+    # leaves an orphaned Neon preview branch; a ~3s hosted job is more reliable.
+    runs-on: self-hosted
     steps:
       - uses: neondatabase/delete-branch-action@v3
         with:
