@@ -7,6 +7,7 @@ const estimateFindUnique = vi.fn();
 const estimateCreate = vi.fn();
 const txEstimateCreate = vi.fn();
 const estimateUpdateMany = vi.fn();
+const estimateUpdate = vi.fn();
 const estimateDeleteMany = vi.fn();
 const estimateCount = vi.fn();
 const lineItemDeleteMany = vi.fn();
@@ -19,6 +20,7 @@ const eventCount = vi.fn();
 const txMock: {
   estimate: {
     updateMany: typeof estimateUpdateMany;
+    update: typeof estimateUpdate;
     count: typeof estimateCount;
     findFirst: typeof estimateFindFirst;
     create: typeof txEstimateCreate;
@@ -38,6 +40,7 @@ const txMock: {
 } = {
   estimate: {
     updateMany: estimateUpdateMany,
+    update: estimateUpdate,
     count: estimateCount,
     findFirst: estimateFindFirst,
     create: txEstimateCreate,
@@ -204,7 +207,14 @@ describe("createEstimate — org defaults", () => {
 describe("saveEstimate", () => {
   it("updates only top-level fields when no lineItems provided", async () => {
     estimateUpdateMany.mockResolvedValue({ count: 1 });
-    estimateFindFirst.mockResolvedValue({ id: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
 
     await saveEstimate(1, "org1", { status: "sent" });
 
@@ -241,7 +251,14 @@ describe("saveEstimate", () => {
 
   it("replaces line items wholesale when lineItems provided", async () => {
     estimateCount.mockResolvedValue(1);
-    estimateFindFirst.mockResolvedValue({ id: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
 
     await saveEstimate(1, "org1", {
       lineItems: [
@@ -261,6 +278,58 @@ describe("saveEstimate", () => {
     });
     expect(lineItemCreateMany).toHaveBeenCalledWith({
       data: [expect.objectContaining({ estimateId: 1, name: "Tile" })],
+    });
+  });
+});
+
+describe("saveEstimate — total denormalization", () => {
+  it("recomputes and stores total from line items after save", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [
+        {
+          id: 1,
+          name: "Tile",
+          rate: 10,
+          qtyMode: "manual",
+          qty: 5,
+          wastePct: 0,
+          unitLabel: "ft²",
+          linkedRoomIds: [],
+          sortOrder: 0,
+        },
+      ],
+      siteMeasure: { items: [] },
+    });
+
+    await saveEstimate(1, "org1", { markupPct: 0 });
+
+    expect(estimateUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { total: 50 },
+    });
+  });
+
+  it("stores null total when the estimate has no line items", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
+
+    await saveEstimate(1, "org1", { markupPct: 0 });
+
+    expect(estimateUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { total: null },
     });
   });
 });

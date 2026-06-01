@@ -1,10 +1,41 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { EstimateHasEventsError, EstimateLockedError } from "@/lib/api/errors";
+import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { prisma } from "@/lib/prisma";
 
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
+}
+
+/** Minimal hydrate shape `syncEstimateTotal` needs — matches the input of
+ *  `fromPrismaEstimate` (markup/fee/deposit rates + lineItems + siteMeasure
+ *  items). Any of the standard estimate includes that bring lineItems and
+ *  siteMeasure.items satisfies this. */
+type HydratedForTotal = {
+  markupPct: number;
+  convenienceFeeRate: number;
+  depositPct: number;
+  lineItems: Parameters<typeof fromPrismaEstimate>[0]["lineItems"];
+  siteMeasure: {
+    items: Parameters<typeof fromPrismaEstimate>[0]["siteMeasure"]["items"];
+  };
+};
+
+/** Recompute and persist Estimate.total inside an open transaction.
+ *  `hydrated` must include lineItems and siteMeasure.items. Returns the
+ *  computed total (null when there are no line items). */
+async function syncEstimateTotal(
+  tx: Prisma.TransactionClient,
+  estimateId: number,
+  hydrated: HydratedForTotal
+): Promise<number | null> {
+  const total =
+    hydrated.lineItems.length === 0
+      ? null
+      : computeEstimateView(fromPrismaEstimate(hydrated)).total;
+  await tx.estimate.update({ where: { id: estimateId }, data: { total } });
+  return total;
 }
 
 export type EstimateWithSiteMeasureSummary = Prisma.EstimateGetPayload<{
@@ -295,7 +326,7 @@ export async function saveEstimate(
       }
     }
 
-    return tx.estimate.findFirst({
+    const result = await tx.estimate.findFirst({
       where: { id, orgId },
       include: {
         siteMeasure: {
@@ -315,6 +346,11 @@ export async function saveEstimate(
         revisedBy: { select: { id: true, estimateNumber: true } },
       },
     });
+    if (!result) return null;
+
+    // Keep the denormalized Estimate.total in sync with the line items.
+    const total = await syncEstimateTotal(tx, id, result);
+    return { ...result, total };
   });
 }
 
@@ -420,6 +456,16 @@ export async function reviseEstimate(
         },
       },
     });
+
+    // Seed the denormalized Estimate.total on the cloned draft.
+    const hydrated = await tx.estimate.findFirst({
+      where: { id: created.id },
+      include: {
+        lineItems: true,
+        siteMeasure: { select: { items: true } },
+      },
+    });
+    if (hydrated) await syncEstimateTotal(tx, created.id, hydrated);
 
     return { id: created.id };
   });
