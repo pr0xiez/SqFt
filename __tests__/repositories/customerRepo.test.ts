@@ -59,6 +59,7 @@ describe("listCustomers", () => {
     expect(res.items.map((c) => c.id)).toEqual([3, 1]); // raw id order, not findMany order
     expect(res.total).toBe(2);
     expect(res.facets["source:phone"]).toBe(1);
+    expect(res.facets["source:all"]).toBe(2);
     expect(res.facets["pipeline:open"]).toBe(1);
     expect(res.summary).toEqual({ openEstimates: 4, won: 1, withOpen: 2 });
   });

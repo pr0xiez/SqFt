@@ -216,7 +216,13 @@ export async function listCustomers(
     .filter(Boolean) as CustomerWithCount[];
 
   const facets: Record<string, number> = {};
-  for (const r of sourceFacetRows) facets[`source:${r.key}`] = Number(r.count);
+  let sourceAll = 0;
+  for (const r of sourceFacetRows) {
+    const n = Number(r.count);
+    facets[`source:${r.key}`] = n;
+    sourceAll += n;
+  }
+  facets["source:all"] = sourceAll;
   for (const r of pipelineFacetRows) {
     facets[`pipeline:${r.key}`] = Number(r.count);
   }
