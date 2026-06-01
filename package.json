@@ -7,6 +7,7 @@
     "build": "prisma generate && next build --webpack",
     "start": "next start",
     "seed:dev": "dotenv -e .env -- npx tsx prisma/seed.ts",
+    "backfill:estimate-total": "dotenv -e .env -- npx tsx scripts/backfillEstimateTotal.ts",
     "seed:prd": "dotenv -e .env.prd.local -- npx tsx prisma/seed.ts",
     "migrate:dev": "dotenv -e .env -- prisma migrate deploy",
     "migrate:prd": "dotenv -e .env.prd.local -- prisma migrate deploy",
