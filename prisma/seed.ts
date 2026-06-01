@@ -7,12 +7,34 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../app/generated/prisma/client";
+import { computeEstimateView, fromPrismaEstimate } from "../lib/estimateView";
 import { createOrganization } from "../lib/onboarding/createOrganization";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is not set");
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
+
+/** Populate the denormalized Estimate.total on a seeded estimate, mirroring
+ *  syncEstimateTotal in lib/repositories/estimateRepo.ts — null when there are
+ *  no line items, else computeEstimateView(fromPrismaEstimate(...)).total. */
+async function setEstimateTotal(estimateId: number) {
+  const hydrated = await prisma.estimate.findUniqueOrThrow({
+    where: { id: estimateId },
+    select: {
+      markupPct: true,
+      convenienceFeeRate: true,
+      depositPct: true,
+      lineItems: true,
+      siteMeasure: { select: { items: true } },
+    },
+  });
+  const total =
+    hydrated.lineItems.length === 0
+      ? null
+      : computeEstimateView(fromPrismaEstimate(hydrated)).total;
+  await prisma.estimate.update({ where: { id: estimateId }, data: { total } });
+}
 
 async function main() {
   console.log("🌱 Seeding demo data…");
@@ -1097,6 +1119,23 @@ async function main() {
   console.log(
     `  ✓ Declined estimate #${declinedEstimate.estimateNumber} → revised draft #${revisedEstimate.estimateNumber}`
   );
+
+  // Populate the denormalized Estimate.total on every seeded estimate, so the
+  // list view's total column / sort has data without a separate backfill.
+  for (const est of [
+    q5001,
+    q5002,
+    q5003,
+    q5004,
+    sentEstimate,
+    acceptedEstimate,
+    viewedEstimate,
+    declinedEstimate,
+    revisedEstimate,
+  ]) {
+    await setEstimateTotal(est.id);
+  }
+  console.log("  ✓ Estimate.total populated");
 
   // Bump the org counters past the seeded values so newly created records
   // start fresh sequences.
