@@ -18,7 +18,15 @@ export function DashboardView() {
   const { data: session } = useSession();
   const { data: kpis } = useDashboardKPIs();
   const { data: revenue } = useDashboardRevenue();
-  const { data: siteMeasures = [] } = useSiteMeasures();
+  const { data: siteMeasuresData } = useSiteMeasures({
+    page: 1,
+    perPage: 25,
+    sort: "date",
+    dir: "desc",
+    q: "",
+    status: "all",
+  });
+  const siteMeasures = siteMeasuresData?.items ?? [];
   const { data: events = [] } = useEvents();
   const [greeting, setGreeting] = useState("");
   const [dateLabel, setDateLabel] = useState("");

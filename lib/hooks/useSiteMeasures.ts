@@ -1,6 +1,12 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { SortDirection } from "@/lib/sort";
 import type { RoomItem } from "@/lib/utils";
 
 export interface SiteMeasureEstimateSummary {
@@ -44,8 +50,36 @@ export interface UpdateSiteMeasureInput {
   items?: RoomItem[];
 }
 
-async function fetchSiteMeasures(): Promise<SiteMeasure[]> {
-  const res = await fetch("/api/site-measures");
+export interface SiteMeasureListParams {
+  page: number;
+  perPage: number;
+  sort: string;
+  dir: SortDirection;
+  q: string;
+  status: string;
+}
+
+export interface SiteMeasureListResponse {
+  items: SiteMeasure[];
+  total: number;
+  facets: Record<string, number>;
+}
+
+function siteMeasuresQueryString(p: SiteMeasureListParams): string {
+  const sp = new URLSearchParams();
+  sp.set("page", String(p.page));
+  sp.set("perPage", String(p.perPage));
+  sp.set("sort", p.sort);
+  sp.set("dir", p.dir);
+  if (p.q) sp.set("q", p.q);
+  if (p.status && p.status !== "all") sp.set("status", p.status);
+  return sp.toString();
+}
+
+async function fetchSiteMeasures(
+  p: SiteMeasureListParams
+): Promise<SiteMeasureListResponse> {
+  const res = await fetch(`/api/site-measures?${siteMeasuresQueryString(p)}`);
   if (!res.ok) throw new Error("Failed to fetch siteMeasures");
   return res.json();
 }
@@ -56,8 +90,12 @@ async function fetchSiteMeasure(id: number): Promise<SiteMeasure> {
   return res.json();
 }
 
-export function useSiteMeasures() {
-  return useQuery({ queryKey: ["siteMeasures"], queryFn: fetchSiteMeasures });
+export function useSiteMeasures(params: SiteMeasureListParams) {
+  return useQuery({
+    queryKey: ["siteMeasures", params],
+    queryFn: () => fetchSiteMeasures(params),
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useSiteMeasure(id: number) {

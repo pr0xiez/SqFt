@@ -1,11 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import {
-  filterSiteMeasures,
-  type SiteMeasureStatus,
-} from "@/components/siteMeasures/filterSiteMeasures";
+import { useState } from "react";
+import type { SiteMeasureStatus } from "@/components/siteMeasures/filterSiteMeasures";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -13,9 +10,10 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { cn } from "@/lib/cn";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useSiteMeasures } from "@/lib/hooks/useSiteMeasures";
-import { paginate, useTableQueryState } from "@/lib/hooks/useTableQueryState";
-import { cycleSort, sortBy } from "@/lib/sort";
+import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
+import { cycleSort } from "@/lib/sort";
 
 const STATUS_FILTERS: { value: SiteMeasureStatus; label: string }[] = [
   { value: "all", label: "All" },
@@ -28,7 +26,6 @@ type SortKey = "id" | "customer" | "date";
 
 export function SiteMeasureListView() {
   const router = useRouter();
-  const { data: siteMeasures = [], isLoading } = useSiteMeasures();
   const [query, setQueryState] = useState<string>("");
   const [status, setStatusState] = useState<SiteMeasureStatus>("all");
 
@@ -56,45 +53,33 @@ export function SiteMeasureListView() {
     setPage(1);
   };
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<SiteMeasureStatus, number> = {
-      all: siteMeasures.length,
-      empty: 0,
-      measured: 0,
-      estimated: 0,
-    };
-    for (const e of siteMeasures) {
-      const roomCount = (e.items ?? []).filter((i) => i.type === "room").length;
-      const estimateCount = e.estimates?.length ?? 0;
-      if (roomCount === 0) counts.empty += 1;
-      else if (estimateCount === 0) counts.measured += 1;
-      else counts.estimated += 1;
-    }
-    return counts;
-  }, [siteMeasures]);
-
-  const filtered = useMemo(
-    () => filterSiteMeasures(siteMeasures, query, status),
-    [siteMeasures, query, status]
-  );
-
-  const sorted = useMemo(
-    () =>
-      sortBy(filtered, sort, {
-        id: (e) => e.id,
-        customer: (e) => e.location?.customer?.name ?? e.title ?? "",
-        date: (e) => new Date(e.date),
-      }),
-    [filtered, sort]
-  );
-
-  const { slice, safePage, total } = paginate(sorted, page, perPage);
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const sortKey = sort?.key ?? "date";
+  const sortDir = sort?.direction ?? "desc";
+  const { data, isLoading } = useSiteMeasures({
+    page,
+    perPage,
+    sort: sortKey,
+    dir: sortDir,
+    q: debouncedQuery,
+    status,
+  });
+  const siteMeasures = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const facets = data?.facets ?? {};
+  const allCount = facets.all ?? 0;
+  const statusCounts = {
+    all: allCount,
+    empty: facets.empty ?? 0,
+    measured: facets.measured ?? 0,
+    estimated: facets.estimated ?? 0,
+  } as Record<SiteMeasureStatus, number>;
 
   const handleSort = (key: SortKey) => {
     setSort(cycleSort(sort, key, key === "date" ? "desc" : "asc"));
   };
 
-  const isNarrowed = filtered.length !== siteMeasures.length;
+  const isNarrowed = total !== allCount;
   const rowPad = ROW_PADDING[density];
 
   return (
@@ -104,8 +89,7 @@ export function SiteMeasureListView() {
           Site Measures
         </h1>
         <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
-          {siteMeasures.length} site measure
-          {siteMeasures.length === 1 ? "" : "s"}
+          {allCount} site measure{allCount === 1 ? "" : "s"}
         </div>
       </div>
 
@@ -132,7 +116,7 @@ export function SiteMeasureListView() {
         />
         {isNarrowed && (
           <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums">
-            {filtered.length} of {siteMeasures.length}
+            {total} of {allCount}
           </span>
         )}
       </div>
@@ -165,15 +149,15 @@ export function SiteMeasureListView() {
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Loading…
           </div>
-        ) : siteMeasures.length === 0 ? (
+        ) : allCount === 0 ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             No site measures yet. Create one from a customer record.
           </div>
-        ) : filtered.length === 0 ? (
+        ) : total === 0 ? (
           <EmptyState noun="site measure" query={query} />
         ) : (
           <>
-            {slice.map((est) => (
+            {siteMeasures.map((est) => (
               <button
                 key={est.id}
                 type="button"
@@ -216,7 +200,7 @@ export function SiteMeasureListView() {
             ))}
             <Pagination
               total={total}
-              page={safePage}
+              page={page}
               perPage={perPage}
               onPageChange={setPage}
               onPerPageChange={setPerPage}
