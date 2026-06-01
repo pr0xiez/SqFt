@@ -1,6 +1,65 @@
+import type { APIRequestContext } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
-import { createCustomerAndEstimate } from "./fixtures/seed";
+import {
+  createCustomer,
+  createCustomerAndEstimate,
+  createEstimate,
+  createSiteMeasure,
+  reloadFresh,
+} from "./fixtures/seed";
+
+/**
+ * True only for the list endpoint with a query string
+ * (`/api/site-measures?…`), never the detail call
+ * (`/api/site-measures/{id}`).
+ */
+function isListRequest(url: string): boolean {
+  return url.includes("/api/site-measures?");
+}
+
+/**
+ * Add a single rect room to a site measure so it falls in the "measured"
+ * bucket (rooms, no estimate). The PATCH renumbers item ids server-side, but
+ * we don't need the ids back here.
+ */
+async function addRoom(
+  request: APIRequestContext,
+  siteMeasureId: number
+): Promise<void> {
+  const res = await request.patch(`/api/site-measures/${siteMeasureId}`, {
+    data: {
+      items: [
+        {
+          id: 1,
+          type: "room",
+          name: "Kitchen",
+          shape: "rect",
+          w: 10,
+          l: 12,
+          note: "",
+          sortOrder: 0,
+        },
+      ],
+    },
+  });
+  expect(res.ok()).toBeTruthy();
+}
+
+/**
+ * Seed a site measure in the "estimated" bucket for `customerName`: it has at
+ * least one room AND an estimate. Returns the new site measure id.
+ */
+async function seedEstimatedSiteMeasure(
+  request: APIRequestContext,
+  customerName: string
+): Promise<number> {
+  const customer = await createCustomer(request, { name: customerName });
+  const sm = await createSiteMeasure(request, customer.id);
+  await addRoom(request, sm.id);
+  await createEstimate(request, sm.id);
+  return sm.id;
+}
 
 test.describe("15.1 SiteMeasures list page", () => {
   test("15.1.1 seeded siteMeasure appears in the list", async ({ browser }) => {
@@ -23,8 +82,10 @@ test.describe("15.1 SiteMeasures list page", () => {
       .poll(
         async () => {
           const res = await ctx.request.get("/api/site-measures");
-          const list = (await res.json()) as Array<{ id: number }>;
-          return list.some((e) => e.id === siteMeasureId);
+          // The list endpoint now returns a paginated envelope
+          // ({ items, total, facets }) rather than a bare array.
+          const body = (await res.json()) as { items: Array<{ id: number }> };
+          return body.items.some((e) => e.id === siteMeasureId);
         },
         { timeout: 10000 }
       )
@@ -33,12 +94,20 @@ test.describe("15.1 SiteMeasures list page", () => {
     await page.goto("/site-measures");
     // Wait for loading indicator to disappear.
     await expect(page.getByText("Loading…")).toHaveCount(0);
-    await expect(
-      page
-        .locator("button")
-        .filter({ hasText: `#${siteMeasureId}` })
-        .first()
-    ).toBeVisible({ timeout: 10000 });
+    // When this spec runs after others on the shared worker org, the page can
+    // hydrate from a stale React Query cache (the Dashboard primed
+    // useSiteMeasures during login) and render the empty branch before
+    // refetching. The API poll above already proved the row exists, so force a
+    // cache-clearing reload before asserting on the row.
+    const row = page
+      .locator("button")
+      .filter({ hasText: `#${siteMeasureId}` })
+      .first();
+    await expect(async () => {
+      await reloadFresh(page);
+      await expect(page.getByText("Loading…")).toHaveCount(0);
+      await expect(row).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 20000 });
     await ctx.close();
   });
 
@@ -55,5 +124,118 @@ test.describe("15.1 SiteMeasures list page", () => {
       page.locator("button").filter({ hasText: `#${siteMeasureId}` })
     ).toHaveCount(0);
     await ctxA.close();
+  });
+});
+
+test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
+  test("15.2.1 list request carries page & perPage params", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+
+    const [listResp] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          isListRequest(r.url()) &&
+          r.request().method() === "GET" &&
+          r.status() === 200
+      ),
+      page.goto("/site-measures"),
+    ]);
+
+    const listUrl = listResp.url();
+    expect(listUrl).toMatch(/[?&]page=\d+/);
+    expect(listUrl).toMatch(/[?&]perPage=\d+/);
+    await ctx.close();
+  });
+
+  test("15.2.2 status pill filters server-side with status=estimated", async ({
+    browser,
+  }) => {
+    // Avoid the literal pill labels in customer names so a text lookup can't
+    // confuse a seeded row with a status pill.
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const estimatedName = `Greenfield ${suffix}`;
+    const emptyName = `Birchwood ${suffix}`;
+
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+
+    // One site measure in the "estimated" bucket (rooms + estimate) and one in
+    // the "empty" bucket (no rooms), with distinctive customer names.
+    await seedEstimatedSiteMeasure(ctx.request, estimatedName);
+    const emptyCust = await createCustomer(ctx.request, { name: emptyName });
+    await createSiteMeasure(ctx.request, emptyCust.id);
+
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/site-measures");
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    // Both rows are present under the default "All" filter.
+    await expect(page.getByText(estimatedName)).toBeVisible();
+    await expect(page.getByText(emptyName)).toBeVisible();
+
+    // Clicking "Estimated" issues a request carrying status=estimated.
+    const [filterResp] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          isListRequest(r.url()) &&
+          r.url().includes("status=estimated") &&
+          r.status() === 200
+      ),
+      page
+        .getByRole("button", { name: /^Estimated/ })
+        .first()
+        .click(),
+    ]);
+    expect(filterResp.url()).toContain("status=estimated");
+
+    // The estimated row remains; the empty (no-rooms) row drops out.
+    await expect(page.getByText(estimatedName)).toBeVisible();
+    await expect(page.getByText(emptyName)).toHaveCount(0);
+    await ctx.close();
+  });
+
+  test("15.2.3 search issues a debounced request carrying q=", async ({
+    browser,
+  }) => {
+    // Use a single-token search term (no spaces) so the encoded `q=` value is
+    // stable: URLSearchParams would encode a space as `+`, not `%20`.
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const term = `Zephyr${suffix.replace(/-/g, "")}`;
+    const targetName = `${term} Flooring`;
+    const otherName = `Other ${suffix}`;
+
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+
+    const targetCust = await createCustomer(ctx.request, { name: targetName });
+    await createSiteMeasure(ctx.request, targetCust.id);
+    const otherCust = await createCustomer(ctx.request, { name: otherName });
+    await createSiteMeasure(ctx.request, otherCust.id);
+
+    await page.evaluate(() => localStorage.clear());
+    await page.goto("/site-measures");
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+    await expect(page.getByText(targetName)).toBeVisible();
+
+    const searchInput = page.locator('input[placeholder^="Search by"]');
+
+    // Typing fires a debounced (~300ms) request carrying q=<term>.
+    const [searchResp] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          isListRequest(r.url()) &&
+          r.url().includes(`q=${term}`) &&
+          r.status() === 200
+      ),
+      searchInput.fill(term),
+    ]);
+    expect(searchResp.url()).toContain(`q=${term}`);
+
+    // The list narrows to the matching customer; the other drops out.
+    await expect(page.getByText(targetName)).toBeVisible();
+    await expect(page.getByText(otherName)).toHaveCount(0);
+    await ctx.close();
   });
 });
