@@ -48,6 +48,35 @@ Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
 `lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).
 
+## Estimate Draft
+
+The editable, not-yet-reconciled working copy of an estimate's inputs while a
+lead is building it: the `lineItems` plus the three money fields
+(`convenienceFeeRate`, `markupPct`, `depositPct`). The write-side counterpart
+to **Estimate View** — Draft is what you *edit*, View is what you *read* (the
+computed totals derived from a Draft).
+
+Held in **storage form**, identical to the Prisma columns and to
+`EstimateInput`: `convenienceFeeRate` and `depositPct` are decimals (`0.03`,
+`0.5`), `markupPct` is a percentage (`20`). Percent ↔ decimal conversion for
+fee/deposit happens only in the on-screen input widgets, never inside the
+Draft, so a Draft can be handed straight to `computeEstimateView` and straight
+into a save patch with no translation.
+
+The Draft's mutation semantics live in a pure reducer (`lib/estimateDraft/`):
+`(draft, action) → { draft, save }`. Actions are the editing operations —
+add / update / remove a line item, apply a template (copies
+name/description/rate/unitLabel only — never qty or room scope), set a money
+field, and commit-subtotal (back-calculates `rate = subtotal / effectiveQty`;
+the action carries `effectiveQty` since it derives from the View, not the
+Draft). Each transition also returns the **save patch** to persist, or `null`
+when nothing should be saved — that is how the two save triggers are encoded:
+structural edits emit a patch immediately, plain text edits (name/description)
+emit `null` and are persisted on blur. The React layer
+(`LineItemSection`/`EstimateBuilder`) is a thin adapter: it seeds the Draft
+once at mount (no resync from server refetch), dispatches actions, and forwards
+any emitted patch to `onSave`.
+
 ## Estimate Approval
 
 Approval is **one-click**: the customer opens the public estimate-review page

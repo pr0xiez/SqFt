@@ -20,10 +20,13 @@ interface Props {
   rooms: RoomItem[];
   templates: LineItemTemplate[];
   readOnly: boolean;
+  /** Committed structured-field edits (qty, rate, unitLabel) — persist now. */
   onUpdate: (patch: Partial<LineItemCalc>) => void;
+  /** In-progress text edits (name, description) — local until blur. */
+  onEditText: (patch: Partial<LineItemCalc>) => void;
   onRemove: () => void;
   onCommitSubtotal: (next: number | null) => void;
-  onSaveBlur: () => void; // save({ lineItems: items })
+  onSaveBlur: () => void; // flush pending text edits
   onOpenPicker: (rect: DOMRect) => void;
   onApplyTemplate: (templateId: number) => void;
 }
@@ -36,6 +39,7 @@ export function LineItemRow({
   templates,
   readOnly,
   onUpdate,
+  onEditText,
   onRemove,
   onCommitSubtotal,
   onSaveBlur,
@@ -63,7 +67,7 @@ export function LineItemRow({
             <input
               type="text"
               value={li.name}
-              onChange={(e) => onUpdate({ name: e.target.value })}
+              onChange={(e) => onEditText({ name: e.target.value })}
               onBlur={onSaveBlur}
               disabled={readOnly}
               className="text-[14px] font-[500] flex-1 min-w-0 border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default"
@@ -91,7 +95,7 @@ export function LineItemRow({
           <textarea
             value={li.description ?? ""}
             onChange={(e) =>
-              onUpdate({
+              onEditText({
                 description: e.target.value || null,
               })
             }
