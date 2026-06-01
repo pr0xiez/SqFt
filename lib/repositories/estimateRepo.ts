@@ -1,8 +1,11 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
+import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import { EstimateHasEventsError, EstimateLockedError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
@@ -38,26 +41,28 @@ async function syncEstimateTotal(
   return total;
 }
 
+const ESTIMATE_LIST_INCLUDE = {
+  siteMeasure: {
+    select: {
+      id: true,
+      siteMeasureNumber: true,
+      title: true,
+      location: {
+        select: {
+          id: true,
+          address: true,
+          customer: { select: { id: true, name: true } },
+        },
+      },
+      items: { orderBy: { sortOrder: "asc" } },
+    },
+  },
+  lineItems: { orderBy: { sortOrder: "asc" } },
+  _count: { select: { lineItems: true } },
+} satisfies Prisma.EstimateInclude;
+
 export type EstimateWithSiteMeasureSummary = Prisma.EstimateGetPayload<{
-  include: {
-    siteMeasure: {
-      select: {
-        id: true;
-        siteMeasureNumber: true;
-        title: true;
-        location: {
-          select: {
-            id: true;
-            address: true;
-            customer: { select: { id: true; name: true } };
-          };
-        };
-        items: { orderBy: { sortOrder: "asc" } };
-      };
-    };
-    lineItems: { orderBy: { sortOrder: "asc" } };
-    _count: { select: { lineItems: true } };
-  };
+  include: typeof ESTIMATE_LIST_INCLUDE;
 }>;
 
 /** Narrower payload used by listEstimatesForSiteMeasure — no lineItems or siteMeasure.items needed there. */
@@ -142,32 +147,96 @@ export type EstimatePatch = {
   lineItems?: LineItemInput[];
 };
 
-export async function listEstimates(
-  orgId: string
-): Promise<EstimateWithSiteMeasureSummary[]> {
-  return prisma.estimate.findMany({
-    where: { orgId },
-    orderBy: { createdAt: "desc" },
-    include: {
+export type EstimateSortKey =
+  | "number"
+  | "customer"
+  | "siteMeasure"
+  | "total"
+  | "status"
+  | "date";
+
+export interface ListEstimatesParams {
+  page: number;
+  perPage: number;
+  sort: { key: EstimateSortKey; direction: SortDirection };
+  q: string;
+  status: EstimateStatusFilter;
+}
+
+function estimateOrderBy(
+  sort: ListEstimatesParams["sort"]
+): Prisma.EstimateOrderByWithRelationInput {
+  const dir = sort.direction;
+  switch (sort.key) {
+    case "number":
+      return { estimateNumber: dir };
+    case "status":
+      return { status: dir };
+    case "total":
+      return { total: dir };
+    case "customer":
+      return { siteMeasure: { location: { customer: { name: dir } } } };
+    case "siteMeasure":
+      return { siteMeasure: { siteMeasureNumber: dir } };
+    default:
+      return { date: dir };
+  }
+}
+
+function estimateSearchWhere(q: string): Prisma.EstimateWhereInput | null {
+  const cleaned = q.trim().replace(/^#/, "");
+  if (cleaned.length === 0) return null;
+  const or: Prisma.EstimateWhereInput[] = [
+    {
       siteMeasure: {
-        select: {
-          id: true,
-          siteMeasureNumber: true,
-          title: true,
-          location: {
-            select: {
-              id: true,
-              address: true,
-              customer: { select: { id: true, name: true } },
-            },
-          },
-          items: { orderBy: { sortOrder: "asc" } },
+        location: {
+          customer: { name: { contains: cleaned, mode: "insensitive" } },
         },
       },
-      lineItems: { orderBy: { sortOrder: "asc" } },
-      _count: { select: { lineItems: true } },
     },
-  });
+  ];
+  if (/^\d+$/.test(cleaned)) or.push({ estimateNumber: Number(cleaned) });
+  return { OR: or };
+}
+
+const ESTIMATE_STATUSES = ["draft", "sent", "approved", "declined"] as const;
+
+export async function listEstimates(
+  orgId: string,
+  params: ListEstimatesParams
+): Promise<Paginated<EstimateWithSiteMeasureSummary>> {
+  const where: Prisma.EstimateWhereInput = { orgId };
+  if (params.status !== "all") where.status = params.status;
+  const search = estimateSearchWhere(params.q);
+  if (search) Object.assign(where, search);
+
+  const [items, total, grouped] = await prisma.$transaction([
+    prisma.estimate.findMany({
+      where,
+      orderBy: estimateOrderBy(params.sort),
+      skip: (params.page - 1) * params.perPage,
+      take: params.perPage,
+      include: ESTIMATE_LIST_INCLUDE,
+    }),
+    prisma.estimate.count({ where }),
+    prisma.estimate.groupBy({
+      by: ["status"],
+      where: { orgId },
+      _count: { _all: true },
+      orderBy: undefined,
+    }),
+  ]);
+
+  const facets: Record<string, number> = { all: 0 };
+  for (const s of ESTIMATE_STATUSES) facets[s] = 0;
+  for (const row of grouped) {
+    const count = row._count;
+    const n = typeof count === "object" ? (count._all ?? 0) : 0;
+    facets.all += n;
+    if (row.status in facets) facets[row.status] = n;
+  }
+
+  return { items, total, facets };
 }
 
 export async function listEstimatesForSiteMeasure(
