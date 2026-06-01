@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { filterCustomers } from "@/components/customers/filterCustomers";
+import { useState } from "react";
 import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
@@ -13,18 +12,15 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { SourceBadge } from "@/components/ui/SourceBadge";
 import { cn } from "@/lib/cn";
-import {
-  isOpenEstimate,
-  lastTouchAt,
-  relativeTime,
-} from "@/lib/estimateStatus";
+import { isOpenEstimate } from "@/lib/estimateStatus";
 import {
   type CustomerListEstimateSummary,
   type CustomerListItem,
   useCustomers,
 } from "@/lib/hooks/useCustomers";
-import { paginate, useTableQueryState } from "@/lib/hooks/useTableQueryState";
-import { cycleSort, sortBy } from "@/lib/sort";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
+import { cycleSort } from "@/lib/sort";
 import { sourceName } from "@/lib/utils";
 
 const SOURCES = [
@@ -53,14 +49,13 @@ const PIPELINE_FILTERS = [
 
 type PipelineFilter = (typeof PIPELINE_FILTERS)[number]["id"];
 
-type SortKey = "name" | "source" | "siteMeasures" | "open" | "lastActivity";
+type SortKey = "name" | "source" | "siteMeasures" | "open" | "createdAt";
 
 interface CustomerSummary {
   open: number;
   accepted: number;
   total: number;
   siteMeasures: number;
-  lastActivity: string | null;
 }
 
 function summarize(customer: CustomerListItem): CustomerSummary {
@@ -72,33 +67,21 @@ function summarize(customer: CustomerListItem): CustomerSummary {
   );
   const open = estimates.filter(isOpenEstimate).length;
   const accepted = estimates.filter((q) => q.status === "approved").length;
-  const last =
-    estimates.length > 0
-      ? estimates.map(lastTouchAt).sort().reverse()[0]
-      : (customer.createdAt ?? null);
   return {
     open,
     accepted,
     total: estimates.length,
     siteMeasures: siteMeasures.length,
-    lastActivity: last,
   };
 }
 
-const matchesPipeline = (s: CustomerSummary, p: PipelineFilter) => {
-  if (p === "open") return s.open > 0;
-  if (p === "accepted") return s.accepted > 0;
-  if (p === "cold") return s.total === 0;
-  return true;
-};
-
 export function CustomerListView() {
   const router = useRouter();
-  const { data: customers = [], isLoading } = useCustomers();
   const [filter, setFilterState] = useState<string>("all");
   const [pipeline, setPipelineState] = useState<PipelineFilter>("any");
   const [query, setQueryState] = useState<string>("");
   const [panelOpen, setPanelOpen] = useState(false);
+  const debouncedQuery = useDebouncedValue(query, 300);
 
   const {
     sort,
@@ -111,8 +94,18 @@ export function CustomerListView() {
     setDensity,
   } = useTableQueryState<SortKey>({
     storageKey: "customers",
-    validSortKeys: ["name", "source", "siteMeasures", "open", "lastActivity"],
-    defaultSort: { key: "lastActivity", direction: "desc" },
+    validSortKeys: ["name", "source", "siteMeasures", "open", "createdAt"],
+    defaultSort: { key: "createdAt", direction: "desc" },
+  });
+
+  const { data, isLoading } = useCustomers({
+    page,
+    perPage,
+    sort: sort?.key ?? "createdAt",
+    dir: sort?.direction ?? "desc",
+    q: debouncedQuery,
+    source: filter,
+    pipeline,
   });
 
   const setQuery = (v: string) => {
@@ -128,88 +121,28 @@ export function CustomerListView() {
     setPage(1);
   };
 
-  const summarized = useMemo(
-    () =>
-      customers.map((c) => ({
-        customer: c,
-        summary: summarize(c),
-      })),
-    [customers]
-  );
+  const summarized = (data?.items ?? []).map((c) => ({
+    customer: c,
+    summary: summarize(c),
+  }));
 
-  const totals = useMemo(() => {
-    let openEstimates = 0;
-    let won = 0;
-    let withOpen = 0;
-    for (const { summary } of summarized) {
-      openEstimates += summary.open;
-      won += summary.accepted;
-      if (summary.open > 0) withOpen += 1;
-    }
-    return { openEstimates, won, withOpen };
-  }, [summarized]);
+  const sourceCounts: Record<string, number> = {};
+  for (const s of SOURCES) sourceCounts[s] = data?.facets[`source:${s}`] ?? 0;
+  const pipelineCounts = {
+    any: data?.facets["pipeline:any"] ?? 0,
+    open: data?.facets["pipeline:open"] ?? 0,
+    accepted: data?.facets["pipeline:accepted"] ?? 0,
+    cold: data?.facets["pipeline:cold"] ?? 0,
+  };
 
-  // Single pass: produces the filtered rows plus the pill counts for *other*
-  // dimensions (so each pill count stays meaningful as users toggle filters).
-  const { filtered, sourceCounts, pipelineCounts } = useMemo(() => {
-    const base = filterCustomers(
-      summarized.map((s) => s.customer),
-      query,
-      filter
-    );
-    const baseIds = new Set(base.map((c) => c.id));
-
-    const sourceCounts: Record<string, number> = { all: 0 };
-    const pipelineCounts: Record<PipelineFilter, number> = {
-      any: 0,
-      open: 0,
-      accepted: 0,
-      cold: 0,
-    };
-    const filtered: typeof summarized = [];
-
-    for (const row of summarized) {
-      const { customer, summary } = row;
-      const inQuery = baseIds.has(customer.id);
-      const inSource = filter === "all" || customer.source === filter;
-      const inPipeline = matchesPipeline(summary, pipeline);
-
-      if (inQuery && inPipeline) {
-        sourceCounts.all += 1;
-        sourceCounts[customer.source] =
-          (sourceCounts[customer.source] ?? 0) + 1;
-      }
-      if (inQuery && inSource) {
-        pipelineCounts.any += 1;
-        if (summary.open > 0) pipelineCounts.open += 1;
-        if (summary.accepted > 0) pipelineCounts.accepted += 1;
-        if (summary.total === 0) pipelineCounts.cold += 1;
-      }
-      if (inQuery && inSource && inPipeline) filtered.push(row);
-    }
-    return { filtered, sourceCounts, pipelineCounts };
-  }, [summarized, query, filter, pipeline]);
-
-  const sorted = useMemo(
-    () =>
-      sortBy(filtered, sort, {
-        name: (r) => r.customer.name,
-        source: (r) => r.customer.source,
-        siteMeasures: (r) => r.summary.siteMeasures,
-        open: (r) => r.summary.open,
-        lastActivity: (r) => r.summary.lastActivity ?? "",
-      }),
-    [filtered, sort]
-  );
-
-  const { slice, safePage, total } = paginate(sorted, page, perPage);
+  const totals = data?.summary ?? { openEstimates: 0, won: 0, withOpen: 0 };
+  const total = data?.total ?? 0;
 
   const handleSort = (key: SortKey) => {
-    setSort(cycleSort(sort, key, key === "lastActivity" ? "desc" : "asc"));
+    setSort(cycleSort(sort, key, key === "createdAt" ? "desc" : "asc"));
   };
 
   const rowPad = ROW_PADDING[density];
-  const isNarrowed = filtered.length !== customers.length;
 
   return (
     <>
@@ -220,9 +153,7 @@ export function CustomerListView() {
           </h1>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-2.5 uppercase tracking-[.08em]">
             <span>
-              <span className="text-[var(--ink)] font-[600]">
-                {customers.length}
-              </span>{" "}
+              <span className="text-[var(--ink)] font-[600]">{total}</span>{" "}
               total
             </span>
             <span className="w-px h-3 bg-[var(--line-2)]" />
@@ -296,16 +227,11 @@ export function CustomerListView() {
               {p.label}
             </FilterPill>
           ))}
-          {isNarrowed && (
-            <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] ml-auto tabular-nums">
-              {filtered.length} of {customers.length}
-            </span>
-          )}
         </div>
       </div>
 
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_120px_70px_70px_120px_90px] bg-[var(--surface-2)] border-b border-[var(--line)] sticky top-0 z-[1]">
+        <div className="hidden md:grid grid-cols-[1fr_120px_70px_70px_90px] bg-[var(--surface-2)] border-b border-[var(--line)] sticky top-0 z-[1]">
           <SortableHeader
             sortKey="name"
             label="Customer"
@@ -334,12 +260,6 @@ export function CustomerListView() {
             align="right"
             className="tabular-nums"
           />
-          <SortableHeader
-            sortKey="lastActivity"
-            label="Last activity"
-            sort={sort}
-            onSort={handleSort}
-          />
           <div className="px-3.5 py-2.5" />
         </div>
 
@@ -347,11 +267,11 @@ export function CustomerListView() {
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Loading…
           </div>
-        ) : filtered.length === 0 ? (
+        ) : total === 0 ? (
           <EmptyState noun="customer" query={query} />
         ) : (
           <>
-            {slice.map(({ customer: c, summary }) => {
+            {summarized.map(({ customer: c, summary }) => {
               const estCount = summary.siteMeasures;
               const won = summary.accepted > 0;
               return (
@@ -360,7 +280,7 @@ export function CustomerListView() {
                   type="button"
                   onClick={() => router.push(`/customers/${c.id}`)}
                   className={cn(
-                    "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_120px_70px_70px_120px_90px]",
+                    "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_120px_70px_70px_90px]",
                     "items-center border-b border-[var(--line)] last:border-b-0",
                     "cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]",
                     "border-l-[3px]",
@@ -414,18 +334,6 @@ export function CustomerListView() {
                   >
                     {summary.open || "—"}
                   </div>
-                  <div className={cn("px-3.5 hidden md:block min-w-0", rowPad)}>
-                    <div className="font-[var(--font-mono)] text-[11px] text-[var(--ink-2)] truncate">
-                      {summary.lastActivity
-                        ? relativeTime(summary.lastActivity)
-                        : "—"}
-                    </div>
-                    {summary.total > 0 && (
-                      <div className="font-[var(--font-mono)] text-[9.5px] text-[var(--muted)] uppercase tracking-[.08em] mt-0.5">
-                        {summary.total} estimate{summary.total === 1 ? "" : "s"}
-                      </div>
-                    )}
-                  </div>
                   <div className={cn("px-3.5 hidden md:block", rowPad)}>
                     <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
                       Open →
@@ -436,7 +344,7 @@ export function CustomerListView() {
             })}
             <Pagination
               total={total}
-              page={safePage}
+              page={page}
               perPage={perPage}
               onPageChange={setPage}
               onPerPageChange={setPerPage}
