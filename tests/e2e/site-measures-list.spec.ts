@@ -169,11 +169,22 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
     await createSiteMeasure(ctx.request, emptyCust.id);
 
     await page.evaluate(() => localStorage.clear());
-    await page.goto("/site-measures");
+    // Wait for the initial list fetch so the seeded rows are in the response
+    // before asserting visibility (avoids a render race on slower CI).
+    await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          isListRequest(r.url()) &&
+          r.request().method() === "GET" &&
+          r.status() === 200
+      ),
+      page.goto("/site-measures"),
+    ]);
     await expect(page.getByText("Loading…")).toHaveCount(0);
-    // Both rows are present under the default "All" filter.
-    await expect(page.getByText(estimatedName)).toBeVisible();
-    await expect(page.getByText(emptyName)).toBeVisible();
+    // Both rows are present under the default "All" filter. Generous timeouts
+    // absorb slower CI hydration after navigation.
+    await expect(page.getByText(estimatedName)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(emptyName)).toBeVisible({ timeout: 15000 });
 
     // Clicking "Estimated" issues a request carrying status=estimated.
     const [filterResp] = await Promise.all([
@@ -191,7 +202,7 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
     expect(filterResp.url()).toContain("status=estimated");
 
     // The estimated row remains; the empty (no-rooms) row drops out.
-    await expect(page.getByText(estimatedName)).toBeVisible();
+    await expect(page.getByText(estimatedName)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(emptyName)).toHaveCount(0);
     await ctx.close();
   });
@@ -215,9 +226,17 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
     await createSiteMeasure(ctx.request, otherCust.id);
 
     await page.evaluate(() => localStorage.clear());
-    await page.goto("/site-measures");
+    await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          isListRequest(r.url()) &&
+          r.request().method() === "GET" &&
+          r.status() === 200
+      ),
+      page.goto("/site-measures"),
+    ]);
     await expect(page.getByText("Loading…")).toHaveCount(0);
-    await expect(page.getByText(targetName)).toBeVisible();
+    await expect(page.getByText(targetName)).toBeVisible({ timeout: 15000 });
 
     const searchInput = page.locator('input[placeholder^="Search by"]');
 
@@ -234,7 +253,7 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
     expect(searchResp.url()).toContain(`q=${term}`);
 
     // The list narrows to the matching customer; the other drops out.
-    await expect(page.getByText(targetName)).toBeVisible();
+    await expect(page.getByText(targetName)).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(otherName)).toHaveCount(0);
     await ctx.close();
   });
