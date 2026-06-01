@@ -67,7 +67,7 @@ export function useTableQueryState<SortKey extends string>(
       storageKeyFor(storageKey, "perPage")
     );
     const n = Number(stored);
-    if (PER_PAGE_OPTIONS.includes(n)) setPerPageState(n);
+    if ((PER_PAGE_OPTIONS as readonly number[]).includes(n)) setPerPageState(n);
   }, [storageKey]);
 
   useEffect(() => {
