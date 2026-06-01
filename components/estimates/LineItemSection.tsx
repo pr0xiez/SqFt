@@ -1,23 +1,24 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { EstimateTotals } from "@/components/estimates/EstimateTotals";
 import { LineItemRow } from "@/components/estimates/LineItemRow";
 import { RoomLinkPicker } from "@/components/estimates/RoomLinkPicker";
+import {
+  type EstimateDraft,
+  type EstimateDraftAction,
+  type EstimateSavePatch,
+  reduceEstimateDraft,
+} from "@/lib/estimateDraft";
 import { computeEstimateView } from "@/lib/estimateView";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
-import type { LineItemCalc, RoomItem } from "@/lib/utils";
+import type { RoomItem } from "@/lib/utils";
 import { QtyMode, roomSqft } from "@/lib/utils";
 
-export interface EstimateSavePatch {
-  lineItems?: LineItemCalc[];
-  convenienceFeeRate?: number;
-  markupPct?: number;
-  depositPct?: number;
-}
+export type { EstimateSavePatch };
 
 interface Props {
-  lineItems: LineItemCalc[];
+  lineItems: EstimateDraft["lineItems"];
   rooms: RoomItem[];
   convenienceFeeRate: number;
   markupPct: number;
@@ -42,99 +43,55 @@ export function LineItemSection({
   templates = [],
   onSave,
 }: Props) {
-  const [items, setItems] = useState<LineItemCalc[]>(initialLineItems);
-  const [feePct, setFeePct] = useState(Math.round(initialFee * 1000) / 10);
-  const [markupPct, setMarkupPct] = useState(initialMarkup);
-  const [depositPctState, setDepositPctState] = useState(
-    Math.round(initialDeposit * 1000) / 10
-  );
+  // Seed the Estimate Draft once at mount (storage form, ≡ Prisma columns).
+  // Intentionally not resynced from server refetch — see CONTEXT.md.
+  const [draft, setDraft] = useState<EstimateDraft>(() => ({
+    lineItems: initialLineItems,
+    convenienceFeeRate: initialFee,
+    markupPct: initialMarkup,
+    depositPct: initialDeposit,
+  }));
   const [picker, setPicker] = useState<{
     lineId: number;
     rect: DOMRect;
   } | null>(null);
 
-  const save = useCallback(
-    async (patch: EstimateSavePatch) => {
-      await onSave(patch);
+  // Mirror the latest draft in a ref so dispatch can run the transition once,
+  // outside render, without a stale closure or a side effect in the updater.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
+  // Run one pure transition: apply the next draft and forward any save patch.
+  // The save policy lives in the reducer; this adapter only routes the result.
+  const dispatch = useCallback(
+    (action: EstimateDraftAction) => {
+      if (readOnly) return;
+      const { draft: next, save } = reduceEstimateDraft(
+        draftRef.current,
+        action
+      );
+      draftRef.current = next;
+      setDraft(next);
+      if (save) onSave(save);
     },
-    [onSave]
+    [readOnly, onSave]
   );
-
-  function addItem() {
-    if (readOnly) return;
-    const newItems: LineItemCalc[] = [
-      ...items,
-      {
-        id: tempLiId(),
-        name: "New line item",
-        description: null,
-        rate: 0,
-        qtyMode: QtyMode.Manual,
-        qty: null,
-        wastePct: 0,
-        unitLabel: "sqft",
-        linkedRoomIds: [],
-        sortOrder: items.length,
-      },
-    ];
-    setItems(newItems);
-    save({ lineItems: newItems });
-  }
-
-  function applyTemplate(id: number, templateId: number) {
-    if (readOnly) return;
-    const tpl = templates.find((t) => t.id === templateId);
-    if (!tpl) return;
-    updateItem(id, {
-      name: tpl.name,
-      description: tpl.description ?? null,
-      rate: tpl.rate,
-      unitLabel: tpl.unitLabel,
-    });
-  }
-
-  function removeItem(id: number) {
-    if (readOnly) return;
-    const newItems = items.filter((i) => i.id !== id);
-    setItems(newItems);
-    save({ lineItems: newItems });
-  }
-
-  function updateItem(id: number, patch: Partial<LineItemCalc>) {
-    if (readOnly) return;
-    const newItems = items.map((item) =>
-      item.id === id ? { ...item, ...patch } : item
-    );
-    setItems(newItems);
-    save({ lineItems: newItems });
-  }
 
   const view = useMemo(
     () =>
       computeEstimateView({
-        lineItems: items,
+        lineItems: draft.lineItems,
         items: rooms,
-        markupPct,
-        convenienceFeeRate: feePct / 100,
-        depositPct: depositPctState / 100,
+        markupPct: draft.markupPct,
+        convenienceFeeRate: draft.convenienceFeeRate,
+        depositPct: draft.depositPct,
       }),
-    [items, rooms, markupPct, feePct, depositPctState]
+    [draft, rooms]
   );
   const lineById = useMemo(
     () => new Map(view.lines.map((l) => [l.id, l])),
     [view.lines]
   );
-
-  /** Commit a new subtotal value by back-calculating rate from effective qty.
-   *  Preserves full precision on rate so qty * rate equals the entered subtotal
-   *  exactly; the rate cell renders via toFixed(2) for display. */
-  function commitSubtotal(li: LineItemCalc, next: number | null) {
-    if (readOnly) return;
-    if (next === null || next < 0) return;
-    const qty = lineById.get(li.id)?.effectiveQty ?? null;
-    if (qty === null || qty === 0) return; // can't back-calculate
-    updateItem(li.id, { rate: next / qty });
-  }
 
   const {
     subtotal,
@@ -144,6 +101,10 @@ export function LineItemSection({
     deposit,
   } = view;
   const margin = total > 0 ? ((total - subtotal) / total) * 100 : 0;
+
+  // EstimateTotals speaks display percentages; the Draft holds storage form.
+  const feePct = Math.round(draft.convenienceFeeRate * 1000) / 10;
+  const depositDisplayPct = Math.round(draft.depositPct * 1000) / 10;
 
   return (
     <div className="space-y-3.5">
@@ -174,12 +135,12 @@ export function LineItemSection({
         </div>
 
         {/* Rows */}
-        {items.length === 0 ? (
+        {draft.lineItems.length === 0 ? (
           <div className="p-6 text-center font-[var(--font-mono)] text-[12px] text-[var(--muted)]">
             No line items yet — add one to begin pricing.
           </div>
         ) : (
-          items.map((li) => {
+          draft.lineItems.map((li) => {
             const lineView = lineById.get(li.id);
             return (
               <LineItemRow
@@ -190,44 +151,59 @@ export function LineItemSection({
                 rooms={rooms}
                 templates={templates}
                 readOnly={readOnly}
-                onUpdate={(patch) => updateItem(li.id, patch)}
-                onRemove={() => removeItem(li.id)}
-                onCommitSubtotal={(next) => commitSubtotal(li, next)}
-                onSaveBlur={() => save({ lineItems: items })}
-                onOpenPicker={(rect) => setPicker({ lineId: li.id, rect })}
-                onApplyTemplate={(templateId) =>
-                  applyTemplate(li.id, templateId)
+                onUpdate={(patch) =>
+                  dispatch({ type: "updateLineItem", id: li.id, patch })
                 }
+                onEditText={(patch) =>
+                  dispatch({ type: "editLineItemText", id: li.id, patch })
+                }
+                onRemove={() => dispatch({ type: "removeLineItem", id: li.id })}
+                onCommitSubtotal={(next) =>
+                  dispatch({
+                    type: "commitSubtotal",
+                    id: li.id,
+                    effectiveQty: lineById.get(li.id)?.effectiveQty ?? null,
+                    nextSubtotal: next,
+                  })
+                }
+                onSaveBlur={() => dispatch({ type: "flush" })}
+                onOpenPicker={(rect) => setPicker({ lineId: li.id, rect })}
+                onApplyTemplate={(templateId) => {
+                  const tpl = templates.find((t) => t.id === templateId);
+                  if (tpl)
+                    dispatch({
+                      type: "applyTemplate",
+                      id: li.id,
+                      template: tpl,
+                    });
+                }}
               />
             );
           })
         )}
 
         {/* Calc section */}
-        {items.length > 0 && (
+        {draft.lineItems.length > 0 && (
           <EstimateTotals
             subtotal={subtotal}
             feePct={feePct}
-            markupPct={markupPct}
-            depositPct={depositPctState}
+            markupPct={draft.markupPct}
+            depositPct={depositDisplayPct}
             feeAmt={feeAmt}
             markupAmt={markupAmt}
             total={total}
             deposit={deposit}
             margin={margin}
             readOnly={readOnly}
-            onCommitFee={(next) => {
-              setFeePct(next);
-              save({ convenienceFeeRate: next / 100 });
-            }}
-            onCommitMarkup={(next) => {
-              setMarkupPct(next);
-              save({ markupPct: next });
-            }}
-            onCommitDeposit={(next) => {
-              setDepositPctState(next);
-              save({ depositPct: next / 100 });
-            }}
+            onCommitFee={(next) =>
+              dispatch({ type: "setConvenienceFeeRate", value: next / 100 })
+            }
+            onCommitMarkup={(next) =>
+              dispatch({ type: "setMarkupPct", value: next })
+            }
+            onCommitDeposit={(next) =>
+              dispatch({ type: "setDepositPct", value: next / 100 })
+            }
           />
         )}
       </div>
@@ -236,7 +212,7 @@ export function LineItemSection({
       {!readOnly && (
         <button
           type="button"
-          onClick={addItem}
+          onClick={() => dispatch({ type: "addLineItem", id: tempLiId() })}
           className="w-full py-[11px] font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border border-dashed border-[var(--line-2)] rounded-[6px] cursor-pointer transition-colors duration-150 hover:border-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
         >
           + Add Line Item
@@ -245,7 +221,7 @@ export function LineItemSection({
 
       {picker &&
         (() => {
-          const li = items.find((i) => i.id === picker.lineId);
+          const li = draft.lineItems.find((i) => i.id === picker.lineId);
           if (!li) return null;
           return (
             <RoomLinkPicker
@@ -254,21 +230,29 @@ export function LineItemSection({
               initialWastePct={li.wastePct}
               anchorRect={picker.rect}
               onApply={(linkedRoomIds, wastePct, measure) =>
-                updateItem(picker.lineId, {
-                  qtyMode:
-                    measure === "perimeter"
-                      ? QtyMode.LinkedPerimeter
-                      : QtyMode.LinkedArea,
-                  linkedRoomIds,
-                  wastePct,
+                dispatch({
+                  type: "updateLineItem",
+                  id: picker.lineId,
+                  patch: {
+                    qtyMode:
+                      measure === "perimeter"
+                        ? QtyMode.LinkedPerimeter
+                        : QtyMode.LinkedArea,
+                    linkedRoomIds,
+                    wastePct,
+                  },
                 })
               }
               onClear={() =>
-                updateItem(picker.lineId, {
-                  qtyMode: QtyMode.Manual,
-                  linkedRoomIds: [],
-                  wastePct: 0,
-                  qty: null,
+                dispatch({
+                  type: "updateLineItem",
+                  id: picker.lineId,
+                  patch: {
+                    qtyMode: QtyMode.Manual,
+                    linkedRoomIds: [],
+                    wastePct: 0,
+                    qty: null,
+                  },
                 })
               }
               onClose={() => setPicker(null)}
