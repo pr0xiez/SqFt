@@ -5,10 +5,12 @@ const findFirst = vi.fn();
 const create = vi.fn();
 const updateMany = vi.fn();
 const deleteMany = vi.fn();
+const queryRaw = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     customer: { findMany, findFirst, create, updateMany, deleteMany },
+    $queryRaw: queryRaw,
   },
 }));
 
@@ -23,12 +25,42 @@ const {
 beforeEach(() => vi.clearAllMocks());
 
 describe("listCustomers", () => {
-  it("queries by orgId with count include", async () => {
-    findMany.mockResolvedValue([]);
-    await listCustomers("org1");
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { orgId: "org1" } })
-    );
+  const base = {
+    page: 1,
+    perPage: 25,
+    sort: { key: "name" as const, direction: "asc" as const },
+    q: "",
+    source: "all" as const,
+    pipeline: "any" as const,
+  };
+
+  it("hydrates the page ids returned by the raw query, preserving order", async () => {
+    queryRaw
+      .mockResolvedValueOnce([{ id: 3 }, { id: 1 }]) // page ids (sorted)
+      .mockResolvedValueOnce([{ count: BigInt(2) }]) // total
+      .mockResolvedValueOnce([
+        { key: "phone", count: BigInt(1) },
+        { key: "online", count: BigInt(1) },
+      ]) // source facets
+      .mockResolvedValueOnce([
+        { key: "any", count: BigInt(2) },
+        { key: "open", count: BigInt(1) },
+        { key: "accepted", count: BigInt(0) },
+        { key: "cold", count: BigInt(1) },
+      ]) // pipeline facets
+      .mockResolvedValueOnce([
+        { open: BigInt(4), won: BigInt(1), with_open: BigInt(2) },
+      ]); // summary
+    findMany.mockResolvedValue([
+      { id: 1, name: "B" },
+      { id: 3, name: "A" },
+    ]);
+    const res = await listCustomers("org1", base);
+    expect(res.items.map((c) => c.id)).toEqual([3, 1]); // raw id order, not findMany order
+    expect(res.total).toBe(2);
+    expect(res.facets["source:phone"]).toBe(1);
+    expect(res.facets["pipeline:open"]).toBe(1);
+    expect(res.summary).toEqual({ openEstimates: 4, won: 1, withOpen: 2 });
   });
 });
 
