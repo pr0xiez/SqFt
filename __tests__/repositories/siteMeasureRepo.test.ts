@@ -34,7 +34,9 @@ const txMock = {
 };
 
 const $transaction = vi.fn(
-  async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)
+  async (
+    arg: ((tx: typeof txMock) => Promise<unknown>) | Promise<unknown>[]
+  ) => (Array.isArray(arg) ? Promise.all(arg) : arg(txMock))
 );
 
 vi.mock("@/lib/prisma", () => ({
@@ -45,6 +47,7 @@ vi.mock("@/lib/prisma", () => ({
       create: estimateCreate,
       updateMany: estimateUpdateMany,
       deleteMany: estimateDeleteMany,
+      count: estimateCount,
     },
     $transaction,
   },
@@ -62,22 +65,121 @@ beforeEach(() => vi.clearAllMocks());
 
 // ── listSiteMeasures ─────────────────────────────────────────────────────────────
 
-describe("listSiteMeasures", () => {
-  it("queries by orgId", async () => {
-    estimateFindMany.mockResolvedValue([]);
-    await listSiteMeasures("org1");
+describe("listSiteMeasures (paginated)", () => {
+  const base = {
+    page: 1,
+    perPage: 25,
+    sort: { key: "date" as const, direction: "desc" as const },
+    q: "",
+    status: "all" as const,
+  };
+
+  it("scopes by org, applies skip/take, returns items+total+facets", async () => {
+    estimateFindMany.mockResolvedValue([{ id: 1 }]);
+    estimateCount
+      .mockResolvedValueOnce(9) // total (filtered)
+      .mockResolvedValueOnce(9) // all
+      .mockResolvedValueOnce(2) // empty
+      .mockResolvedValueOnce(3) // measured
+      .mockResolvedValueOnce(4); // estimated
+    const res = await listSiteMeasures("org1", { ...base, page: 2 });
     expect(estimateFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { orgId: "org1" } })
+      expect.objectContaining({
+        where: { orgId: "org1" },
+        orderBy: { date: "desc" },
+        skip: 25,
+        take: 25,
+      })
     );
+    expect(res.items).toEqual([{ id: 1 }]);
+    expect(res.total).toBe(9);
+    expect(res.facets).toEqual({ all: 9, empty: 2, measured: 3, estimated: 4 });
   });
 
-  it("includes estimate count", async () => {
+  it("includes the location.customer + _count include", async () => {
     estimateFindMany.mockResolvedValue([]);
-    await listSiteMeasures("org1");
+    estimateCount.mockResolvedValue(0);
+    await listSiteMeasures("org1", base);
     expect(estimateFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         include: expect.objectContaining({
           _count: { select: { items: true, estimates: true } },
+        }),
+      })
+    );
+  });
+
+  it("applies the 'empty' existence filter", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    await listSiteMeasures("org1", { ...base, status: "empty" });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { orgId: "org1", items: { none: { type: "room" } } },
+      })
+    );
+  });
+
+  it("applies the 'measured' existence filter", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    await listSiteMeasures("org1", { ...base, status: "measured" });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          orgId: "org1",
+          items: { some: { type: "room" } },
+          estimates: { none: {} },
+        },
+      })
+    );
+  });
+
+  it("applies the 'estimated' existence filter", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    await listSiteMeasures("org1", { ...base, status: "estimated" });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          orgId: "org1",
+          items: { some: { type: "room" } },
+          estimates: { some: {} },
+        },
+      })
+    );
+  });
+
+  it("maps the customer sort key to the nested relation orderBy", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    await listSiteMeasures("org1", {
+      ...base,
+      sort: { key: "customer", direction: "asc" },
+    });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { location: { customer: { name: "asc" } } },
+      })
+    );
+  });
+
+  it("searches customer name (contains) and exact siteMeasureNumber for numeric q", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    await listSiteMeasures("org1", { ...base, q: "#42" });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          orgId: "org1",
+          OR: [
+            {
+              location: {
+                customer: { name: { contains: "42", mode: "insensitive" } },
+              },
+            },
+            { siteMeasureNumber: 42 },
+          ],
         }),
       })
     );
