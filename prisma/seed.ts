@@ -1120,6 +1120,175 @@ async function main() {
     `  ✓ Declined estimate #${declinedEstimate.estimateNumber} → revised draft #${revisedEstimate.estimateNumber}`
   );
 
+  // ── Bulk pagination fixtures ──────────────────────────────────────────────
+  // The hand-authored records above (6 customers / 9 estimates / 8 site
+  // measures) all fit on a single page, so they can't exercise the server-side
+  // pagination, facet counts, or sorting added in this branch. Generate a large
+  // batch of additional records that:
+  //   • exceeds every PER_PAGE_OPTIONS value (25/50/100) so multiple pages exist
+  //     for all three list views at any page size,
+  //   • cycles customer `source` across all five values (facet: source:*),
+  //   • cycles estimate `status` across all five values (estimate status facet
+  //     + customer pipeline:open/accepted facet), and
+  //   • spreads site measures across the empty / measured / estimated buckets
+  //     (site-measure status facet).
+  // Continues the org-wide number sequences from where the base set left off.
+  const SOURCES = ["phone", "online", "referral", "walkin", "website"] as const;
+  const STATUSES = ["draft", "sent", "viewed", "approved", "declined"] as const;
+  const BULK_COUNT = 120;
+
+  // Continue the siteMeasureNumber / estimateNumber sequences after the base
+  // set (which ends at 1047 / 5009). These are bumped onto the org counters at
+  // the end so app-created records start fresh.
+  let nextSiteMeasureNumber = 1048;
+  let nextEstimateNumber = 5010;
+  const bulkEstimateIds: number[] = [];
+  let emptyCount = 0;
+  let measuredCount = 0;
+  let estimatedCount = 0;
+
+  for (let i = 0; i < BULK_COUNT; i++) {
+    const source = SOURCES[i % SOURCES.length];
+    const seq = String(i + 1).padStart(3, "0");
+    const customer = await prisma.customer.create({
+      data: {
+        orgId: org.id,
+        name: `Pagination Customer ${seq}`,
+        phone: `(614) 700-${seq}0`,
+        email: `pagination${seq}@example.com`,
+        source,
+        notes: i % 4 === 0 ? "Bulk pagination fixture" : "",
+      },
+    });
+    const location = await prisma.location.create({
+      data: {
+        orgId: org.id,
+        customerId: customer.id,
+        address: `${1000 + i} Pagination Way, Columbus`,
+      },
+    });
+
+    // Bucket selection: 1-in-6 empty, 1-in-6 measured (rooms, no estimate),
+    // the rest estimated (rooms + an estimate).
+    const bucket =
+      i % 6 === 0 ? "empty" : i % 6 === 1 ? "measured" : "estimated";
+    const siteMeasure = await prisma.siteMeasure.create({
+      data: {
+        orgId: org.id,
+        locationId: location.id,
+        siteMeasureNumber: nextSiteMeasureNumber++,
+        title: `Bulk site measure ${seq}`,
+        items:
+          bucket === "empty"
+            ? undefined
+            : {
+                create: [
+                  {
+                    type: "room",
+                    name: "Main Room",
+                    shape: "rect",
+                    w: 12 + (i % 8),
+                    l: 10 + (i % 6),
+                    note: "",
+                    sortOrder: 0,
+                  },
+                ],
+              },
+      },
+    });
+
+    if (bucket === "empty") {
+      emptyCount++;
+      continue;
+    }
+    if (bucket === "measured") {
+      measuredCount++;
+      continue;
+    }
+    estimatedCount++;
+
+    // Estimated bucket: attach one estimate, cycling status across all five.
+    const status = STATUSES[i % STATUSES.length];
+    const estimateNumber = nextEstimateNumber++;
+    const sentAt = status === "draft" ? null : new Date("2026-05-15T12:00:00Z");
+    const viewedAt =
+      status === "viewed" || status === "approved" || status === "declined"
+        ? new Date("2026-05-16T12:00:00Z")
+        : null;
+    const approvedAt =
+      status === "approved" ? new Date("2026-05-17T12:00:00Z") : null;
+    const declinedAt =
+      status === "declined" ? new Date("2026-05-17T12:00:00Z") : null;
+
+    const estimate = await prisma.estimate.create({
+      data: {
+        orgId: org.id,
+        siteMeasureId: siteMeasure.id,
+        estimateNumber,
+        status,
+        convenienceFeeRate: 0.03,
+        markupPct: 35,
+        depositPct: 0.5,
+        // Non-draft estimates were "sent", so they carry a (unique) token + the
+        // relevant timestamps; drafts carry none.
+        approvalToken:
+          status === "draft" ? null : `seed-bulk-token-${estimateNumber}`,
+        sentAt,
+        sentToEmail: status === "draft" ? null : customer.email,
+        sentByEmail: status === "draft" ? null : user.email,
+        sentByName: status === "draft" ? null : user.name,
+        viewedAt,
+        approvedAt,
+        declinedAt,
+        declineReason: status === "declined" ? "Bulk fixture — declined" : null,
+        lineItems: {
+          create: [
+            {
+              name: "LVP install",
+              rate: 4.85,
+              qtyMode: "linked_area",
+              wastePct: 10,
+              unitLabel: "sqft",
+              linkedRoomIds: [],
+              sortOrder: 0,
+            },
+            {
+              name: "Floor prep",
+              rate: 0.65,
+              qtyMode: "manual",
+              qty: 200 + i,
+              unitLabel: "sqft",
+              linkedRoomIds: [],
+              sortOrder: 1,
+            },
+          ],
+        },
+      },
+    });
+
+    // Approved estimates only ever reach that state via approveEstimateByToken,
+    // which writes an EstimateApproval in the same transaction. Preserve that
+    // invariant for the seeded approved records (mirrors the base set above).
+    if (status === "approved") {
+      await prisma.estimateApproval.create({
+        data: {
+          estimateId: estimate.id,
+          approvedAt: approvedAt ?? new Date("2026-05-17T12:00:00Z"),
+          ip: "203.0.113.10",
+          userAgent: "Mozilla/5.0 (seed fixture)",
+          snapshot: { estimateNumber, seedFixture: true },
+        },
+      });
+    }
+
+    bulkEstimateIds.push(estimate.id);
+  }
+  console.log(
+    `  ✓ ${BULK_COUNT} bulk customers/locations/site measures ` +
+      `(${emptyCount} empty, ${measuredCount} measured, ${estimatedCount} estimated)`
+  );
+  console.log(`  ✓ ${bulkEstimateIds.length} bulk estimates`);
+
   // Populate the denormalized Estimate.total on every seeded estimate, so the
   // list view's total column / sort has data without a separate backfill.
   for (const est of [
@@ -1135,15 +1304,18 @@ async function main() {
   ]) {
     await setEstimateTotal(est.id);
   }
+  for (const id of bulkEstimateIds) {
+    await setEstimateTotal(id);
+  }
   console.log("  ✓ Estimate.total populated");
 
-  // Bump the org counters past the seeded values so newly created records
-  // start fresh sequences.
+  // Bump the org counters past every seeded value (base set + bulk fixtures) so
+  // newly created records start fresh sequences.
   await prisma.organization.update({
     where: { id: org.id },
-    data: { nextSiteMeasureNumber: 1048, nextEstimateNumber: 5010 },
+    data: { nextSiteMeasureNumber, nextEstimateNumber },
   });
-  console.log("  ✓ 9 estimates");
+  console.log(`  ✓ ${9 + bulkEstimateIds.length} estimates`);
 
   // ── Calendar events ───────────────────────────────────────────────────────
   const today = new Date();
