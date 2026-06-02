@@ -16,6 +16,9 @@
 /test-results
 /tests/e2e/.auth
 
+# usability-audit driver output (see .claude/skills/usability-audit)
+/audit-artifacts
+
 # next.js
 /.next/
 /out/
