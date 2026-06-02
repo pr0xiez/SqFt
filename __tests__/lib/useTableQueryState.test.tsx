@@ -95,6 +95,36 @@ describe("useTableQueryState — initial state", () => {
 });
 
 describe("useTableQueryState — URL writes", () => {
+  it("syncs the default sort to the URL on mount when it isn't present", () => {
+    renderHook(() => useTableQueryState(ARGS));
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+    expect(routerReplace).toHaveBeenCalledWith(
+      "/customers?sort=date&dir=desc",
+      {
+        scroll: false,
+      }
+    );
+  });
+
+  it("does not rewrite the URL on mount when sort is already present", () => {
+    setSearchParams("sort=name&dir=asc");
+    renderHook(() => useTableQueryState(ARGS));
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+    expect(routerReplace).not.toHaveBeenCalled();
+  });
+
+  it("does not write a sort to the URL on mount when there is no default", () => {
+    renderHook(() => useTableQueryState({ ...ARGS, defaultSort: null }));
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+    expect(routerReplace).not.toHaveBeenCalled();
+  });
+
   it("writes ?sort and ?dir after a debounce when setSort is called", () => {
     const { result } = renderHook(() => useTableQueryState(ARGS));
     act(() => {
@@ -193,6 +223,12 @@ describe("useTableQueryState — preference persistence", () => {
 
   it("persists density to localStorage without touching the URL", () => {
     const { result } = renderHook(() => useTableQueryState(ARGS));
+    // Flush the mount-time sort sync, then forget it happened.
+    act(() => {
+      vi.advanceTimersByTime(60);
+    });
+    routerReplace.mockClear();
+
     act(() => {
       result.current.setDensity("compact");
       vi.advanceTimersByTime(60);

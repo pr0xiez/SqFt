@@ -21,7 +21,7 @@ import {
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
 import { cycleSort } from "@/lib/sort";
-import { sourceName } from "@/lib/utils";
+import { formatShortDate, sourceName } from "@/lib/utils";
 
 const SOURCES = [
   "all",
@@ -231,7 +231,7 @@ export function CustomerListView() {
       </div>
 
       <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_120px_70px_70px_90px] bg-[var(--surface-2)] border-b border-[var(--line)] sticky top-0 z-[1]">
+        <div className="hidden md:grid grid-cols-[1fr_120px_70px_70px_110px_90px] bg-[var(--surface-2)] border-b border-[var(--line)] sticky top-0 z-[1]">
           <SortableHeader
             sortKey="name"
             label="Customer"
@@ -260,6 +260,12 @@ export function CustomerListView() {
             align="right"
             className="tabular-nums"
           />
+          <SortableHeader
+            sortKey="createdAt"
+            label="Added"
+            sort={sort}
+            onSort={handleSort}
+          />
           <div className="px-3.5 py-2.5" />
         </div>
 
@@ -280,7 +286,7 @@ export function CustomerListView() {
                   type="button"
                   onClick={() => router.push(`/customers/${c.id}`)}
                   className={cn(
-                    "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_120px_70px_70px_90px]",
+                    "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_120px_70px_70px_110px_90px]",
                     "items-center border-b border-[var(--line)] last:border-b-0",
                     "cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]",
                     "border-l-[3px]",
@@ -333,6 +339,14 @@ export function CustomerListView() {
                     }}
                   >
                     {summary.open || "—"}
+                  </div>
+                  <div
+                    className={cn(
+                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums",
+                      rowPad
+                    )}
+                  >
+                    {formatShortDate(c.createdAt)}
                   </div>
                   <div className={cn("px-3.5 hidden md:block", rowPad)}>
                     <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
