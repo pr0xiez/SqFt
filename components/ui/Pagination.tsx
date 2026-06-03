@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/cn";
+import { PER_PAGE_OPTIONS } from "@/lib/pagination/constants";
 
 type PaginationProps = {
   total: number;
@@ -9,13 +10,13 @@ type PaginationProps = {
   perPage: number;
   onPageChange: (page: number) => void;
   onPerPageChange?: (perPage: number) => void;
-  perPageOptions?: number[];
+  perPageOptions?: readonly number[];
   /** Singular noun for the range readout (default: "row"). */
   noun?: string;
   className?: string;
 };
 
-export const PER_PAGE_OPTIONS = [25, 50, 100];
+export { PER_PAGE_OPTIONS };
 
 export function Pagination({
   total,

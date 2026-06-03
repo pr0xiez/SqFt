@@ -1,6 +1,12 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { SortDirection } from "@/lib/sort";
 
 export type EstimateStatus =
   | "draft"
@@ -94,8 +100,39 @@ export interface CreateCustomerInput {
   notes?: string;
 }
 
-async function fetchCustomers(): Promise<CustomerListItem[]> {
-  const res = await fetch("/api/customers");
+export interface CustomerListParams {
+  page: number;
+  perPage: number;
+  sort: string;
+  dir: SortDirection;
+  q: string;
+  source: string;
+  pipeline: string;
+}
+
+export interface CustomerListResponse {
+  items: CustomerListItem[];
+  total: number;
+  facets: Record<string, number>;
+  summary: { openEstimates: number; won: number; withOpen: number };
+}
+
+function customersQueryString(p: CustomerListParams): string {
+  const sp = new URLSearchParams();
+  sp.set("page", String(p.page));
+  sp.set("perPage", String(p.perPage));
+  sp.set("sort", p.sort);
+  sp.set("dir", p.dir);
+  if (p.q) sp.set("q", p.q);
+  if (p.source && p.source !== "all") sp.set("source", p.source);
+  if (p.pipeline && p.pipeline !== "any") sp.set("pipeline", p.pipeline);
+  return sp.toString();
+}
+
+async function fetchCustomers(
+  p: CustomerListParams
+): Promise<CustomerListResponse> {
+  const res = await fetch(`/api/customers?${customersQueryString(p)}`);
   if (!res.ok) throw new Error("Failed to fetch customers");
   return res.json();
 }
@@ -106,10 +143,11 @@ async function fetchCustomer(id: number): Promise<CustomerDetail> {
   return res.json();
 }
 
-export function useCustomers() {
+export function useCustomers(params: CustomerListParams) {
   return useQuery({
-    queryKey: ["customers"],
-    queryFn: fetchCustomers,
+    queryKey: ["customers", params],
+    queryFn: () => fetchCustomers(params),
+    placeholderData: keepPreviousData,
   });
 }
 

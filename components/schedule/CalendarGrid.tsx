@@ -109,8 +109,25 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   const daysToShow = isMobile ? 3 : 7;
 
   const { data: events = [] } = useEvents();
-  const { data: customers = [] } = useCustomers();
-  const { data: estimates = [] } = useEstimates();
+  const { data: customersData } = useCustomers({
+    page: 1,
+    perPage: 100,
+    sort: "name",
+    dir: "asc",
+    q: "",
+    source: "all",
+    pipeline: "any",
+  });
+  const customers = customersData?.items ?? [];
+  const { data: estimatesData } = useEstimates({
+    page: 1,
+    perPage: 100,
+    sort: "date",
+    dir: "desc",
+    q: "",
+    status: "all",
+  });
+  const estimates = estimatesData?.items ?? [];
   const { data: crew = [] } = useCrewMembers();
   const createEvent = useCreateEvent();
   const deleteEvent = useDeleteEvent();

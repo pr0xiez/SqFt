@@ -67,7 +67,7 @@ export function useTableQueryState<SortKey extends string>(
       storageKeyFor(storageKey, "perPage")
     );
     const n = Number(stored);
-    if (PER_PAGE_OPTIONS.includes(n)) setPerPageState(n);
+    if ((PER_PAGE_OPTIONS as readonly number[]).includes(n)) setPerPageState(n);
   }, [storageKey]);
 
   useEffect(() => {
@@ -107,6 +107,20 @@ export function useTableQueryState<SortKey extends string>(
     },
     []
   );
+
+  // On mount, surface the active sort in the URL when it isn't already there.
+  // Without this the initial URL is bare (e.g. /customers) even though a
+  // default sort is applied, and the sort only appears once the user changes
+  // the page or page size — inconsistent. Keeping the sort always present in
+  // the URL also makes the view shareable/bookmarkable from first paint.
+  const didSyncSort = useRef(false);
+  useEffect(() => {
+    if (didSyncSort.current) return;
+    didSyncSort.current = true;
+    if (sort && searchParamsRef.current.get("sort") === null) {
+      writeUrl({ sort, page });
+    }
+  }, [sort, page, writeUrl]);
 
   const setSort = useCallback(
     (next: SortState<SortKey> | null) => {

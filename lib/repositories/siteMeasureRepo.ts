@@ -1,18 +1,22 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import type { SortDirection } from "@/lib/sort";
+
+const SITE_MEASURE_LIST_INCLUDE = {
+  location: {
+    select: {
+      id: true,
+      address: true,
+      label: true,
+      customer: { select: { id: true, name: true } },
+    },
+  },
+  _count: { select: { items: true, estimates: true } },
+} satisfies Prisma.SiteMeasureInclude;
 
 export type SiteMeasureWithCustomerAndCount = Prisma.SiteMeasureGetPayload<{
-  include: {
-    location: {
-      select: {
-        id: true;
-        address: true;
-        label: true;
-        customer: { select: { id: true; name: true } };
-      };
-    };
-    _count: { select: { items: true; estimates: true } };
-  };
+  include: typeof SITE_MEASURE_LIST_INCLUDE;
 }>;
 
 export type SiteMeasureWithDetails = Prisma.SiteMeasureGetPayload<{
@@ -46,24 +50,99 @@ export type SiteMeasurePatch = {
   items?: SiteMeasureItemInput[];
 };
 
-export async function listSiteMeasures(
-  orgId: string
-): Promise<SiteMeasureWithCustomerAndCount[]> {
-  return prisma.siteMeasure.findMany({
-    where: { orgId },
-    orderBy: { createdAt: "desc" },
-    include: {
+export type SiteMeasureSortKey = "id" | "customer" | "date";
+export type SiteMeasureStatusFilter =
+  | "all"
+  | "empty"
+  | "measured"
+  | "estimated";
+
+export interface ListSiteMeasuresParams {
+  page: number;
+  perPage: number;
+  sort: { key: SiteMeasureSortKey; direction: SortDirection };
+  q: string;
+  status: SiteMeasureStatusFilter;
+}
+
+/** Existence-filter bucket for a site-measure status. A "room" is a
+ *  SiteMeasureItem with type "room"; "measured" means at least one room but no
+ *  estimates, "estimated" means rooms + at least one estimate. */
+function siteMeasureStatusWhere(
+  status: SiteMeasureStatusFilter
+): Prisma.SiteMeasureWhereInput {
+  switch (status) {
+    case "empty":
+      return { items: { none: { type: "room" } } };
+    case "measured":
+      return { items: { some: { type: "room" } }, estimates: { none: {} } };
+    case "estimated":
+      return { items: { some: { type: "room" } }, estimates: { some: {} } };
+    default:
+      return {};
+  }
+}
+
+function siteMeasureOrderBy(
+  sort: ListSiteMeasuresParams["sort"]
+): Prisma.SiteMeasureOrderByWithRelationInput {
+  const dir = sort.direction;
+  if (sort.key === "id") return { id: dir };
+  if (sort.key === "customer") return { location: { customer: { name: dir } } };
+  return { date: dir };
+}
+
+function siteMeasureSearchWhere(
+  q: string
+): Prisma.SiteMeasureWhereInput | null {
+  const cleaned = q.trim().replace(/^#/, "");
+  if (cleaned.length === 0) return null;
+  const or: Prisma.SiteMeasureWhereInput[] = [
+    {
       location: {
-        select: {
-          id: true,
-          address: true,
-          label: true,
-          customer: { select: { id: true, name: true } },
-        },
+        customer: { name: { contains: cleaned, mode: "insensitive" } },
       },
-      _count: { select: { items: true, estimates: true } },
     },
+  ];
+  if (/^\d+$/.test(cleaned)) or.push({ siteMeasureNumber: Number(cleaned) });
+  return { OR: or };
+}
+
+export async function listSiteMeasures(
+  orgId: string,
+  params: ListSiteMeasuresParams
+): Promise<Paginated<SiteMeasureWithCustomerAndCount>> {
+  const where: Prisma.SiteMeasureWhereInput = {
+    orgId,
+    ...siteMeasureStatusWhere(params.status),
+  };
+  const search = siteMeasureSearchWhere(params.q);
+  if (search) where.OR = search.OR;
+
+  const facetWhere = (
+    status: SiteMeasureStatusFilter
+  ): Prisma.SiteMeasureWhereInput => ({
+    orgId,
+    ...siteMeasureStatusWhere(status),
   });
+
+  const [items, total, all, empty, measured, estimated] =
+    await prisma.$transaction([
+      prisma.siteMeasure.findMany({
+        where,
+        orderBy: siteMeasureOrderBy(params.sort),
+        skip: (params.page - 1) * params.perPage,
+        take: params.perPage,
+        include: SITE_MEASURE_LIST_INCLUDE,
+      }),
+      prisma.siteMeasure.count({ where }),
+      prisma.siteMeasure.count({ where: facetWhere("all") }),
+      prisma.siteMeasure.count({ where: facetWhere("empty") }),
+      prisma.siteMeasure.count({ where: facetWhere("measured") }),
+      prisma.siteMeasure.count({ where: facetWhere("estimated") }),
+    ]);
+
+  return { items, total, facets: { all, empty, measured, estimated } };
 }
 
 export async function getSiteMeasure(

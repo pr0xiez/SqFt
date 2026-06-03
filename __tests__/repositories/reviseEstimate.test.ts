@@ -6,6 +6,7 @@ vi.mock("@/lib/prisma", () => {
     estimate: {
       findFirst: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     lineItem: {
       createMany: vi.fn(),
@@ -36,7 +37,8 @@ beforeEach(() => {
 
 describe("reviseEstimate", () => {
   it("clones a estimate into a new draft with revisedFromId set", async () => {
-    tx.estimate.findFirst.mockResolvedValue({
+    // First findFirst → the original estimate being revised.
+    tx.estimate.findFirst.mockResolvedValueOnce({
       id: 7,
       orgId: "org_1",
       siteMeasureId: 42,
@@ -55,6 +57,16 @@ describe("reviseEstimate", () => {
           roomLinks: [],
         },
       ],
+    });
+    // Second findFirst → the hydrate the repo reads to sync Estimate.total on
+    // the cloned draft (lineItems + siteMeasure.items).
+    tx.estimate.findFirst.mockResolvedValueOnce({
+      id: 99,
+      markupPct: 35,
+      convenienceFeeRate: 0.03,
+      depositPct: 0.5,
+      lineItems: [],
+      siteMeasure: { items: [] },
     });
     tx.organization.update.mockResolvedValue({ nextEstimateNumber: 5002 });
     tx.estimate.create.mockResolvedValue({ id: 99 });

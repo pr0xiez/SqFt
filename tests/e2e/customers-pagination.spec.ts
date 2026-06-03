@@ -46,6 +46,15 @@ test.describe
       // We're on page 1 by default — no ?page query param.
       expect(new URL(page.url()).searchParams.get("page")).toBeNull();
 
+      // The default sort is surfaced in the URL from first paint, not only
+      // after the first pagination interaction.
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get("sort"), {
+          timeout: 2000,
+        })
+        .toBe("createdAt");
+      expect(new URL(page.url()).searchParams.get("dir")).toBe("desc");
+
       // Advance to page 2 via the Next button.
       await page.getByRole("button", { name: "Next page" }).click();
 

@@ -1,21 +1,65 @@
 import { NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { estimateCreateSchema } from "@/lib/estimates/schema";
-import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
-import { createEstimate, listEstimates } from "@/lib/repositories";
+import { parsePageParams } from "@/lib/pagination/params";
+import {
+  createEstimate,
+  type EstimateSortKey,
+  listEstimates,
+} from "@/lib/repositories";
 
-export const GET = apiRoute({ minRole: "lead" }, async ({ orgId }) => {
-  const estimates = await listEstimates(orgId);
-  return estimates.map((estimate) => {
-    const { lineItems: _lineItems, siteMeasure, ...rest } = estimate;
-    const { items: _items, ...estimateRest } = siteMeasure;
-    const view = computeEstimateView(fromPrismaEstimate(estimate));
-    return {
-      ...rest,
-      siteMeasure: estimateRest,
-      total: estimate._count.lineItems === 0 ? null : view.total,
-    };
+const ESTIMATE_SORT_KEYS = [
+  "number",
+  "customer",
+  "siteMeasure",
+  "total",
+  "status",
+  "date",
+] as const satisfies readonly EstimateSortKey[];
+
+const ESTIMATE_STATUS_FILTERS = [
+  "all",
+  "draft",
+  "sent",
+  "approved",
+  "declined",
+] as const;
+type EstimateStatusFilterValue = (typeof ESTIMATE_STATUS_FILTERS)[number];
+
+export const GET = apiRoute({ minRole: "lead" }, async ({ req, orgId }) => {
+  const { page, perPage, sort, q } = parsePageParams(req.nextUrl, {
+    validSortKeys: ESTIMATE_SORT_KEYS,
+    defaultSort: { key: "date", direction: "desc" },
   });
+  const statusParam = req.nextUrl.searchParams.get("status");
+  const status: EstimateStatusFilterValue =
+    statusParam &&
+    (ESTIMATE_STATUS_FILTERS as readonly string[]).includes(statusParam)
+      ? (statusParam as EstimateStatusFilterValue)
+      : "all";
+
+  const { items, total, facets } = await listEstimates(orgId, {
+    page,
+    perPage,
+    sort,
+    q,
+    status,
+  });
+
+  return {
+    items: items.map((estimate) => {
+      const {
+        lineItems: _lineItems,
+        siteMeasure,
+        total: rowTotal,
+        ...rest
+      } = estimate;
+      const { items: _items, ...siteMeasureRest } = siteMeasure;
+      return { ...rest, siteMeasure: siteMeasureRest, total: rowTotal };
+    }),
+    total,
+    facets,
+  };
 });
 
 export const POST = apiRoute(

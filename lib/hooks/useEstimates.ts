@@ -1,7 +1,13 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { readApiError } from "@/lib/api/errors";
+import type { SortDirection } from "@/lib/sort";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 
 export interface EstimateSiteMeasureSummary {
@@ -85,8 +91,36 @@ export interface UpdateEstimateInput {
   lineItems?: LineItemCalc[];
 }
 
-async function fetchEstimates(): Promise<EstimateListItem[]> {
-  const res = await fetch("/api/estimates");
+export interface EstimateListParams {
+  page: number;
+  perPage: number;
+  sort: string;
+  dir: SortDirection;
+  q: string;
+  status: string;
+}
+
+export interface EstimateListResponse {
+  items: EstimateListItem[];
+  total: number;
+  facets: Record<string, number>;
+}
+
+function estimatesQueryString(p: EstimateListParams): string {
+  const sp = new URLSearchParams();
+  sp.set("page", String(p.page));
+  sp.set("perPage", String(p.perPage));
+  sp.set("sort", p.sort);
+  sp.set("dir", p.dir);
+  if (p.q) sp.set("q", p.q);
+  if (p.status && p.status !== "all") sp.set("status", p.status);
+  return sp.toString();
+}
+
+async function fetchEstimates(
+  p: EstimateListParams
+): Promise<EstimateListResponse> {
+  const res = await fetch(`/api/estimates?${estimatesQueryString(p)}`);
   if (!res.ok) throw new Error("Failed to fetch estimates");
   return res.json();
 }
@@ -97,8 +131,12 @@ async function fetchEstimate(id: number): Promise<EstimateDetail> {
   return res.json();
 }
 
-export function useEstimates() {
-  return useQuery({ queryKey: ["estimates"], queryFn: fetchEstimates });
+export function useEstimates(params: EstimateListParams) {
+  return useQuery({
+    queryKey: ["estimates", params],
+    queryFn: () => fetchEstimates(params),
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function useEstimate(id: number) {

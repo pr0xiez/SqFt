@@ -74,16 +74,53 @@ beforeEach(() => {
 });
 
 describe("GET /api/customers", () => {
-  it("calls listCustomers with the org and returns the list", async () => {
-    const customers = [{ id: 1, name: "Alice", orgId: "org1" }];
+  it("calls listCustomers with the org and parsed page params, returning its result", async () => {
+    const result = {
+      items: [{ id: 1, name: "Alice", orgId: "org1" }],
+      total: 1,
+      facets: {},
+      summary: { openEstimates: 0, won: 0, withOpen: 0 },
+    };
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockListCustomers.mockResolvedValue(customers as any);
+    mockListCustomers.mockResolvedValue(result as any);
 
     const res = await GET(makeRequest("GET"), noParams);
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(customers);
-    expect(mockListCustomers).toHaveBeenCalledWith("org1");
+    expect(await res.json()).toEqual(result);
+    expect(mockListCustomers).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({
+        page: 1,
+        sort: { key: "createdAt", direction: "desc" },
+        q: "",
+        source: "all",
+        pipeline: "any",
+      })
+    );
+  });
+
+  it("parses sort, search, source, and pipeline from the query string", async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockListCustomers.mockResolvedValue({} as any);
+
+    await GET(
+      makeRequest(
+        "GET",
+        "http://localhost/api/customers?sort=name&dir=asc&q=al&source=online&pipeline=open"
+      ),
+      noParams
+    );
+
+    expect(mockListCustomers).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({
+        sort: { key: "name", direction: "asc" },
+        q: "al",
+        source: "online",
+        pipeline: "open",
+      })
+    );
   });
 });
 

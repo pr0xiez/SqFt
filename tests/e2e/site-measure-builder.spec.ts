@@ -312,8 +312,12 @@ test.describe
         .toBe("Tile in entryway only");
 
       await reloadFresh(page);
+      // The note is already confirmed persisted via the API poll above; this
+      // only re-checks it rehydrates into the input. Allow extra time for the
+      // post-reload React Query fetch on slower CI.
       await expect(page.getByPlaceholder("Field note…")).toHaveValue(
-        "Tile in entryway only"
+        "Tile in entryway only",
+        { timeout: 15000 }
       );
     });
 

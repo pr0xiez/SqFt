@@ -45,15 +45,47 @@ beforeEach(() => {
 });
 
 describe("GET /api/site-measures", () => {
-  it("returns the list", async () => {
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockList.mockResolvedValue([{ id: 1, title: "Job A" }] as any);
+  it("passes parsed params and returns the paginated envelope", async () => {
+    mockList.mockResolvedValue({
+      items: [{ id: 1, title: "Job A" }],
+      total: 1,
+      facets: { all: 1, empty: 0, measured: 0, estimated: 1 },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub envelope
+    } as any);
     const res = await listGET(
-      makeRequest("GET", "http://x/api/site-measures"),
+      makeRequest(
+        "GET",
+        "http://x/api/site-measures?page=1&perPage=25&status=estimated&sort=customer&dir=asc"
+      ),
       params({})
     );
     expect(res.status).toBe(200);
-    expect(mockList).toHaveBeenCalledWith("org1");
+    const body = await res.json();
+    expect(body.total).toBe(1);
+    expect(body.facets.estimated).toBe(1);
+    expect(mockList).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({
+        page: 1,
+        perPage: 25,
+        status: "estimated",
+        sort: { key: "customer", direction: "asc" },
+      })
+    );
+  });
+
+  it("defaults status to 'all' when omitted", async () => {
+    mockList.mockResolvedValue({
+      items: [],
+      total: 0,
+      facets: { all: 0, empty: 0, measured: 0, estimated: 0 },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub envelope
+    } as any);
+    await listGET(makeRequest("GET", "http://x/api/site-measures"), params({}));
+    expect(mockList).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({ status: "all" })
+    );
   });
 });
 

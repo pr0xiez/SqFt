@@ -78,6 +78,8 @@ model Customer {
 
   locations Location[]
   events    Event[]
+
+  @@index([orgId])
 }
 
 // A physical site address for a customer. A customer can have multiple
@@ -113,6 +115,8 @@ model SiteMeasure {
 
   items     SiteMeasureItem[]
   estimates Estimate[]
+
+  @@index([orgId])
 }
 
 // A room measurement or a text note inside a site measure
@@ -158,6 +162,10 @@ model Estimate {
   declinedAt    DateTime?
   declineReason String?
   createdAt     DateTime     @default(now())
+  /// Denormalized cache of computeEstimateView().total. Null when the estimate
+  /// has no line items. Maintained in create/save/revise; backfilled by
+  /// scripts/backfillEstimateTotal.ts. Sorting the list by total reads this.
+  total         Float?
 
   lineItems      LineItem[]
   events         Event[]
@@ -169,6 +177,8 @@ model Estimate {
   revisedFromId Int?
   revisedFrom   Estimate?  @relation("EstimateRevisions", fields: [revisedFromId], references: [id], onDelete: SetNull)
   revisedBy     Estimate[] @relation("EstimateRevisions")
+
+  @@index([orgId])
 }
 
 // A line item (material/labor) in an estimate

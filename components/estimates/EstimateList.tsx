@@ -1,11 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import {
-  type EstimateStatusFilter,
-  filterEstimates,
-} from "@/components/estimates/filterEstimates";
+import { useState } from "react";
+import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -13,9 +10,10 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { cn } from "@/lib/cn";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useEstimates } from "@/lib/hooks/useEstimates";
-import { paginate, useTableQueryState } from "@/lib/hooks/useTableQueryState";
-import { cycleSort, sortBy } from "@/lib/sort";
+import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
+import { cycleSort } from "@/lib/sort";
 import { fmtBig } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
@@ -43,7 +41,6 @@ type SortKey =
 
 export function EstimateListView() {
   const router = useRouter();
-  const { data: estimates = [], isLoading } = useEstimates();
   const [query, setQueryState] = useState<string>("");
   const [status, setStatusState] = useState<EstimateStatusFilter>("all");
 
@@ -78,41 +75,27 @@ export function EstimateListView() {
     setPage(1);
   };
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<EstimateStatusFilter, number> = {
-      all: estimates.length,
-      draft: 0,
-      sent: 0,
-      approved: 0,
-      declined: 0,
-    };
-    for (const q of estimates) {
-      if (q.status in counts) {
-        counts[q.status as EstimateStatusFilter] += 1;
-      }
-    }
-    return counts;
-  }, [estimates]);
-
-  const filtered = useMemo(
-    () => filterEstimates(estimates, query, status),
-    [estimates, query, status]
-  );
-
-  const sorted = useMemo(
-    () =>
-      sortBy(filtered, sort, {
-        number: (q) => q.estimateNumber,
-        customer: (q) => q.siteMeasure.location?.customer?.name ?? "",
-        siteMeasure: (q) => q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id,
-        total: (q) => q.total ?? 0,
-        status: (q) => q.status,
-        date: (q) => new Date(q.date),
-      }),
-    [filtered, sort]
-  );
-
-  const { slice, safePage, total } = paginate(sorted, page, perPage);
+  const debouncedQuery = useDebouncedValue(query, 300);
+  const sortKey = sort?.key ?? "date";
+  const sortDir = sort?.direction ?? "desc";
+  const { data, isLoading } = useEstimates({
+    page,
+    perPage,
+    sort: sortKey,
+    dir: sortDir,
+    q: debouncedQuery,
+    status,
+  });
+  const estimates = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const facets = data?.facets ?? {};
+  const statusCounts = {
+    all: facets.all ?? 0,
+    draft: facets.draft ?? 0,
+    sent: facets.sent ?? 0,
+    approved: facets.approved ?? 0,
+    declined: facets.declined ?? 0,
+  } as Record<EstimateStatusFilter, number>;
 
   const handleSort = (key: SortKey) => {
     const defaultDir =
@@ -120,7 +103,8 @@ export function EstimateListView() {
     setSort(cycleSort(sort, key, defaultDir));
   };
 
-  const isNarrowed = filtered.length !== estimates.length;
+  const allCount = facets.all ?? 0;
+  const isNarrowed = total !== allCount;
   const rowPad = ROW_PADDING[density];
 
   return (
@@ -131,7 +115,7 @@ export function EstimateListView() {
             Estimates
           </h1>
           <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
-            {estimates.length} estimate{estimates.length === 1 ? "" : "s"}
+            {allCount} estimate{allCount === 1 ? "" : "s"}
           </div>
         </div>
       </div>
@@ -159,7 +143,7 @@ export function EstimateListView() {
         />
         {isNarrowed && (
           <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums">
-            {filtered.length} of {estimates.length}
+            {total} of {allCount}
           </span>
         )}
       </div>
@@ -210,15 +194,15 @@ export function EstimateListView() {
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Loading…
           </div>
-        ) : estimates.length === 0 ? (
+        ) : allCount === 0 ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             No estimates yet.
           </div>
-        ) : filtered.length === 0 ? (
+        ) : total === 0 ? (
           <EmptyState noun="estimate" query={query} />
         ) : (
           <>
-            {slice.map((q) => {
+            {estimates.map((q) => {
               const customer = q.siteMeasure.location?.customer;
               const locationAddress = q.siteMeasure.location?.address;
               const estimateLabel = `#${q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id}`;
@@ -298,7 +282,7 @@ export function EstimateListView() {
             })}
             <Pagination
               total={total}
-              page={safePage}
+              page={page}
               perPage={perPage}
               onPageChange={setPage}
               onPerPageChange={setPerPage}

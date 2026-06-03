@@ -7,8 +7,10 @@ const estimateFindUnique = vi.fn();
 const estimateCreate = vi.fn();
 const txEstimateCreate = vi.fn();
 const estimateUpdateMany = vi.fn();
+const estimateUpdate = vi.fn();
 const estimateDeleteMany = vi.fn();
 const estimateCount = vi.fn();
+const estimateGroupBy = vi.fn();
 const lineItemDeleteMany = vi.fn();
 const lineItemCreateMany = vi.fn();
 const siteMeasureFindFirst = vi.fn();
@@ -19,6 +21,7 @@ const eventCount = vi.fn();
 const txMock: {
   estimate: {
     updateMany: typeof estimateUpdateMany;
+    update: typeof estimateUpdate;
     count: typeof estimateCount;
     findFirst: typeof estimateFindFirst;
     create: typeof txEstimateCreate;
@@ -38,6 +41,7 @@ const txMock: {
 } = {
   estimate: {
     updateMany: estimateUpdateMany,
+    update: estimateUpdate,
     count: estimateCount,
     findFirst: estimateFindFirst,
     create: txEstimateCreate,
@@ -57,7 +61,9 @@ const txMock: {
 };
 
 const $transaction = vi.fn(
-  async (cb: (tx: typeof txMock) => Promise<unknown>) => cb(txMock)
+  async (
+    arg: ((tx: typeof txMock) => Promise<unknown>) | Promise<unknown>[]
+  ) => (Array.isArray(arg) ? Promise.all(arg) : arg(txMock))
 );
 
 vi.mock("@/lib/prisma", () => ({
@@ -69,6 +75,8 @@ vi.mock("@/lib/prisma", () => ({
       create: estimateCreate,
       updateMany: estimateUpdateMany,
       deleteMany: estimateDeleteMany,
+      count: estimateCount,
+      groupBy: estimateGroupBy,
     },
     $transaction,
   },
@@ -87,12 +95,96 @@ const {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("listEstimates", () => {
-  it("scopes by orgId", async () => {
-    estimateFindMany.mockResolvedValue([]);
-    await listEstimates("org1");
+describe("listEstimates (paginated)", () => {
+  const baseParams = {
+    page: 1,
+    perPage: 25,
+    sort: { key: "date" as const, direction: "desc" as const },
+    q: "",
+    status: "all" as const,
+  };
+  function mockGroupBy() {
+    estimateGroupBy.mockResolvedValue([
+      { status: "draft", _count: { _all: 2 } },
+      { status: "approved", _count: { _all: 3 } },
+    ]);
+  }
+  it("scopes by org, applies skip/take and orderBy, returns items+total+facets", async () => {
+    estimateFindMany.mockResolvedValue([{ id: 1 }]);
+    estimateCount.mockResolvedValue(7);
+    mockGroupBy();
+    const res = await listEstimates("org1", {
+      ...baseParams,
+      page: 2,
+      perPage: 25,
+    });
     expect(estimateFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { orgId: "org1" } })
+      expect.objectContaining({
+        where: { orgId: "org1" },
+        orderBy: { date: "desc" },
+        skip: 25,
+        take: 25,
+      })
+    );
+    expect(res.total).toBe(7);
+    expect(res.items).toEqual([{ id: 1 }]);
+    expect(res.facets).toEqual({
+      all: 5,
+      draft: 2,
+      sent: 0,
+      approved: 3,
+      declined: 0,
+    });
+  });
+
+  it("filters by status when not 'all'", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    mockGroupBy();
+    await listEstimates("org1", { ...baseParams, status: "approved" });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { orgId: "org1", status: "approved" },
+      })
+    );
+  });
+
+  it("maps the customer sort key to the nested relation orderBy", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    mockGroupBy();
+    await listEstimates("org1", {
+      ...baseParams,
+      sort: { key: "customer", direction: "asc" },
+    });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: { siteMeasure: { location: { customer: { name: "asc" } } } },
+      })
+    );
+  });
+
+  it("searches customer name (contains) and exact estimate number for numeric q", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    mockGroupBy();
+    await listEstimates("org1", { ...baseParams, q: "#5001" });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          orgId: "org1",
+          OR: [
+            {
+              siteMeasure: {
+                location: {
+                  customer: { name: { contains: "5001", mode: "insensitive" } },
+                },
+              },
+            },
+            { estimateNumber: 5001 },
+          ],
+        }),
+      })
     );
   });
 });
@@ -204,7 +296,14 @@ describe("createEstimate — org defaults", () => {
 describe("saveEstimate", () => {
   it("updates only top-level fields when no lineItems provided", async () => {
     estimateUpdateMany.mockResolvedValue({ count: 1 });
-    estimateFindFirst.mockResolvedValue({ id: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
 
     await saveEstimate(1, "org1", { status: "sent" });
 
@@ -241,7 +340,14 @@ describe("saveEstimate", () => {
 
   it("replaces line items wholesale when lineItems provided", async () => {
     estimateCount.mockResolvedValue(1);
-    estimateFindFirst.mockResolvedValue({ id: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
 
     await saveEstimate(1, "org1", {
       lineItems: [
@@ -261,6 +367,58 @@ describe("saveEstimate", () => {
     });
     expect(lineItemCreateMany).toHaveBeenCalledWith({
       data: [expect.objectContaining({ estimateId: 1, name: "Tile" })],
+    });
+  });
+});
+
+describe("saveEstimate — total denormalization", () => {
+  it("recomputes and stores total from line items after save", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [
+        {
+          id: 1,
+          name: "Tile",
+          rate: 10,
+          qtyMode: "manual",
+          qty: 5,
+          wastePct: 0,
+          unitLabel: "ft²",
+          linkedRoomIds: [],
+          sortOrder: 0,
+        },
+      ],
+      siteMeasure: { items: [] },
+    });
+
+    await saveEstimate(1, "org1", { markupPct: 0 });
+
+    expect(estimateUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { total: 50 },
+    });
+  });
+
+  it("stores null total when the estimate has no line items", async () => {
+    estimateUpdateMany.mockResolvedValue({ count: 1 });
+    estimateFindFirst.mockResolvedValue({
+      id: 1,
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0.3,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
+
+    await saveEstimate(1, "org1", { markupPct: 0 });
+
+    expect(estimateUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { total: null },
     });
   });
 });
