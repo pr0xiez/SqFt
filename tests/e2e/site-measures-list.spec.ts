@@ -170,13 +170,16 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
 
     await page.evaluate(() => localStorage.clear());
     // Wait for the initial list fetch so the seeded rows are in the response
-    // before asserting visibility (avoids a render race on slower CI).
+    // before asserting visibility (avoids a render race on slower CI). The
+    // generous timeout absorbs a cold Vercel-preview serverless start plus
+    // Neon connection latency, which can exceed the 10s action default.
     await Promise.all([
       page.waitForResponse(
         (r) =>
           isListRequest(r.url()) &&
           r.request().method() === "GET" &&
-          r.status() === 200
+          r.status() === 200,
+        { timeout: 30_000 }
       ),
       page.goto("/site-measures"),
     ]);
@@ -192,7 +195,8 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
         (r) =>
           isListRequest(r.url()) &&
           r.url().includes("status=estimated") &&
-          r.status() === 200
+          r.status() === 200,
+        { timeout: 30_000 }
       ),
       page
         .getByRole("button", { name: /^Estimated/ })
