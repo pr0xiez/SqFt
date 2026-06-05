@@ -87,14 +87,14 @@ describe("POST /api/invoices/[id]/send", () => {
         to: "alex@x.com",
         subject: "Invoice #7465",
       }),
-      ctx,
+      ctx
     );
     expect(res.status).toBe(200);
     expect(sendInvoiceEmail).toHaveBeenCalled();
     expect(markInvoiceSent).toHaveBeenCalledWith(
       9,
       "org_1",
-      expect.objectContaining({ snapshot: expect.any(Object) }),
+      expect.objectContaining({ snapshot: expect.any(Object) })
     );
   });
 });

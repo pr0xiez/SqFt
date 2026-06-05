@@ -22,5 +22,5 @@ export const POST = apiRoute(
     });
     if (!invoice) throw new NotFoundError();
     return invoice;
-  },
+  }
 );

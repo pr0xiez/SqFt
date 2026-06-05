@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  computeEstimateBilling,
-  prorateInvoice,
-} from "@/lib/invoices/compute";
+import { computeEstimateBilling, prorateInvoice } from "@/lib/invoices/compute";
 import type { ProrationSource } from "@/lib/invoices/types";
 
 describe("computeEstimateBilling", () => {

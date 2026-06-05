@@ -26,13 +26,13 @@ describe("invoiceCreateSchema", () => {
 describe("invoicePaymentSchema", () => {
   it("requires a positive amount and a method", () => {
     expect(
-      invoicePaymentSchema.safeParse({ amount: 100, method: "check" }).success,
+      invoicePaymentSchema.safeParse({ amount: 100, method: "check" }).success
     ).toBe(true);
     expect(
-      invoicePaymentSchema.safeParse({ amount: 0, method: "check" }).success,
+      invoicePaymentSchema.safeParse({ amount: 0, method: "check" }).success
     ).toBe(false);
     expect(
-      invoicePaymentSchema.safeParse({ amount: 100, method: "bitcoin" }).success,
+      invoicePaymentSchema.safeParse({ amount: 100, method: "bitcoin" }).success
     ).toBe(false);
   });
 });

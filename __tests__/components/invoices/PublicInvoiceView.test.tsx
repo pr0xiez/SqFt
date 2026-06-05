@@ -32,7 +32,7 @@ describe("PublicInvoiceView", () => {
             },
           ],
         }}
-      />,
+      />
     );
     expect(screen.getByText("Balance due")).toBeDefined();
     expect(screen.getByText("Mr. Alex Hall")).toBeDefined();

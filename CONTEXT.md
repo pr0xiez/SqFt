@@ -96,6 +96,32 @@ estimates under the same site measure (they're marked `declined` with a
 
 Estimate status values: `draft | sent | viewed | approved | declined`.
 
+## Invoice
+
+A priced estimate can spawn **multiple** customer-facing invoices, each billing
+a free-form dollar `amount` or a percentage `pct` of the estimate total. The
+billing math is the single source of truth in `lib/invoices/` (mirroring
+`lib/estimateView`): `computeEstimateBilling` rolls up invoiced/unbilled/paid/
+outstanding across an estimate's non-void invoices, and `prorateInvoice` splits
+each invoice's amount across the estimate's line items (plus markup and
+convenience-fee rows) by the bill ratio, reconciling rounding so the displayed
+rows sum exactly to the billed amount. Creating or editing an invoice past the
+estimate's unbilled balance throws `INVOICE_OVERBILL`.
+
+Invoices are emailed via a public token page (`/invoice-review/[token]`),
+reusing the React-Email + Resend flow. On send, the invoice freezes a
+`snapshot` (identity + prorated lines + balance-due totals) so the customer
+document can never drift from later estimate edits; the public page renders
+from that snapshot and flips `sent → viewed` on first open.
+
+Payments are recorded manually into a `Payment` ledger (the schema is
+Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
+invoice status from the ledger. A `void` invoice is terminal and excluded from
+all billing math; editing a sent invoice or paying a void one throws
+`INVOICE_LOCKED`. Every lifecycle action appends an `InvoiceEvent`.
+
+Invoice status values: `draft | sent | viewed | partial | paid | void`.
+
 ## API Error Codes
 
 Every API route returns errors as `{ error: { code, message, details? } }`.
@@ -124,6 +150,10 @@ Domain codes:
   still assigned to one or more Events.
 - `EMAIL_FAILED` (502) — upstream email provider rejected the send. Returned
   by the estimate-send route when Resend reports a non-OK result.
+- `INVOICE_LOCKED` (409) — caller tried to edit an invoice that has been sent
+  (status is no longer `draft`), or record a payment on a `void` invoice.
+- `INVOICE_OVERBILL` (409) — caller tried to invoice more than the estimate's
+  unbilled balance (estimate total − Σ non-void invoice amounts).
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.

@@ -25,7 +25,10 @@ export interface CustomerInvoiceEmailProps {
   publicUrl: string;
 }
 
-const main = { backgroundColor: "#f4f3ed", fontFamily: "system-ui, sans-serif" };
+const main = {
+  backgroundColor: "#f4f3ed",
+  fontFamily: "system-ui, sans-serif",
+};
 const container = {
   backgroundColor: "#fafaf7",
   padding: "32px",
@@ -87,12 +90,16 @@ export function CustomerInvoiceEmail(props: CustomerInvoiceEmailProps) {
               />
             ) : null}
             <Text style={heading}>{props.orgName}</Text>
-            {props.orgPhone ? <Text style={muted}>{props.orgPhone}</Text> : null}
+            {props.orgPhone ? (
+              <Text style={muted}>{props.orgPhone}</Text>
+            ) : null}
           </Section>
           <Hr />
           <Section>
             <Text style={para}>Dear {props.customerName},</Text>
-            {props.coverNote ? <Text style={para}>{props.coverNote}</Text> : null}
+            {props.coverNote ? (
+              <Text style={para}>{props.coverNote}</Text>
+            ) : null}
           </Section>
           <Section style={card}>
             <Text style={muted}>INVOICE #{props.invoiceNumber}</Text>

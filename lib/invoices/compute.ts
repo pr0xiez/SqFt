@@ -14,7 +14,7 @@ function round2(n: number): number {
 /** Estimate-level billing rollup. Voided invoices are ignored. */
 export function computeEstimateBilling(
   estimateTotal: number | null,
-  invoices: InvoiceLike[],
+  invoices: InvoiceLike[]
 ): EstimateBilling {
   const total = estimateTotal ?? 0;
   let invoiced = 0;
@@ -43,7 +43,7 @@ export function computeEstimateBilling(
  */
 export function prorateInvoice(
   source: ProrationSource,
-  amount: number,
+  amount: number
 ): ProratedBreakdown {
   const estimateTotal = source.view.total;
   const ratio = estimateTotal === 0 ? 0 : amount / estimateTotal;

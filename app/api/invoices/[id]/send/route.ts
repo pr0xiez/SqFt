@@ -102,5 +102,5 @@ export const POST = apiRoute(
     if (!marked) throw new NotFoundError();
 
     return { ok: true };
-  },
+  }
 );

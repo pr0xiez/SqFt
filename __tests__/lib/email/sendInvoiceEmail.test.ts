@@ -29,7 +29,7 @@ describe("sendInvoiceEmail", () => {
         to: "alex@example.com",
         subject: "Invoice #7465",
         replyTo: "doug@example.com",
-      }),
+      })
     );
   });
 });

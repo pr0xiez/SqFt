@@ -15,7 +15,7 @@ function iso(value: Date | string | null): string | null {
  *  diverge from the math used elsewhere. */
 export function snapshotInvoice(
   source: ProrationSource,
-  meta: InvoiceSnapshotMeta,
+  meta: InvoiceSnapshotMeta
 ): InvoiceSnapshot {
   const breakdown = prorateInvoice(source, meta.amount);
   return {

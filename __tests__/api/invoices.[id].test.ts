@@ -18,8 +18,8 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-import { GET, PATCH } from "@/app/api/invoices/[id]/route";
 import { POST as PAY } from "@/app/api/invoices/[id]/payments/route";
+import { GET, PATCH } from "@/app/api/invoices/[id]/route";
 import { POST as VOID } from "@/app/api/invoices/[id]/void/route";
 import { recordPayment } from "@/lib/repositories";
 
@@ -32,7 +32,7 @@ beforeEach(() => {
 describe("invoice detail routes", () => {
   it("GET returns the invoice", async () => {
     expect(
-      (await GET(makeRequest("GET", "http://t/api/invoices/9"), ctx)).status,
+      (await GET(makeRequest("GET", "http://t/api/invoices/9"), ctx)).status
     ).toBe(200);
   });
   it("PATCH updates a draft", async () => {
@@ -40,15 +40,15 @@ describe("invoice detail routes", () => {
       (
         await PATCH(
           makeRequest("PATCH", "http://t/api/invoices/9", { memo: "Deposit" }),
-          ctx,
+          ctx
         )
-      ).status,
+      ).status
     ).toBe(200);
   });
   it("void marks the invoice void", async () => {
     expect(
       (await VOID(makeRequest("POST", "http://t/api/invoices/9/void"), ctx))
-        .status,
+        .status
     ).toBe(200);
   });
   it("payments records a payment", async () => {
@@ -57,7 +57,7 @@ describe("invoice detail routes", () => {
         amount: 100,
         method: "check",
       }),
-      ctx,
+      ctx
     );
     expect(res.status).toBe(201);
     expect(recordPayment).toHaveBeenCalledWith(
@@ -67,7 +67,7 @@ describe("invoice detail routes", () => {
         amount: 100,
         method: "check",
         recordedByName: "Amy",
-      }),
+      })
     );
   });
 });

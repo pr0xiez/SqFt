@@ -18,7 +18,7 @@ export interface SendInvoiceEmailInput {
 }
 
 export function sendInvoiceEmail(
-  input: SendInvoiceEmailInput,
+  input: SendInvoiceEmailInput
 ): Promise<SendEmailResult> {
   return sendEmail({
     to: input.to,

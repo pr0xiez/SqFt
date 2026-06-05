@@ -52,25 +52,25 @@ describe("buildInvoiceProrationSource", () => {
 describe("nextInvoiceStatus", () => {
   it("stays unpaid (sent/viewed) when nothing is paid", () => {
     expect(nextInvoiceStatus({ current: "sent", amount: 100, paid: 0 })).toBe(
-      "sent",
+      "sent"
     );
     expect(nextInvoiceStatus({ current: "viewed", amount: 100, paid: 0 })).toBe(
-      "viewed",
+      "viewed"
     );
   });
   it("becomes partial when some but not all is paid", () => {
     expect(nextInvoiceStatus({ current: "sent", amount: 100, paid: 40 })).toBe(
-      "partial",
+      "partial"
     );
   });
   it("becomes paid when fully covered", () => {
     expect(
-      nextInvoiceStatus({ current: "partial", amount: 100, paid: 100 }),
+      nextInvoiceStatus({ current: "partial", amount: 100, paid: 100 })
     ).toBe("paid");
   });
   it("never changes a void invoice", () => {
     expect(nextInvoiceStatus({ current: "void", amount: 100, paid: 100 })).toBe(
-      "void",
+      "void"
     );
   });
 });

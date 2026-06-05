@@ -17,5 +17,5 @@ export const PATCH = apiRoute(
     const invoice = await updateInvoice(id, orgId, input);
     if (!invoice) throw new NotFoundError();
     return invoice;
-  },
+  }
 );

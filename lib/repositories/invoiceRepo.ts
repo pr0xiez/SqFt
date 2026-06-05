@@ -21,7 +21,7 @@ type HydratedEstimate = Parameters<typeof fromPrismaEstimate>[0];
 export function buildInvoiceProrationSource(
   estimate: HydratedEstimate & {
     lineItems: Array<{ name: string; description: string | null }>;
-  },
+  }
 ): ProrationSource {
   const view = computeEstimateView(fromPrismaEstimate(estimate));
   return {
@@ -69,7 +69,7 @@ function toInvoiceLike(inv: {
 
 export async function listInvoicesForEstimate(
   estimateId: number,
-  orgId: string,
+  orgId: string
 ) {
   return prisma.invoice.findMany({
     where: { orgId, estimateId },
@@ -80,7 +80,7 @@ export async function listInvoicesForEstimate(
 
 export async function getInvoice(
   id: number,
-  orgId: string,
+  orgId: string
 ): Promise<InvoiceWithDetails | null> {
   return prisma.invoice.findFirst({
     where: { id, orgId },
@@ -127,7 +127,7 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
 
     const billing = computeEstimateBilling(
       estimateTotal,
-      estimate.invoices.map(toInvoiceLike),
+      estimate.invoices.map(toInvoiceLike)
     );
     if (amount > billing.unbilled + 0.005) {
       throw new InvoiceOverbillError(billing.unbilled);
@@ -193,7 +193,7 @@ export interface UpdateInvoiceInput {
 export async function updateInvoice(
   id: number,
   orgId: string,
-  patch: UpdateInvoiceInput,
+  patch: UpdateInvoiceInput
 ) {
   return prisma.$transaction(async (tx) => {
     const existing = await tx.invoice.findFirst({
@@ -285,7 +285,7 @@ export interface MarkInvoiceSentInput {
 export async function markInvoiceSent(
   id: number,
   orgId: string,
-  input: MarkInvoiceSentInput,
+  input: MarkInvoiceSentInput
 ) {
   return prisma.$transaction(async (tx) => {
     const existing = await tx.invoice.findFirst({
@@ -327,7 +327,7 @@ export interface MarkInvoiceViewedInput {
 /** Public view-tracking. Flips sent → viewed; always logs the open. */
 export async function markInvoiceViewed(
   invoiceId: number,
-  input: MarkInvoiceViewedInput,
+  input: MarkInvoiceViewedInput
 ) {
   await prisma.$transaction(async (tx) => {
     const inv = await tx.invoice.findUnique({
@@ -367,7 +367,7 @@ export interface RecordPaymentInput {
 export async function recordPayment(
   invoiceId: number,
   orgId: string,
-  input: RecordPaymentInput,
+  input: RecordPaymentInput
 ) {
   return prisma.$transaction(async (tx) => {
     const inv = await tx.invoice.findFirst({
@@ -390,8 +390,7 @@ export async function recordPayment(
       },
     });
 
-    const paid =
-      inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+    const paid = inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
     const status = nextInvoiceStatus({
       current: inv.status,
       amount: inv.amount,
