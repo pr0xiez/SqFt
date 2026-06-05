@@ -84,4 +84,35 @@ describe("prorateInvoice", () => {
     const sum = out.lines.reduce((s, l) => s + l.amount, 0);
     expect(Math.round(sum * 100) / 100).toBe(4105.7);
   });
+
+  it("reconciles a PARTIAL invoice with folded markup AND a convenience fee so rows sum exactly to the bill amount", () => {
+    // subtotal 3687 + 10% markup → beforeFee 4055.7, plus a $100 convenience
+    // fee → total 4155.7. Billed at $1000 (ratio ≈ 0.2406). Folded+prorated
+    // lines come to 81.26 + 894.67 = 975.93 and the fee prorates to 24.06,
+    // summing to 999.99 — a cent short. The drift branch (drift !== 0) adds the
+    // missing +0.01 to the LAST row, i.e. the convenience-fee row (24.06 → 24.07).
+    // NOTE: this is why the displayed fee differs from a naive fee×ratio by a
+    // cent — see the review finding on drift landing on the fee row.
+    const withMarkupAndFee: ProrationSource = {
+      ...source,
+      view: {
+        ...source.view,
+        markup: 368.7,
+        beforeFee: 4055.7,
+        convenienceFee: 100,
+        total: 4155.7,
+      },
+    };
+    const out = prorateInvoice(withMarkupAndFee, 1000);
+    expect(out.ratio).toBeCloseTo(0.2406, 4);
+    expect(out.lines).toEqual([
+      { name: "Carpet Tear Out", description: "Remove carpet", amount: 81.26 },
+      { name: "RED OAK", description: "Install oak", amount: 894.67 },
+      { name: "Convenience fee", description: null, amount: 24.07 },
+    ]);
+    expect(out.lines.map((l) => l.name)).not.toContain("Markup");
+    const sum = out.lines.reduce((s, l) => s + l.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(1000);
+    expect(out.total).toBe(1000);
+  });
 });

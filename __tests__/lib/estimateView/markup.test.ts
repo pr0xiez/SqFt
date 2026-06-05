@@ -64,4 +64,46 @@ describe("foldMarkupIntoLines", () => {
     expect(out[0]).toBeNull();
     expect(out[1]).toBe(133.34);
   });
+
+  it("reconciles rounding drift onto the last resolved line so folded amounts sum exactly to beforeFee", () => {
+    // 33.33 / 33.33 / 33.34 at 10% markup → 36.663 / 36.663 / 36.674.
+    // Per-line round2 gives 36.66 / 36.66 / 36.67 = 109.99 — a cent short of
+    // beforeFee (110). The drift branch must add the missing +0.01 to the last
+    // resolved line. (None of the cases above produce drift !== 0.)
+    const v = view({
+      lines: [
+        { id: 1, effectiveQty: 1, subtotal: 33.33 },
+        { id: 2, effectiveQty: 1, subtotal: 33.33 },
+        { id: 3, effectiveQty: 1, subtotal: 33.34 },
+      ],
+      subtotal: 100,
+      markup: 10,
+      beforeFee: 110,
+      total: 110,
+    });
+    const out = foldMarkupIntoLines(v);
+    expect(out).toEqual([36.66, 36.66, 36.68]);
+    expect(out.reduce<number>((s, a) => s + (a ?? 0), 0)).toBe(110);
+  });
+
+  it("skips a trailing unresolved line and reconciles drift onto the last RESOLVED line", () => {
+    // Same drift as above, but the final line is unresolved (null). The
+    // backward scan must skip the null and adjust line 3, leaving null in place.
+    const v = view({
+      lines: [
+        { id: 1, effectiveQty: 1, subtotal: 33.33 },
+        { id: 2, effectiveQty: 1, subtotal: 33.33 },
+        { id: 3, effectiveQty: 1, subtotal: 33.34 },
+        { id: 4, effectiveQty: null, subtotal: null },
+      ],
+      subtotal: 100,
+      markup: 10,
+      beforeFee: 110,
+      total: 110,
+    });
+    const out = foldMarkupIntoLines(v);
+    expect(out).toEqual([36.66, 36.66, 36.68, null]);
+    expect(out[3]).toBeNull();
+    expect(out.reduce<number>((s, a) => s + (a ?? 0), 0)).toBe(110);
+  });
 });
