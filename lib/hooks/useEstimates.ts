@@ -77,7 +77,7 @@ export interface EstimateDetail {
     items: RoomItem[];
   };
   lineItems: LineItemCalc[];
-  org?: { name: string } | null;
+  org?: { name: string; defaultDepositPct: number } | null;
   estimateEvents?: EstimateDeclineEvent[];
   revisedFrom?: { id: number; estimateNumber: number } | null;
   revisedBy?: { id: number; estimateNumber: number }[];
