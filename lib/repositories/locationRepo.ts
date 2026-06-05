@@ -1,9 +1,16 @@
+import { formatAddress } from "@/lib/locations/formatAddress";
 import { prisma } from "@/lib/prisma";
 
 export interface CreateLocationInput {
   orgId: string;
   customerId: number;
-  address: string;
+  street: string;
+  unit?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  lat?: number | null;
+  lon?: number | null;
   label?: string | null;
   notes?: string | null;
 }
@@ -17,7 +24,26 @@ export async function createLocation(input: CreateLocationInput) {
     select: { id: true },
   });
   if (!customer) return null;
-  return prisma.location.create({ data: { ...input } });
+
+  const { orgId, customerId, label, notes, ...parts } = input;
+  const address = formatAddress(parts);
+
+  return prisma.location.create({
+    data: {
+      orgId,
+      customerId,
+      address,
+      street: parts.street,
+      unit: parts.unit ?? null,
+      city: parts.city,
+      state: parts.state,
+      postalCode: parts.postalCode,
+      lat: parts.lat ?? null,
+      lon: parts.lon ?? null,
+      label: label ?? null,
+      notes: notes ?? null,
+    },
+  });
 }
 
 export function listLocationsForCustomer(orgId: string, customerId: number) {

@@ -24,18 +24,28 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("locationRepo", () => {
     await prisma.organization.delete({ where: { id: orgId } });
   });
 
-  it("creates multiple locations for one customer", async () => {
+  it("creates multiple locations for one customer and derives address", async () => {
     await createLocation({
       orgId,
       customerId,
-      address: "12 Oak St",
+      street: "12 Oak St",
+      city: "Columbus",
+      state: "OH",
+      postalCode: "43201",
       label: "Rental",
     });
-    await createLocation({ orgId, customerId, address: "9 Elm Ave" });
+    await createLocation({
+      orgId,
+      customerId,
+      street: "9 Elm Ave",
+      city: "Dublin",
+      state: "OH",
+      postalCode: "43017",
+    });
     const locs = await listLocationsForCustomer(orgId, customerId);
     expect(locs.map((l) => l.address).sort()).toEqual([
-      "12 Oak St",
-      "9 Elm Ave",
+      "12 Oak St, Columbus, OH 43201",
+      "9 Elm Ave, Dublin, OH 43017",
     ]);
   });
 
@@ -46,8 +56,11 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("locationRepo", () => {
     try {
       const res = await createLocation({
         orgId: otherOrg.id,
-        customerId, // belongs to the first org, not otherOrg
-        address: "999 Hijack Rd",
+        customerId,
+        street: "999 Hijack Rd",
+        city: "Columbus",
+        state: "OH",
+        postalCode: "43215",
       });
       expect(res).toBeNull();
       const leaked = await listLocationsForCustomer(otherOrg.id, customerId);
