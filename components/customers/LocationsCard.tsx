@@ -253,6 +253,7 @@ export function LocationsCard({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, city: e.target.value }))
                 }
+                placeholder="Columbus"
                 className={fieldInput}
               />
             </div>
@@ -276,6 +277,7 @@ export function LocationsCard({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, postalCode: e.target.value }))
                 }
+                placeholder="43215"
                 className={fieldInput}
               />
             </div>
