@@ -42,7 +42,12 @@ model Organization {
   trialEndsAt          DateTime?
   currentPeriodEndsAt  DateTime?
 
+  nextInvoiceNumber          Int      @default(1)
+  defaultPaymentInstructions String   @default("")
+  stripeConnectAccountId     String?
+
   users             User[]
+  invoices          Invoice[]
   customers         Customer[]
   siteMeasures      SiteMeasure[]
   estimates         Estimate[]
@@ -171,6 +176,7 @@ model Estimate {
   events         Event[]
   approval       EstimateApproval?
   estimateEvents EstimateEvent[]
+  invoices       Invoice[]
 
   // Revision chain — Revise on an accepted/declined estimate clones it
   // into a new draft with this field set to the predecessor's id.
@@ -242,6 +248,85 @@ model EstimateEvent {
   createdAt  DateTime @default(now())
 
   @@index([estimateId, createdAt])
+}
+
+model Invoice {
+  id            Int          @id @default(autoincrement())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  estimateId    Int
+  estimate      Estimate     @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  invoiceNumber Int
+
+  status        String       @default("draft") // draft | sent | viewed | partial | paid | void
+
+  amount        Float
+  pct           Float?
+  memo          String?
+
+  coverNote           String @default("")
+  terms               String @default("")
+  paymentInstructions String @default("")
+
+  date          DateTime     @default(now())
+  dueDate       DateTime?
+
+  publicToken   String?      @unique
+  sentAt        DateTime?
+  sentToEmail   String?
+  sentByEmail   String?
+  sentByName    String?
+  viewedAt      DateTime?
+
+  paidAt        DateTime?
+  voidedAt      DateTime?
+
+  stripePaymentLinkUrl  String?
+  stripePaymentIntentId String? @unique
+
+  snapshot      Json?
+
+  createdAt     DateTime     @default(now())
+
+  payments      Payment[]
+  invoiceEvents InvoiceEvent[]
+
+  @@unique([orgId, invoiceNumber])
+  @@index([orgId])
+  @@index([estimateId])
+}
+
+model Payment {
+  id              Int      @id @default(autoincrement())
+  invoiceId       Int
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount          Float
+  method          String   // check | cash | card | ach | stripe | other
+  paidAt          DateTime @default(now())
+  reference       String?
+  note            String?
+  recordedByEmail String?
+  recordedByName  String?
+  stripeChargeId  String?  @unique
+  createdAt       DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+model InvoiceEvent {
+  id         Int      @id @default(autoincrement())
+  invoiceId  Int
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  type       String   // sent | viewed | resent | link_rotated | payment_recorded | voided
+  actorEmail String?
+  actorName  String?
+  ip         String?
+  userAgent  String?
+  metadata   Json?
+  source     String?  // customer | builder | system
+  createdAt  DateTime @default(now())
+
+  @@index([invoiceId, createdAt])
 }
 
 // Calendar events: job installations, measurement visits, etc.

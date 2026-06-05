@@ -4,6 +4,7 @@ export * from "./estimateApprovalRepo";
 export * from "./estimateEventRepo";
 export * from "./estimateRepo";
 export * from "./eventRepo";
+export * from "./invoiceRepo";
 export * from "./lineItemTemplateRepo";
 export * from "./locationRepo";
 export * from "./siteMeasureRepo";

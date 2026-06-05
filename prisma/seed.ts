@@ -888,6 +888,98 @@ async function main() {
   }
   console.log(`  ✓ Accepted estimate: #${acceptedEstimate.estimateNumber}`);
 
+  // ── Invoices on the accepted estimate (#5006) ────────────────────────────
+  // Demonstrates staged billing: a paid 50% deposit, a partially-paid progress
+  // invoice, and one voided draft. amounts are illustrative dollar figures.
+  const depositInvoice = await prisma.invoice.create({
+    data: {
+      orgId: org.id,
+      estimateId: acceptedEstimate.id,
+      invoiceNumber: 1,
+      status: "paid",
+      amount: 1322.66,
+      pct: 0.5,
+      memo: "Deposit",
+      terms: "50% to schedule, bal upon compl",
+      coverNote:
+        "Your deposit invoice is attached. Please remit at your earliest convenience.",
+      paymentInstructions:
+        "WARNING! We only accept credit cards through our payment link, or a check mailed to 127 S Main St., Monroe, OH 45050.",
+      dueDate: new Date("2026-05-04T00:00:00Z"),
+      publicToken: "seed-token-invoice-deposit-1111111111111111",
+      sentAt: new Date("2026-05-02T12:00:00Z"),
+      sentToEmail: "henderson@example.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      paidAt: new Date("2026-05-03T09:00:00Z"),
+      snapshot: { invoiceNumber: 1, seedFixture: true },
+    },
+  });
+  await prisma.payment.create({
+    data: {
+      invoiceId: depositInvoice.id,
+      amount: 1322.66,
+      method: "check",
+      paidAt: new Date("2026-05-03T09:00:00Z"),
+      reference: "Check #1042",
+      recordedByEmail: user.email,
+      recordedByName: user.name,
+    },
+  });
+  await prisma.invoiceEvent.create({
+    data: {
+      invoiceId: depositInvoice.id,
+      type: "sent",
+      source: "builder",
+      actorEmail: user.email,
+      actorName: user.name,
+    },
+  });
+
+  const progressInvoice = await prisma.invoice.create({
+    data: {
+      orgId: org.id,
+      estimateId: acceptedEstimate.id,
+      invoiceNumber: 2,
+      status: "partial",
+      amount: 661.33,
+      pct: 0.25,
+      memo: "Progress payment",
+      terms: "Net 15",
+      paymentInstructions: "Check or card via payment link.",
+      dueDate: new Date("2026-05-20T00:00:00Z"),
+      publicToken: "seed-token-invoice-progress-2222222222222222",
+      sentAt: new Date("2026-05-10T12:00:00Z"),
+      sentToEmail: "henderson@example.com",
+      sentByEmail: user.email,
+      sentByName: user.name,
+      snapshot: { invoiceNumber: 2, seedFixture: true },
+    },
+  });
+  await prisma.payment.create({
+    data: {
+      invoiceId: progressInvoice.id,
+      amount: 300,
+      method: "cash",
+      paidAt: new Date("2026-05-12T09:00:00Z"),
+      recordedByEmail: user.email,
+      recordedByName: user.name,
+    },
+  });
+
+  await prisma.invoice.create({
+    data: {
+      orgId: org.id,
+      estimateId: acceptedEstimate.id,
+      invoiceNumber: 3,
+      status: "void",
+      amount: 100,
+      memo: "Mistaken draft",
+      voidedAt: new Date("2026-05-11T00:00:00Z"),
+    },
+  });
+  console.log("  ✓ 3 invoices on #5006 (paid deposit, partial progress, void)");
+
   // ── Second location for Henderson (a customer with two locations) ─────────
   // Demonstrates the Customer → Location → SiteMeasure hierarchy: one customer
   // owns multiple physical sites.
@@ -1313,7 +1405,7 @@ async function main() {
   // newly created records start fresh sequences.
   await prisma.organization.update({
     where: { id: org.id },
-    data: { nextSiteMeasureNumber, nextEstimateNumber },
+    data: { nextSiteMeasureNumber, nextEstimateNumber, nextInvoiceNumber: 4 },
   });
   console.log(`  ✓ ${9 + bulkEstimateIds.length} estimates`);
 
