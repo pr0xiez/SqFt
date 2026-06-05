@@ -6,7 +6,10 @@ import { CustomerHeader } from "@/components/customers/CustomerHeader";
 import { CustomerInfoCard } from "@/components/customers/CustomerInfoCard";
 import { CustomerPipeline } from "@/components/customers/CustomerPipeline";
 import { CustomerStatStrip } from "@/components/customers/CustomerStatStrip";
-import { LocationsCard } from "@/components/customers/LocationsCard";
+import {
+  LocationsCard,
+  type NewLocationInput,
+} from "@/components/customers/LocationsCard";
 import { useToast } from "@/components/ui/Toast";
 import { isOpenEstimate, lastTouchAt } from "@/lib/estimateStatus";
 import {
@@ -106,16 +109,22 @@ export function CustomerDetailView({ customerId }: Props) {
     showToast("Pick a location below to start");
   }
 
-  async function handleAddLocation(address: string, label: string) {
-    if (!address) {
+  async function handleAddLocation(input: NewLocationInput) {
+    if (!input.street || !input.city || !input.state || !input.postalCode) {
       showToast("Address required");
       throw new Error("address required");
     }
     try {
       await createLocation.mutateAsync({
         customerId,
-        address,
-        label: label || undefined,
+        street: input.street,
+        unit: input.unit || undefined,
+        city: input.city,
+        state: input.state,
+        postalCode: input.postalCode,
+        lat: input.lat,
+        lon: input.lon,
+        label: input.label || undefined,
       });
     } catch {
       showToast("Failed to add location");
