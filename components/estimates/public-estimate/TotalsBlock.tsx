@@ -2,8 +2,6 @@ import { fmtDollar } from "@/lib/utils";
 
 interface Props {
   subtotal: number;
-  markup: number;
-  markupPct: number;
   convenienceFee: number;
   convenienceFeeRate: number;
   total: number;
@@ -19,12 +17,6 @@ export function TotalsBlock(props: Props) {
         label={`Convenience fee · ${(props.convenienceFeeRate * 100).toFixed(1)}%`}
         value={fmtDollar(props.convenienceFee)}
       />
-      {props.markupPct > 0 && (
-        <Row
-          label={`Labor & margin · ${props.markupPct}%`}
-          value={fmtDollar(props.markup)}
-        />
-      )}
       <div className="h-[1.5px] bg-[var(--ink)] w-[280px] my-1.5" />
       <div className="grid grid-cols-[auto_140px] gap-8 items-baseline">
         <div className="font-[var(--font-mono)] text-[11px] text-[var(--ink)] tracking-[.06em] uppercase font-[600] text-right">
