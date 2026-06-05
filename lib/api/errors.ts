@@ -73,6 +73,26 @@ export class EstimateHasEventsError extends ConflictError {
   }
 }
 
+export class InvoiceLockedError extends ConflictError {
+  constructor() {
+    super(
+      "This invoice has been sent and can no longer be edited.",
+      "INVOICE_LOCKED"
+    );
+  }
+}
+
+export class InvoiceOverbillError extends ConflictError {
+  readonly unbilled: number;
+  constructor(unbilled: number) {
+    super(
+      `Amount exceeds the estimate's unbilled balance ($${unbilled.toFixed(2)}).`,
+      "INVOICE_OVERBILL"
+    );
+    this.unbilled = unbilled;
+  }
+}
+
 export class CrewMemberInUseError extends ConflictError {
   constructor(message: string) {
     super(message, "CREW_MEMBER_IN_USE");
