@@ -271,7 +271,7 @@ Org-scoped (`apiRoute`):
 Public (`publicRoute`):
 
 - Page loader via `getInvoiceByToken` + `markInvoiceViewed`.
-- **Stripe (phase 2, stubbed seam):** `POST /api/invoice/[token]/pay` →
+- **Stripe (phase 2, stubbed seam):** `POST /api/invoice-review/[token]/pay` →
   Stripe Checkout session; `POST /api/stripe/invoice-webhook` → writes a
   `Payment` row. `stripePaymentLinkUrl` renders on the public page when present.
 
@@ -280,7 +280,7 @@ New domain error codes (via `lib/api/errors.ts` `ApiError` subclasses):
 - `INVOICE_LOCKED` (409) — edit attempted after send.
 - `INVOICE_OVERBILL` (409) — amount exceeds the estimate's unbilled balance.
 
-## Public pay page — `app/invoice/[token]/page.tsx`
+## Public pay page — `app/invoice-review/[token]/page.tsx`
 
 Mirrors `app/estimate-review/[token]/page.tsx`, reusing the `Letterhead` /
 `PublicEstimateView` styling. Sections: header (logo + org), **Bill to**,
