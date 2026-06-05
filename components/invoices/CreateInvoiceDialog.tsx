@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useCreateInvoice } from "@/lib/hooks/useInvoices";
 import { fmtDollar } from "@/lib/utils";
@@ -59,8 +60,6 @@ export function CreateInvoiceDialog({
     }
   }, [open, defaultDepositPct]);
 
-  if (!open) return null;
-
   const amount =
     mode === "remaining"
       ? round2(unbilled)
@@ -92,171 +91,151 @@ export function CreateInvoiceDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-invoice-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
-    >
-      <div className="bg-[var(--paper)] rounded-lg p-8 max-w-[480px] w-[calc(100%-32px)] shadow-2xl">
-        <h2
-          id="create-invoice-title"
-          className="text-[20px] font-[700] tracking-[-0.02em] mb-4"
-        >
-          New invoice
-        </h2>
-
-        <span className={labelCls}>Bill by</span>
-        <div className="flex border border-[var(--line-2)] rounded overflow-hidden mb-3">
-          {(
-            [
-              ["remaining", "Remaining balance"],
-              ["pct", "% of balance"],
-              ["flat", "Flat amount"],
-            ] as [Mode, string][]
-          ).map(([m, label]) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={`flex-1 text-[12px] py-2 ${
-                mode === m
-                  ? "bg-[var(--ink)] text-[var(--bg)]"
-                  : "bg-[var(--surface)] text-[var(--ink-2)]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {mode === "pct" ? (
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              aria-label="Percent of balance"
-              type="number"
-              className="w-[100px] text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded focus:outline-none focus:border-[var(--ink)]"
-              value={pct}
-              onChange={(e) => setPct(e.target.value)}
-            />
-            <span className="text-[13px] text-[var(--ink-2)]">
-              % of {fmtDollar(unbilled)} remaining
-            </span>
-          </div>
-        ) : null}
-
-        {mode === "flat" ? (
-          <>
-            <label className={labelCls} htmlFor="flat-amount">
-              Amount
-            </label>
-            <input
-              id="flat-amount"
-              aria-label="Amount"
-              type="number"
-              className={inputCls}
-              value={flat}
-              onChange={(e) => setFlat(e.target.value)}
-            />
-          </>
-        ) : null}
-
-        <div className="rounded bg-[var(--surface-2)] px-3 py-2.5 mb-4">
-          <div className="text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)]">
-            This invoice
-          </div>
-          <div className="text-[22px] font-[700] tracking-[-0.02em]">
-            {fmtDollar(amount)}
-          </div>
-          {overBill ? (
-            <div className="text-[11px] text-[var(--accent)] mt-0.5">
-              Exceeds the {fmtDollar(unbilled)} unbilled balance.
-            </div>
-          ) : (
-            <div className="text-[11px] text-[var(--muted)] mt-0.5">
-              Leaves {fmtDollar(leaves)} unbilled
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className={labelCls} htmlFor="due-date">
-              Due date (optional)
-            </label>
-            <input
-              id="due-date"
-              type="date"
-              className={inputCls}
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-          <div className="flex-1">
-            <label className={labelCls} htmlFor="memo">
-              Memo (optional)
-            </label>
-            <input
-              id="memo"
-              type="text"
-              className={inputCls}
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-              placeholder="Deposit"
-            />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="text-[12px] text-[var(--accent)] mb-3"
-          onClick={() => setShowMore((s) => !s)}
-        >
-          {showMore ? "− Cover note & terms" : "+ Cover note & terms"}
-        </button>
-        {showMore ? (
-          <>
-            <label className={labelCls} htmlFor="cover-note">
-              Cover note
-            </label>
-            <textarea
-              id="cover-note"
-              className={`${inputCls} min-h-[70px] resize-y`}
-              value={coverNote}
-              onChange={(e) => setCoverNote(e.target.value)}
-            />
-            <label className={labelCls} htmlFor="terms">
-              Terms
-            </label>
-            <textarea
-              id="terms"
-              className={`${inputCls} min-h-[70px] resize-y`}
-              value={terms}
-              onChange={(e) => setTerms(e.target.value)}
-            />
-          </>
-        ) : null}
-
-        <div className="flex justify-end gap-2 mt-2">
-          <Button variant="ghost" onClick={onClose} type="button">
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={onCreate}
-            disabled={!canSubmit}
+    <Modal open={open} onClose={onClose} title="New invoice" maxWidth="480px">
+      <span className={labelCls}>Bill by</span>
+      <div className="flex border border-[var(--line-2)] rounded overflow-hidden mb-3">
+        {(
+          [
+            ["remaining", "Remaining balance"],
+            ["pct", "% of balance"],
+            ["flat", "Flat amount"],
+          ] as [Mode, string][]
+        ).map(([m, label]) => (
+          <button
+            key={m}
             type="button"
+            onClick={() => setMode(m)}
+            className={`flex-1 text-[12px] py-2 ${
+              mode === m
+                ? "bg-[var(--ink)] text-[var(--bg)]"
+                : "bg-[var(--surface)] text-[var(--ink-2)]"
+            }`}
           >
-            {create.isPending ? "Creating…" : "Create draft →"}
-          </Button>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "pct" ? (
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            aria-label="Percent of balance"
+            type="number"
+            className="w-[100px] text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded focus:outline-none focus:border-[var(--ink)]"
+            value={pct}
+            onChange={(e) => setPct(e.target.value)}
+          />
+          <span className="text-[13px] text-[var(--ink-2)]">
+            % of {fmtDollar(unbilled)} remaining
+          </span>
+        </div>
+      ) : null}
+
+      {mode === "flat" ? (
+        <>
+          <label className={labelCls} htmlFor="flat-amount">
+            Amount
+          </label>
+          <input
+            id="flat-amount"
+            aria-label="Amount"
+            type="number"
+            className={inputCls}
+            value={flat}
+            onChange={(e) => setFlat(e.target.value)}
+          />
+        </>
+      ) : null}
+
+      <div className="rounded bg-[var(--surface-2)] px-3 py-2.5 mb-4">
+        <div className="text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)]">
+          This invoice
+        </div>
+        <div className="text-[22px] font-[700] tracking-[-0.02em]">
+          {fmtDollar(amount)}
+        </div>
+        {overBill ? (
+          <div className="text-[11px] text-[var(--accent)] mt-0.5">
+            Exceeds the {fmtDollar(unbilled)} unbilled balance.
+          </div>
+        ) : (
+          <div className="text-[11px] text-[var(--muted)] mt-0.5">
+            Leaves {fmtDollar(leaves)} unbilled
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3">
+        <div className="flex-1">
+          <label className={labelCls} htmlFor="due-date">
+            Due date (optional)
+          </label>
+          <input
+            id="due-date"
+            type="date"
+            className={inputCls}
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+        </div>
+        <div className="flex-1">
+          <label className={labelCls} htmlFor="memo">
+            Memo (optional)
+          </label>
+          <input
+            id="memo"
+            type="text"
+            className={inputCls}
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            placeholder="Deposit"
+          />
         </div>
       </div>
-    </div>
+
+      <button
+        type="button"
+        className="text-[12px] text-[var(--accent)] mb-3"
+        onClick={() => setShowMore((s) => !s)}
+      >
+        {showMore ? "− Cover note & terms" : "+ Cover note & terms"}
+      </button>
+      {showMore ? (
+        <>
+          <label className={labelCls} htmlFor="cover-note">
+            Cover note
+          </label>
+          <textarea
+            id="cover-note"
+            className={`${inputCls} min-h-[70px] resize-y`}
+            value={coverNote}
+            onChange={(e) => setCoverNote(e.target.value)}
+          />
+          <label className={labelCls} htmlFor="terms">
+            Terms
+          </label>
+          <textarea
+            id="terms"
+            className={`${inputCls} min-h-[70px] resize-y`}
+            value={terms}
+            onChange={(e) => setTerms(e.target.value)}
+          />
+        </>
+      ) : null}
+
+      <div className="flex justify-end gap-2 mt-2">
+        <Button variant="ghost" onClick={onClose} type="button">
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          onClick={onCreate}
+          disabled={!canSubmit}
+          type="button"
+        >
+          {create.isPending ? "Creating…" : "Create draft →"}
+        </Button>
+      </div>
+    </Modal>
   );
 }

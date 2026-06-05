@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useRecordPayment } from "@/lib/hooks/useInvoices";
 
@@ -46,8 +47,6 @@ export function RecordPaymentDialog({
     }
   }, [open, outstanding]);
 
-  if (!open) return null;
-
   const value = parseFloat(amount) || 0;
   const canSubmit = value > 0 && !record.isPending;
 
@@ -72,102 +71,87 @@ export function RecordPaymentDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="record-payment-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-      }}
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Record payment"
+      maxWidth="440px"
     >
-      <div className="bg-[var(--paper)] rounded-lg p-8 max-w-[440px] w-[calc(100%-32px)] shadow-2xl">
-        <h2
-          id="record-payment-title"
-          className="text-[20px] font-[700] tracking-[-0.02em] mb-4"
+      <label className={labelCls} htmlFor="pay-amount">
+        Amount
+      </label>
+      <input
+        id="pay-amount"
+        aria-label="Amount"
+        type="number"
+        className={inputCls}
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+      />
+
+      <label className={labelCls} htmlFor="pay-method">
+        Method
+      </label>
+      <select
+        id="pay-method"
+        aria-label="Method"
+        className={inputCls}
+        value={method}
+        onChange={(e) => setMethod(e.target.value)}
+      >
+        {METHODS.map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+
+      <label className={labelCls} htmlFor="pay-date">
+        Date (optional — defaults to today)
+      </label>
+      <input
+        id="pay-date"
+        type="date"
+        className={inputCls}
+        value={paidAt}
+        onChange={(e) => setPaidAt(e.target.value)}
+      />
+
+      <label className={labelCls} htmlFor="pay-ref">
+        Reference (optional)
+      </label>
+      <input
+        id="pay-ref"
+        type="text"
+        className={inputCls}
+        value={reference}
+        onChange={(e) => setReference(e.target.value)}
+        placeholder="Check #1182"
+      />
+
+      <label className={labelCls} htmlFor="pay-note">
+        Note (optional)
+      </label>
+      <textarea
+        id="pay-note"
+        className={`${inputCls} min-h-[60px] resize-y`}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+
+      <div className="flex justify-end gap-2 mt-2">
+        <Button variant="ghost" onClick={onClose} type="button">
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          onClick={onSubmit}
+          disabled={!canSubmit}
+          type="button"
         >
-          Record payment
-        </h2>
-
-        <label className={labelCls} htmlFor="pay-amount">
-          Amount
-        </label>
-        <input
-          id="pay-amount"
-          aria-label="Amount"
-          type="number"
-          className={inputCls}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-
-        <label className={labelCls} htmlFor="pay-method">
-          Method
-        </label>
-        <select
-          id="pay-method"
-          aria-label="Method"
-          className={inputCls}
-          value={method}
-          onChange={(e) => setMethod(e.target.value)}
-        >
-          {METHODS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-
-        <label className={labelCls} htmlFor="pay-date">
-          Date (optional — defaults to today)
-        </label>
-        <input
-          id="pay-date"
-          type="date"
-          className={inputCls}
-          value={paidAt}
-          onChange={(e) => setPaidAt(e.target.value)}
-        />
-
-        <label className={labelCls} htmlFor="pay-ref">
-          Reference (optional)
-        </label>
-        <input
-          id="pay-ref"
-          type="text"
-          className={inputCls}
-          value={reference}
-          onChange={(e) => setReference(e.target.value)}
-          placeholder="Check #1182"
-        />
-
-        <label className={labelCls} htmlFor="pay-note">
-          Note (optional)
-        </label>
-        <textarea
-          id="pay-note"
-          className={`${inputCls} min-h-[60px] resize-y`}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
-
-        <div className="flex justify-end gap-2 mt-2">
-          <Button variant="ghost" onClick={onClose} type="button">
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={onSubmit}
-            disabled={!canSubmit}
-            type="button"
-          >
-            {record.isPending ? "Saving…" : "Record payment"}
-          </Button>
-        </div>
+          {record.isPending ? "Saving…" : "Record payment"}
+        </Button>
       </div>
-    </div>
+    </Modal>
   );
 }
