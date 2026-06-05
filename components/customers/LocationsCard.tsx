@@ -126,11 +126,12 @@ export function LocationsCard({
     }
   }
 
-  const canSave =
+  const canSave = Boolean(
     form.street.trim() &&
-    form.city.trim() &&
-    form.state.trim() &&
-    form.postalCode.trim();
+      form.city.trim() &&
+      form.state.trim() &&
+      form.postalCode.trim()
+  );
 
   return (
     <div
@@ -217,7 +218,7 @@ export function LocationsCard({
             {showSuggestions && (
               <ul className="absolute z-10 mt-1 w-full bg-[var(--surface)] border border-[var(--line)] rounded-[5px] shadow-md max-h-60 overflow-y-auto">
                 {suggestions.map((s) => (
-                  <li key={s.formatted}>
+                  <li key={`${s.formatted}|${s.lat},${s.lon}`}>
                     <button
                       type="button"
                       onClick={() => pickSuggestion(s)}
