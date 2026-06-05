@@ -9,6 +9,7 @@ import { SendEstimateDialog } from "@/components/estimates/SendEstimateDialog";
 import { InvoicesSection } from "@/components/invoices/InvoicesSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { computeEstimateView } from "@/lib/estimateView";
 import {
   useEstimate,
   useRotateEstimateToken,
@@ -83,6 +84,14 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const rooms = (estimate.siteMeasure.items ?? []).filter(
     (i): i is RoomItem => i.type === "room"
   );
+
+  const estimateView = computeEstimateView({
+    lineItems: estimate.lineItems ?? [],
+    items: estimate.siteMeasure.items,
+    markupPct: estimate.markupPct,
+    convenienceFeeRate: estimate.convenienceFeeRate,
+    depositPct: estimate.depositPct,
+  });
 
   return (
     <>
@@ -221,7 +230,11 @@ export function EstimateBuilderView({ estimateId }: Props) {
         }}
       />
 
-      <InvoicesSection estimateId={estimateId} />
+      <InvoicesSection
+        estimateId={estimateId}
+        estimateTotal={estimateView.total}
+        defaultDepositPct={estimate.org?.defaultDepositPct ?? 0.3}
+      />
 
       <SendEstimateDialog
         estimateId={estimate.id}
