@@ -426,3 +426,32 @@ export async function getInvoiceByToken(token: string) {
     include: INVOICE_INCLUDE,
   });
 }
+
+/** Hydrate an invoice with everything the send route needs to build a snapshot. */
+export async function getInvoiceForSend(id: number, orgId: string) {
+  return prisma.invoice.findFirst({
+    where: { id, orgId },
+    include: {
+      estimate: {
+        include: {
+          lineItems: { orderBy: { sortOrder: "asc" } },
+          siteMeasure: {
+            include: {
+              items: { orderBy: { sortOrder: "asc" } },
+              location: { include: { customer: true } },
+            },
+          },
+        },
+      },
+      org: {
+        select: {
+          name: true,
+          phone: true,
+          address: true,
+          licenseNumber: true,
+          logo: true,
+        },
+      },
+    },
+  });
+}
