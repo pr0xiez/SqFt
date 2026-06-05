@@ -135,7 +135,7 @@ export function InvoiceDetail({
           ) : null}
           {!isPaid ? (
             <Button
-              variant="ghost"
+              variant="accent"
               size="sm"
               type="button"
               onClick={() => setVoidOpen(true)}
