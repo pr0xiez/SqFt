@@ -7,6 +7,13 @@ export interface Location {
   orgId: string;
   customerId: number;
   address: string;
+  street: string;
+  unit?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  lat?: number | null;
+  lon?: number | null;
   label?: string | null;
   notes?: string | null;
   createdAt: string;
@@ -14,7 +21,13 @@ export interface Location {
 
 export interface CreateLocationInput {
   customerId: number;
-  address: string;
+  street: string;
+  unit?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  lat?: number;
+  lon?: number;
   label?: string;
   notes?: string;
 }
