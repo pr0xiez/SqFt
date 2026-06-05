@@ -41,10 +41,26 @@ describe("mapGeoapifyResults", () => {
     });
   });
 
-  it("falls back to full state name when no state_code, and street with no housenumber", () => {
+  it("uses state_code over the full state name, and joins street with no housenumber", () => {
     const out = mapGeoapifyResults(sample);
     expect(out[1].street).toBe("Oak Avenue");
     expect(out[1].state).toBe("OH");
+  });
+
+  it("falls back to the full state name when state_code is absent", () => {
+    const out = mapGeoapifyResults({
+      results: [
+        {
+          street: "Birch Ln",
+          city: "Bexley",
+          state: "Ohio",
+          postcode: "43209",
+        },
+      ],
+    });
+    expect(out[0].state).toBe("Ohio");
+    expect(out[0].lat).toBeNull();
+    expect(out[0].lon).toBeNull();
   });
 
   it("returns [] for malformed payloads", () => {
