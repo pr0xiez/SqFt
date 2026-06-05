@@ -37,4 +37,35 @@ describe("formatAddress", () => {
       })
     ).toBe("");
   });
+
+  it("treats a null unit the same as an absent one", () => {
+    expect(
+      formatAddress({
+        street: "12 Oak St",
+        unit: null,
+        city: "Dublin",
+        state: "OH",
+        postalCode: "43017",
+      })
+    ).toBe("12 Oak St, Dublin, OH 43017");
+  });
+
+  it("joins state and zip independently when only one is present", () => {
+    expect(
+      formatAddress({
+        street: "5 Pine Ct",
+        city: "Bexley",
+        state: "OH",
+        postalCode: "",
+      })
+    ).toBe("5 Pine Ct, Bexley, OH");
+    expect(
+      formatAddress({
+        street: "5 Pine Ct",
+        city: "Bexley",
+        state: "",
+        postalCode: "43209",
+      })
+    ).toBe("5 Pine Ct, Bexley, 43209");
+  });
 });
