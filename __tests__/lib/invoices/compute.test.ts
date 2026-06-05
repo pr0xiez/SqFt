@@ -65,14 +65,23 @@ describe("prorateInvoice", () => {
     expect(out.total).toBe(1000);
   });
 
-  it("emits markup and convenience-fee rows only when non-zero", () => {
+  it("folds markup into line amounts and keeps the convenience-fee row (never a Markup row)", () => {
     const withFees: ProrationSource = {
       ...source,
-      view: { ...source.view, markup: 100, convenienceFee: 50, total: 3837 },
+      view: {
+        ...source.view,
+        markup: 368.7,
+        beforeFee: 4055.7,
+        convenienceFee: 50,
+        total: 4105.7,
+      },
     };
-    const out = prorateInvoice(withFees, 3837);
+    const out = prorateInvoice(withFees, 4105.7); // ratio 1
     const names = out.lines.map((l) => l.name);
-    expect(names).toContain("Markup");
+    expect(names).not.toContain("Markup");
     expect(names).toContain("Convenience fee");
+    expect(out.lines.find((l) => l.name === "RED OAK")?.amount).toBe(3718);
+    const sum = out.lines.reduce((s, l) => s + l.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(4105.7);
   });
 });

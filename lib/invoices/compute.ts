@@ -1,3 +1,4 @@
+import { foldMarkupIntoLines } from "@/lib/estimateView/markup";
 import type {
   EstimateBilling,
   InvoiceLike,
@@ -36,10 +37,10 @@ export function computeEstimateBilling(
 }
 
 /**
- * Prorate an estimate's labeled breakdown (line subtotals + markup + fee) by
- * `amount / estimateTotal`, then reconcile rounding onto the last row so the
- * displayed rows sum EXACTLY to `amount`. Markup/fee rows appear only when the
- * underlying value is non-zero.
+ * Prorate an estimate's labeled breakdown by `amount / estimateTotal`, then
+ * reconcile rounding onto the last row so the displayed rows sum EXACTLY to
+ * `amount`. Markup is folded into each line's price (never its own row); the
+ * convenience-fee row appears only when the fee is non-zero.
  */
 export function prorateInvoice(
   source: ProrationSource,
@@ -47,23 +48,17 @@ export function prorateInvoice(
 ): ProratedBreakdown {
   const estimateTotal = source.view.total;
   const ratio = estimateTotal === 0 ? 0 : amount / estimateTotal;
+  const folded = foldMarkupIntoLines(source.view);
 
   const rows: ProratedLine[] = [];
-  source.view.lines.forEach((line, idx) => {
+  source.view.lines.forEach((_line, idx) => {
     const meta = source.lineMeta[idx];
     rows.push({
       name: meta?.name ?? `Item ${idx + 1}`,
       description: meta?.description ?? null,
-      amount: round2((line.subtotal ?? 0) * ratio),
+      amount: round2((folded[idx] ?? 0) * ratio),
     });
   });
-  if (source.view.markup > 0) {
-    rows.push({
-      name: source.markupLabel ?? "Markup",
-      description: null,
-      amount: round2(source.view.markup * ratio),
-    });
-  }
   if (source.view.convenienceFee > 0) {
     rows.push({
       name: source.convenienceFeeLabel ?? "Convenience fee",
