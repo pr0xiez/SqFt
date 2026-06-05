@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInvoiceProrationSource,
   computeInvoiceAmount,
+  nextInvoiceStatus,
 } from "@/lib/repositories/invoiceRepo";
 
 describe("computeInvoiceAmount", () => {
@@ -45,5 +46,31 @@ describe("buildInvoiceProrationSource", () => {
       { name: "Carpet Tear Out", description: "Remove carpet" },
     ]);
     expect(src.view.total).toBe(307);
+  });
+});
+
+describe("nextInvoiceStatus", () => {
+  it("stays unpaid (sent/viewed) when nothing is paid", () => {
+    expect(nextInvoiceStatus({ current: "sent", amount: 100, paid: 0 })).toBe(
+      "sent",
+    );
+    expect(nextInvoiceStatus({ current: "viewed", amount: 100, paid: 0 })).toBe(
+      "viewed",
+    );
+  });
+  it("becomes partial when some but not all is paid", () => {
+    expect(nextInvoiceStatus({ current: "sent", amount: 100, paid: 40 })).toBe(
+      "partial",
+    );
+  });
+  it("becomes paid when fully covered", () => {
+    expect(
+      nextInvoiceStatus({ current: "partial", amount: 100, paid: 100 }),
+    ).toBe("paid");
+  });
+  it("never changes a void invoice", () => {
+    expect(nextInvoiceStatus({ current: "void", amount: 100, paid: 100 })).toBe(
+      "void",
+    );
   });
 });

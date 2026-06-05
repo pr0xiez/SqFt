@@ -160,3 +160,269 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
     });
   });
 }
+
+/** Derive the lifecycle status from the payment ledger. Void is terminal. */
+export function nextInvoiceStatus(args: {
+  current: string;
+  amount: number;
+  paid: number;
+}): string {
+  if (args.current === "void") return "void";
+  if (args.paid <= 0) {
+    return args.current === "draft"
+      ? "draft"
+      : args.current === "viewed"
+        ? "viewed"
+        : "sent";
+  }
+  if (args.paid + 0.005 >= args.amount) return "paid";
+  return "partial";
+}
+
+export interface UpdateInvoiceInput {
+  amount?: number;
+  pct?: number;
+  memo?: string | null;
+  terms?: string;
+  coverNote?: string;
+  paymentInstructions?: string;
+  dueDate?: string | null;
+}
+
+/** Edit a DRAFT invoice. Throws InvoiceLockedError once sent. */
+export async function updateInvoice(
+  id: number,
+  orgId: string,
+  patch: UpdateInvoiceInput,
+) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.invoice.findFirst({
+      where: { id, orgId },
+      include: {
+        estimate: {
+          include: {
+            lineItems: { orderBy: { sortOrder: "asc" } },
+            siteMeasure: {
+              select: { items: { orderBy: { sortOrder: "asc" } } },
+            },
+            invoices: {
+              select: {
+                id: true,
+                amount: true,
+                status: true,
+                payments: { select: { amount: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!existing) return null;
+    if (existing.status !== "draft") throw new InvoiceLockedError();
+
+    const data: Prisma.InvoiceUpdateInput = {};
+    if (patch.memo !== undefined) data.memo = patch.memo;
+    if (patch.terms !== undefined) data.terms = patch.terms;
+    if (patch.coverNote !== undefined) data.coverNote = patch.coverNote;
+    if (patch.paymentInstructions !== undefined)
+      data.paymentInstructions = patch.paymentInstructions;
+    if (patch.dueDate !== undefined) {
+      data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
+    }
+
+    if (patch.amount !== undefined || patch.pct !== undefined) {
+      const view = computeEstimateView(fromPrismaEstimate(existing.estimate));
+      const { amount, pct } = computeInvoiceAmount({
+        estimateTotal: view.total,
+        amount: patch.amount,
+        pct: patch.pct,
+      });
+      const others = existing.estimate.invoices
+        .filter((i) => i.id !== id)
+        .map(toInvoiceLike);
+      const billing = computeEstimateBilling(view.total, others);
+      if (amount > billing.unbilled + 0.005) {
+        throw new InvoiceOverbillError(billing.unbilled);
+      }
+      data.amount = amount;
+      data.pct = pct;
+    }
+
+    return tx.invoice.update({ where: { id }, data, include: INVOICE_INCLUDE });
+  });
+}
+
+export async function voidInvoice(id: number, orgId: string) {
+  const res = await prisma.invoice.updateMany({
+    where: { id, orgId, status: { not: "void" } },
+    data: { status: "void", voidedAt: new Date() },
+  });
+  if (res.count === 0) return null;
+  await prisma.invoiceEvent.create({
+    data: { invoiceId: id, type: "voided", source: "builder" },
+  });
+  return getInvoice(id, orgId);
+}
+
+export async function rotateInvoiceToken(id: number, orgId: string) {
+  const token = generateToken();
+  const res = await prisma.invoice.updateMany({
+    where: { id, orgId },
+    data: { publicToken: token },
+  });
+  return res.count > 0 ? token : null;
+}
+
+export interface MarkInvoiceSentInput {
+  to: string;
+  subject: string;
+  sentByEmail: string;
+  sentByName: string;
+  snapshot: Prisma.InputJsonValue;
+}
+
+/** Stamp send metadata + freeze the snapshot + log sent/resent. */
+export async function markInvoiceSent(
+  id: number,
+  orgId: string,
+  input: MarkInvoiceSentInput,
+) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.invoice.findFirst({
+      where: { id, orgId },
+      select: { id: true, status: true, sentAt: true },
+    });
+    if (!existing) return false;
+
+    await tx.invoice.update({
+      where: { id },
+      data: {
+        status: existing.status === "draft" ? "sent" : existing.status,
+        sentAt: new Date(),
+        sentToEmail: input.to,
+        sentByEmail: input.sentByEmail,
+        sentByName: input.sentByName,
+        snapshot: input.snapshot,
+      },
+    });
+    await tx.invoiceEvent.create({
+      data: {
+        invoiceId: id,
+        type: existing.sentAt ? "resent" : "sent",
+        source: "builder",
+        actorEmail: input.sentByEmail,
+        actorName: input.sentByName,
+        metadata: { to: input.to, subject: input.subject },
+      },
+    });
+    return true;
+  });
+}
+
+export interface MarkInvoiceViewedInput {
+  ip: string | null;
+  userAgent: string | null;
+}
+
+/** Public view-tracking. Flips sent → viewed; always logs the open. */
+export async function markInvoiceViewed(
+  invoiceId: number,
+  input: MarkInvoiceViewedInput,
+) {
+  await prisma.$transaction(async (tx) => {
+    const inv = await tx.invoice.findUnique({
+      where: { id: invoiceId },
+      select: { status: true },
+    });
+    if (!inv) return;
+    if (inv.status === "sent") {
+      await tx.invoice.updateMany({
+        where: { id: invoiceId, status: "sent" },
+        data: { status: "viewed", viewedAt: new Date() },
+      });
+    }
+    await tx.invoiceEvent.create({
+      data: {
+        invoiceId,
+        type: "viewed",
+        source: "customer",
+        ip: input.ip ?? undefined,
+        userAgent: input.userAgent ?? undefined,
+      },
+    });
+  });
+}
+
+export interface RecordPaymentInput {
+  amount: number;
+  method: string;
+  paidAt?: string;
+  reference?: string;
+  note?: string;
+  recordedByEmail: string;
+  recordedByName: string;
+}
+
+/** Append a Payment, recompute status + paidAt, log payment_recorded. */
+export async function recordPayment(
+  invoiceId: number,
+  orgId: string,
+  input: RecordPaymentInput,
+) {
+  return prisma.$transaction(async (tx) => {
+    const inv = await tx.invoice.findFirst({
+      where: { id: invoiceId, orgId },
+      include: { payments: { select: { amount: true } } },
+    });
+    if (!inv) return null;
+    if (inv.status === "void") throw new InvoiceLockedError();
+
+    await tx.payment.create({
+      data: {
+        invoiceId,
+        amount: input.amount,
+        method: input.method,
+        paidAt: input.paidAt ? new Date(input.paidAt) : new Date(),
+        reference: input.reference ?? null,
+        note: input.note ?? null,
+        recordedByEmail: input.recordedByEmail,
+        recordedByName: input.recordedByName,
+      },
+    });
+
+    const paid =
+      inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+    const status = nextInvoiceStatus({
+      current: inv.status,
+      amount: inv.amount,
+      paid,
+    });
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: { status, paidAt: status === "paid" ? new Date() : null },
+    });
+    await tx.invoiceEvent.create({
+      data: {
+        invoiceId,
+        type: "payment_recorded",
+        source: "builder",
+        actorEmail: input.recordedByEmail,
+        actorName: input.recordedByName,
+        metadata: { amount: input.amount, method: input.method },
+      },
+    });
+
+    return tx.invoice.findFirst({
+      where: { id: invoiceId },
+      include: INVOICE_INCLUDE,
+    });
+  });
+}
+
+/** Public token lookup (no org scope — the token authorizes). */
+export async function getInvoiceByToken(token: string) {
+  return prisma.invoice.findUnique({
+    where: { publicToken: token },
+    include: INVOICE_INCLUDE,
+  });
+}
