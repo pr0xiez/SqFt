@@ -17,7 +17,7 @@ export function foldMarkupIntoLines(view: EstimateView): Array<number | null> {
     l.subtotal == null ? null : round2(l.subtotal * factor)
   );
   const target = round2(view.beforeFee);
-  const sum = round2(amounts.reduce((s, a) => s + (a ?? 0), 0));
+  const sum = round2(amounts.reduce<number>((s, a) => s + (a ?? 0), 0));
   const drift = round2(target - sum);
   if (drift !== 0) {
     for (let i = amounts.length - 1; i >= 0; i--) {

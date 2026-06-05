@@ -43,7 +43,10 @@ describe("foldMarkupIntoLines", () => {
     });
     const out = foldMarkupIntoLines(v);
     expect(out).toEqual([337.7, 3718]);
-    expect(out.reduce((s, a) => s + (a ?? 0), 0)).toBeCloseTo(4055.7, 6);
+    expect(out.reduce<number>((s, a) => s + (a ?? 0), 0)).toBeCloseTo(
+      4055.7,
+      6
+    );
   });
 
   it("leaves unresolved lines null and reconciles drift onto the last resolved line", () => {
