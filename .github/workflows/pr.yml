@@ -11,52 +11,25 @@ concurrency:
   cancel-in-progress: true
 
 # =============================================================================
-# PHASE 2 — prefer self-hosted, fall back to GitHub-hosted
+# RUNNER SELECTION
 # -----------------------------------------------------------------------------
-# Today every job is pinned to `self-hosted` (see jobs below) because hosted
-# minutes are exhausted; a hosted dispatcher job would block the whole run.
+# Every job picks its runner from the `CI_RUNNER` repository variable, so you
+# can switch the whole pipeline between your self-hosted runner and GitHub's
+# hosted runners without editing this file.
 #
-# When hosted minutes are available again, enable graceful fallback:
-#   1. Create a PAT with repo "Administration: read" (or classic `repo`) and
-#      save it as the RUNNER_CHECK_PAT secret. The default GITHUB_TOKEN lacks
-#      permission to list runners, so without this the API call fails.
-#   2. Uncomment the `pick-runner` job below.
-#   3. In every job, replace:
-#          runs-on: self-hosted
-#      with:
-#          needs: pick-runner
-#          runs-on: ${{ needs.pick-runner.outputs.runner }}
-#   4. Consider moving delete-neon-branch.yml back to ubuntu-latest. It fires
-#      on PR *close*, so a sleeping runner delays the cleanup and leaves an
-#      orphaned Neon preview branch. It's a ~3-second job, so hosted is the
-#      more reliable home for it once minutes are available.
+# To flip it:
+#   Repo → Settings → Secrets and variables → Actions → Variables tab →
+#   set CI_RUNNER to either `self-hosted` or `ubuntu-latest`.
+#   Takes effect on the next workflow run; no code change or PR needed.
 #
-# pick-runner:
-#   name: Pick Runner
-#   runs-on: ubuntu-latest # ~seconds of hosted time; negligible
-#   outputs:
-#     runner: ${{ steps.choose.outputs.runner }}
-#   steps:
-#     - id: choose
-#       env:
-#         GH_TOKEN: ${{ secrets.RUNNER_CHECK_PAT || secrets.GITHUB_TOKEN }}
-#       run: |
-#         set +e
-#         ONLINE=$(gh api "repos/${{ github.repository }}/actions/runners" \
-#           --jq '[.runners[] | select(.status=="online" and .busy==false)] | length' 2>/dev/null)
-#         if [ -n "$ONLINE" ] && [ "$ONLINE" -gt 0 ]; then
-#           echo "Self-hosted runner online and idle → using self-hosted."
-#           echo "runner=self-hosted" >> "$GITHUB_OUTPUT"
-#         else
-#           echo "No idle self-hosted runner (or no API access) → using ubuntu-latest."
-#           echo "runner=ubuntu-latest" >> "$GITHUB_OUTPUT"
-#         fi
+# If CI_RUNNER is unset/empty it defaults to `self-hosted` (so a missing
+# variable never silently burns hosted minutes).
 # =============================================================================
 
 jobs:
   typecheck:
     name: Type Check
-    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -68,7 +41,7 @@ jobs:
 
   lint:
     name: Lint & Format
-    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -80,7 +53,7 @@ jobs:
 
   test:
     name: Tests
-    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -92,7 +65,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -109,7 +82,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    runs-on: self-hosted # Phase 2: needs: pick-runner / ${{ needs.pick-runner.outputs.runner }}
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     permissions:
       contents: read
       pull-requests: read
