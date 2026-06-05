@@ -46,3 +46,41 @@ export interface ProrationSource {
   markupLabel?: string;
   convenienceFeeLabel?: string;
 }
+
+export interface InvoiceSnapshotMeta {
+  invoiceNumber: number;
+  date: Date | string;
+  dueDate: Date | string | null;
+  memo: string | null;
+  terms: string;
+  paymentInstructions: string;
+  pct: number | null;
+  amount: number;
+  customer: {
+    name: string | null;
+    address: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
+  org: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    licenseNumber: string | null;
+    logoUrl: string | null;
+  };
+  stripePaymentLinkUrl: string | null;
+}
+
+export interface InvoiceSnapshot
+  extends Omit<InvoiceSnapshotMeta, "date" | "dueDate"> {
+  date: string;
+  dueDate: string | null;
+  lines: ProratedLine[];
+  totals: {
+    subtotal: number;
+    markup: number;
+    convenienceFee: number;
+    balanceDue: number;
+  };
+}
