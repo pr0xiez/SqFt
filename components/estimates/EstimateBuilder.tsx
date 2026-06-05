@@ -6,6 +6,7 @@ import { EstimateLockBanner } from "@/components/estimates/EstimateLockBanner";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { ReviseButton } from "@/components/estimates/ReviseButton";
 import { SendEstimateDialog } from "@/components/estimates/SendEstimateDialog";
+import { InvoicesSection } from "@/components/invoices/InvoicesSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
 import {
@@ -219,6 +220,8 @@ export function EstimateBuilderView({ estimateId }: Props) {
           }
         }}
       />
+
+      <InvoicesSection estimateId={estimateId} />
 
       <SendEstimateDialog
         estimateId={estimate.id}
