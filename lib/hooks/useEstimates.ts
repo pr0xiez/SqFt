@@ -186,20 +186,6 @@ export function useUpdateEstimate(id: number) {
   });
 }
 
-export function useRotateEstimateToken(id: number) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (): Promise<{ approvalToken: string }> => {
-      const res = await fetch(`/api/estimates/${id}/approval-token`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error("Failed to generate approval token");
-      return res.json();
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["estimates", id] }),
-  });
-}
-
 export interface SendEstimateVariables {
   to: string;
   subject: string;

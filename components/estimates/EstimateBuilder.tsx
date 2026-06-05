@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { EstimateLockBanner } from "@/components/estimates/EstimateLockBanner";
 import { LineItemSection } from "@/components/estimates/LineItemSection";
 import { ReviseButton } from "@/components/estimates/ReviseButton";
@@ -9,11 +9,7 @@ import { SendEstimateDialog } from "@/components/estimates/SendEstimateDialog";
 import { InvoicesSection } from "@/components/invoices/InvoicesSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
-import {
-  useEstimate,
-  useRotateEstimateToken,
-  useUpdateEstimate,
-} from "@/lib/hooks/useEstimates";
+import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
 import { useLineItemTemplates } from "@/lib/hooks/useLineItemTemplates";
 import type { RoomItem } from "@/lib/utils";
 
@@ -25,41 +21,8 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const { data: estimate, isLoading } = useEstimate(estimateId);
   const { data: templates = [] } = useLineItemTemplates();
   const updateEstimate = useUpdateEstimate(estimateId);
-  const rotateToken = useRotateEstimateToken(estimateId);
   const { showToast } = useToast();
-  const [actionsOpen, setActionsOpen] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
-  const actionsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!actionsOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        actionsRef.current &&
-        !actionsRef.current.contains(e.target as Node)
-      ) {
-        setActionsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [actionsOpen]);
-
-  async function copyShareLink(forceNew: boolean) {
-    setActionsOpen(false);
-    try {
-      let token = estimate?.approvalToken ?? null;
-      if (!token || forceNew) {
-        const res = await rotateToken.mutateAsync();
-        token = res.approvalToken;
-      }
-      const url = `${window.location.origin}/q/${token}`;
-      await navigator.clipboard.writeText(url);
-      showToast(forceNew ? "New link copied" : "Link copied");
-    } catch {
-      showToast("Failed to generate link");
-    }
-  }
 
   if (isLoading) {
     return (
@@ -130,40 +93,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
             </Button>
           )}
           {locked && <ReviseButton estimateId={estimate.id} />}
-          <div className="relative" ref={actionsRef}>
-            <Button
-              variant="ghost"
-              onClick={() => setActionsOpen((v) => !v)}
-              aria-label="More actions"
-              type="button"
-            >
-              ⋮
-            </Button>
-            {actionsOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg z-10 min-w-[180px] py-1">
-                <button
-                  type="button"
-                  className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
-                  onClick={() => copyShareLink(false)}
-                  disabled={rotateToken.isPending}
-                >
-                  {estimate.approvalToken
-                    ? "Copy share link"
-                    : "Create share link"}
-                </button>
-                {estimate.approvalToken ? (
-                  <button
-                    type="button"
-                    className="w-full text-left px-4 py-2.5 font-[var(--font-mono)] text-[12px] hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
-                    onClick={() => copyShareLink(true)}
-                    disabled={rotateToken.isPending}
-                  >
-                    Regenerate link
-                  </button>
-                ) : null}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
