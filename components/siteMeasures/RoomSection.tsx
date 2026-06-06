@@ -81,7 +81,7 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                 onChange={(e) => updateRoom(item.id, { name: e.target.value })}
                 onBlur={() => save(items)}
                 placeholder="Room name"
-                className="flex-1 text-[15px] font-[600] tracking-[-0.01em] border-none bg-transparent p-[4px_0] border-b border-b-transparent focus:outline-none focus:border-b-[var(--ink-2)] transition-[border-color] duration-150"
+                className="flex-1 text-[15px] font-[600] tracking-[-0.01em] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
               />
               <button
                 type="button"
@@ -141,7 +141,7 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               onChange={(e) => updateRoom(item.id, { note: e.target.value })}
               onBlur={() => save(items)}
               placeholder="Add note about this room…"
-              className="w-full text-[13px] text-[var(--ink-2)] bg-transparent border-none border-b border-b-transparent p-[4px_0] italic focus:outline-none focus:border-b-[var(--line-2)] transition-[border-color] duration-150 placeholder:text-[var(--muted)]"
+              className="w-full text-[13px] text-[var(--ink-2)] bg-[var(--surface)] border border-[var(--line)] rounded-[5px] px-2.5 py-2 italic focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 placeholder:text-[var(--muted)]"
             />
           </div>
         ) : (

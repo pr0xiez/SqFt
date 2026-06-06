@@ -12,7 +12,6 @@ interface Props {
   markupAmt: number;
   total: number;
   deposit: number;
-  margin: number;
   readOnly: boolean;
   onCommitFee: (nextPct: number) => void;
   onCommitMarkup: (nextPct: number) => void;
@@ -28,7 +27,6 @@ export function EstimateTotals({
   markupAmt,
   total,
   deposit,
-  margin,
   readOnly,
   onCommitFee,
   onCommitMarkup,
@@ -73,7 +71,7 @@ export function EstimateTotals({
         </div>
         <div />
       </div>
-      {/* Deposit + margin footer */}
+      {/* Deposit footer */}
       <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-t border-[var(--line)]">
         <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-2 flex items-center gap-2">
           <span>Deposit</span>
@@ -83,9 +81,7 @@ export function EstimateTotals({
             onCommit={onCommitDeposit}
           />
         </div>
-        <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em]">
-          Margin {margin.toFixed(1)}%
-        </div>
+        <div />
         <div />
         <div className="px-3.5 py-2.5 text-[13px] font-[600] text-[var(--sage)]">
           {fmtDollar(deposit)}
@@ -137,7 +133,7 @@ function PctInline({ value, readOnly, onCommit }: PctInlineProps) {
         }}
         formatOnBlur={false}
         disabled={readOnly}
-        className="w-[50px] font-[var(--font-mono)] text-[13px] font-[600] text-right bg-transparent border-none p-0 focus:outline-none focus:bg-[var(--surface)] disabled:cursor-default"
+        className="w-[58px] font-[var(--font-mono)] text-[13px] font-[600] text-right border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-1.5 py-1 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default"
       />
       <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
         %
