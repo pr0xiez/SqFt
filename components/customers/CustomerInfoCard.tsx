@@ -59,7 +59,6 @@ export function CustomerInfoCard({ customer, onField }: Props) {
             />
           </div>
         </div>
-        <SourceBadge source={customer.source} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
         <div>
