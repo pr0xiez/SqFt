@@ -21,7 +21,7 @@ export function CustomerInfoCard({ customer, onField }: Props) {
           type="text"
           defaultValue={customer.name}
           onBlur={(e) => onField("name", e.target.value)}
-          className="text-[22px] font-[700] tracking-[-0.025em] border-none bg-transparent flex-1 min-w-0 p-0 focus:outline-none"
+          className="text-[22px] font-[700] tracking-[-0.025em] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] flex-1 min-w-0 px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
         />
         <SourceBadge source={customer.source} />
       </div>
@@ -34,7 +34,7 @@ export function CustomerInfoCard({ customer, onField }: Props) {
             type="tel"
             defaultValue={customer.phone ?? ""}
             onBlur={(e) => onField("phone", e.target.value)}
-            className="w-full text-[13px] border-none border-b border-[var(--line)] bg-transparent py-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
           />
         </div>
         <div>
@@ -45,7 +45,7 @@ export function CustomerInfoCard({ customer, onField }: Props) {
             type="email"
             defaultValue={customer.email ?? ""}
             onBlur={(e) => onField("email", e.target.value)}
-            className="w-full text-[13px] border-none border-b border-[var(--line)] bg-transparent py-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
           />
         </div>
         <div>
@@ -55,7 +55,7 @@ export function CustomerInfoCard({ customer, onField }: Props) {
           <select
             defaultValue={customer.source}
             onChange={(e) => onField("source", e.target.value)}
-            className="w-full text-[13px] border-none border-b border-[var(--line)] bg-transparent py-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
           >
             <option value="phone">Phone call</option>
             <option value="online">Online lead</option>
@@ -72,7 +72,7 @@ export function CustomerInfoCard({ customer, onField }: Props) {
             rows={2}
             defaultValue={customer.notes ?? ""}
             onBlur={(e) => onField("notes", e.target.value)}
-            className="w-full text-[13px] border-none border-b border-[var(--line)] bg-transparent py-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 resize-y"
+            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 resize-y"
           />
         </div>
       </div>

@@ -75,7 +75,7 @@ export function LineItemRow({
               onChange={(e) => onEditText({ name: e.target.value })}
               onBlur={onSaveBlur}
               disabled={readOnly}
-              className="text-[14px] font-[500] flex-1 min-w-0 border-none bg-transparent p-0 focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default"
+              className="text-[14px] font-[500] flex-1 min-w-0 border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2 py-1 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default"
             />
             {!readOnly && templates.length > 0 && (
               <select
@@ -108,7 +108,7 @@ export function LineItemRow({
             disabled={readOnly}
             placeholder={readOnly ? "" : "Description (optional)"}
             rows={1}
-            className="text-[12px] text-[var(--muted)] w-full border-none bg-transparent p-0 resize-y focus:outline-none focus:bg-[var(--surface-2)] disabled:cursor-default placeholder:text-[var(--muted)] placeholder:opacity-60"
+            className="text-[12px] text-[var(--muted)] w-full border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2 py-1 resize-y focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default placeholder:text-[var(--muted)] placeholder:opacity-60"
           />
         </div>
         <div className="px-3 py-2">
@@ -160,7 +160,7 @@ export function LineItemRow({
                 onCommit={(next) => onUpdate({ qty: next })}
                 allowEmpty
                 disabled={readOnly}
-                className="w-[64px] text-[14px] font-[500] border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
+                className="w-[64px] text-[14px] font-[500] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2 py-1 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default"
               />
               {unitKind === "other" ? (
                 <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
@@ -181,7 +181,7 @@ export function LineItemRow({
           )}
         </div>
         <div className="px-3.5 py-[11px] relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none">
+          <span className="absolute left-[22px] top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none z-[1]">
             $
           </span>
           <DecimalInput
@@ -189,13 +189,13 @@ export function LineItemRow({
             onCommit={(next) => onUpdate({ rate: next ?? 0 })}
             formatOnBlur
             disabled={readOnly}
-            className="w-full text-[14px] font-[500] pl-3 border-none bg-transparent p-0 focus:outline-none disabled:cursor-default"
+            className="w-full text-[14px] font-[500] pl-5 pr-2 py-1 border border-[var(--line)] bg-[var(--surface)] rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:cursor-default"
           />
         </div>
         <div className="px-3.5 py-[11px] relative">
           {canEditSubtotal ? (
             <>
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none">
+              <span className="absolute left-[22px] top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none z-[1]">
                 $
               </span>
               <DecimalInput
@@ -204,7 +204,7 @@ export function LineItemRow({
                 formatOnBlur
                 title="Edit subtotal — rate will be recalculated from quantity"
                 className={cn(
-                  "w-full text-[14px] font-[600] tracking-[-0.01em] pl-3 border-none bg-transparent p-0 focus:outline-none",
+                  "w-full text-[14px] font-[600] tracking-[-0.01em] pl-5 pr-2 py-1 border border-[var(--line)] bg-[var(--surface)] rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150",
                   sub && sub > 0 ? "text-[var(--accent)]" : ""
                 )}
               />

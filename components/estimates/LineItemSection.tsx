@@ -100,7 +100,6 @@ export function LineItemSection({
     total,
     deposit,
   } = view;
-  const margin = total > 0 ? ((total - subtotal) / total) * 100 : 0;
 
   // EstimateTotals speaks display percentages; the Draft holds storage form.
   const feePct = Math.round(draft.convenienceFeeRate * 1000) / 10;
@@ -193,7 +192,6 @@ export function LineItemSection({
             markupAmt={markupAmt}
             total={total}
             deposit={deposit}
-            margin={margin}
             readOnly={readOnly}
             onCommitFee={(next) =>
               dispatch({ type: "setConvenienceFeeRate", value: next / 100 })
