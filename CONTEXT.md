@@ -1,7 +1,10 @@
 # Domain Glossary
 
-Terms that show up in the code and in conversation about it. Keep updated as
-concepts are added or sharpened.
+Terms that show up in the code and in conversation about it. **Keep this current
+in the same change** that adds, renames, or retires a concept, alters a
+lifecycle/status set, changes a single-source-of-truth computation, or
+adds/renames an API error code — edit the affected section and its file pointer
+rather than appending. (See *Keeping these docs current* in `AGENTS.md`.)
 
 ## Domain Hierarchy
 
@@ -77,6 +80,37 @@ emit `null` and are persisted on blur. The React layer
 once at mount (no resync from server refetch), dispatches actions, and forwards
 any emitted patch to `onSave`.
 
+## Markup
+
+`markupPct` is an **internal** pricing setting — the customer never sees a
+"Markup" or "Labor & margin" line. On every customer-facing surface the markup
+is instead *folded* into the line-item prices: each resolved line is shown at
+`lineSubtotal × (view.beforeFee / view.subtotal)`, reconciled so the displayed
+rows sum exactly to the marked-up subtotal (`view.beforeFee`). Internal builder
+views (the estimate editor totals, billing breakdowns) still break markup out
+as its own number.
+
+The fold lives in `foldMarkupIntoLines` (`lib/estimateView/markup.ts`), next to
+the estimate-view math. It returns one amount per line — `null` stays `null`
+for unresolved lines, which receive no markup. The penny-rounding residual is
+steered onto the largest-priced resolved line by `residualTargetIndex`
+(`lib/money.ts`), so the ±cent never lands on a $0 (free) line, an unresolved
+line, or the convenience-fee row. `lib/money.ts` is the shared home for
+`round2` and `residualTargetIndex`, used by both the fold and invoice
+proration.
+
+Two customer surfaces consume the fold:
+
+- **Public estimate** — line rows render marked-up prices; `TotalsBlock`
+  (`components/estimates/public-estimate/`) shows Subtotal (already marked up)
+  → Convenience fee → Total, with **no** "Labor & margin" row. Already-signed
+  snapshots keep their frozen historical form and are never rewritten.
+- **Invoice** — `prorateInvoice` distributes the folded line prices by the bill
+  ratio and emits no "Markup" row (see **Invoice**).
+
+The convenience fee is *not* folded — it stays its own customer-facing row/line
+because it is a legitimate fee.
+
 ## Estimate Approval
 
 Approval is **one-click**: the customer opens the public estimate-review page
@@ -103,10 +137,14 @@ a free-form dollar `amount` or a percentage `pct` of the estimate total. The
 billing math is the single source of truth in `lib/invoices/` (mirroring
 `lib/estimateView`): `computeEstimateBilling` rolls up invoiced/unbilled/paid/
 outstanding across an estimate's non-void invoices, and `prorateInvoice` splits
-each invoice's amount across the estimate's line items (plus markup and
-convenience-fee rows) by the bill ratio, reconciling rounding so the displayed
-rows sum exactly to the billed amount. Creating or editing an invoice past the
-estimate's unbilled balance throws `INVOICE_OVERBILL`.
+each invoice's amount across the estimate's line items by the bill ratio.
+Markup is folded into the line prices (via `foldMarkupIntoLines` — see
+**Markup**), so no "Markup" row is emitted; only the convenience fee remains a
+separate row. Unresolved lines are omitted rather than billed as $0, and the
+rounding residual reconciles onto the largest row so the displayed rows sum
+exactly to the billed amount without the ±cent distorting the fee row or a free
+line. Creating or editing an invoice past the estimate's unbilled balance
+throws `INVOICE_OVERBILL`.
 
 Invoices are emailed via a public token page (`/invoice-review/[token]`),
 reusing the React-Email + Resend flow. On send, the invoice freezes a
@@ -121,6 +159,23 @@ all billing math; editing a sent invoice or paying a void one throws
 `INVOICE_LOCKED`. Every lifecycle action appends an `InvoiceEvent`.
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
+
+**Builder UI.** The estimate page's `InvoicesSection`
+(`components/invoices/`) shows a billing summary (Invoiced / Unbilled /
+Outstanding, from `computeEstimateBilling`) plus a compact per-invoice list;
+each invoice opens its own page at `/invoices/[id]`
+(`app/(app)/invoices/[id]/page.tsx` → `components/invoices/InvoiceDetail.tsx`).
+Create / Send / Record-payment / Void are modals
+(`components/invoices/*Dialog.tsx`) built on the shared `components/ui/Modal.tsx`,
+all wired through react-query hooks in `lib/hooks/useInvoices.ts`. Invoices are
+**read-only** — there is no edit UI (the `PATCH` route is intentionally unused);
+to change billed lines, fix the estimate or create another invoice. The
+record-payment form defaults to the full outstanding balance but accepts
+partials, and its method dropdown excludes `stripe` (reserved for the future
+integration). The create dialog's "% of balance" mode computes the dollar
+figure client-side and always submits a flat `amount`, never `pct` — the
+backend's `pct` means "% of estimate *total*", not "% of the remaining
+balance".
 
 ## API Error Codes
 
