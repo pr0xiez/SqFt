@@ -95,7 +95,7 @@ export type EstimateWithDetails = Prisma.EstimateGetPayload<{
       };
     };
     lineItems: { orderBy: { sortOrder: "asc" } };
-    org: { select: { name: true } };
+    org: { select: { name: true; defaultDepositPct: true } };
     estimateEvents: {
       where: { type: "declined" };
       orderBy: { createdAt: "desc" };
@@ -280,7 +280,7 @@ export async function getEstimate(
         },
       },
       lineItems: { orderBy: { sortOrder: "asc" } },
-      org: { select: { name: true } },
+      org: { select: { name: true, defaultDepositPct: true } },
       estimateEvents: {
         where: { type: "declined" },
         orderBy: { createdAt: "desc" },
@@ -342,7 +342,7 @@ export async function createEstimate(
           },
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
-        org: { select: { name: true } },
+        org: { select: { name: true, defaultDepositPct: true } },
         estimateEvents: {
           where: { type: "declined" },
           orderBy: { createdAt: "desc" },
@@ -405,7 +405,7 @@ export async function saveEstimate(
           },
         },
         lineItems: { orderBy: { sortOrder: "asc" } },
-        org: { select: { name: true } },
+        org: { select: { name: true, defaultDepositPct: true } },
         estimateEvents: {
           where: { type: "declined" },
           orderBy: { createdAt: "desc" },

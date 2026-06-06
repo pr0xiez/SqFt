@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reduceEstimateDraft } from "@/lib/estimateDraft";
 import type { EstimateDraft } from "@/lib/estimateDraft/types";
+import { computeEstimateView } from "@/lib/estimateView";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc } from "@/lib/utils";
 import { QtyMode } from "@/lib/utils";
@@ -54,7 +55,27 @@ describe("reduceEstimateDraft — addLineItem", () => {
     expect(added.id).toBe(42);
     expect(added.qtyMode).toBe(QtyMode.Manual);
     expect(added.sortOrder).toBe(1);
+    expect(added.qty).toBe(0);
     expect(save).toEqual({ lineItems: next.lineItems });
+  });
+
+  it("seeds qty 0 so the new line resolves to a subtotal (not flagged as unset)", () => {
+    const { draft: next } = reduceEstimateDraft(draft(), {
+      type: "addLineItem",
+      id: 7,
+    });
+
+    const view = computeEstimateView({
+      lineItems: next.lineItems,
+      items: [],
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+
+    // qty 0 → effectiveQty 0 → subtotal 0 (NOT null), so the row is not flagged.
+    expect(view.lines[0].subtotal).toBe(0);
+    expect(view.lines[0].subtotal).not.toBeNull();
   });
 });
 

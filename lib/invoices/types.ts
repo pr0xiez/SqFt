@@ -43,7 +43,6 @@ export interface ProratedBreakdown {
 export interface ProrationSource {
   view: EstimateView;
   lineMeta: Array<{ name: string; description: string | null }>;
-  markupLabel?: string;
   convenienceFeeLabel?: string;
 }
 

@@ -37,3 +37,30 @@ test.describe("Public estimate review view", () => {
     expect(res?.status()).toBe(404);
   });
 });
+
+test.describe("public estimate hides markup", () => {
+  test("renders no Markup / Labor & margin line even with markup set", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    await loginAsWorkerOrg(browser, ctx);
+    const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
+    const { estimateId } = await seedEstimateWithLineItem(
+      ctx.request,
+      siteMeasureId
+    );
+    await ctx.request.patch(`/api/estimates/${estimateId}`, {
+      data: { markupPct: 25 },
+    });
+    const token = await getApprovalToken(ctx.request, estimateId);
+
+    const page = await ctx.newPage();
+    await page.goto(`/estimate-review/${token}`);
+    await expect(page.getByText("Line items")).toBeVisible();
+    await expect(page.getByText("Markup", { exact: false })).toHaveCount(0);
+    await expect(
+      page.getByText("Labor & margin", { exact: false })
+    ).toHaveCount(0);
+    await ctx.close();
+  });
+});

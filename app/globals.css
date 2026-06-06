@@ -7,6 +7,7 @@
   --bg:        #fafaf7;
   --surface:   #ffffff;
   --surface-2: #f4f3ed;
+  --paper:     #ffffff;  /* elevated panels: dialogs + the public quote "paper" */
 
   /* Ink */
   --ink:   #1a1a17;
@@ -63,6 +64,7 @@
   --bg:        #0f0f0d;
   --surface:   #181815;
   --surface-2: #222220;
+  --paper:     #181815;
 
   --ink:   #f0eee5;
   --ink-2: #c9c6bc;
@@ -90,6 +92,7 @@
   --color-bg:        var(--bg);
   --color-surface:   var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-paper:     var(--paper);
   --color-ink:       var(--ink);
   --color-ink-2:     var(--ink-2);
   --color-muted:     var(--muted);

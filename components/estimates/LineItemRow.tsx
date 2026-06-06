@@ -52,12 +52,17 @@ export function LineItemRow({
   const unitKind = normalizeUnit(li.unitLabel);
   const canEditSubtotal =
     !readOnly && effectiveQty !== null && effectiveQty > 0;
+  // A null subtotal means the quantity can't be resolved (manual line with no
+  // qty, or a room-linked line whose rooms were deleted) — it won't be billed.
+  const unresolved = sub === null;
 
   return (
     <div
       className={cn(
         "border-b border-[var(--line)] last:border-b-0 transition-[background] duration-[120ms] hover:bg-[var(--surface-2)]",
-        linked && "border-l-[3px] border-l-[var(--sage)]"
+        unresolved
+          ? "border-l-[3px] border-l-[var(--gold)] bg-[rgba(176,122,26,0.06)]"
+          : linked && "border-l-[3px] border-l-[var(--sage)]"
       )}
     >
       {/* Main row */}
@@ -131,10 +136,20 @@ export function LineItemRow({
         <div className="px-3.5 py-[11px]">
           {linked ? (
             <div className="flex items-baseline gap-[5px]">
-              <span className="text-[14px] font-[600] text-[var(--sage)]">
+              <span
+                className={cn(
+                  "text-[14px] font-[600]",
+                  unresolved ? "text-[var(--gold)]" : "text-[var(--sage)]"
+                )}
+              >
                 {effectiveQty !== null ? effectiveQty.toFixed(1) : "—"}
               </span>
-              <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] opacity-80">
+              <span
+                className={cn(
+                  "font-[var(--font-mono)] text-[10px] opacity-80",
+                  unresolved ? "text-[var(--gold)]" : "text-[var(--sage)]"
+                )}
+              >
                 {linkedUnit}
               </span>
             </div>
@@ -194,6 +209,13 @@ export function LineItemRow({
                 )}
               />
             </>
+          ) : unresolved ? (
+            <span
+              title="This line has no quantity, so it won't be billed"
+              className="inline-block font-[var(--font-mono)] text-[10px] font-[600] text-[var(--gold)] bg-[rgba(176,122,26,0.12)] border border-[var(--gold)] rounded-[4px] px-2 py-0.5 whitespace-nowrap"
+            >
+              ⚠ Quantity unset
+            </span>
           ) : (
             <span
               className={cn(

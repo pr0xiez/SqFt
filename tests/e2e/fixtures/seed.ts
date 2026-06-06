@@ -195,6 +195,26 @@ export async function seedApprovedEstimate(
   return { estimateId, approvalToken };
 }
 
+// ── invoices ─────────────────────────────────────────────────────────────────
+
+/** Create an invoice for an estimate via the API (flat amount). */
+export async function seedInvoice(
+  request: APIRequestContext,
+  estimateId: number,
+  args: { amount?: number; pct?: number } = {}
+): Promise<{ invoiceId: number }> {
+  const data =
+    args.amount !== undefined
+      ? { amount: args.amount }
+      : { pct: args.pct ?? 0.5 };
+  const res = await request.post(`/api/estimates/${estimateId}/invoices`, {
+    data,
+  });
+  expect(res.status()).toBe(201);
+  const invoice = await res.json();
+  return { invoiceId: invoice.id };
+}
+
 /** Seed an estimate and drive it to declined via the public decline endpoint. */
 export async function seedDeclinedEstimate(
   request: APIRequestContext,

@@ -1,4 +1,4 @@
-import { computeEstimateView } from "@/lib/estimateView";
+import { computeEstimateView, foldMarkupIntoLines } from "@/lib/estimateView";
 import type {
   RoomItem as _RoomItem,
   LineItemCalc,
@@ -58,7 +58,9 @@ export function PublicEstimateView({ estimate, token }: Props) {
     convenienceFeeRate: estimate.convenienceFeeRate,
     depositPct: estimate.depositPct,
   });
-  const { subtotal, markup, convenienceFee, total, deposit } = view;
+  const { convenienceFee, total, deposit } = view;
+  const foldedLineAmounts = foldMarkupIntoLines(view);
+  const markedUpSubtotal = view.beforeFee;
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -88,12 +90,14 @@ export function PublicEstimateView({ estimate, token }: Props) {
             <RoomsList rooms={rooms} />
             <LineItemsTable
               lineItems={estimate.lineItems}
-              subtotals={new Map(view.lines.map((l) => [l.id, l.subtotal]))}
+              subtotals={
+                new Map(
+                  view.lines.map((l, idx) => [l.id, foldedLineAmounts[idx]])
+                )
+              }
             />
             <TotalsBlock
-              subtotal={subtotal}
-              markup={markup}
-              markupPct={estimate.markupPct}
+              subtotal={markedUpSubtotal}
               convenienceFee={convenienceFee}
               convenienceFeeRate={estimate.convenienceFeeRate}
               total={total}

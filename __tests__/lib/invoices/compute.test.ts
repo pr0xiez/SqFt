@@ -65,14 +65,128 @@ describe("prorateInvoice", () => {
     expect(out.total).toBe(1000);
   });
 
-  it("emits markup and convenience-fee rows only when non-zero", () => {
+  it("folds markup into line amounts and keeps the convenience-fee row (never a Markup row)", () => {
     const withFees: ProrationSource = {
       ...source,
-      view: { ...source.view, markup: 100, convenienceFee: 50, total: 3837 },
+      view: {
+        ...source.view,
+        markup: 368.7,
+        beforeFee: 4055.7,
+        convenienceFee: 50,
+        total: 4105.7,
+      },
     };
-    const out = prorateInvoice(withFees, 3837);
+    const out = prorateInvoice(withFees, 4105.7); // ratio 1
     const names = out.lines.map((l) => l.name);
-    expect(names).toContain("Markup");
+    expect(names).not.toContain("Markup");
     expect(names).toContain("Convenience fee");
+    expect(out.lines.find((l) => l.name === "RED OAK")?.amount).toBe(3718);
+    const sum = out.lines.reduce((s, l) => s + l.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(4105.7);
+  });
+
+  it("reconciles a PARTIAL invoice with folded markup AND a convenience fee, placing the cent on the largest line (not the fee)", () => {
+    // subtotal 3687 + 10% markup → beforeFee 4055.7, plus a $100 convenience
+    // fee → total 4155.7. Billed at $1000 (ratio ≈ 0.2406). Folded+prorated
+    // lines come to 81.26 + 894.67 = 975.93 and the fee prorates to 24.06,
+    // summing to 999.99 — a cent short. The +0.01 residual lands on the LARGEST
+    // row (RED OAK 894.67 → 894.68), so the convenience fee stays exactly
+    // fee×ratio (24.06) rather than absorbing the cent.
+    const withMarkupAndFee: ProrationSource = {
+      ...source,
+      view: {
+        ...source.view,
+        markup: 368.7,
+        beforeFee: 4055.7,
+        convenienceFee: 100,
+        total: 4155.7,
+      },
+    };
+    const out = prorateInvoice(withMarkupAndFee, 1000);
+    expect(out.ratio).toBeCloseTo(0.2406, 4);
+    expect(out.lines).toEqual([
+      { name: "Carpet Tear Out", description: "Remove carpet", amount: 81.26 },
+      { name: "RED OAK", description: "Install oak", amount: 894.68 },
+      { name: "Convenience fee", description: null, amount: 24.06 },
+    ]);
+    // Fee row is undistorted: exactly fee × ratio (drift went to the line).
+    const fee = out.lines.find((l) => l.name === "Convenience fee");
+    expect(fee?.amount).toBe(Math.round(100 * (1000 / 4155.7) * 100) / 100);
+    expect(out.lines.map((l) => l.name)).not.toContain("Markup");
+    const sum = out.lines.reduce((s, l) => s + l.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(1000);
+    expect(out.total).toBe(1000);
+  });
+
+  it("never bills a $0 (free) line on a partial invoice (residual goes to the largest row)", () => {
+    // Three 33.33/33.34 lines + a $0 'Free haul-away' line, billed at 50%.
+    // Each line prorates to 16.67 → rows sum 50.01, a cent over; the −0.01
+    // residual must hit the largest row, NOT the free line. Under the old
+    // 'last row' rule the free line would have rendered −$0.01.
+    const freeSource: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: 1, subtotal: 33.33 },
+          { id: 2, effectiveQty: 1, subtotal: 33.33 },
+          { id: 3, effectiveQty: 1, subtotal: 33.34 },
+          { id: 4, effectiveQty: 1, subtotal: 0 },
+        ],
+        subtotal: 100,
+        markup: 0,
+        beforeFee: 100,
+        convenienceFee: 0,
+        total: 100,
+        deposit: 0,
+        hasUnresolvedLines: false,
+      },
+      lineMeta: [
+        { name: "Tear out", description: null },
+        { name: "Underlay", description: null },
+        { name: "RED OAK", description: null },
+        { name: "Free haul-away", description: null },
+      ],
+    };
+    const out = prorateInvoice(freeSource, 50);
+    const free = out.lines.find((l) => l.name === "Free haul-away");
+    expect(free?.amount).toBe(0); // never a phantom ±cent
+    const sum = out.lines.reduce((s, l) => s + l.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(50);
+    expect(out.total).toBe(50);
+  });
+
+  it("omits UNRESOLVED (null) lines from the breakdown instead of billing them as $0", () => {
+    // A line whose qty can't be resolved (subtotal null) must NOT appear as a
+    // $0 row — that would be indistinguishable from a deliberate free line.
+    // It is dropped entirely; the resolved rows still reconcile to the amount.
+    const withUnresolved: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: 1, subtotal: 1000 },
+          { id: 2, effectiveQty: null, subtotal: null }, // unresolved
+          { id: 3, effectiveQty: 1, subtotal: 3000 },
+        ],
+        subtotal: 4000,
+        markup: 0,
+        beforeFee: 4000,
+        convenienceFee: 0,
+        total: 4000,
+        deposit: 0,
+        hasUnresolvedLines: true,
+      },
+      lineMeta: [
+        { name: "Carpet tear-out", description: null },
+        { name: "Stair nosing", description: null },
+        { name: "Red oak install", description: null },
+      ],
+    };
+    const out = prorateInvoice(withUnresolved, 4000);
+    // 'Stair nosing' is dropped, not shown as $0.00.
+    expect(out.lines.map((l) => l.name)).toEqual([
+      "Carpet tear-out",
+      "Red oak install",
+    ]);
+    const sum = out.lines.reduce((s, l) => s + l.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(4000);
+    expect(out.total).toBe(4000);
   });
 });

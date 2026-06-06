@@ -3,6 +3,7 @@
 // from there directly so they don't get pulled into client bundles.
 export { computeEstimateView } from "./compute";
 export { fromPrismaEstimate } from "./fromPrisma";
+export { foldMarkupIntoLines } from "./markup";
 export type {
   EstimateInput,
   EstimateView,
