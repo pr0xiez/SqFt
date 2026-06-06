@@ -49,6 +49,13 @@ export interface CustomerSiteMeasureSummary {
 export interface CustomerLocationSummary {
   id: number;
   address: string;
+  street: string;
+  unit: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  lat: number | null;
+  lon: number | null;
   label: string | null;
   notes: string | null;
   createdAt: string;

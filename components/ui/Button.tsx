@@ -34,22 +34,38 @@ const sizeStyles: Record<ButtonSize, string> = {
   lg: "px-6 py-3 text-[13px]",
 };
 
+/**
+ * The button's class string, exposed so non-button elements that should look
+ * like a button (e.g. an `<a>`) can share the exact same styles without drift.
+ */
+export function buttonClasses({
+  variant = "default",
+  size = "md",
+  className,
+}: {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+} = {}): string {
+  return cn(
+    "inline-flex items-center justify-center gap-1.5",
+    "border cursor-pointer rounded-[6px]",
+    "font-[var(--font-mono)] font-[500] tracking-[.02em]",
+    "transition-[background,border-color,color] duration-[150ms]",
+    "disabled:opacity-50 disabled:cursor-not-allowed",
+    "min-h-[36px]",
+    variantStyles[variant],
+    sizeStyles[size],
+    className
+  );
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "default", size = "md", ...props }, ref) => {
     return (
       <button
         ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center gap-1.5",
-          "border cursor-pointer rounded-[6px]",
-          "font-[var(--font-mono)] font-[500] tracking-[.02em]",
-          "transition-[background,border-color,color] duration-[150ms]",
-          "disabled:opacity-50 disabled:cursor-not-allowed",
-          "min-h-[36px]",
-          variantStyles[variant],
-          sizeStyles[size],
-          className
-        )}
+        className={buttonClasses({ variant, size, className })}
         {...props}
       />
     );
