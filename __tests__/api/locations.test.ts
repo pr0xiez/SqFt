@@ -44,7 +44,7 @@ describe("POST /api/locations", () => {
       id: 5,
       orgId: "org1",
       customerId: 1,
-      address: "12 Oak St",
+      address: "12 Oak St, Columbus, OH 43215",
     };
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockCreate.mockResolvedValue(created as any);
@@ -52,7 +52,10 @@ describe("POST /api/locations", () => {
     const res = await POST(
       makeRequest("POST", "http://x/api/locations", {
         customerId: 1,
-        address: "12 Oak St",
+        street: "12 Oak St",
+        city: "Columbus",
+        state: "OH",
+        postalCode: "43215",
         label: "Rental",
       }),
       noParams
@@ -64,7 +67,10 @@ describe("POST /api/locations", () => {
       expect.objectContaining({
         orgId: "org1",
         customerId: 1,
-        address: "12 Oak St",
+        street: "12 Oak St",
+        city: "Columbus",
+        state: "OH",
+        postalCode: "43215",
         label: "Rental",
       })
     );
@@ -76,7 +82,10 @@ describe("POST /api/locations", () => {
     const res = await POST(
       makeRequest("POST", "http://x/api/locations", {
         customerId: 999,
-        address: "12 Oak St",
+        street: "12 Oak St",
+        city: "Columbus",
+        state: "OH",
+        postalCode: "43215",
       }),
       noParams
     );
@@ -84,7 +93,7 @@ describe("POST /api/locations", () => {
     expect(res.status).toBe(404);
   });
 
-  it("rejects a missing address with VALIDATION_FAILED", async () => {
+  it("rejects missing address fields with VALIDATION_FAILED", async () => {
     const res = await POST(
       makeRequest("POST", "http://x/api/locations", { customerId: 1 }),
       noParams

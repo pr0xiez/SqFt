@@ -30,12 +30,24 @@ export async function createCustomer(
 export async function createLocation(
   request: APIRequestContext,
   customerId: number,
-  args: { address?: string; label?: string } = {}
+  args: {
+    address?: string;
+    street?: string;
+    unit?: string;
+    city?: string;
+    state?: string;
+    postalCode?: string;
+    label?: string;
+  } = {}
 ): Promise<{ id: number }> {
   const res = await request.post("/api/locations", {
     data: {
       customerId,
-      address: args.address ?? "100 Test Ave",
+      street: args.street ?? args.address ?? "100 Test Ave",
+      city: args.city ?? "Columbus",
+      state: args.state ?? "OH",
+      postalCode: args.postalCode ?? "43215",
+      ...(args.unit ? { unit: args.unit } : {}),
       ...(args.label ? { label: args.label } : {}),
     },
   });

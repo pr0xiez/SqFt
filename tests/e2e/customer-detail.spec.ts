@@ -134,7 +134,12 @@ test.describe("17.3 Customer detail — locations & start site measure", () => {
     await expect(page.getByText("Loading…")).toHaveCount(0);
 
     await page.getByRole("button", { name: "+ Add location" }).click();
-    await page.getByPlaceholder("Street, City").fill("742 Evergreen Terrace");
+    await page
+      .getByPlaceholder("Start typing an address…")
+      .fill("742 Evergreen Terrace");
+    await page.getByPlaceholder("Columbus").fill("Springfield");
+    await page.getByPlaceholder("OH").fill("OH");
+    await page.getByPlaceholder("43215").fill("45501");
     await page.getByPlaceholder("e.g. Rental, Main house").fill("Main");
 
     const [post] = await Promise.all([
@@ -156,7 +161,9 @@ test.describe("17.3 Customer detail — locations & start site measure", () => {
       `/api/locations?customerId=${customer.id}`
     );
     const locs = (await list.json()) as Array<{ address: string }>;
-    expect(locs.map((l) => l.address)).toContain("742 Evergreen Terrace");
+    expect(locs.map((l) => l.address)).toContain(
+      "742 Evergreen Terrace, Springfield, OH 45501"
+    );
 
     await ctx.close();
   });

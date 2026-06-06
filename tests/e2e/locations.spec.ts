@@ -32,8 +32,8 @@ test.describe("16.1 Locations", () => {
       address: string;
     }>;
     expect(locs.map((l) => l.address).sort()).toEqual([
-      "12 Oak St",
-      "9 Elm Ave",
+      "12 Oak St, Columbus, OH 43215",
+      "9 Elm Ave, Columbus, OH 43215",
     ]);
 
     // Create a site measure under the chosen location (the rental).
@@ -51,7 +51,7 @@ test.describe("16.1 Locations", () => {
       location: { id: number; address: string; customer: { id: number } };
     };
     expect(fetched.locationId).toBe(rental.id);
-    expect(fetched.location.address).toBe("12 Oak St");
+    expect(fetched.location.address).toBe("12 Oak St, Columbus, OH 43215");
     expect(fetched.location.customer.id).toBe(customer.id);
     expect(fetched.location.id).not.toBe(home.id);
 

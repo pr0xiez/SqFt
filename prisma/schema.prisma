@@ -96,7 +96,17 @@ model Location {
   org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   customerId Int
   customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  // Derived one-line address, composed from the structured parts below via
+  // lib/locations/formatAddress on every create. Kept so existing list views
+  // and estimate/invoice snapshots that read `address` need no changes.
   address    String
+  street     String       @default("")
+  unit       String?
+  city       String       @default("")
+  state      String       @default("")
+  postalCode String       @default("")
+  lat        Float?
+  lon        Float?
   label      String?
   notes      String?
   createdAt  DateTime     @default(now())

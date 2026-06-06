@@ -8,6 +8,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { computeEstimateView, fromPrismaEstimate } from "../lib/estimateView";
+import { locationAddressColumns } from "../lib/locations/formatAddress";
 import { createOrganization } from "../lib/onboarding/createOrganization";
 
 const connectionString = process.env.DATABASE_URL;
@@ -184,7 +185,10 @@ async function main() {
       name: "Henderson, J.",
       phone: "(614) 555-0142",
       email: "henderson@email.com",
-      address: "1247 Elm St, Columbus",
+      street: "1247 Elm St",
+      city: "Columbus",
+      state: "OH",
+      postalCode: "43215",
       source: "phone",
       notes: "Prefers Mon mornings",
     },
@@ -192,7 +196,10 @@ async function main() {
       name: "Martinez, R.",
       phone: "(614) 555-0188",
       email: "rmartinez@email.com",
-      address: "89 Oak Ave, Worthington",
+      street: "89 Oak Ave",
+      city: "Worthington",
+      state: "OH",
+      postalCode: "43085",
       source: "referral",
       notes: "Referred by Henderson",
     },
@@ -200,7 +207,10 @@ async function main() {
       name: "Chen, L.",
       phone: "(614) 555-0211",
       email: "lchen@email.com",
-      address: "142 Maple Dr, Dublin",
+      street: "142 Maple Dr",
+      city: "Dublin",
+      state: "OH",
+      postalCode: "43017",
       source: "online",
       notes: "Wants to start ASAP",
     },
@@ -208,7 +218,10 @@ async function main() {
       name: "Park Family",
       phone: "(614) 555-0307",
       email: "parkfamily@email.com",
-      address: "218 Birch Ln, Bexley",
+      street: "218 Birch Ln",
+      city: "Bexley",
+      state: "OH",
+      postalCode: "43209",
       source: "walkin",
       notes: "",
     },
@@ -216,7 +229,10 @@ async function main() {
       name: "Nguyen, A.",
       phone: "(614) 555-0421",
       email: "",
-      address: "33 Pine Ct, Upper Arlington",
+      street: "33 Pine Ct",
+      city: "Upper Arlington",
+      state: "OH",
+      postalCode: "43221",
       source: "website",
       notes: "New construction",
     },
@@ -224,7 +240,10 @@ async function main() {
       name: "Sharma, P.",
       phone: "(614) 555-0509",
       email: "p.sharma@email.com",
-      address: "67 Cedar Way, Westerville",
+      street: "67 Cedar Way",
+      city: "Westerville",
+      state: "OH",
+      postalCode: "43081",
       source: "phone",
       notes: "",
     },
@@ -235,7 +254,7 @@ async function main() {
   // to live on Customer. Site measures hang off these locations now.
   const locations: { id: number }[] = [];
   for (const c of customerData) {
-    const { address, ...customerFields } = c;
+    const { street, city, state, postalCode, ...customerFields } = c;
     const customer = await prisma.customer.upsert({
       where: { id: customers.length + 1 },
       update: {},
@@ -243,7 +262,17 @@ async function main() {
     });
     customers.push(customer);
     const location = await prisma.location.create({
-      data: { orgId: org.id, customerId: customer.id, address },
+      data: {
+        orgId: org.id,
+        customerId: customer.id,
+        ...locationAddressColumns({
+          street,
+          unit: "",
+          city,
+          state,
+          postalCode,
+        }),
+      },
     });
     locations.push(location);
   }
@@ -983,11 +1012,18 @@ async function main() {
   // ── Second location for Henderson (a customer with two locations) ─────────
   // Demonstrates the Customer → Location → SiteMeasure hierarchy: one customer
   // owns multiple physical sites.
+  const rentalParts = {
+    street: "456 Rental Rd",
+    unit: "",
+    city: "Columbus",
+    state: "OH",
+    postalCode: "43204",
+  };
   const hendersonRental = await prisma.location.create({
     data: {
       orgId: org.id,
       customerId: customers[0].id,
-      address: "456 Rental Rd, Columbus",
+      ...locationAddressColumns(rentalParts),
       label: "Rental Unit",
       notes: "Tenant-occupied — call ahead",
     },
@@ -1252,11 +1288,18 @@ async function main() {
         notes: i % 4 === 0 ? "Bulk pagination fixture" : "",
       },
     });
+    const pgParts = {
+      street: `${1000 + i} Pagination Way`,
+      unit: "",
+      city: "Columbus",
+      state: "OH",
+      postalCode: "43215",
+    };
     const location = await prisma.location.create({
       data: {
         orgId: org.id,
         customerId: customer.id,
-        address: `${1000 + i} Pagination Way, Columbus`,
+        ...locationAddressColumns(pgParts),
       },
     });
 
