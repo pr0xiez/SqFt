@@ -1,4 +1,5 @@
 import { foldMarkupIntoLines } from "@/lib/estimateView/markup";
+import { residualTargetIndex, round2 } from "@/lib/money";
 import type {
   EstimateBilling,
   InvoiceLike,
@@ -6,11 +7,6 @@ import type {
   ProratedLine,
   ProrationSource,
 } from "./types";
-
-/** Round to cents. */
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
 
 /** Estimate-level billing rollup. Voided invoices are ignored. */
 export function computeEstimateBilling(
@@ -38,9 +34,11 @@ export function computeEstimateBilling(
 
 /**
  * Prorate an estimate's labeled breakdown by `amount / estimateTotal`, then
- * reconcile rounding onto the last row so the displayed rows sum EXACTLY to
+ * reconcile rounding onto the largest row so the displayed rows sum EXACTLY to
  * `amount`. Markup is folded into each line's price (never its own row); the
- * convenience-fee row appears only when the fee is non-zero.
+ * convenience-fee row appears only when the fee is non-zero. Putting the
+ * residual on the largest row keeps the ±cent off the convenience-fee row and
+ * off any $0 (free) line.
  */
 export function prorateInvoice(
   source: ProrationSource,
@@ -67,13 +65,14 @@ export function prorateInvoice(
     });
   }
 
-  // Reconcile: force the sum to equal `amount` by adjusting the last row.
+  // Reconcile: force the sum to equal `amount` by adjusting the largest row, so
+  // the ±cent never distorts the convenience-fee row or a $0 (free) line.
   const target = round2(amount);
   const sum = round2(rows.reduce((s, r) => s + r.amount, 0));
   const drift = round2(target - sum);
-  if (drift !== 0 && rows.length > 0) {
-    const last = rows[rows.length - 1];
-    last.amount = round2(last.amount + drift);
+  if (drift !== 0) {
+    const i = residualTargetIndex(rows.map((r) => r.amount));
+    if (i !== -1) rows[i].amount = round2(rows[i].amount + drift);
   }
 
   return { ratio, lines: rows, total: target };
