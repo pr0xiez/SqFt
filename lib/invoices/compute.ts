@@ -38,7 +38,8 @@ export function computeEstimateBilling(
  * `amount`. Markup is folded into each line's price (never its own row); the
  * convenience-fee row appears only when the fee is non-zero. Putting the
  * residual on the largest row keeps the ±cent off the convenience-fee row and
- * off any $0 (free) line.
+ * off any $0 (free) line. Unresolved lines (no resolvable price) are omitted
+ * from the breakdown rather than billed as $0.
  */
 export function prorateInvoice(
   source: ProrationSource,
@@ -50,11 +51,16 @@ export function prorateInvoice(
 
   const rows: ProratedLine[] = [];
   source.view.lines.forEach((_line, idx) => {
+    const priced = folded[idx];
+    // Unresolved line (no resolvable price): omit it rather than bill $0, so it
+    // is never confused with a deliberate $0 (free) line. The builder is warned
+    // separately (InvoicesSection) that such lines won't be billed.
+    if (priced == null) return;
     const meta = source.lineMeta[idx];
     rows.push({
       name: meta?.name ?? `Item ${idx + 1}`,
       description: meta?.description ?? null,
-      amount: round2((folded[idx] ?? 0) * ratio),
+      amount: round2(priced * ratio),
     });
   });
   if (source.view.convenienceFee > 0) {

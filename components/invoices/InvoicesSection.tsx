@@ -26,10 +26,14 @@ function SummaryCell({ label, value }: { label: string; value: string }) {
 export function InvoicesSection({
   estimateId,
   estimateTotal,
+  unresolvedLineCount = 0,
   defaultDepositPct,
 }: {
   estimateId: number;
   estimateTotal: number;
+  /** Line items with no resolvable price; they are excluded from the total and
+   *  won't be billed, so we warn (but never block) the builder. */
+  unresolvedLineCount?: number;
   defaultDepositPct: number;
 }) {
   const { data, isLoading, error } = useInvoices(estimateId);
@@ -68,6 +72,18 @@ export function InvoicesSection({
           value={fmtDollar(billing.outstanding)}
         />
       </div>
+
+      {unresolvedLineCount > 0 ? (
+        <p
+          role="alert"
+          className="mb-4 rounded-md border border-[var(--accent)] px-4 py-2.5 text-[12px] text-[var(--accent)]"
+        >
+          {unresolvedLineCount === 1
+            ? "1 line item has no price yet"
+            : `${unresolvedLineCount} line items have no price yet`}{" "}
+          and won't be billed — resolve them to include their value.
+        </p>
+      ) : null}
 
       {isLoading ? (
         <p className="text-[13px] text-[var(--muted)]">Loading…</p>

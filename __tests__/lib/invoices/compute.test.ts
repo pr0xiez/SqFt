@@ -153,4 +153,40 @@ describe("prorateInvoice", () => {
     expect(Math.round(sum * 100) / 100).toBe(50);
     expect(out.total).toBe(50);
   });
+
+  it("omits UNRESOLVED (null) lines from the breakdown instead of billing them as $0", () => {
+    // A line whose qty can't be resolved (subtotal null) must NOT appear as a
+    // $0 row — that would be indistinguishable from a deliberate free line.
+    // It is dropped entirely; the resolved rows still reconcile to the amount.
+    const withUnresolved: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: 1, subtotal: 1000 },
+          { id: 2, effectiveQty: null, subtotal: null }, // unresolved
+          { id: 3, effectiveQty: 1, subtotal: 3000 },
+        ],
+        subtotal: 4000,
+        markup: 0,
+        beforeFee: 4000,
+        convenienceFee: 0,
+        total: 4000,
+        deposit: 0,
+        hasUnresolvedLines: true,
+      },
+      lineMeta: [
+        { name: "Carpet tear-out", description: null },
+        { name: "Stair nosing", description: null },
+        { name: "Red oak install", description: null },
+      ],
+    };
+    const out = prorateInvoice(withUnresolved, 4000);
+    // 'Stair nosing' is dropped, not shown as $0.00.
+    expect(out.lines.map((l) => l.name)).toEqual([
+      "Carpet tear-out",
+      "Red oak install",
+    ]);
+    const sum = out.lines.reduce((s, l) => s + l.amount, 0);
+    expect(Math.round(sum * 100) / 100).toBe(4000);
+    expect(out.total).toBe(4000);
+  });
 });
