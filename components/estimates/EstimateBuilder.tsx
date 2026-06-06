@@ -162,9 +162,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
       <InvoicesSection
         estimateId={estimateId}
         estimateTotal={estimateView.total}
-        unresolvedLineCount={
-          estimateView.lines.filter((l) => l.subtotal === null).length
-        }
         defaultDepositPct={estimate.org?.defaultDepositPct ?? 0.3}
       />
 

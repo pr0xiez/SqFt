@@ -83,22 +83,4 @@ describe("InvoicesSection", () => {
       expect(screen.getByText("No invoices yet.")).toBeDefined()
     );
   });
-
-  it("warns (without blocking) when the estimate has unresolved line items", async () => {
-    render(
-      wrap(
-        <InvoicesSection
-          estimateId={3}
-          estimateTotal={10000}
-          unresolvedLineCount={2}
-          defaultDepositPct={0.3}
-        />
-      )
-    );
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/no price/i);
-    // Warning only — billing is not blocked: Create invoice stays enabled.
-    const createBtn = screen.getByRole("button", { name: /create invoice/i });
-    expect((createBtn as HTMLButtonElement).disabled).toBe(false);
-  });
 });
