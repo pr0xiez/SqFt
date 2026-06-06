@@ -144,7 +144,12 @@ export function LineItemRow({
               >
                 {effectiveQty !== null ? effectiveQty.toFixed(1) : "—"}
               </span>
-              <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] opacity-80">
+              <span
+                className={cn(
+                  "font-[var(--font-mono)] text-[10px] opacity-80",
+                  unresolved ? "text-[var(--gold)]" : "text-[var(--sage)]"
+                )}
+              >
                 {linkedUnit}
               </span>
             </div>

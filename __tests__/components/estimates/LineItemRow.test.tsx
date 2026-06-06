@@ -51,7 +51,7 @@ function renderRow(
 describe("LineItemRow — unresolved (Quantity unset) flag", () => {
   it("flags a manual line with no quantity", () => {
     renderRow({ subtotal: null, effectiveQty: null });
-    expect(screen.getByText(/Quantity unset/)).toBeDefined();
+    expect(screen.queryByText(/Quantity unset/)).not.toBeNull();
     // The misleading $0.00 must NOT appear for an unresolved line.
     expect(screen.queryByText("$0.00")).toBeNull();
   });
@@ -63,13 +63,13 @@ describe("LineItemRow — unresolved (Quantity unset) flag", () => {
       subtotal: null,
       effectiveQty: null,
     });
-    expect(screen.getByText(/Quantity unset/)).toBeDefined();
+    expect(screen.queryByText(/Quantity unset/)).not.toBeNull();
   });
 
   it("does NOT flag a deliberate $0 (free) line", () => {
     renderRow({ li: li({ qty: 0 }), effectiveQty: 0, subtotal: 0 });
     expect(screen.queryByText(/Quantity unset/)).toBeNull();
-    expect(screen.getByText("$0.00")).toBeDefined();
+    expect(screen.queryByText("$0.00")).not.toBeNull();
   });
 
   it("does NOT flag a normally priced line", () => {
@@ -79,6 +79,6 @@ describe("LineItemRow — unresolved (Quantity unset) flag", () => {
 
   it("still flags an unresolved line when read-only (locked estimate)", () => {
     renderRow({ subtotal: null, effectiveQty: null, readOnly: true });
-    expect(screen.getByText(/Quantity unset/)).toBeDefined();
+    expect(screen.queryByText(/Quantity unset/)).not.toBeNull();
   });
 });
