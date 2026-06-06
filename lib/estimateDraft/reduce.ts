@@ -22,7 +22,7 @@ export function reduceEstimateDraft(
           description: null,
           rate: 0,
           qtyMode: QtyMode.Manual,
-          qty: null,
+          qty: 0,
           wastePct: 0,
           unitLabel: "sqft",
           linkedRoomIds: [],
