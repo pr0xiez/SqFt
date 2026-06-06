@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClasses } from "@/components/ui/Button";
 import type { AddressSuggestion } from "@/lib/address/geoapify";
 import type { CustomerLocationSummary } from "@/lib/hooks/useCustomers";
 
@@ -57,39 +57,62 @@ export function LocationsCard({
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cancel any scheduled-but-not-fired debounce and abort the in-flight fetch,
+  // so a stale response can't clobber newer suggestions and a pending timer
+  // can't re-open the dropdown after the user has moved on.
+  function cancelPending() {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    abortRef.current?.abort();
+  }
 
   function reset() {
+    cancelPending();
     setForm(EMPTY);
     setSuggestions([]);
     setShowSuggestions(false);
   }
 
+  // Hand-editing a structured field drops any lat/lon captured from a previous
+  // pick — coordinates must only persist when they still match the typed
+  // address, never after a manual correction.
+  function editField(field: "city" | "state" | "postalCode", value: string) {
+    setForm((f) => ({ ...f, [field]: value, lat: undefined, lon: undefined }));
+  }
+
   // Debounced autocomplete keyed off the street field. The proxy returns [] on
-  // any failure, so a missing key / network error just yields no dropdown.
+  // any failure, so a missing key / network error just yields no dropdown. A
+  // hand-edit also clears any previously-picked coordinates.
   function onStreetChange(value: string) {
-    setForm((f) => ({ ...f, street: value }));
+    setForm((f) => ({ ...f, street: value, lat: undefined, lon: undefined }));
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    abortRef.current?.abort();
     if (value.trim().length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
         const res = await fetch(
-          `/api/address/autocomplete?q=${encodeURIComponent(value)}`
+          `/api/address/autocomplete?q=${encodeURIComponent(value)}`,
+          { signal: controller.signal }
         );
         if (!res.ok) return;
         const data = (await res.json()) as AddressSuggestion[];
         setSuggestions(data);
         setShowSuggestions(data.length > 0);
       } catch {
-        // graceful: keep manual entry
+        // graceful (incl. AbortError): keep manual entry
       }
     }, 250);
   }
 
   function pickSuggestion(s: AddressSuggestion) {
+    cancelPending();
     setForm((f) => ({
       ...f,
       street: s.street,
@@ -105,6 +128,7 @@ export function LocationsCard({
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      abortRef.current?.abort();
     };
   }, []);
 
@@ -184,8 +208,9 @@ export function LocationsCard({
                   href={mapsHref(loc.address)}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className={buttonClasses({ size: "sm" })}
                 >
-                  <Button size="sm">Open in Google Maps</Button>
+                  Open in Google Maps
                 </a>
               )}
               <Button
@@ -217,8 +242,9 @@ export function LocationsCard({
             />
             {showSuggestions && (
               <ul className="absolute z-10 mt-1 w-full bg-[var(--surface)] border border-[var(--line)] rounded-[5px] shadow-md max-h-60 overflow-y-auto">
-                {suggestions.map((s) => (
-                  <li key={`${s.formatted}|${s.lat},${s.lon}`}>
+                {suggestions.map((s, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: list is replaced wholesale per query and never reordered in place, so the index is a stable collision-free key
+                  <li key={`${s.formatted}-${i}`}>
                     <button
                       type="button"
                       onClick={() => pickSuggestion(s)}
@@ -250,9 +276,7 @@ export function LocationsCard({
               <input
                 type="text"
                 value={form.city}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, city: e.target.value }))
-                }
+                onChange={(e) => editField("city", e.target.value)}
                 placeholder="Columbus"
                 className={fieldInput}
               />
@@ -262,9 +286,7 @@ export function LocationsCard({
               <input
                 type="text"
                 value={form.state}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, state: e.target.value }))
-                }
+                onChange={(e) => editField("state", e.target.value)}
                 placeholder="OH"
                 className={fieldInput}
               />
@@ -274,9 +296,7 @@ export function LocationsCard({
               <input
                 type="text"
                 value={form.postalCode}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, postalCode: e.target.value }))
-                }
+                onChange={(e) => editField("postalCode", e.target.value)}
                 placeholder="43215"
                 className={fieldInput}
               />

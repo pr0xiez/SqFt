@@ -22,3 +22,29 @@ export function formatAddress(parts: AddressParts): string {
   const stateZip = [state, postalCode].filter(Boolean).join(" ");
   return [street, unit, city, stateZip].filter(Boolean).join(", ");
 }
+
+export interface LocationAddressInput extends AddressParts {
+  lat?: number | null;
+  lon?: number | null;
+}
+
+/**
+ * Build the `Location` address columns from structured parts — the SINGLE
+ * source of the "`address` always equals `formatAddress(parts)`" invariant.
+ * Every write path (repo create, seed) must spread this so the derived
+ * `address` column can never desync from the structured fields it summarizes.
+ * Returns only the address-related columns; callers add orgId/customerId/
+ * label/notes around it.
+ */
+export function locationAddressColumns(parts: LocationAddressInput) {
+  return {
+    address: formatAddress(parts),
+    street: parts.street,
+    unit: parts.unit ?? null,
+    city: parts.city,
+    state: parts.state,
+    postalCode: parts.postalCode,
+    lat: parts.lat ?? null,
+    lon: parts.lon ?? null,
+  };
+}

@@ -8,7 +8,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../app/generated/prisma/client";
 import { computeEstimateView, fromPrismaEstimate } from "../lib/estimateView";
-import { formatAddress } from "../lib/locations/formatAddress";
+import { locationAddressColumns } from "../lib/locations/formatAddress";
 import { createOrganization } from "../lib/onboarding/createOrganization";
 
 const connectionString = process.env.DATABASE_URL;
@@ -261,13 +261,17 @@ async function main() {
       create: { ...customerFields, orgId: org.id },
     });
     customers.push(customer);
-    const parts = { street, unit: "", city, state, postalCode };
     const location = await prisma.location.create({
       data: {
         orgId: org.id,
         customerId: customer.id,
-        address: formatAddress(parts),
-        ...parts,
+        ...locationAddressColumns({
+          street,
+          unit: "",
+          city,
+          state,
+          postalCode,
+        }),
       },
     });
     locations.push(location);
@@ -1019,8 +1023,7 @@ async function main() {
     data: {
       orgId: org.id,
       customerId: customers[0].id,
-      address: formatAddress(rentalParts),
-      ...rentalParts,
+      ...locationAddressColumns(rentalParts),
       label: "Rental Unit",
       notes: "Tenant-occupied — call ahead",
     },
@@ -1296,8 +1299,7 @@ async function main() {
       data: {
         orgId: org.id,
         customerId: customer.id,
-        address: formatAddress(pgParts),
-        ...pgParts,
+        ...locationAddressColumns(pgParts),
       },
     });
 

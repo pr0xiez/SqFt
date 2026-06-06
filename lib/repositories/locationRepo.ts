@@ -1,4 +1,4 @@
-import { formatAddress } from "@/lib/locations/formatAddress";
+import { locationAddressColumns } from "@/lib/locations/formatAddress";
 import { prisma } from "@/lib/prisma";
 
 export interface CreateLocationInput {
@@ -26,20 +26,12 @@ export async function createLocation(input: CreateLocationInput) {
   if (!customer) return null;
 
   const { orgId, customerId, label, notes, ...parts } = input;
-  const address = formatAddress(parts);
 
   return prisma.location.create({
     data: {
       orgId,
       customerId,
-      address,
-      street: parts.street,
-      unit: parts.unit ?? null,
-      city: parts.city,
-      state: parts.state,
-      postalCode: parts.postalCode,
-      lat: parts.lat ?? null,
-      lon: parts.lon ?? null,
+      ...locationAddressColumns(parts),
       label: label ?? null,
       notes: notes ?? null,
     },

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatAddress } from "@/lib/locations/formatAddress";
+import {
+  formatAddress,
+  locationAddressColumns,
+} from "@/lib/locations/formatAddress";
 
 describe("formatAddress", () => {
   it("joins all parts in US single-line order", () => {
@@ -67,5 +70,44 @@ describe("formatAddress", () => {
         postalCode: "43209",
       })
     ).toBe("5 Pine Ct, Bexley, 43209");
+  });
+});
+
+describe("locationAddressColumns", () => {
+  it("derives address and normalizes optional columns to null", () => {
+    expect(
+      locationAddressColumns({
+        street: "12 Oak St",
+        city: "Columbus",
+        state: "OH",
+        postalCode: "43201",
+      })
+    ).toEqual({
+      address: "12 Oak St, Columbus, OH 43201",
+      street: "12 Oak St",
+      unit: null,
+      city: "Columbus",
+      state: "OH",
+      postalCode: "43201",
+      lat: null,
+      lon: null,
+    });
+  });
+
+  it("keeps a derived address consistent with formatAddress and passes lat/lon through", () => {
+    const parts = {
+      street: "1247 Elm St",
+      unit: "Apt 2",
+      city: "Columbus",
+      state: "OH",
+      postalCode: "43215",
+      lat: 39.96,
+      lon: -83.0,
+    };
+    const cols = locationAddressColumns(parts);
+    expect(cols.address).toBe(formatAddress(parts));
+    expect(cols.unit).toBe("Apt 2");
+    expect(cols.lat).toBe(39.96);
+    expect(cols.lon).toBe(-83.0);
   });
 });
