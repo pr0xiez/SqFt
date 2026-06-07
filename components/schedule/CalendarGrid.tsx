@@ -19,6 +19,7 @@ import {
   useCreateEvent,
   useDeleteEvent,
   useEvents,
+  useUpdateEvent,
 } from "@/lib/hooks/useEvents";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
 import {
@@ -130,6 +131,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   const estimates = estimatesData?.items ?? [];
   const { data: crew = [] } = useCrewMembers();
   const createEvent = useCreateEvent();
+  const updateEvent = useUpdateEvent(editingEvent?.id ?? 0);
   const deleteEvent = useDeleteEvent();
   const { showToast } = useToast();
 
@@ -446,7 +448,11 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
           estimates={estimates}
           onSave={async (data) => {
             try {
-              await createEvent.mutateAsync(data);
+              if (editingEvent) {
+                await updateEvent.mutateAsync(data);
+              } else {
+                await createEvent.mutateAsync(data);
+              }
               setPanelOpen(false);
               showToast("Event saved", data.title);
             } catch {
