@@ -5,6 +5,8 @@ export type MemberRow = {
   name: string;
   email: string;
   role: MemberRole;
+  title: string | null;
+  archived: boolean;
   createdAt: string;
 };
 
@@ -13,4 +15,11 @@ export type CreateMemberInput = {
   email: string;
   role: MemberRole;
   password: string;
+};
+
+export type UpdateMemberInput = {
+  id: string;
+  role?: MemberRole;
+  title?: string | null;
+  archived?: boolean;
 };

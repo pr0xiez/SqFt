@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { MembersView } from "@/components/settings/members/MembersView";
 import type { MemberRow } from "@/components/settings/members/types";
-import { prisma } from "@/lib/prisma";
+import { listUsers } from "@/lib/repositories";
 import { requireSession } from "@/lib/tenant";
 
 export const metadata = { title: "Members · Settings · SqFt" };
@@ -12,17 +12,15 @@ export default async function MembersPage() {
     redirect("/settings");
   }
 
-  const users = await prisma.user.findMany({
-    where: { orgId: session.user.orgId },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
-    orderBy: { createdAt: "asc" },
-  });
+  const users = await listUsers(session.user.orgId, { includeArchived: true });
 
   const initial: MemberRow[] = users.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
     role: u.role as MemberRow["role"],
+    title: u.title,
+    archived: u.archived,
     createdAt: u.createdAt.toISOString(),
   }));
 

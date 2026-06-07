@@ -68,7 +68,7 @@ describe("createEvent", () => {
     );
   });
 
-  it("connects crewMembers when crewMemberIds is supplied", async () => {
+  it("connects assignees when assigneeIds is supplied", async () => {
     eventCreate.mockResolvedValue({ id: 1 });
     await createEvent("org1", {
       type: "visit",
@@ -76,12 +76,12 @@ describe("createEvent", () => {
       date: new Date(),
       startTime: "10:00",
       endTime: "11:00",
-      crewMemberIds: [10, 11],
+      assigneeIds: ["u10", "u11"],
     });
     expect(eventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          crewMembers: { connect: [{ id: 10 }, { id: 11 }] },
+          assignees: { connect: [{ id: "u10" }, { id: "u11" }] },
         }),
       })
     );
@@ -128,15 +128,15 @@ describe("updateEvent", () => {
     expect(eventUpdate).toHaveBeenCalled();
   });
 
-  it("uses set semantics when crewMemberIds is supplied", async () => {
+  it("uses set semantics when assigneeIds is supplied", async () => {
     eventFindFirst.mockResolvedValueOnce({ type: "visit", estimateId: null });
     eventUpdate.mockResolvedValue({ id: 1 });
-    await updateEvent(1, "org1", { crewMemberIds: [10] });
+    await updateEvent(1, "org1", { assigneeIds: ["u10"] });
     expect(eventUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 1 },
         data: expect.objectContaining({
-          crewMembers: { set: [{ id: 10 }] },
+          assignees: { set: [{ id: "u10" }] },
         }),
       })
     );

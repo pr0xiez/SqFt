@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
-import { useCrewMembers } from "@/lib/hooks/useCrewMembers";
+import { useAssignableUsers } from "@/lib/hooks/useAssignableUsers";
 import { useCustomers } from "@/lib/hooks/useCustomers";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import {
@@ -129,7 +129,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
     status: "all",
   });
   const estimates = estimatesData?.items ?? [];
-  const { data: crew = [] } = useCrewMembers();
+  const { data: crew = [] } = useAssignableUsers();
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent(editingEvent?.id ?? 0);
   const deleteEvent = useDeleteEvent();
@@ -235,7 +235,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
 
       {/* Crew filter bar */}
       <CrewFilterBar
-        crew={crew.map((m) => ({ id: m.id, name: m.name, role: m.role }))}
+        crew={crew.map((m) => ({ id: m.id, name: m.name }))}
         events={events}
         weekStart={weekStart ? dateStr(weekStart) : ""}
         days={daysToShow}
@@ -407,24 +407,24 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                             {ev.startTime}–{ev.endTime}
                           </div>
                         )}
-                        {height > 46 && ev.crewMembers.length > 0 && (
+                        {height > 46 && ev.assignees.length > 0 && (
                           <div className="font-[var(--font-mono)] text-[9px] opacity-75 mt-px flex items-center gap-1 truncate">
                             <span className="flex items-center gap-[2px] flex-shrink-0">
-                              {ev.crewMembers.slice(0, 3).map((m) => (
+                              {ev.assignees.slice(0, 3).map((m) => (
                                 <CrewAvatar
                                   key={m.id}
                                   name={m.name}
                                   size="sm"
                                 />
                               ))}
-                              {ev.crewMembers.length > 3 && (
+                              {ev.assignees.length > 3 && (
                                 <span className="ml-[2px]">
-                                  +{ev.crewMembers.length - 3}
+                                  +{ev.assignees.length - 3}
                                 </span>
                               )}
                             </span>
                             <span className="truncate">
-                              {ev.crewMembers.map((m) => m.name).join(" · ")}
+                              {ev.assignees.map((m) => m.name).join(" · ")}
                             </span>
                           </div>
                         )}

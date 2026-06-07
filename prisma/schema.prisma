@@ -53,7 +53,6 @@ model Organization {
   estimates         Estimate[]
   locations         Location[]
   events            Event[]
-  crewMembers       CrewMember[]
   lineItemTemplates LineItemTemplate[]
 }
 
@@ -63,9 +62,15 @@ model User {
   email     String       @unique
   password  String // bcrypt hash
   role      String       @default("crew") // admin | lead | crew
+  title     String? // free-text job title, e.g. "Lead Installer" — filled forward
+  archived  Boolean      @default(false) // deactivated: can't log in or be newly assigned
   orgId     String
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   createdAt DateTime     @default(now())
+
+  events Event[] // events this user is assigned to (Event.assignees)
+
+  @@index([orgId, archived])
 }
 
 // ── CORE DATA ────────────────────────────────────────────────────────────────
@@ -355,20 +360,7 @@ model Event {
   startTime   String // "08:00"
   endTime     String // "17:00"
   notes       String?
-  createdAt   DateTime     @default(now())
-  crewMembers CrewMember[]
-}
-
-model CrewMember {
-  id        Int          @id @default(autoincrement())
-  orgId     String
-  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  name      String
-  role      String       @default("")
-  archived  Boolean      @default(false)
   createdAt DateTime     @default(now())
-
-  events Event[]
-
-  @@index([orgId, archived])
+  assignees User[]
 }
+
