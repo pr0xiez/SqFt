@@ -21,7 +21,7 @@ const existingEvent: CalEvent = {
   endDate: null,
   startTime: "09:00",
   endTime: "10:00",
-  crewMembers: [],
+  assignees: [],
   notes: null,
   createdAt: today,
   customer: null,
@@ -39,8 +39,8 @@ vi.mock("@/lib/hooks/useCustomers", () => ({
 vi.mock("@/lib/hooks/useEstimates", () => ({
   useEstimates: () => ({ data: { items: [] } }),
 }));
-vi.mock("@/lib/hooks/useCrewMembers", () => ({
-  useCrewMembers: () => ({ data: [] }),
+vi.mock("@/lib/hooks/useAssignableUsers", () => ({
+  useAssignableUsers: () => ({ data: [] }),
 }));
 vi.mock("@/lib/hooks/useIsMobile", () => ({ useIsMobile: () => false }));
 vi.mock("@/components/ui/Toast", () => ({
