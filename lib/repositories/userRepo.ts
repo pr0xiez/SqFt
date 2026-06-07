@@ -79,7 +79,7 @@ export async function updateRole(
     });
     if (activeAdmins <= 1) throw new LastAdminError();
   }
-  await prisma.user.update({ where: { id }, data: { role } });
+  await prisma.user.updateMany({ where: { id, orgId }, data: { role } });
   return prisma.user.findFirst({ where: { id, orgId }, select: USER_SELECT });
 }
 
