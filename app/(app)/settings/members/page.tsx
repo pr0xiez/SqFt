@@ -14,7 +14,15 @@ export default async function MembersPage() {
 
   const users = await prisma.user.findMany({
     where: { orgId: session.user.orgId },
-    select: { id: true, name: true, email: true, role: true, createdAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      title: true,
+      archived: true,
+      createdAt: true,
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -23,6 +31,8 @@ export default async function MembersPage() {
     name: u.name,
     email: u.email,
     role: u.role as MemberRow["role"],
+    title: u.title,
+    archived: u.archived,
     createdAt: u.createdAt.toISOString(),
   }));
 
