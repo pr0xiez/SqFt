@@ -37,6 +37,9 @@ const tx = {
   },
 };
 
+// NOTE: this mock runs the callback inline and does NOT model rollback — calls
+// recorded before a throw stay recorded. Don't write a test asserting a mutation
+// was "rolled back" after an error; the mock can't observe that.
 const $transaction = vi.fn((cb: (client: typeof tx) => unknown) => cb(tx));
 
 vi.mock("@/lib/prisma", () => ({
@@ -411,6 +414,36 @@ describe("recordPayment", () => {
 
     await recordPayment(1, "org1", { ...paymentInput, amount: 40 });
 
+    const call = invoiceUpdate.mock.calls[0][0];
+    expect(call.data.status).toBe("paid");
+    expect(call.data.paidAt).toBeInstanceOf(Date);
+  });
+
+  it("allows over-payment and still reaches paid (no overbill guard, by design)", async () => {
+    // CONTEXT.md: the payment ledger is free-form — recordPayment has no
+    // overbill guard (unlike create/updateInvoice). A payment exceeding the
+    // invoice amount must be accepted and the invoice settles to "paid".
+    invoiceFindFirst
+      .mockResolvedValueOnce({
+        id: 1,
+        status: "sent",
+        amount: 100,
+        payments: [],
+      })
+      .mockResolvedValueOnce({ id: 1, status: "paid" });
+    paymentCreate.mockResolvedValue({});
+    invoiceUpdate.mockResolvedValue({});
+    invoiceEventCreate.mockResolvedValue({});
+
+    await expect(
+      recordPayment(1, "org1", { ...paymentInput, amount: 150 })
+    ).resolves.not.toThrow();
+
+    expect(paymentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ invoiceId: 1, amount: 150 }),
+      })
+    );
     const call = invoiceUpdate.mock.calls[0][0];
     expect(call.data.status).toBe("paid");
     expect(call.data.paidAt).toBeInstanceOf(Date);
