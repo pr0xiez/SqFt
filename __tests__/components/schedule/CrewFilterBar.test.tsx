@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import { CrewFilterBar } from "@/components/schedule/CrewFilterBar";
 
 const crew = [
-  { id: 10, name: "Carlos", role: "Lead Installer" },
-  { id: 11, name: "Dave", role: "Installer" },
+  { id: "u10", name: "Carlos" },
+  { id: "u11", name: "Dave" },
 ];
 const events = [
-  { id: 1, date: "2026-05-04", crewMembers: [crew[0]] },
-  { id: 2, date: "2026-05-05", crewMembers: [crew[0], crew[1]] },
+  { id: 1, date: "2026-05-04", assignees: [crew[0]] },
+  { id: 2, date: "2026-05-05", assignees: [crew[0], crew[1]] },
 ];
 
 describe("CrewFilterBar", () => {
@@ -59,6 +59,6 @@ describe("CrewFilterBar", () => {
       />
     );
     fireEvent.click(screen.getByText("Carlos"));
-    expect(onChange).toHaveBeenCalledWith(10);
+    expect(onChange).toHaveBeenCalledWith("u10");
   });
 });
