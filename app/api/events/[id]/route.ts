@@ -1,21 +1,17 @@
 import { NotFoundError, ValidationError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { eventIdParams, eventUpdateSchema } from "@/lib/events/schema";
-import {
-  deleteEvent,
-  updateEvent,
-  validateCrewMemberIds,
-} from "@/lib/repositories";
+import { deleteEvent, updateEvent, validateUserIds } from "@/lib/repositories";
 
 export const PATCH = apiRoute(
   { minRole: "lead", input: eventUpdateSchema },
   async ({ orgId, input, params }) => {
     const { id } = eventIdParams.parse(params);
-    const { date, endDate, crewMemberIds, ...rest } = input;
+    const { date, endDate, assigneeIds, ...rest } = input;
 
-    if (crewMemberIds && crewMemberIds.length > 0) {
-      const ok = await validateCrewMemberIds(orgId, crewMemberIds);
-      if (!ok) throw new ValidationError("Invalid crew member");
+    if (assigneeIds && assigneeIds.length > 0) {
+      const ok = await validateUserIds(orgId, assigneeIds);
+      if (!ok) throw new ValidationError("Invalid assignee");
     }
 
     const data = {
@@ -24,7 +20,7 @@ export const PATCH = apiRoute(
       ...(endDate !== undefined
         ? { endDate: endDate ? new Date(endDate) : null }
         : {}),
-      ...(crewMemberIds !== undefined ? { crewMemberIds } : {}),
+      ...(assigneeIds !== undefined ? { assigneeIds } : {}),
     };
 
     const event = await updateEvent(id, orgId, data);
