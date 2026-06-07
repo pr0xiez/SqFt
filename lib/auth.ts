@@ -77,9 +77,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (token) {
+        if (typeof token.orgId !== "string" || typeof token.role !== "string") {
+          throw new Error("Malformed JWT: orgId and role must be strings");
+        }
         session.user.id = token.sub ?? "";
-        session.user.orgId = token.orgId as string;
-        session.user.role = token.role as string;
+        session.user.orgId = token.orgId;
+        session.user.role = token.role;
       }
       return session;
     },
