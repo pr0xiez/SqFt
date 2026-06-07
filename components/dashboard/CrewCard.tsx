@@ -4,7 +4,7 @@ import type { CalEvent } from "@/lib/hooks/useEvents";
 import { todayStr } from "@/lib/utils";
 
 interface CrewEntry {
-  id: number;
+  id: string;
   name: string;
   initials: string;
   jobTitle: string;
@@ -22,11 +22,11 @@ function getInitials(name: string): string {
 
 function buildCrewEntries(events: CalEvent[], today: string): CrewEntry[] {
   const todayEvents = events.filter((e) => e.date.slice(0, 10) === today);
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   const entries: CrewEntry[] = [];
 
   for (const ev of todayEvents) {
-    for (const member of ev.crewMembers) {
+    for (const member of ev.assignees) {
       if (!seen.has(member.id)) {
         seen.add(member.id);
         entries.push({

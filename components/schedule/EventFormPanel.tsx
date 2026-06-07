@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { cn } from "@/lib/cn";
-import { useCrewMembers } from "@/lib/hooks/useCrewMembers";
+import { useAssignableUsers } from "@/lib/hooks/useAssignableUsers";
 import type { CalEvent, CreateEventInput } from "@/lib/hooks/useEvents";
 
 interface EstimateOption {
@@ -52,11 +51,11 @@ export function EventFormPanel({
   const [endTime, setEndTime] = useState("09:00");
   const [customerId, setCustomerId] = useState<number | undefined>();
   const [estimateId, setEstimateId] = useState<number | undefined>();
-  const [crewMemberIds, setCrewMemberIds] = useState<Set<number>>(new Set());
+  const [crewMemberIds, setCrewMemberIds] = useState<Set<string>>(new Set());
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const { data: crew = [], isLoading: crewLoading } = useCrewMembers();
+  const { data: crew = [], isLoading: crewLoading } = useAssignableUsers();
 
   const ev = editingEvent;
   const customerEstimates = useMemo(
@@ -80,7 +79,7 @@ export function EventFormPanel({
       setEndTime(ev.endTime);
       setCustomerId(ev.customerId ?? undefined);
       setEstimateId(ev.estimateId ?? undefined);
-      setCrewMemberIds(new Set((ev.crewMembers ?? []).map((m) => m.id)));
+      setCrewMemberIds(new Set((ev.assignees ?? []).map((m) => m.id)));
       setNotes(ev.notes ?? "");
     } else {
       setType("visit");
@@ -109,7 +108,7 @@ export function EventFormPanel({
         endTime,
         customerId,
         estimateId,
-        crewMemberIds: Array.from(crewMemberIds),
+        assigneeIds: Array.from(crewMemberIds),
         notes,
       });
     } finally {
@@ -309,10 +308,7 @@ export function EventFormPanel({
             </div>
           ) : crew.length === 0 ? (
             <div className="text-[12px] text-[var(--muted)]">
-              No crew yet.{" "}
-              <Link href="/crew" className="underline hover:text-[var(--ink)]">
-                Add crew members →
-              </Link>
+              No people to assign yet.
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-1.5">

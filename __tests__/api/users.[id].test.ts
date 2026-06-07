@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findFirst: vi.fn(),
-      update: vi.fn(),
+      updateMany: vi.fn(),
       count: vi.fn(),
     },
   },
@@ -27,7 +27,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
 const mockFindFirst = vi.mocked(prisma.user.findFirst);
-const mockUpdate = vi.mocked(prisma.user.update);
+const mockUpdateMany = vi.mocked(prisma.user.updateMany);
 const mockCount = vi.mocked(prisma.user.count);
 
 function makePatch(body: unknown) {
@@ -68,17 +68,19 @@ describe("PATCH /api/users/[id]", () => {
 
   it("200 updates another user's role", async () => {
     asRole("admin", "self");
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockFindFirst.mockResolvedValueOnce({ id: "target", role: "crew" } as any);
     const updated = {
       id: "target",
       name: "B",
       email: "b@x.dev",
       role: "lead",
+      title: null,
+      archived: false,
       createdAt: new Date(),
     };
+    // findFirst is called by updateRole (role check + re-fetch) and findUserRow.
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockUpdate.mockResolvedValueOnce(updated as any);
+    mockFindFirst.mockResolvedValue(updated as any);
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const res = await PATCH(makePatch({ role: "lead" }), {
       params: Promise.resolve({ id: "target" }),
@@ -87,9 +89,9 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.role).toBe("lead");
-    expect(mockUpdate).toHaveBeenCalledWith(
+    expect(mockUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "target" },
+        where: { id: "target", orgId: "org1" },
         data: { role: "lead" },
       })
     );
@@ -105,22 +107,23 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe("CANNOT_DEMOTE_SELF");
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
   it("allows admin to keep self at admin (no-op self update)", async () => {
     asRole("admin", "self");
-    // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockFindFirst.mockResolvedValueOnce({ id: "self", role: "admin" } as any);
     const updated = {
       id: "self",
       name: "A",
       email: "a@x.dev",
       role: "admin",
+      title: null,
+      archived: false,
       createdAt: new Date(),
     };
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockUpdate.mockResolvedValueOnce(updated as any);
+    mockFindFirst.mockResolvedValue(updated as any);
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const res = await PATCH(makePatch({ role: "admin" }), {
       params: Promise.resolve({ id: "self" }),
@@ -154,7 +157,7 @@ describe("PATCH /api/users/[id]", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe("LAST_ADMIN");
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
   it("400 VALIDATION_FAILED on invalid role", async () => {

@@ -7,7 +7,7 @@ vi.mock("@/lib/repositories", () => ({
   createEvent: vi.fn(),
   updateEvent: vi.fn(),
   deleteEvent: vi.fn(),
-  validateCrewMemberIds: vi.fn().mockResolvedValue(true),
+  validateUserIds: vi.fn().mockResolvedValue(true),
 }));
 
 const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
@@ -71,6 +71,23 @@ describe("POST /api/events", () => {
     expect(mockCreate).toHaveBeenCalledWith(
       "org1",
       expect.objectContaining({ title: "Install day" })
+    );
+  });
+
+  it("forwards assigneeIds to createEvent", async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockCreate.mockResolvedValue({ id: 4 } as any);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", {
+        ...validPayload,
+        assigneeIds: ["u10", "u11"],
+      }),
+      params({})
+    );
+    expect(res.status).toBe(201);
+    expect(mockCreate).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({ assigneeIds: ["u10", "u11"] })
     );
   });
 

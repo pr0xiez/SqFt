@@ -12,7 +12,7 @@ export const eventCreateSchema = z.object({
   endDate: z.string().regex(DATE_RE).optional(),
   startTime: z.string().regex(TIME_RE),
   endTime: z.string().regex(TIME_RE),
-  crewMemberIds: z.array(z.number().int().positive()).max(20).optional(),
+  assigneeIds: z.array(z.string().min(1)).max(20).optional(),
   notes: z.string().max(2000).optional(),
 });
 
@@ -25,7 +25,7 @@ export const eventUpdateSchema = z.object({
   endDate: z.string().regex(DATE_RE).nullable().optional(),
   startTime: z.string().regex(TIME_RE).optional(),
   endTime: z.string().regex(TIME_RE).optional(),
-  crewMemberIds: z.array(z.number().int().positive()).max(20).optional(),
+  assigneeIds: z.array(z.string().min(1)).max(20).optional(),
   notes: z.string().max(2000).optional(),
 });
 

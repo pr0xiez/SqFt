@@ -19,6 +19,19 @@ taken at a location. An **Estimate** is a priced, customer-facing document
 built from a site measure; a site measure can spawn several estimates (e.g. a
 revision after a decline).
 
+## People
+
+There is one notion of "a person": a **User** (`lib/repositories/userRepo.ts`).
+A user has a `role` (`admin | lead | crew`) and an optional free-text `title`
+(e.g. "Lead Installer"). Any non-archived user — of any role — is **assignable**
+to calendar Events; the schedule's crew picker and `/api/users/assignable` are
+sourced from active users. `User.archived` **deactivates** a person: they can't
+log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
+Events link assigned users via the `Event.assignees` relation
+(`eventRepo` `assigneeIds: string[]`). People are managed on the admin
+**Members** page (`/settings/members`) — the single people-management surface
+(role, title, archive/restore); there is no separate crew roster.
+
 ## Location
 
 A physical site address belonging to a customer (`address`, optional `label`
@@ -201,8 +214,6 @@ Domain codes:
   `approved` or `declined`.
 - `ESTIMATE_HAS_EVENTS` (409) — caller tried to delete an estimate that still
   has scheduled Events (jobs) referencing it.
-- `CREW_MEMBER_IN_USE` (409) — caller tried to delete a crew member who is
-  still assigned to one or more Events.
 - `EMAIL_FAILED` (502) — upstream email provider rejected the send. Returned
   by the estimate-send route when Resend reports a non-OK result.
 - `INVOICE_LOCKED` (409) — caller tried to edit an invoice that has been sent

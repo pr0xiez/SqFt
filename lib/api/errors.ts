@@ -93,12 +93,6 @@ export class InvoiceOverbillError extends ConflictError {
   }
 }
 
-export class CrewMemberInUseError extends ConflictError {
-  constructor(message: string) {
-    super(message, "CREW_MEMBER_IN_USE");
-  }
-}
-
 export class EmailFailedError extends ApiError {
   constructor(message: string) {
     super({ code: "EMAIL_FAILED", status: 502, message });

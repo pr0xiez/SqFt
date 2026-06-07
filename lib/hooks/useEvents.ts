@@ -2,10 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export interface CrewMemberSummary {
-  id: number;
+export interface AssigneeSummary {
+  id: string;
   name: string;
-  role: string;
+  title?: string | null;
 }
 
 export interface CalEvent {
@@ -19,7 +19,7 @@ export interface CalEvent {
   endDate?: string | null;
   startTime: string;
   endTime: string;
-  crewMembers: CrewMemberSummary[];
+  assignees: AssigneeSummary[];
   notes?: string | null;
   createdAt: string;
   customer?: { id: number; name: string } | null;
@@ -34,7 +34,7 @@ export interface CreateEventInput {
   endDate?: string;
   startTime: string;
   endTime: string;
-  crewMemberIds?: number[];
+  assigneeIds?: string[];
   notes?: string;
 }
 

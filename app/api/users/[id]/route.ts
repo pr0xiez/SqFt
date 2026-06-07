@@ -1,24 +1,22 @@
 import { z } from "zod";
-import {
-  CannotDemoteSelfError,
-  LastAdminError,
-  NotFoundError,
-} from "@/lib/api/errors";
+import { CannotDemoteSelfError, NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
-import { prisma } from "@/lib/prisma";
+import {
+  findUserRow,
+  setArchived,
+  updateProfile,
+  updateRole,
+} from "@/lib/repositories";
 import { requireSession } from "@/lib/tenant";
 
 const PatchBody = z
-  .object({ role: z.enum(["admin", "lead", "crew"]) })
+  .object({
+    role: z.enum(["admin", "lead", "crew"]).optional(),
+    name: z.string().trim().min(1).max(100).optional(),
+    title: z.string().trim().max(100).nullable().optional(),
+    archived: z.boolean().optional(),
+  })
   .strict();
-
-const USER_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  role: true,
-  createdAt: true,
-} as const;
 
 export const PATCH = apiRoute(
   { minRole: "admin", input: PatchBody },
@@ -26,27 +24,36 @@ export const PATCH = apiRoute(
     const session = await requireSession();
     const targetId = (params as { id: string }).id;
 
-    if (targetId === session.user.id && input.role !== "admin") {
-      throw new CannotDemoteSelfError();
+    if (input.role !== undefined) {
+      if (targetId === session.user.id && input.role !== "admin") {
+        throw new CannotDemoteSelfError();
+      }
+      // updateRole throws LastAdminError if this would demote the last admin.
+      if (!(await updateRole(targetId, orgId, input.role))) {
+        throw new NotFoundError();
+      }
     }
 
-    const target = await prisma.user.findFirst({
-      where: { id: targetId, orgId },
-      select: { id: true, role: true },
-    });
-    if (!target) throw new NotFoundError();
-
-    if (target.role === "admin" && input.role !== "admin") {
-      const adminCount = await prisma.user.count({
-        where: { orgId, role: "admin" },
+    if (input.name !== undefined || input.title !== undefined) {
+      const ok = await updateProfile(targetId, orgId, {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.title !== undefined ? { title: input.title } : {}),
       });
-      if (adminCount <= 1) throw new LastAdminError();
+      if (!ok) throw new NotFoundError();
     }
 
-    return prisma.user.update({
-      where: { id: targetId },
-      data: { role: input.role },
-      select: USER_SELECT,
-    });
+    if (input.archived !== undefined) {
+      if (targetId === session.user.id && input.archived) {
+        throw new CannotDemoteSelfError("You can't archive yourself.");
+      }
+      // setArchived throws LastAdminError if this would archive the last admin.
+      if (!(await setArchived(targetId, orgId, input.archived))) {
+        throw new NotFoundError();
+      }
+    }
+
+    const row = await findUserRow(targetId, orgId);
+    if (!row) throw new NotFoundError();
+    return row;
   }
 );

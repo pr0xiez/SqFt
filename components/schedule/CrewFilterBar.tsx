@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   type CrewFilter,
   type EventForCrew,
@@ -10,7 +9,7 @@ import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { cn } from "@/lib/cn";
 
 interface CrewFilterBarProps {
-  crew: { id: number; name: string; role: string }[];
+  crew: { id: string; name: string }[];
   events: EventForCrew[];
   weekStart: string;
   days: number;
@@ -116,14 +115,6 @@ export function CrewFilterBar({
           </>
         )}
       </div>
-      <Link
-        href="/crew"
-        aria-label="Manage crew"
-        className="text-[var(--muted)] hover:text-[var(--ink)] text-[14px] leading-none px-1"
-        title="Manage crew"
-      >
-        ⚙
-      </Link>
     </div>
   );
 }

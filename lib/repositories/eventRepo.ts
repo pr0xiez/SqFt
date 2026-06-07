@@ -5,14 +5,14 @@ import { prisma } from "@/lib/prisma";
 export type EventWithRelations = Prisma.EventGetPayload<{
   include: {
     customer: { select: { id: true; name: true } };
-    crewMembers: { select: { id: true; name: true; role: true } };
+    assignees: { select: { id: true; name: true; title: true } };
   };
 }>;
 
 const includeRelations = {
   customer: { select: { id: true, name: true } },
-  crewMembers: {
-    select: { id: true, name: true, role: true },
+  assignees: {
+    select: { id: true, name: true, title: true },
     orderBy: { name: "asc" as const },
   },
 } satisfies Prisma.EventInclude;
@@ -36,24 +36,24 @@ function assertJobHasEstimate(
 
 export type EventCreateInput = Omit<
   Prisma.EventUncheckedCreateInput,
-  "orgId" | "crewMembers"
+  "orgId" | "assignees"
 > & {
-  crewMemberIds?: number[];
+  assigneeIds?: string[];
 };
 
 export type EventUpdateInput = Prisma.EventUncheckedUpdateInput & {
-  crewMemberIds?: number[];
+  assigneeIds?: string[];
 };
 
 export async function createEvent(orgId: string, data: EventCreateInput) {
   assertJobHasEstimate(data.type, data.estimateId ?? null);
-  const { crewMemberIds, ...rest } = data;
+  const { assigneeIds, ...rest } = data;
   return prisma.event.create({
     data: {
       ...rest,
       orgId,
-      ...(crewMemberIds && crewMemberIds.length > 0
-        ? { crewMembers: { connect: crewMemberIds.map((id) => ({ id })) } }
+      ...(assigneeIds && assigneeIds.length > 0
+        ? { assignees: { connect: assigneeIds.map((id) => ({ id })) } }
         : {}),
     },
     include: includeRelations,
@@ -78,14 +78,14 @@ export async function updateEvent(
       : (data.estimateId as number | null);
   assertJobHasEstimate(nextType, nextEstimateId);
 
-  const { crewMemberIds, ...rest } = data;
+  const { assigneeIds, ...rest } = data;
 
   return prisma.event.update({
     where: { id },
     data: {
       ...rest,
-      ...(crewMemberIds !== undefined
-        ? { crewMembers: { set: crewMemberIds.map((cid) => ({ id: cid })) } }
+      ...(assigneeIds !== undefined
+        ? { assignees: { set: assigneeIds.map((uid) => ({ id: uid })) } }
         : {}),
     },
     include: includeRelations,
