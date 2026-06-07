@@ -41,6 +41,59 @@ async function syncEstimateTotal(
   return total;
 }
 
+/** `revisedFrom` / `revisedBy` pointer selects, shared by the detail include
+ *  and the `EstimateWithDetails` payload type. */
+const REVISED_PAIR_SELECT = {
+  revisedFrom: { select: { id: true, estimateNumber: true } },
+  revisedBy: { select: { id: true, estimateNumber: true } },
+} satisfies Prisma.EstimateInclude;
+
+/** Full estimate-with-details include used by the builder reads
+ *  (getEstimate / createEstimate / saveEstimate). */
+const ESTIMATE_DETAILS_INCLUDE = {
+  siteMeasure: {
+    include: {
+      location: { include: { customer: true } },
+      items: { orderBy: { sortOrder: "asc" } },
+    },
+  },
+  lineItems: { orderBy: { sortOrder: "asc" } },
+  org: { select: { name: true, defaultDepositPct: true } },
+  estimateEvents: {
+    where: { type: "declined" },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  },
+  ...REVISED_PAIR_SELECT,
+} satisfies Prisma.EstimateInclude;
+
+/** Include used by the public token read (getEstimateByToken). */
+const ESTIMATE_PUBLIC_INCLUDE = {
+  siteMeasure: {
+    include: {
+      location: { include: { customer: true } },
+      items: { orderBy: { sortOrder: "asc" } },
+    },
+  },
+  lineItems: { orderBy: { sortOrder: "asc" } },
+  org: {
+    select: {
+      name: true,
+      phone: true,
+      address: true,
+      licenseNumber: true,
+      logo: true,
+      users: {
+        where: { role: "admin" },
+        orderBy: { id: "asc" },
+        take: 1,
+        select: { email: true },
+      },
+    },
+  },
+  approval: true,
+} satisfies Prisma.EstimateInclude;
+
 const ESTIMATE_LIST_INCLUDE = {
   siteMeasure: {
     select: {
@@ -87,51 +140,11 @@ export type EstimateWithSiteMeasureSummaryNarrow = Prisma.EstimateGetPayload<{
 }>;
 
 export type EstimateWithDetails = Prisma.EstimateGetPayload<{
-  include: {
-    siteMeasure: {
-      include: {
-        location: { include: { customer: true } };
-        items: { orderBy: { sortOrder: "asc" } };
-      };
-    };
-    lineItems: { orderBy: { sortOrder: "asc" } };
-    org: { select: { name: true; defaultDepositPct: true } };
-    estimateEvents: {
-      where: { type: "declined" };
-      orderBy: { createdAt: "desc" };
-      take: 1;
-    };
-    revisedFrom: { select: { id: true; estimateNumber: true } };
-    revisedBy: { select: { id: true; estimateNumber: true } };
-  };
+  include: typeof ESTIMATE_DETAILS_INCLUDE;
 }>;
 
 export type EstimateWithPublicView = Prisma.EstimateGetPayload<{
-  include: {
-    siteMeasure: {
-      include: {
-        location: { include: { customer: true } };
-        items: { orderBy: { sortOrder: "asc" } };
-      };
-    };
-    lineItems: { orderBy: { sortOrder: "asc" } };
-    org: {
-      select: {
-        name: true;
-        phone: true;
-        address: true;
-        licenseNumber: true;
-        logo: true;
-        users: {
-          where: { role: "admin" };
-          orderBy: { id: "asc" };
-          take: 1;
-          select: { email: true };
-        };
-      };
-    };
-    approval: true;
-  };
+  include: typeof ESTIMATE_PUBLIC_INCLUDE;
 }>;
 
 type LineItemInput = Omit<
@@ -272,23 +285,7 @@ export async function getEstimate(
 ): Promise<EstimateWithDetails | null> {
   return prisma.estimate.findFirst({
     where: { id, orgId },
-    include: {
-      siteMeasure: {
-        include: {
-          location: { include: { customer: true } },
-          items: { orderBy: { sortOrder: "asc" } },
-        },
-      },
-      lineItems: { orderBy: { sortOrder: "asc" } },
-      org: { select: { name: true, defaultDepositPct: true } },
-      estimateEvents: {
-        where: { type: "declined" },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
-      revisedFrom: { select: { id: true, estimateNumber: true } },
-      revisedBy: { select: { id: true, estimateNumber: true } },
-    },
+    include: ESTIMATE_DETAILS_INCLUDE,
   });
 }
 
@@ -334,23 +331,7 @@ export async function createEstimate(
 
     return tx.estimate.findFirst({
       where: { id: created.id, orgId },
-      include: {
-        siteMeasure: {
-          include: {
-            location: { include: { customer: true } },
-            items: { orderBy: { sortOrder: "asc" } },
-          },
-        },
-        lineItems: { orderBy: { sortOrder: "asc" } },
-        org: { select: { name: true, defaultDepositPct: true } },
-        estimateEvents: {
-          where: { type: "declined" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-        revisedFrom: { select: { id: true, estimateNumber: true } },
-        revisedBy: { select: { id: true, estimateNumber: true } },
-      },
+      include: ESTIMATE_DETAILS_INCLUDE,
     });
   });
 }
@@ -397,23 +378,7 @@ export async function saveEstimate(
 
     const result = await tx.estimate.findFirst({
       where: { id, orgId },
-      include: {
-        siteMeasure: {
-          include: {
-            location: { include: { customer: true } },
-            items: { orderBy: { sortOrder: "asc" } },
-          },
-        },
-        lineItems: { orderBy: { sortOrder: "asc" } },
-        org: { select: { name: true, defaultDepositPct: true } },
-        estimateEvents: {
-          where: { type: "declined" },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-        revisedFrom: { select: { id: true, estimateNumber: true } },
-        revisedBy: { select: { id: true, estimateNumber: true } },
-      },
+      include: ESTIMATE_DETAILS_INCLUDE,
     });
     if (!result) return null;
 
@@ -697,30 +662,6 @@ export async function getEstimateByToken(
 ): Promise<EstimateWithPublicView | null> {
   return prisma.estimate.findUnique({
     where: { approvalToken: token },
-    include: {
-      siteMeasure: {
-        include: {
-          location: { include: { customer: true } },
-          items: { orderBy: { sortOrder: "asc" } },
-        },
-      },
-      lineItems: { orderBy: { sortOrder: "asc" } },
-      org: {
-        select: {
-          name: true,
-          phone: true,
-          address: true,
-          licenseNumber: true,
-          logo: true,
-          users: {
-            where: { role: "admin" },
-            orderBy: { id: "asc" },
-            take: 1,
-            select: { email: true },
-          },
-        },
-      },
-      approval: true,
-    },
+    include: ESTIMATE_PUBLIC_INCLUDE,
   });
 }
