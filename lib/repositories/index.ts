@@ -1,4 +1,3 @@
-export * from "./userRepo";
 export * from "./customerRepo";
 export * from "./estimateApprovalRepo";
 export * from "./estimateEventRepo";
@@ -8,3 +7,4 @@ export * from "./invoiceRepo";
 export * from "./lineItemTemplateRepo";
 export * from "./locationRepo";
 export * from "./siteMeasureRepo";
+export * from "./userRepo";
