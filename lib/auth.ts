@@ -73,20 +73,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.orgId = user.orgId;
         token.role = user.role;
       }
-      // Backfill tokens minted before orgId/role claims were added
-      if (
-        (typeof token.orgId !== "string" || typeof token.role !== "string") &&
-        typeof token.sub === "string"
-      ) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: { orgId: true, role: true },
-        });
-        if (dbUser) {
-          token.orgId = dbUser.orgId;
-          token.role = dbUser.role;
-        }
-      }
       return token;
     },
     async session({ session, token }) {
