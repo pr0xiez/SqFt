@@ -2,23 +2,11 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { EmailTakenError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
-import { prisma } from "@/lib/prisma";
+import { createUser, findByEmail, listUsers } from "@/lib/repositories";
 
-const USER_SELECT = {
-  id: true,
-  name: true,
-  email: true,
-  role: true,
-  createdAt: true,
-} as const;
-
-export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
-  return prisma.user.findMany({
-    where: { orgId },
-    select: USER_SELECT,
-    orderBy: { createdAt: "asc" },
-  });
-});
+export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) =>
+  listUsers(orgId, { includeArchived: true })
+);
 
 const CreateBody = z
   .object({
@@ -32,23 +20,13 @@ const CreateBody = z
 export const POST = apiRoute(
   { minRole: "admin", input: CreateBody, status: 201 },
   async ({ orgId, input }) => {
-    const exists = await prisma.user.findUnique({
-      where: { email: input.email },
-      select: { id: true },
+    if (await findByEmail(input.email)) throw new EmailTakenError();
+    const password = await bcrypt.hash(input.password, 10);
+    return createUser(orgId, {
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      password,
     });
-    if (exists) throw new EmailTakenError();
-
-    const passwordHash = await bcrypt.hash(input.password, 10);
-    const user = await prisma.user.create({
-      data: {
-        name: input.name,
-        email: input.email,
-        password: passwordHash,
-        role: input.role,
-        orgId,
-      },
-      select: USER_SELECT,
-    });
-    return user;
   }
 );
