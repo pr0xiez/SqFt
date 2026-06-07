@@ -90,12 +90,36 @@ jobs:
       statuses: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Check out the PR head commit (not the merge ref) with its parent so
+          # the step below evaluates the same HEAD^..HEAD diff that Vercel's
+          # ignoreCommand does.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+      - name: Detect app (non-www) changes
+        id: changes
+        # Mirror the root vercel.json ignoreCommand
+        # (git diff --quiet HEAD^ HEAD -- . ':(exclude)www'). When the head
+        # commit only touches www/, Vercel skips the app deploy — so there is
+        # no preview for Playwright to wait on and the job would otherwise hang
+        # until the 10-min timeout. Short-circuit to a green E2E job instead.
+        run: |
+          if git diff --quiet HEAD^ HEAD -- . ':(exclude)www'; then
+            echo "Only www/ changed on the head commit — Vercel skips the app deploy; skipping E2E."
+            echo "app=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "App (non-www) changes detected — running E2E."
+            echo "app=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.changes.outputs.app == 'true'
         with:
           node-version: "20"
           cache: "npm"
       - run: npm ci
+        if: steps.changes.outputs.app == 'true'
       - name: Install Playwright browsers
+        if: steps.changes.outputs.app == 'true'
         # --with-deps is Linux-only (apt). Skip it on the macOS self-hosted
         # runner; the conditional keeps this correct if Phase 2 ever lands a
         # job on hosted ubuntu.
@@ -107,6 +131,7 @@ jobs:
           fi
       - name: Wait for Vercel preview
         id: vercel
+        if: steps.changes.outputs.app == 'true'
         uses: patrickedqvist/wait-for-vercel-preview@v1.3.3
         with:
           vercel_protection_bypass_header: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
@@ -118,12 +143,13 @@ jobs:
           max_timeout: 600 # 10 min — bump if your builds are longer
           check_interval: 5
       - name: Run Playwright
+        if: steps.changes.outputs.app == 'true'
         run: npx playwright test
         env:
           BASE_URL: ${{ steps.vercel.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - name: Upload Playwright report
-        if: always()
+        if: always() && steps.changes.outputs.app == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
