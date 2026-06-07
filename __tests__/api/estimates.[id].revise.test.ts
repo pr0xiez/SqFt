@@ -25,6 +25,9 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
+const { requireSession } = await import("@/lib/tenant");
+const mockRequireSession = vi.mocked(requireSession);
+
 const { getEstimate, reviseEstimate } = await import("@/lib/repositories");
 const { POST } = await import("@/app/api/estimates/[id]/revise/route");
 
@@ -64,6 +67,23 @@ describe("POST /api/estimates/[id]/revise", () => {
 
     expect(res.status).toBe(200);
     expect(mockRevise).toHaveBeenCalledWith(2, "org1");
+  });
+
+  it("returns 401 UNAUTHORIZED when the caller's role is below lead", async () => {
+    mockRequireSession.mockResolvedValueOnce({
+      user: { id: "u1", orgId: "org1", role: "crew" },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+    } as any);
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/revise"),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe("UNAUTHORIZED");
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(mockRevise).not.toHaveBeenCalled();
   });
 
   it("returns NOT_FOUND when the original estimate is missing", async () => {

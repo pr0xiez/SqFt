@@ -27,6 +27,9 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
+const { requireSession } = await import("@/lib/tenant");
+const mockRequireSession = vi.mocked(requireSession);
+
 const {
   listLineItemTemplates,
   createLineItemTemplate,
@@ -92,8 +95,32 @@ describe("POST /api/line-item-templates", () => {
     expect(await res.json()).toEqual(created);
     expect(mockCreate).toHaveBeenCalledWith(
       "org1",
-      expect.objectContaining({ name: "Underlayment", rate: 1.25 })
+      expect.objectContaining({
+        name: "Underlayment",
+        rate: 1.25,
+        unitLabel: "sqft",
+      })
     );
+  });
+
+  it("returns 401 UNAUTHORIZED when the caller's role is below lead", async () => {
+    mockRequireSession.mockResolvedValueOnce({
+      user: { id: "u1", orgId: "org1", role: "crew" },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+    } as any);
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/line-item-templates", {
+        name: "Underlayment",
+        rate: 1.25,
+        unitLabel: "sqft",
+      }),
+      params({})
+    );
+
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe("UNAUTHORIZED");
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("rejects an empty name with VALIDATION_FAILED", async () => {
