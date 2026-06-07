@@ -6,49 +6,41 @@ import {
 } from "@/components/schedule/crewFilters";
 
 const events: EventForCrew[] = [
-  {
-    id: 1,
-    date: "2026-05-04",
-    crewMembers: [{ id: 10, name: "Carlos", role: "" }],
-  },
+  { id: 1, date: "2026-05-04", assignees: [{ id: "u10", name: "Carlos" }] },
   {
     id: 2,
     date: "2026-05-05",
-    crewMembers: [
-      { id: 10, name: "Carlos", role: "" },
-      { id: 11, name: "Dave", role: "" },
+    assignees: [
+      { id: "u10", name: "Carlos" },
+      { id: "u11", name: "Dave" },
     ],
   },
-  { id: 3, date: "2026-05-05", crewMembers: [] },
-  {
-    id: 4,
-    date: "2026-05-12",
-    crewMembers: [{ id: 10, name: "Carlos", role: "" }],
-  },
+  { id: 3, date: "2026-05-05", assignees: [] },
+  { id: 4, date: "2026-05-12", assignees: [{ id: "u10", name: "Carlos" }] },
 ];
 
 describe("eventMatchesCrew", () => {
   it("'all' matches every event", () => {
     expect(events.every((e) => eventMatchesCrew(e, "all"))).toBe(true);
   });
-  it("a numeric filter matches when the crew is on the event", () => {
-    expect(eventMatchesCrew(events[0], 10)).toBe(true);
-    expect(eventMatchesCrew(events[1], 11)).toBe(true);
+  it("an id filter matches when the assignee is on the event", () => {
+    expect(eventMatchesCrew(events[0], "u10")).toBe(true);
+    expect(eventMatchesCrew(events[1], "u11")).toBe(true);
   });
-  it("does not match when the crew is not on the event", () => {
-    expect(eventMatchesCrew(events[0], 11)).toBe(false);
+  it("does not match when the assignee is not on the event", () => {
+    expect(eventMatchesCrew(events[0], "u11")).toBe(false);
   });
-  it("never matches an event with no crew when a specific filter is active", () => {
-    expect(eventMatchesCrew(events[2], 10)).toBe(false);
+  it("never matches an event with no assignees when a specific filter is active", () => {
+    expect(eventMatchesCrew(events[2], "u10")).toBe(false);
   });
 });
 
 describe("weekCrewCounts", () => {
   const weekStart = "2026-05-04";
-  it("counts events per crewMember within the visible week", () => {
+  it("counts events per assignee within the visible week", () => {
     const counts = weekCrewCounts(events, weekStart, 7);
-    expect(counts.get(10)).toBe(2);
-    expect(counts.get(11)).toBe(1);
+    expect(counts.get("u10")).toBe(2);
+    expect(counts.get("u11")).toBe(1);
   });
   it("returns total across all events in the week as the 'all' bucket", () => {
     const counts = weekCrewCounts(events, weekStart, 7);

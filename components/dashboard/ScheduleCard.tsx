@@ -114,9 +114,9 @@ export function ScheduleCard({ events }: Props) {
                       {tagLabels[ev.type] ?? ev.type}
                     </span>
 
-                    {ev.crewMembers.length > 0 && (
+                    {ev.assignees.length > 0 && (
                       <span className="flex items-center ml-2">
-                        {ev.crewMembers.slice(0, 3).map((m) => (
+                        {ev.assignees.slice(0, 3).map((m) => (
                           <span key={m.id} className="-ml-[5px] first:ml-0">
                             <CrewAvatar name={m.name} size="sm" />
                           </span>
