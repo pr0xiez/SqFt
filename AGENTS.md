@@ -21,10 +21,12 @@ with the file that owns it.
 ## Where things live
 
 - `app/(app)/` — authed builder UI, one route group per domain (`customers`,
-  `estimates`, `invoices`, `site-measures`, `schedule`, `crew`, `settings`).
+  `estimates`, `invoices`, `site-measures`, `schedule`, `settings`).
   Auth is `app/(auth)/login`, admin is `app/(admin)/admin`. Public
   customer-facing pages are `app/estimate-review/[token]` and
-  `app/invoice-review/[token]`.
+  `app/invoice-review/[token]`. **People are Users** (no crew roster): managed
+  on the admin **Members** page (`/settings/members`) — role, job title,
+  archive/restore — and assigned to schedule Events via `Event.assignees`.
 - `app/api/` — route handlers, one folder per resource. They wrap `apiRoute`
   (`lib/api/route.ts`) and return the `{ error: { code, … } }` envelope defined
   in `lib/api/errors.ts` (`ApiError`, `readApiError`).
@@ -36,7 +38,9 @@ with the file that owns it.
 - `lib/invoices/` — **billing math** (`computeEstimateBilling`,
   `prorateInvoice`) plus invoice `snapshot.ts` / `schema.ts`.
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
-- `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`).
+- `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
+  `userRepo.ts` owns all `User` access (assignable list, archive guard,
+  `validateUserIds`).
 - `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
