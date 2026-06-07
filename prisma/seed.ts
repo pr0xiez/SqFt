@@ -57,9 +57,6 @@ async function main() {
     const demoOrgIds = demoOrgs.map((o) => o.id);
     await prisma.event.deleteMany({ where: { orgId: { in: demoOrgIds } } });
     await prisma.customer.deleteMany({ where: { orgId: { in: demoOrgIds } } });
-    await prisma.crewMember.deleteMany({
-      where: { orgId: { in: demoOrgIds } },
-    });
     await prisma.lineItemTemplate.deleteMany({
       where: { orgId: { in: demoOrgIds } },
     });
@@ -97,22 +94,51 @@ async function main() {
   console.log(`  ✓ User: ${user.email} / password: demo1234`);
   console.log("  ✓ 6 line item templates");
 
-  // ── Crew roster ───────────────────────────────────────────────────────────
+  // ── Crew (installers as crew-role users) ──────────────────────────────────
+  const crewPwd = await bcrypt.hash("demo1234", 10);
   const [crewMike, crewCarlos, crewDave, crewSarah] = await Promise.all([
-    prisma.crewMember.create({
-      data: { orgId: org.id, name: "Mike", role: "Owner / Sales" },
+    prisma.user.create({
+      data: {
+        orgId: org.id,
+        name: "Mike",
+        email: "mike@sqft.dev",
+        password: crewPwd,
+        role: "crew",
+        title: "Owner / Sales",
+      },
     }),
-    prisma.crewMember.create({
-      data: { orgId: org.id, name: "Carlos", role: "Lead Installer" },
+    prisma.user.create({
+      data: {
+        orgId: org.id,
+        name: "Carlos",
+        email: "carlos@sqft.dev",
+        password: crewPwd,
+        role: "crew",
+        title: "Lead Installer",
+      },
     }),
-    prisma.crewMember.create({
-      data: { orgId: org.id, name: "Dave", role: "Installer" },
+    prisma.user.create({
+      data: {
+        orgId: org.id,
+        name: "Dave",
+        email: "dave@sqft.dev",
+        password: crewPwd,
+        role: "crew",
+        title: "Installer",
+      },
     }),
-    prisma.crewMember.create({
-      data: { orgId: org.id, name: "Sarah", role: "Showroom" },
+    prisma.user.create({
+      data: {
+        orgId: org.id,
+        name: "Sarah",
+        email: "sarah@sqft.dev",
+        password: crewPwd,
+        role: "crew",
+        title: "Showroom",
+      },
     }),
   ]);
-  console.log("  ✓ 4 crew members");
+  console.log("  ✓ 4 crew users (mike/carlos/dave/sarah @sqft.dev / demo1234)");
 
   const leadHash = await bcrypt.hash("demo1234", 10);
   await prisma.user.upsert({
@@ -1472,7 +1498,7 @@ async function main() {
         startTime: "08:00",
         endTime: "16:00",
         notes: "",
-        crewMembers: { connect: [{ id: crewCarlos.id }] },
+        assignees: { connect: [{ id: crewCarlos.id }] },
       },
     }),
     prisma.event.create({
@@ -1486,7 +1512,7 @@ async function main() {
         startTime: "08:30",
         endTime: "15:30",
         notes: "",
-        crewMembers: { connect: [{ id: crewDave.id }] },
+        assignees: { connect: [{ id: crewDave.id }] },
       },
     }),
     prisma.event.create({
@@ -1499,7 +1525,7 @@ async function main() {
         startTime: "10:00",
         endTime: "11:00",
         notes: "",
-        crewMembers: { connect: [{ id: crewMike.id }] },
+        assignees: { connect: [{ id: crewMike.id }] },
       },
     }),
     prisma.event.create({
@@ -1512,7 +1538,7 @@ async function main() {
         startTime: "14:00",
         endTime: "15:00",
         notes: "Material selection",
-        crewMembers: { connect: [{ id: crewSarah.id }] },
+        assignees: { connect: [{ id: crewSarah.id }] },
       },
     }),
     prisma.event.create({
@@ -1526,7 +1552,7 @@ async function main() {
         startTime: "08:00",
         endTime: "15:00",
         notes: "",
-        crewMembers: {
+        assignees: {
           connect: [{ id: crewCarlos.id }, { id: crewDave.id }],
         },
       },
@@ -1542,7 +1568,7 @@ async function main() {
         startTime: "08:00",
         endTime: "16:00",
         notes: "",
-        crewMembers: { connect: [{ id: crewCarlos.id }] },
+        assignees: { connect: [{ id: crewCarlos.id }] },
       },
     }),
     prisma.event.create({
@@ -1555,7 +1581,7 @@ async function main() {
         startTime: "10:00",
         endTime: "11:00",
         notes: "",
-        crewMembers: { connect: [{ id: crewMike.id }] },
+        assignees: { connect: [{ id: crewMike.id }] },
       },
     }),
     prisma.event.create({
@@ -1569,7 +1595,7 @@ async function main() {
         startTime: "08:00",
         endTime: "16:00",
         notes: "",
-        crewMembers: { connect: [{ id: crewCarlos.id }] },
+        assignees: { connect: [{ id: crewCarlos.id }] },
       },
     }),
   ]);
