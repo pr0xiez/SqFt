@@ -227,8 +227,8 @@ test.describe
     test("3.2.3 editing the room name and blurring saves successfully", async () => {
       await page.goto(`/site-measures/${siteMeasureId}`);
       const input = page.getByPlaceholder("Room name");
-      // RoomSection saves on every onChange AND onBlur, so fill+blur fires
-      // overlapping PATCHes. expect.poll retries until the server converges.
+      // RoomSection saves on every onChange, so fill fires the PATCH; blur is a
+      // no-op now. expect.poll retries until the server converges under CI load.
       await input.fill("Living Room");
       await input.blur();
 
@@ -253,9 +253,9 @@ test.describe
 
     test("3.2.4 editing dimensions saves and updates sqft display", async () => {
       await page.goto(`/site-measures/${siteMeasureId}`);
-      // RoomSection saves on every onChange AND onBlur, so filling L then W
-      // fires several overlapping PATCHes. The sqft display updates from local
-      // React state; expect.poll below retries until the server converges.
+      // RoomSection saves on every onChange, so filling L then W fires a PATCH
+      // each. The sqft display updates from local React state; expect.poll below
+      // retries until the server converges.
       await page.getByPlaceholder("L").fill("12");
       await page.getByPlaceholder("W").fill("10");
       await page.getByPlaceholder("W").blur();
