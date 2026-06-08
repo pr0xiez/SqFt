@@ -79,7 +79,7 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                 type="text"
                 value={item.name ?? ""}
                 onChange={(e) => updateRoom(item.id, { name: e.target.value })}
-                onBlur={() => save(items)}
+                onBlur={(e) => updateRoom(item.id, { name: e.target.value })}
                 placeholder="Room name"
                 className="flex-1 text-[15px] font-[600] tracking-[-0.01em] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
               />
