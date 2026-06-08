@@ -21,7 +21,6 @@ export function NavIcon({
     strokeWidth: active ? 2 : 1.7,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    "aria-hidden": title ? undefined : (true as const),
   };
   const paths: Record<IconId, ReactNode> = {
     dashboard: (
@@ -77,9 +76,16 @@ export function NavIcon({
       </>
     ),
   };
+  if (title) {
+    return (
+      <svg {...props}>
+        <title>{title}</title>
+        {paths[icon]}
+      </svg>
+    );
+  }
   return (
-    <svg {...props}>
-      {title ? <title>{title}</title> : null}
+    <svg {...props} aria-hidden="true">
       {paths[icon]}
     </svg>
   );
