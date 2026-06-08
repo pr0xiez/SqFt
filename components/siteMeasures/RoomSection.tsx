@@ -79,7 +79,6 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                 type="text"
                 value={item.name ?? ""}
                 onChange={(e) => updateRoom(item.id, { name: e.target.value })}
-                onBlur={() => save(items)}
                 placeholder="Room name"
                 className="flex-1 text-[15px] font-[600] tracking-[-0.01em] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
               />
@@ -105,7 +104,6 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                     l: parseFloat(e.target.value) || undefined,
                   })
                 }
-                onBlur={() => save(items)}
                 placeholder="L"
                 className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
@@ -118,7 +116,6 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                     w: parseFloat(e.target.value) || undefined,
                   })
                 }
-                onBlur={() => save(items)}
                 placeholder="W"
                 className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
@@ -139,7 +136,6 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               type="text"
               value={item.note ?? ""}
               onChange={(e) => updateRoom(item.id, { note: e.target.value })}
-              onBlur={() => save(items)}
               placeholder="Add note about this room…"
               className="w-full text-[13px] text-[var(--ink-2)] bg-[var(--surface)] border border-[var(--line)] rounded-[5px] px-2.5 py-2 italic focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 placeholder:text-[var(--muted)]"
             />
@@ -153,7 +149,6 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               rows={2}
               value={item.text ?? ""}
               onChange={(e) => updateRoom(item.id, { text: e.target.value })}
-              onBlur={() => save(items)}
               placeholder="Field note…"
               className="flex-1 font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-transparent focus:outline-none resize-none italic"
             />
