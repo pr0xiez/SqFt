@@ -32,6 +32,14 @@ with the file that owns it.
   `app/invoice-review/[token]`. **People are Users** (no crew roster): managed
   on the admin **Members** page (`/settings/members`) — role, job title,
   archive/restore — and assigned to schedule Events via `Event.assignees`.
+- **Navigation** is defined once in `lib/nav/items.ts` (grouped destinations,
+  role-gating via `navGroupsFor`, the mobile bottom-bar shortcuts, and the
+  `isItemActive`/`isMoreActive` helpers) and rendered by
+  `components/ui/AppNav.tsx` — a persistent collapsible **`SideNav`** on desktop
+  (md+), and on mobile a fixed **`MobileTabBar`** (4 shortcuts + More) opening a
+  full-menu **`NavDrawer`**; crew get a slim top bar instead of the bottom bar.
+  `SideNav` and `NavDrawer` share `NavMenu` + `AccountBlock`; icons live in
+  `nav-icons.tsx` keyed by `IconId`. (The old `MobileSessionSheet` is gone.)
 - `app/api/` — route handlers, one folder per resource. They wrap `apiRoute`
   (`lib/api/route.ts`) and return the `{ error: { code, … } }` envelope defined
   in `lib/api/errors.ts` (`ApiError`, `readApiError`).
