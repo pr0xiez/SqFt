@@ -18,7 +18,7 @@ import {
 export function SideNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { collapsed, toggle } = useSidebarCollapsed();
+  const { collapsed, toggle } = useSidebarCollapsed(session?.user?.id);
   const role = session?.user?.role ?? "crew";
 
   return (
@@ -72,7 +72,10 @@ function IconRail({ role, pathname }: { role: string; pathname: string }) {
   const items = navGroupsFor(role).flatMap((g) => g.items);
   if (canSeeSettings(role)) items.push(SETTINGS_ITEM);
   return (
-    <div className="flex flex-col items-center gap-1 pt-1">
+    <nav
+      aria-label="Main navigation"
+      className="flex flex-col items-center gap-1 pt-1"
+    >
       {items.map((item) => {
         const active = isItemActive(item.href, pathname);
         return (
@@ -93,6 +96,6 @@ function IconRail({ role, pathname }: { role: string; pathname: string }) {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

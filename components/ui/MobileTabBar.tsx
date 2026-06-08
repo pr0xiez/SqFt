@@ -26,7 +26,7 @@ export function MobileTabBar({
   const moreActive = isMoreActive(pathname);
   return (
     <nav
-      aria-label="Main navigation"
+      aria-label="Primary"
       className={cn(
         "md:hidden order-3 shrink-0 relative z-[60]",
         "bg-[var(--surface)] border-t border-[var(--line)]",
