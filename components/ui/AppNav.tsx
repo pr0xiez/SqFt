@@ -13,7 +13,8 @@ const NAV_TABS = [
   { href: "/customers", label: "Customers", screen: "customers" },
   { href: "/site-measures", label: "Site Measures", screen: "siteMeasures" },
   { href: "/estimates", label: "Estimates", screen: "estimate-list" },
-  { href: "/schedule", label: "Schedule", screen: "schedule" },
+  { href: "/my-schedule", label: "My Schedule", screen: "my-schedule" },
+  { href: "/schedule", label: "Schedule Manager", screen: "schedule" },
   { href: "/settings", label: "Settings", screen: "settings" },
 ];
 
@@ -123,10 +124,15 @@ export function AppNav() {
 
         <div
           className={cn(
-            "grid gap-0.5 max-w-[640px] mx-auto",
-            tabs.length === 6 && "grid-cols-6",
-            tabs.length < 6 && "justify-center grid-cols-1"
+            "grid gap-0.5 max-w-[680px] mx-auto",
+            tabs.length === 1 && "justify-center"
           )}
+          style={{
+            gridTemplateColumns:
+              tabs.length > 1
+                ? `repeat(${tabs.length}, minmax(0, 1fr))`
+                : undefined,
+          }}
         >
           {tabs.map(({ href, label }) => {
             const active = isActive(href);
@@ -219,11 +225,20 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
         <path d="M14.5 9.5c-.7-.7-1.7-.9-2.5-.5-1 .5-1.2 1.7-.4 2.3.7.5 1.7.5 2.4 1 .8.6.6 1.8-.4 2.3-.8.4-1.8.2-2.5-.5" />
       </svg>
     ),
-    Schedule: (
+    "My Schedule": (
       <svg {...props}>
         <title>{label}</title>
         <rect x="4" y="5" width="16" height="15" rx="1.5" />
         <path d="M4 9h16M9 3v4M15 3v4" />
+        <path d="M9 14l2 2 3.5-3.8" />
+      </svg>
+    ),
+    "Schedule Manager": (
+      <svg {...props}>
+        <title>{label}</title>
+        <rect x="4" y="5" width="16" height="15" rx="1.5" />
+        <path d="M4 9h16M9 3v4M15 3v4" />
+        <path d="M8 13h3M8 16h5" />
       </svg>
     ),
     Settings: (
@@ -239,7 +254,7 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
 
 function navTabsFor(role: string) {
   if (role === "crew") {
-    return NAV_TABS.filter((t) => t.href === "/schedule");
+    return NAV_TABS.filter((t) => t.href === "/my-schedule");
   }
   return NAV_TABS;
 }

@@ -31,8 +31,8 @@ describe("hasMinRole", () => {
 });
 
 describe("homePathFor", () => {
-  it("sends crew to /schedule", () => {
-    expect(homePathFor("crew")).toBe("/schedule");
+  it("sends crew to /my-schedule", () => {
+    expect(homePathFor("crew")).toBe("/my-schedule");
   });
   it("sends lead and admin to /", () => {
     expect(homePathFor("lead")).toBe("/");

@@ -73,7 +73,7 @@ export async function addUserToOrg(
 
 /**
  * Login helper that drives the login form, awaits navigation, and returns when
- * the page is settled on the post-login route (crew → /schedule, else → /).
+ * the page is settled on the post-login route (crew → /my-schedule, else → /).
  */
 export async function loginAsTestUser(
   page: import("@playwright/test").Page,
@@ -83,7 +83,7 @@ export async function loginAsTestUser(
   await page.fill("#email", user.email);
   await page.fill("#password", user.password);
   await Promise.all([
-    page.waitForURL(user.role === "crew" ? "/schedule" : "/"),
+    page.waitForURL(user.role === "crew" ? "/my-schedule" : "/"),
     page.click('button[type="submit"]'),
   ]);
 }

@@ -41,7 +41,7 @@ export default function LoginPage() {
     } | null;
     const role = sessionData?.user?.role ?? "lead";
     setLoading(false);
-    router.push(role === "crew" ? "/schedule" : "/");
+    router.push(role === "crew" ? "/my-schedule" : "/");
     router.refresh();
   }
 

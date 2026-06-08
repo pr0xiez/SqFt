@@ -22,7 +22,9 @@ export interface CalEvent {
   assignees: AssigneeSummary[];
   notes?: string | null;
   createdAt: string;
-  customer?: { id: number; name: string } | null;
+  customer?: { id: number; name: string; phone?: string | null } | null;
+  estimateNumber?: number | null;
+  address?: string | null;
 }
 
 export interface CreateEventInput {
