@@ -32,8 +32,9 @@ Events link assigned users via the `Event.assignees` relation
 **Members** page (`/settings/members`) — the single people-management surface
 (role, title, archive/restore); there is no separate crew roster.
 
-The editable `/schedule` grid (lead+) and the read-only, mobile-first
-**My Schedule** day view (`/my-schedule`, any role incl. crew) both read the
+The editable **Schedule Manager** grid (`/schedule`, **lead+ only** — crew is
+redirected to `/my-schedule`) and the read-only, mobile-first **My Schedule**
+day view (`/my-schedule`, any role incl. crew — crew's home page) both read the
 same events list. `eventRepo.listEvents` enriches that payload with a derived
 `address` (estimate's site-measure location → customer's first location;
 resolver in `lib/events/serialize.ts`) and `customer.phone`, so the agenda

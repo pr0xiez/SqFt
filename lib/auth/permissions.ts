@@ -7,5 +7,5 @@ export function hasMinRole(role: string, min: Role): boolean {
 }
 
 export function homePathFor(role: string): string {
-  return role === "crew" ? "/schedule" : "/";
+  return role === "crew" ? "/my-schedule" : "/";
 }

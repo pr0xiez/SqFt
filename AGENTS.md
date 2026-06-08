@@ -25,7 +25,8 @@ with the file that owns it.
   `settings`). The read-only, mobile-first **My Schedule** day view
   (`app/(app)/my-schedule`, `components/schedule/MyScheduleView` +
   `EventCard`/`JobCard`/`DayAgenda`, pure logic in `lib/schedule/agenda.ts`)
-  lives alongside the editable `/schedule` grid; both read `useEvents`.
+  lives alongside the editable **Schedule Manager** grid (`/schedule`, lead+
+  only; crew is redirected here); both read `useEvents`.
   Auth is `app/(auth)/login`, admin is `app/(admin)/admin`. Public
   customer-facing pages are `app/estimate-review/[token]` and
   `app/invoice-review/[token]`. **People are Users** (no crew roster): managed

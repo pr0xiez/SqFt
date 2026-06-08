@@ -14,7 +14,7 @@ const NAV_TABS = [
   { href: "/site-measures", label: "Site Measures", screen: "siteMeasures" },
   { href: "/estimates", label: "Estimates", screen: "estimate-list" },
   { href: "/my-schedule", label: "My Schedule", screen: "my-schedule" },
-  { href: "/schedule", label: "Schedule", screen: "schedule" },
+  { href: "/schedule", label: "Schedule Manager", screen: "schedule" },
   { href: "/settings", label: "Settings", screen: "settings" },
 ];
 
@@ -233,11 +233,12 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
         <path d="M9 14l2 2 3.5-3.8" />
       </svg>
     ),
-    Schedule: (
+    "Schedule Manager": (
       <svg {...props}>
         <title>{label}</title>
         <rect x="4" y="5" width="16" height="15" rx="1.5" />
         <path d="M4 9h16M9 3v4M15 3v4" />
+        <path d="M8 13h3M8 16h5" />
       </svg>
     ),
     Settings: (
@@ -253,9 +254,7 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
 
 function navTabsFor(role: string) {
   if (role === "crew") {
-    return NAV_TABS.filter(
-      (t) => t.href === "/my-schedule" || t.href === "/schedule"
-    );
+    return NAV_TABS.filter((t) => t.href === "/my-schedule");
   }
   return NAV_TABS;
 }

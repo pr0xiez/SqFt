@@ -192,7 +192,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
           <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Schedule
+            Schedule Manager
           </h1>
           <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
             {weekLabel}

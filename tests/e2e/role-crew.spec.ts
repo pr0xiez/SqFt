@@ -13,15 +13,15 @@ test.beforeAll(async ({ browser }) => {
   user = await addUserToOrg(browser, org, "crew");
 });
 
-test("crew login lands on /schedule", async ({ browser }) => {
+test("crew login lands on /my-schedule", async ({ browser }) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await loginAsTestUser(page, user);
-  await expect(page).toHaveURL("/schedule");
+  await expect(page).toHaveURL("/my-schedule");
   await ctx.close();
 });
 
-test("crew nav shows only My Schedule and Schedule", async ({ browser }) => {
+test("crew nav shows only My Schedule", async ({ browser }) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await loginAsTestUser(page, user);
@@ -30,8 +30,8 @@ test("crew nav shows only My Schedule and Schedule", async ({ browser }) => {
     desktopNav.getByRole("link", { name: "My Schedule" })
   ).toBeVisible();
   await expect(
-    desktopNav.getByRole("link", { name: "Schedule", exact: true })
-  ).toBeVisible();
+    desktopNav.getByRole("link", { name: "Schedule Manager" })
+  ).toHaveCount(0);
   await expect(desktopNav.getByRole("link", { name: "Dashboard" })).toHaveCount(
     0
   );
@@ -53,6 +53,7 @@ test("crew nav shows only My Schedule and Schedule", async ({ browser }) => {
 test.describe("crew page redirects", () => {
   const restricted = [
     "/",
+    "/schedule",
     "/customers",
     "/site-measures",
     "/estimates",
@@ -63,18 +64,18 @@ test.describe("crew page redirects", () => {
   ];
 
   for (const path of restricted) {
-    test(`GET ${path} redirects to /schedule`, async ({ browser }) => {
+    test(`GET ${path} redirects to /my-schedule`, async ({ browser }) => {
       const ctx = await browser.newContext();
       const page = await ctx.newPage();
       await loginAsTestUser(page, user);
       await page.goto(path);
-      await expect(page).toHaveURL("/schedule");
+      await expect(page).toHaveURL("/my-schedule");
       await ctx.close();
     });
   }
 });
 
-test("crew schedule has no create affordance", async ({ browser }) => {
+test("crew my-schedule has no create affordance", async ({ browser }) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await loginAsTestUser(page, user);
