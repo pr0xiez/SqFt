@@ -85,15 +85,14 @@ export const SETTINGS_ITEM: NavItem = {
   minRole: "lead",
 };
 
+/** A bottom-bar shortcut — a NavItem without the role gate (the bar is lead+ only). */
+export type ShortcutItem = Omit<NavItem, "minRole">;
+
 /**
  * Ordered shortcuts shown on the mobile bottom bar (lead+ only — crew gets no
  * bottom bar). Labels intentionally differ from the sidebar (Home, Schedule).
  */
-export const BOTTOM_BAR_SHORTCUTS: ReadonlyArray<{
-  href: string;
-  label: string;
-  icon: IconId;
-}> = [
+export const BOTTOM_BAR_SHORTCUTS: ReadonlyArray<ShortcutItem> = [
   { href: "/", label: "Home", icon: "dashboard" },
   { href: "/customers", label: "Customers", icon: "customers" },
   { href: "/estimates", label: "Estimates", icon: "estimates" },
@@ -115,7 +114,8 @@ export function canSeeSettings(role: string): boolean {
 
 /** A destination is active on its exact root or any sub-route prefix. */
 export function isItemActive(href: string, pathname: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 /** The More cell is active whenever no bottom-bar shortcut owns the route. */

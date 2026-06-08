@@ -51,6 +51,12 @@ describe("BOTTOM_BAR_SHORTCUTS", () => {
       "Estimates",
       "Schedule",
     ]);
+    expect(BOTTOM_BAR_SHORTCUTS.map((s) => s.icon)).toEqual([
+      "dashboard",
+      "customers",
+      "estimates",
+      "myschedule",
+    ]);
   });
 });
 
