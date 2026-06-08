@@ -26,7 +26,11 @@ export function DayAgenda({
           </h2>
           {section.events.length > 0 ? (
             section.events.map((e) => (
-              <EventCard key={e.id} event={e as CalEvent} onOpen={onOpenEvent} />
+              <EventCard
+                key={e.id}
+                event={e as CalEvent}
+                onOpen={onOpenEvent}
+              />
             ))
           ) : (
             <p className="text-[11.5px] text-[var(--muted)] italic pb-2">
