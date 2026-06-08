@@ -21,13 +21,16 @@ test("crew login lands on /schedule", async ({ browser }) => {
   await ctx.close();
 });
 
-test("crew nav shows only Schedule", async ({ browser }) => {
+test("crew nav shows only My Schedule and Schedule", async ({ browser }) => {
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
   await loginAsTestUser(page, user);
   const desktopNav = page.locator('nav[aria-label="Main navigation"]').first();
   await expect(
-    desktopNav.getByRole("link", { name: "Schedule" })
+    desktopNav.getByRole("link", { name: "My Schedule" })
+  ).toBeVisible();
+  await expect(
+    desktopNav.getByRole("link", { name: "Schedule", exact: true })
   ).toBeVisible();
   await expect(desktopNav.getByRole("link", { name: "Dashboard" })).toHaveCount(
     0
