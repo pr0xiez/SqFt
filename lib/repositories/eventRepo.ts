@@ -1,5 +1,6 @@
 import type { Prisma } from "@/app/generated/prisma/client";
 import { ValidationError } from "@/lib/api/errors";
+import { resolveEventAddress } from "@/lib/events/serialize";
 import { prisma } from "@/lib/prisma";
 
 export type EventWithRelations = Prisma.EventGetPayload<{
@@ -17,12 +18,58 @@ const includeRelations = {
   },
 } satisfies Prisma.EventInclude;
 
-export async function listEvents(orgId: string): Promise<EventWithRelations[]> {
-  return prisma.event.findMany({
+const listInclude = {
+  assignees: {
+    select: { id: true, name: true, title: true },
+    orderBy: { name: "asc" as const },
+  },
+  customer: {
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      locations: {
+        select: { address: true },
+        orderBy: { id: "asc" as const },
+        take: 1,
+      },
+    },
+  },
+  estimate: {
+    select: {
+      estimateNumber: true,
+      siteMeasure: { select: { location: { select: { address: true } } } },
+    },
+  },
+} satisfies Prisma.EventInclude;
+
+export async function listEvents(orgId: string) {
+  const events = await prisma.event.findMany({
     where: { orgId },
     orderBy: [{ date: "asc" }, { startTime: "asc" }],
-    include: includeRelations,
+    include: listInclude,
   });
+
+  return events.map((e) => ({
+    id: e.id,
+    orgId: e.orgId,
+    type: e.type,
+    title: e.title,
+    customerId: e.customerId,
+    estimateId: e.estimateId,
+    date: e.date,
+    endDate: e.endDate,
+    startTime: e.startTime,
+    endTime: e.endTime,
+    notes: e.notes,
+    createdAt: e.createdAt,
+    assignees: e.assignees,
+    customer: e.customer
+      ? { id: e.customer.id, name: e.customer.name, phone: e.customer.phone }
+      : null,
+    estimateNumber: e.estimate?.estimateNumber ?? null,
+    address: resolveEventAddress(e),
+  }));
 }
 
 function assertJobHasEstimate(
