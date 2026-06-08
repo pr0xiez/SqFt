@@ -26,7 +26,8 @@ export function AppNav() {
           className={cn(
             "md:hidden order-1 shrink-0 z-[60]",
             "flex items-center justify-between h-[52px] px-4",
-            "bg-[var(--surface)] border-b border-[var(--line)]"
+            "bg-[var(--surface)] border-b border-[var(--line)]",
+            "transition-[background,border-color] duration-[250ms]"
           )}
         >
           <span className="text-[18px] font-[800] tracking-[-0.025em] leading-none">
@@ -41,8 +42,9 @@ export function AppNav() {
             className={cn(
               "w-[34px] h-[34px] rounded-full",
               "bg-[var(--surface-2)] border border-[var(--line)]",
-              "flex items-center justify-center",
-              "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--accent)]"
+              "flex items-center justify-center cursor-pointer",
+              "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--accent)]",
+              "hover:border-[var(--accent)] transition-colors"
             )}
           >
             {getInitials(session?.user?.name, session?.user?.email)}
