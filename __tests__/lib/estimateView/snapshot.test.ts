@@ -104,4 +104,54 @@ describe("snapshotEstimate", () => {
       subtotal: 545 * 4.85,
     });
   });
+
+  it("pairs each line's computed math to its own id, not its array position", () => {
+    // Three lines with distinct id/qty/rate so any index-vs-id mispairing would
+    // surface as a wrong subtotal on the wrong row.
+    const multi: EstimateInput = {
+      ...input,
+      lineItems: [
+        {
+          id: 10,
+          sortOrder: 0,
+          name: "LVP",
+          rate: 4,
+          qtyMode: "manual",
+          qty: 100,
+          wastePct: 0,
+          unitLabel: "ft²",
+          linkedRoomIds: [],
+        },
+        {
+          id: 20,
+          sortOrder: 1,
+          name: "Underlay",
+          rate: 2,
+          qtyMode: "manual",
+          qty: 50,
+          wastePct: 0,
+          unitLabel: "ft²",
+          linkedRoomIds: [],
+        },
+        {
+          id: 30,
+          sortOrder: 2,
+          name: "Trim",
+          rate: 7,
+          qtyMode: "manual",
+          qty: 10,
+          wastePct: 0,
+          unitLabel: "ft",
+          linkedRoomIds: [],
+        },
+      ],
+    };
+    const snap = snapshotEstimate(multi, meta);
+    const byId = new Map(
+      snap.lineItems.map((l) => [l.id as number, l.subtotal])
+    );
+    expect(byId.get(10)).toBe(400);
+    expect(byId.get(20)).toBe(100);
+    expect(byId.get(30)).toBe(70);
+  });
 });

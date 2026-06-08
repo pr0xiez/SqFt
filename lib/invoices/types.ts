@@ -39,10 +39,12 @@ export interface ProratedBreakdown {
   total: number;
 }
 
-/** Estimate-view + the source line metadata proration needs. */
+/** Estimate-view + the source line metadata proration needs. `lineMeta` carries
+ *  the line `id` so proration pairs each computed line to its name/description by
+ *  stable identity, never by array position. */
 export interface ProrationSource {
   view: EstimateView;
-  lineMeta: Array<{ name: string; description: string | null }>;
+  lineMeta: Array<{ id: number; name: string; description: string | null }>;
   convenienceFeeLabel?: string;
 }
 

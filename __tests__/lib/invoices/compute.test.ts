@@ -43,8 +43,8 @@ describe("prorateInvoice", () => {
       hasUnresolvedLines: false,
     },
     lineMeta: [
-      { name: "Carpet Tear Out", description: "Remove carpet" },
-      { name: "RED OAK", description: "Install oak" },
+      { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
+      { id: 2, name: "RED OAK", description: "Install oak" },
     ],
   };
 
@@ -140,10 +140,10 @@ describe("prorateInvoice", () => {
         hasUnresolvedLines: false,
       },
       lineMeta: [
-        { name: "Tear out", description: null },
-        { name: "Underlay", description: null },
-        { name: "RED OAK", description: null },
-        { name: "Free haul-away", description: null },
+        { id: 1, name: "Tear out", description: null },
+        { id: 2, name: "Underlay", description: null },
+        { id: 3, name: "RED OAK", description: null },
+        { id: 4, name: "Free haul-away", description: null },
       ],
     };
     const out = prorateInvoice(freeSource, 50);
@@ -174,9 +174,9 @@ describe("prorateInvoice", () => {
         hasUnresolvedLines: true,
       },
       lineMeta: [
-        { name: "Carpet tear-out", description: null },
-        { name: "Stair nosing", description: null },
-        { name: "Red oak install", description: null },
+        { id: 1, name: "Carpet tear-out", description: null },
+        { id: 2, name: "Stair nosing", description: null },
+        { id: 3, name: "Red oak install", description: null },
       ],
     };
     const out = prorateInvoice(withUnresolved, 4000);
@@ -188,5 +188,34 @@ describe("prorateInvoice", () => {
     const sum = out.lines.reduce((s, l) => s + l.amount, 0);
     expect(Math.round(sum * 100) / 100).toBe(4000);
     expect(out.total).toBe(4000);
+  });
+
+  it("pairs each line's name/description to its computed math by id, not array position", () => {
+    // lineMeta is supplied in a DIFFERENT order than view.lines. A positional
+    // pairing would label the $307 line "RED OAK" and the $3380 line "Carpet
+    // Tear Out"; id-based pairing must keep each name on its own computed amount.
+    const reordered: ProrationSource = {
+      ...source,
+      lineMeta: [
+        { id: 2, name: "RED OAK", description: "Install oak" },
+        { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
+      ],
+    };
+    const out = prorateInvoice(reordered, 1843.5); // ratio 0.5
+    // Rows follow view.lines order (id 1 then id 2) but carry the right names.
+    expect(out.lines).toEqual([
+      { name: "Carpet Tear Out", description: "Remove carpet", amount: 153.5 },
+      { name: "RED OAK", description: "Install oak", amount: 1690 },
+    ]);
+  });
+
+  it("throws when a computed line has no matching metadata (invariant violation)", () => {
+    const missingMeta: ProrationSource = {
+      ...source,
+      lineMeta: [
+        { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
+      ],
+    };
+    expect(() => prorateInvoice(missingMeta, 1843.5)).toThrow(/line metadata/);
   });
 });

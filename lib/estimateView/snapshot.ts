@@ -49,6 +49,11 @@ export function snapshotEstimate(
   meta: EstimateSnapshotMeta
 ): EstimateSnapshot {
   const view = computeEstimateView(input);
+  // Pair computed math to its source line by stable id, not array position.
+  // `computeEstimateView` is the single source of truth and may one day
+  // filter/reorder lines; positional pairing would then silently bake the
+  // wrong qty/subtotal into this immutable, legally-meaningful record.
+  const lineById = new Map(view.lines.map((l) => [l.id, l]));
 
   return {
     estimateNumber: meta.estimateNumber,
@@ -68,20 +73,28 @@ export function snapshotEstimate(
       note: i.note ?? null,
       text: i.text ?? null,
     })),
-    lineItems: input.lineItems.map((li: LineItemCalc, idx: number) => ({
-      id: li.id,
-      sortOrder: li.sortOrder ?? 0,
-      name: li.name,
-      description: li.description ?? null,
-      rate: li.rate,
-      qtyMode: li.qtyMode,
-      qty: li.qty ?? null,
-      wastePct: li.wastePct,
-      unitLabel: li.unitLabel,
-      linkedRoomIds: li.linkedRoomIds,
-      effectiveQty: view.lines[idx]?.effectiveQty ?? null,
-      subtotal: view.lines[idx]?.subtotal ?? null,
-    })),
+    lineItems: input.lineItems.map((li: LineItemCalc) => {
+      const computed = lineById.get(li.id);
+      if (computed === undefined) {
+        throw new Error(
+          `snapshotEstimate: no computed view line for line item id ${li.id}`
+        );
+      }
+      return {
+        id: li.id,
+        sortOrder: li.sortOrder ?? 0,
+        name: li.name,
+        description: li.description ?? null,
+        rate: li.rate,
+        qtyMode: li.qtyMode,
+        qty: li.qty ?? null,
+        wastePct: li.wastePct,
+        unitLabel: li.unitLabel,
+        linkedRoomIds: li.linkedRoomIds,
+        effectiveQty: computed.effectiveQty,
+        subtotal: computed.subtotal,
+      };
+    }),
     totals: {
       subtotal: view.subtotal,
       markup: view.markup,

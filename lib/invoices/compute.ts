@@ -47,19 +47,29 @@ export function prorateInvoice(
 ): ProratedBreakdown {
   const estimateTotal = source.view.total;
   const ratio = estimateTotal === 0 ? 0 : amount / estimateTotal;
+  // `folded` is derived from `source.view.lines` in the same order, so it stays
+  // index-aligned with the view. `lineMeta`, however, is pulled separately and
+  // is paired to its computed line by stable `id` — never by array position —
+  // so a filtered/reordered view can't bill a line under the wrong name.
   const folded = foldMarkupIntoLines(source.view);
+  const metaById = new Map(source.lineMeta.map((m) => [m.id, m]));
 
   const rows: ProratedLine[] = [];
-  source.view.lines.forEach((_line, idx) => {
+  source.view.lines.forEach((line, idx) => {
     const priced = folded[idx];
     // Unresolved line (no resolvable price): omit it rather than bill $0, so it
     // is never confused with a deliberate $0 (free) line. The builder is warned
     // separately (InvoicesSection) that such lines won't be billed.
     if (priced == null) return;
-    const meta = source.lineMeta[idx];
+    const meta = metaById.get(line.id);
+    if (meta === undefined) {
+      throw new Error(
+        `prorateInvoice: no line metadata for computed line id ${line.id}`
+      );
+    }
     rows.push({
-      name: meta?.name ?? `Item ${idx + 1}`,
-      description: meta?.description ?? null,
+      name: meta.name,
+      description: meta.description,
       amount: round2(priced * ratio),
     });
   });
