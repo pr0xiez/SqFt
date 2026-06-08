@@ -72,4 +72,23 @@ describe("MyScheduleView", () => {
       screen.getByRole("link", { name: /view estimate/i })
     ).toBeInTheDocument();
   });
+
+  it("exposes a labelled today button that flips to a return CTA after navigating", async () => {
+    render(wrap(<MyScheduleView currentUserId="u1" />));
+    const todayBtn = await screen.findByRole("button", {
+      name: /jump to today/i,
+    });
+    // On today: resting state, reads "Today".
+    expect(todayBtn).toHaveAttribute("aria-pressed", "true");
+    expect(todayBtn).toHaveTextContent("Today");
+
+    // Navigate away → the same button becomes a "Back to today" CTA.
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(todayBtn).toHaveAttribute("aria-pressed", "false");
+    expect(todayBtn).toHaveTextContent(/back to today/i);
+
+    // Tapping it returns to today.
+    fireEvent.click(todayBtn);
+    expect(todayBtn).toHaveAttribute("aria-pressed", "true");
+  });
 });

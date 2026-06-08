@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { type CalEvent, useEvents } from "@/lib/hooks/useEvents";
 import {
   buildAgendaSections,
+  formatFocusLabel,
   type Range,
   type Scope,
   shiftFocus,
@@ -73,6 +74,8 @@ export function MyScheduleView({ currentUserId }: { currentUserId: string }) {
 
   if (!focusedDate) return null;
 
+  const isToday = focusedDate === today;
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <header className="bg-[var(--surface)] border-b border-[var(--line)] px-3 pt-2.5 pb-2 max-w-[680px] mx-auto w-full">
@@ -94,27 +97,56 @@ export function MyScheduleView({ currentUserId }: { currentUserId: string }) {
             onChange={setRange}
           />
         </div>
-        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center justify-between gap-2 mt-2">
           <button
             type="button"
             aria-label="Previous"
             onClick={() => setFocusedDate((d) => shiftFocus(d, range, -1))}
-            className="w-7 h-7 rounded-lg bg-[var(--surface-2)] flex items-center justify-center"
+            className="w-7 h-7 shrink-0 rounded-lg bg-[var(--surface-2)] flex items-center justify-center hover:border hover:border-[var(--accent)] transition-colors"
           >
             ‹
           </button>
-          <button
-            type="button"
-            onClick={() => setFocusedDate(today)}
-            className="text-[11px] font-[700] text-[var(--accent)]"
-          >
-            ● Today
-          </button>
+          <div className="flex flex-col items-center gap-0.5 min-w-0">
+            <button
+              type="button"
+              onClick={() => setFocusedDate(today)}
+              aria-label="Jump to today"
+              aria-pressed={isToday}
+              title="Jump to today"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1",
+                "text-[11px] font-[700] transition-colors active:scale-95",
+                isToday
+                  ? "border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink)] hover:border-[var(--accent)]"
+                  : "border-[var(--accent)] bg-[var(--accent)] text-[var(--paper)] shadow-sm"
+              )}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="12"
+                height="12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <title>Today</title>
+                <circle cx="12" cy="12" r="3.5" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+              </svg>
+              {isToday ? "Today" : "Back to today"}
+            </button>
+            <span className="text-[11px] font-[600] text-[var(--ink-2)] truncate max-w-full">
+              {formatFocusLabel(focusedDate, range)}
+            </span>
+          </div>
           <button
             type="button"
             aria-label="Next"
             onClick={() => setFocusedDate((d) => shiftFocus(d, range, 1))}
-            className="w-7 h-7 rounded-lg bg-[var(--surface-2)] flex items-center justify-center"
+            className="w-7 h-7 shrink-0 rounded-lg bg-[var(--surface-2)] flex items-center justify-center hover:border hover:border-[var(--accent)] transition-colors"
           >
             ›
           </button>

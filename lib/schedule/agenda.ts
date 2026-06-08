@@ -65,6 +65,21 @@ export function formatSectionLabel(day: string): string {
   return `${wd} · ${md}`;
 }
 
+function monthDay(day: string): string {
+  return noon(day).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** The currently-focused period: a single day ("Mon · Jun 8") or week range
+ *  ("Jun 8 – Jun 14"). Drives the header context label. */
+export function formatFocusLabel(focused: string, range: Range): string {
+  if (range === "day") return formatSectionLabel(focused);
+  const days = weekDates(focused);
+  return `${monthDay(days[0])} – ${monthDay(days[6])}`;
+}
+
 export function buildAgendaSections(
   events: AgendaEvent[],
   opts: {

@@ -4,6 +4,7 @@ import {
   buildAgendaSections,
   eventOccursOn,
   formatClock,
+  formatFocusLabel,
   formatSectionLabel,
   sectionDates,
   shiftFocus,
@@ -77,6 +78,15 @@ describe("shiftFocus", () => {
 describe("formatSectionLabel", () => {
   it("formats weekday and month/day", () =>
     expect(formatSectionLabel("2026-06-08")).toBe("Mon · Jun 8"));
+});
+
+describe("formatFocusLabel", () => {
+  it("day → the focused weekday and month/day", () =>
+    expect(formatFocusLabel("2026-06-08", "day")).toBe("Mon · Jun 8"));
+  it("week → the Mon..Sun month/day range", () =>
+    expect(formatFocusLabel("2026-06-10", "week")).toBe("Jun 8 – Jun 14"));
+  it("week → spans a month boundary", () =>
+    expect(formatFocusLabel("2026-06-30", "week")).toBe("Jun 29 – Jul 5"));
 });
 
 describe("buildAgendaSections", () => {
