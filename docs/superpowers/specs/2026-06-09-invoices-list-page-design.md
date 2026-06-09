@@ -64,8 +64,10 @@ Because the default status is `open` (not `all`), the client always sends the
 
 - Prisma `findMany` org-scoped, including `payments` and
   `estimate → location → customer` (name only).
-- `balanceDue = round2(amount − Σ payments.amount)` using `lib/money.ts`.
-- Facet counts via `groupBy(status)` with the same org + search `where`.
+- `balanceDue = round2(amount − Σ payments.amount)` (local `round2` in
+  `invoiceRepo.ts`).
+- Facet counts via `groupBy(status)` with an org-only `where` (no search or
+  status filter), matching the estimates-list facet behavior.
 - Sort `customer` orders by the joined customer name; others are direct
   columns. `sentAt desc` puts never-sent drafts last (nulls last).
 
