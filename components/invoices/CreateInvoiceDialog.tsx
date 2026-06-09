@@ -6,9 +6,13 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useCreateInvoice } from "@/lib/hooks/useInvoices";
+import {
+  deriveInvoiceAmount,
+  invoiceLeaves,
+  isOverbill,
+  type InvoiceFormMode as Mode,
+} from "@/lib/invoices";
 import { fmtDollar } from "@/lib/utils";
-
-type Mode = "remaining" | "pct" | "flat";
 
 interface Props {
   estimateId: number;
@@ -16,10 +20,6 @@ interface Props {
   defaultDepositPct: number; // decimal, e.g. 0.3
   open: boolean;
   onClose: () => void;
-}
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 const labelCls =
@@ -60,15 +60,9 @@ export function CreateInvoiceDialog({
     }
   }, [open, defaultDepositPct]);
 
-  const amount =
-    mode === "remaining"
-      ? round2(unbilled)
-      : mode === "pct"
-        ? round2((unbilled * (parseFloat(pct) || 0)) / 100)
-        : round2(parseFloat(flat) || 0);
-
-  const leaves = round2(unbilled - amount);
-  const overBill = amount > unbilled + 0.005;
+  const amount = deriveInvoiceAmount({ mode, unbilled, pct, flat });
+  const leaves = invoiceLeaves(unbilled, amount);
+  const overBill = isOverbill(amount, unbilled);
   const canSubmit = amount > 0 && !overBill && !create.isPending;
 
   async function onCreate() {
