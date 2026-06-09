@@ -536,7 +536,9 @@ function invoiceSearchWhere(q: string): Prisma.InvoiceWhereInput | null {
       },
     },
   ];
-  if (/^\d+$/.test(cleaned)) or.push({ invoiceNumber: Number(cleaned) });
+  const n = Number(cleaned);
+  if (/^\d+$/.test(cleaned) && Number.isSafeInteger(n) && n <= 2147483647)
+    or.push({ invoiceNumber: n });
   return { OR: or };
 }
 

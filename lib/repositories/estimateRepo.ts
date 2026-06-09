@@ -208,7 +208,9 @@ function estimateSearchWhere(q: string): Prisma.EstimateWhereInput | null {
       },
     },
   ];
-  if (/^\d+$/.test(cleaned)) or.push({ estimateNumber: Number(cleaned) });
+  const n = Number(cleaned);
+  if (/^\d+$/.test(cleaned) && Number.isSafeInteger(n) && n <= 2147483647)
+    or.push({ estimateNumber: n });
   return { OR: or };
 }
 

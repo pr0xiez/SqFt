@@ -201,6 +201,22 @@ describe("listInvoices", () => {
     });
   });
 
+  it("omits the invoiceNumber clause when query overflows Int32", async () => {
+    invoiceFindMany.mockResolvedValue([]);
+    invoiceCount.mockResolvedValue(0);
+    mockGroupBy();
+
+    await listInvoices("org1", {
+      ...baseParams,
+      q: "99999999999",
+    });
+
+    const call = invoiceFindMany.mock.calls[0][0] as { where: { OR?: unknown[] } };
+    const or = call.where.OR;
+    expect(or).toHaveLength(1);
+    expect(or?.[0]).not.toHaveProperty("invoiceNumber");
+  });
+
   it("rounds balanceDue to cents", async () => {
     invoiceFindMany.mockResolvedValue([
       rawRow({ amount: 100, payments: [{ amount: 33.333 }] }),
