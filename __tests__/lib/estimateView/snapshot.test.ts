@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EstimateInput } from "@/lib/estimateView";
+import * as computeModule from "@/lib/estimateView/compute";
 import {
   type EstimateSnapshotMeta,
   snapshotEstimate,
 } from "@/lib/estimateView/snapshot";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("snapshotEstimate", () => {
   const input: EstimateInput = {
@@ -103,5 +108,47 @@ describe("snapshotEstimate", () => {
       effectiveQty: 545,
       subtotal: 545 * 4.85,
     });
+  });
+
+  it("pairs each line's computed math to its own line by id", () => {
+    // Two lines with distinct ids/quantities — each snapshot row must carry the
+    // math for ITS id, proving the pairing is by identity, not array position.
+    const twoLines: EstimateInput = {
+      ...input,
+      lineItems: [
+        { ...input.lineItems[0], id: 1, qty: 100, rate: 2 },
+        { ...input.lineItems[0], id: 2, qty: 50, rate: 3 },
+      ],
+    };
+    const snap = snapshotEstimate(twoLines, meta);
+    const byId = Object.fromEntries(
+      snap.lineItems.map((li) => [li.id as number, li])
+    );
+    expect(byId[1]).toMatchObject({ effectiveQty: 100, subtotal: 200 });
+    expect(byId[2]).toMatchObject({ effectiveQty: 50, subtotal: 150 });
+  });
+
+  it("throws loudly if a source line has no matching computed view line", () => {
+    // Guard against a future computeEstimateView regression that drops/reorders
+    // lines: a source line with no computed match must fail, not silently null.
+    // Stub the view to omit line id 2 so its source line has no match.
+    vi.spyOn(computeModule, "computeEstimateView").mockReturnValueOnce({
+      lines: [{ id: 1, effectiveQty: 100, subtotal: 200 }],
+      subtotal: 200,
+      markup: 0,
+      beforeFee: 200,
+      convenienceFee: 0,
+      total: 200,
+      deposit: 0,
+      hasUnresolvedLines: false,
+    });
+    const twoLines: EstimateInput = {
+      ...input,
+      lineItems: [
+        { ...input.lineItems[0], id: 1 },
+        { ...input.lineItems[0], id: 2 },
+      ],
+    };
+    expect(() => snapshotEstimate(twoLines, meta)).toThrow(/line item id 2/);
   });
 });

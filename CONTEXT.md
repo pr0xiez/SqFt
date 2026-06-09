@@ -144,8 +144,13 @@ The approve transaction flips the estimate's status to `approved`, stamps
 `approvedAt`, logs an `approved` EstimateEvent, and writes an
 `EstimateApproval` row capturing `ip`, `userAgent`, and a lightweight
 `snapshot` (the Estimate View + identifying metadata such as `estimateNumber`,
-`date`, `customer`, and the location `address`). The snapshot is a plain JSON
-record of what the customer saw — there is **no** `snapshotHash` and no
+`date`, `customer`, and the location `address`). The snapshot is built by
+`snapshotEstimate` (`lib/estimateView/snapshot.ts`), which pairs each computed
+line's `effectiveQty`/`subtotal` to its source line **by stable `id`**, not by
+array position — and **throws** if a source line has no matching computed line,
+so an ordering/count regression in `computeEstimateView` can never silently
+freeze wrong/missing math into the approved artifact. The snapshot is a plain
+JSON record of what the customer saw — there is **no** `snapshotHash` and no
 tamper-evidence hashing. Approving an estimate also supersedes any other open
 estimates under the same site measure (they're marked `declined` with a
 "Superseded" reason and a `system_supersede` event).
@@ -159,7 +164,12 @@ a free-form dollar `amount` or a percentage `pct` of the estimate total. The
 billing math is the single source of truth in `lib/invoices/` (mirroring
 `lib/estimateView`): `computeEstimateBilling` rolls up invoiced/unbilled/paid/
 outstanding across an estimate's non-void invoices, and `prorateInvoice` splits
-each invoice's amount across the estimate's line items by the bill ratio.
+each invoice's amount across the estimate's line items by the bill ratio. It
+pairs each computed line's price to its display metadata **by stable line `id`**
+(carried on `ProrationSource.lineMeta`, built in `invoiceRepo`'s
+`buildInvoiceProrationSource`), never by array position, and **throws** if a
+computed line has no matching metadata — so a frozen invoice snapshot can never
+mislabel or misbill a row when view/metadata order diverges.
 Markup is folded into the line prices (via `foldMarkupIntoLines` — see
 **Markup**), so no "Markup" row is emitted; only the convenience fee remains a
 separate row. Unresolved lines are omitted rather than billed as $0, and the

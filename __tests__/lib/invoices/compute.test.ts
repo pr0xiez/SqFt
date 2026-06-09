@@ -43,8 +43,8 @@ describe("prorateInvoice", () => {
       hasUnresolvedLines: false,
     },
     lineMeta: [
-      { name: "Carpet Tear Out", description: "Remove carpet" },
-      { name: "RED OAK", description: "Install oak" },
+      { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
+      { id: 2, name: "RED OAK", description: "Install oak" },
     ],
   };
 
@@ -140,10 +140,10 @@ describe("prorateInvoice", () => {
         hasUnresolvedLines: false,
       },
       lineMeta: [
-        { name: "Tear out", description: null },
-        { name: "Underlay", description: null },
-        { name: "RED OAK", description: null },
-        { name: "Free haul-away", description: null },
+        { id: 1, name: "Tear out", description: null },
+        { id: 2, name: "Underlay", description: null },
+        { id: 3, name: "RED OAK", description: null },
+        { id: 4, name: "Free haul-away", description: null },
       ],
     };
     const out = prorateInvoice(freeSource, 50);
@@ -174,9 +174,9 @@ describe("prorateInvoice", () => {
         hasUnresolvedLines: true,
       },
       lineMeta: [
-        { name: "Carpet tear-out", description: null },
-        { name: "Stair nosing", description: null },
-        { name: "Red oak install", description: null },
+        { id: 1, name: "Carpet tear-out", description: null },
+        { id: 2, name: "Stair nosing", description: null },
+        { id: 3, name: "Red oak install", description: null },
       ],
     };
     const out = prorateInvoice(withUnresolved, 4000);
@@ -188,5 +188,56 @@ describe("prorateInvoice", () => {
     const sum = out.lines.reduce((s, l) => s + l.amount, 0);
     expect(Math.round(sum * 100) / 100).toBe(4000);
     expect(out.total).toBe(4000);
+  });
+
+  it("pairs math to metadata by line id, not array position", () => {
+    // view.lines and lineMeta are in OPPOSITE order. A positional join would
+    // label the $307 line "RED OAK" and the $3380 line "Carpet Tear Out";
+    // identity pairing must label each by its own id regardless of order.
+    const shuffled: ProrationSource = {
+      view: {
+        lines: [
+          { id: 2, effectiveQty: 1, subtotal: 3380 },
+          { id: 1, effectiveQty: 1, subtotal: 307 },
+        ],
+        subtotal: 3687,
+        markup: 0,
+        beforeFee: 3687,
+        convenienceFee: 0,
+        total: 3687,
+        deposit: 0,
+        hasUnresolvedLines: false,
+      },
+      lineMeta: [
+        { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
+        { id: 2, name: "RED OAK", description: "Install oak" },
+      ],
+    };
+    const out = prorateInvoice(shuffled, 3687); // ratio 1
+    // Each row carries the name for ITS id, following view.lines' order.
+    expect(out.lines).toEqual([
+      { name: "RED OAK", description: "Install oak", amount: 3380 },
+      { name: "Carpet Tear Out", description: "Remove carpet", amount: 307 },
+    ]);
+  });
+
+  it("throws loudly when a view line has no matching metadata (not a silent placeholder)", () => {
+    const orphan: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: 1, subtotal: 307 },
+          { id: 99, effectiveQty: 1, subtotal: 3380 }, // no metadata for id 99
+        ],
+        subtotal: 3687,
+        markup: 0,
+        beforeFee: 3687,
+        convenienceFee: 0,
+        total: 3687,
+        deposit: 0,
+        hasUnresolvedLines: false,
+      },
+      lineMeta: [{ id: 1, name: "Carpet Tear Out", description: null }],
+    };
+    expect(() => prorateInvoice(orphan, 3687)).toThrow(/view line id 99/);
   });
 });
