@@ -1,6 +1,7 @@
 "use client";
 
 import type { CalEvent } from "@/lib/hooks/useEvents";
+import { getInitials } from "@/lib/nav/initials";
 import { todayStr } from "@/lib/utils";
 
 interface CrewEntry {
@@ -9,15 +10,6 @@ interface CrewEntry {
   initials: string;
   jobTitle: string;
   timeRange: string;
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((p) => p[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 }
 
 function buildCrewEntries(events: CalEvent[], today: string): CrewEntry[] {
