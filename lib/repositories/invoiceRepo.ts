@@ -1,10 +1,16 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
+import {
+  type InvoiceStatusFilter,
+  OPEN_INVOICE_STATUSES,
+} from "@/components/invoices/filterInvoices";
 import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { computeEstimateBilling } from "@/lib/invoices/compute";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
+import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
@@ -453,4 +459,150 @@ export async function getInvoiceForSend(id: number, orgId: string) {
       },
     },
   });
+}
+
+export type InvoiceSortKey =
+  | "number"
+  | "customer"
+  | "amount"
+  | "dueDate"
+  | "sentAt";
+
+export interface ListInvoicesParams {
+  page: number;
+  perPage: number;
+  sort: { key: InvoiceSortKey; direction: SortDirection };
+  q: string;
+  status: InvoiceStatusFilter;
+}
+
+/** Flat row shape for the org-wide invoices list. */
+export interface InvoiceListRow {
+  id: number;
+  invoiceNumber: number;
+  status: string;
+  amount: number;
+  balanceDue: number;
+  dueDate: Date | null;
+  sentAt: Date | null;
+  estimateId: number;
+  customerName: string | null;
+}
+
+const INVOICE_LIST_INCLUDE = {
+  payments: { select: { amount: true } },
+  estimate: {
+    select: {
+      siteMeasure: {
+        select: {
+          location: { select: { customer: { select: { name: true } } } },
+        },
+      },
+    },
+  },
+} satisfies Prisma.InvoiceInclude;
+
+function invoiceOrderBy(
+  sort: ListInvoicesParams["sort"]
+): Prisma.InvoiceOrderByWithRelationInput {
+  const dir = sort.direction;
+  switch (sort.key) {
+    case "number":
+      return { invoiceNumber: dir };
+    case "customer":
+      return {
+        estimate: { siteMeasure: { location: { customer: { name: dir } } } },
+      };
+    case "amount":
+      return { amount: dir };
+    case "dueDate":
+      return { dueDate: { sort: dir, nulls: "last" } };
+    default:
+      return { sentAt: { sort: dir, nulls: "last" } };
+  }
+}
+
+function invoiceSearchWhere(q: string): Prisma.InvoiceWhereInput | null {
+  const cleaned = q.trim().replace(/^#/, "");
+  if (cleaned.length === 0) return null;
+  const or: Prisma.InvoiceWhereInput[] = [
+    {
+      estimate: {
+        siteMeasure: {
+          location: {
+            customer: { name: { contains: cleaned, mode: "insensitive" } },
+          },
+        },
+      },
+    },
+  ];
+  if (/^\d+$/.test(cleaned)) or.push({ invoiceNumber: Number(cleaned) });
+  return { OR: or };
+}
+
+export async function listInvoices(
+  orgId: string,
+  params: ListInvoicesParams
+): Promise<Paginated<InvoiceListRow>> {
+  const where: Prisma.InvoiceWhereInput = { orgId };
+  if (params.status === "open") {
+    where.status = { in: [...OPEN_INVOICE_STATUSES] };
+  } else if (params.status !== "all") {
+    where.status = params.status;
+  }
+  const search = invoiceSearchWhere(params.q);
+  if (search) Object.assign(where, search);
+
+  const [rows, total, grouped] = await prisma.$transaction([
+    prisma.invoice.findMany({
+      where,
+      orderBy: invoiceOrderBy(params.sort),
+      skip: (params.page - 1) * params.perPage,
+      take: params.perPage,
+      include: INVOICE_LIST_INCLUDE,
+    }),
+    prisma.invoice.count({ where }),
+    prisma.invoice.groupBy({
+      by: ["status"],
+      where: { orgId },
+      _count: { _all: true },
+      orderBy: undefined,
+    }),
+  ]);
+
+  const facets: Record<string, number> = {
+    all: 0,
+    open: 0,
+    draft: 0,
+    sent: 0,
+    viewed: 0,
+    partial: 0,
+    paid: 0,
+    void: 0,
+  };
+  for (const row of grouped) {
+    const count = row._count;
+    const n = typeof count === "object" ? (count._all ?? 0) : 0;
+    facets.all += n;
+    if (row.status in facets) facets[row.status] = n;
+    if ((OPEN_INVOICE_STATUSES as readonly string[]).includes(row.status)) {
+      facets.open += n;
+    }
+  }
+
+  const items = rows.map((inv) => ({
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    status: inv.status,
+    amount: inv.amount,
+    balanceDue: round2(
+      inv.amount - inv.payments.reduce((s, p) => s + p.amount, 0)
+    ),
+    dueDate: inv.dueDate,
+    sentAt: inv.sentAt,
+    estimateId: inv.estimateId,
+    customerName: inv.estimate.siteMeasure.location?.customer?.name ?? null,
+  }));
+
+  return { items, total, facets };
 }
