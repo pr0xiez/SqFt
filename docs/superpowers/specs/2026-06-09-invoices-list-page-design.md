@@ -46,13 +46,17 @@ Query params (mirroring `/api/estimates`):
 `open` expands to `status IN ('sent','viewed','partial')`. This mapping lives
 in the repo only.
 
-Response: `{ invoices, total, page, perPage, facets }` where `facets` holds
-counts per pill (all/open/draft/paid/void) for the current `q` (search applies
-to facets; the status filter does not, so pill counts stay stable while
-switching pills).
+Response: `{ items, total, facets }` — the same envelope shape
+`/api/estimates` returns. `facets` holds counts per pill
+(all/open/draft/paid/void), computed org-wide ignoring `q` and `status`,
+matching the existing estimates-list facet behavior.
 
 Each list item: `id, invoiceNumber, status, amount, balanceDue, dueDate,
 sentAt, customerName, estimateId`.
+
+Because the default status is `open` (not `all`), the client always sends the
+`status` param explicitly — unlike the estimates query string, which omits
+`status=all`.
 
 ## Repo
 
@@ -69,9 +73,18 @@ sentAt, customerName, estimateId`.
 
 `useInvoiceList(params: InvoiceListParams)` added to
 `lib/hooks/useInvoices.ts`. Query key `["invoices", "list", params]`,
-`keepPreviousData: true`. The existing per-estimate `useInvoices(estimateId)`
-and all mutation hooks are untouched; mutations already invalidate
-`["invoices"]`-rooted keys, which refreshes the list.
+`placeholderData: keepPreviousData`. The existing per-estimate
+`useInvoices(estimateId)` is untouched. The mutation hooks
+(`useCreateInvoice`, `useSendInvoice`, `useRecordPayment`, `useVoidInvoice`)
+invalidate only `["invoices", id]` / `["invoices", "estimate", estimateId]`
+today, so each gains an extra
+`qc.invalidateQueries({ queryKey: ["invoices", "list"] })` to keep the new
+list fresh.
+
+The `InvoiceStatusFilter` type and `OPEN_INVOICE_STATUSES` const live in a
+client-safe module, `components/invoices/filterInvoices.ts`, imported by both
+the repo and the list component — the same split `EstimateStatusFilter` uses
+(`components/estimates/filterEstimates.ts`).
 
 ## UI
 
@@ -91,8 +104,10 @@ and all mutation hooks are untouched; mutations already invalidate
 
 ## Error handling
 
-- API: invalid `page/perPage/sort/dir/status` → 400 `ApiError` (same
-  validation style as the estimates list handler).
+- API: invalid `page/perPage/sort/dir/status` values silently fall back to
+  their defaults via `parsePageParams` — the same behavior as the estimates
+  list handler (no 400 for bad list params; `apiRoute` still returns the
+  standard `ApiError` envelope for auth failures).
 - UI: loading / error / empty states copied from `EstimateList`; the Open
   pill's empty state says "No open invoices" (a positive, not an error).
 
@@ -107,8 +122,9 @@ and all mutation hooks are untouched; mutations already invalidate
   matching the depth of existing `EstimateList` tests.
 - **Playwright e2e (run `--workers=1`):** login → Invoices tab → seeded open
   invoice visible → switch to Paid pill → paid invoice visible.
-- **Seed:** ensure `prisma/seed.ts` creates invoices in mixed statuses
-  (at least one sent/partial with a payment, one paid, one draft).
+- **Seed:** already satisfied — `prisma/seed.ts` seeds three invoices in
+  mixed statuses (paid deposit, partial progress, void draft) on estimate
+  #5006. No seed change needed since there is no schema change.
 
 ## Out of scope (v1)
 
