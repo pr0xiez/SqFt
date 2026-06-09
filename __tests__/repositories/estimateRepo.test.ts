@@ -169,7 +169,9 @@ describe("listEstimates (paginated)", () => {
     estimateCount.mockResolvedValue(0);
     mockGroupBy();
     await listEstimates("org1", { ...baseParams, q: "99999999999" });
-    const call = estimateFindMany.mock.calls[0][0] as { where: { OR?: unknown[] } };
+    const call = estimateFindMany.mock.calls[0][0] as {
+      where: { OR?: unknown[] };
+    };
     const or = call.where.OR;
     expect(or).toHaveLength(1);
     expect(or?.[0]).not.toHaveProperty("estimateNumber");

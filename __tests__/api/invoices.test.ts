@@ -50,12 +50,18 @@ describe("GET /api/invoices", () => {
       user: { id: "u1", orgId: "org1", role: "crew" },
       // biome-ignore lint/suspicious/noExplicitAny: test stub session
     } as any);
-    const res = await GET(makeRequest("GET", "http://x/api/invoices"), noParams);
+    const res = await GET(
+      makeRequest("GET", "http://x/api/invoices"),
+      noParams
+    );
     expect(res.status).toBe(401);
   });
 
   it("defaults to status=open and sentAt desc", async () => {
-    const res = await GET(makeRequest("GET", "http://x/api/invoices"), noParams);
+    const res = await GET(
+      makeRequest("GET", "http://x/api/invoices"),
+      noParams
+    );
     expect(res.status).toBe(200);
     expect(mockList).toHaveBeenCalledWith(
       "org1",

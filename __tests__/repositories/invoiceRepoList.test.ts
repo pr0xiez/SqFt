@@ -211,7 +211,9 @@ describe("listInvoices", () => {
       q: "99999999999",
     });
 
-    const call = invoiceFindMany.mock.calls[0][0] as { where: { OR?: unknown[] } };
+    const call = invoiceFindMany.mock.calls[0][0] as {
+      where: { OR?: unknown[] };
+    };
     const or = call.where.OR;
     expect(or).toHaveLength(1);
     expect(or?.[0]).not.toHaveProperty("invoiceNumber");
