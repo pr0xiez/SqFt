@@ -23,7 +23,7 @@ export function useUpdateMember() {
       }
       return (await res.json()) as MemberRow;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["members"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }
 
@@ -42,6 +42,6 @@ export function useCreateMember() {
       }
       return (await res.json()) as MemberRow;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["members"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }
