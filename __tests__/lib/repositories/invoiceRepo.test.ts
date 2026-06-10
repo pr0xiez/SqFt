@@ -43,7 +43,7 @@ describe("buildInvoiceProrationSource", () => {
       siteMeasure: { items: [] },
     });
     expect(src.lineMeta).toEqual([
-      { name: "Carpet Tear Out", description: "Remove carpet" },
+      { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
     ]);
     expect(src.view.total).toBe(307);
   });

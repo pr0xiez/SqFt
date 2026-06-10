@@ -2,6 +2,16 @@
 // directly (it is pure but conceptually a server artifact, mirroring estimateView).
 export { computeEstimateBilling, prorateInvoice } from "./compute";
 export type {
+  DeriveInvoiceAmountArgs,
+  InvoiceFormMode,
+} from "./createInvoiceForm";
+export {
+  deriveInvoiceAmount,
+  invoiceLeaves,
+  isOverbill,
+  OVERBILL_EPSILON,
+} from "./createInvoiceForm";
+export type {
   EstimateBilling,
   InvoiceLike,
   ProratedBreakdown,

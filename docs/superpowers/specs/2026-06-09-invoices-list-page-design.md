@@ -16,8 +16,10 @@ the whole org**, without navigating estimate by estimate.
 - New top-level `/invoices` page mirroring the Estimates list end-to-end
   (Approach A): new org-wide list API + repo function + react-query hook +
   list component + nav tab.
-- **Default view is the "Open" status filter** (`sent + viewed + partial`),
-  with pills for All / Open / Draft / Paid / Void and facet counts.
+- **Default view is the "All" status filter**, with pills All / Open / Draft /
+  Paid / Void and facet counts. "Open" (`sent + viewed + partial`) is the
+  second pill — one click from the default. (Revised after first ship: the
+  default was originally "Open".)
 - Full table parity with Estimates: debounced search, sortable columns,
   pagination, density toggle, responsive mobile layout.
 - Columns: Invoice # · Customer · Status · Amount · Balance due · Due date ·
@@ -41,7 +43,7 @@ Query params (mirroring `/api/estimates`):
 | `sort` | `number \| customer \| amount \| dueDate \| sentAt` | `sentAt` |
 | `dir` | `asc \| desc` | `desc` |
 | `q` | matches customer name (contains, case-insensitive) or invoice number | — |
-| `status` | `all \| open \| draft \| paid \| void` | `open` |
+| `status` | `all \| open \| draft \| paid \| void` | `all` |
 
 `open` expands to `status IN ('sent','viewed','partial')`. This mapping lives
 in the repo only.
@@ -54,9 +56,8 @@ matching the existing estimates-list facet behavior.
 Each list item: `id, invoiceNumber, status, amount, balanceDue, dueDate,
 sentAt, customerName, estimateId`.
 
-Because the default status is `open` (not `all`), the client always sends the
-`status` param explicitly — unlike the estimates query string, which omits
-`status=all`.
+The client always sends the `status` param explicitly (including `all`) —
+unlike the estimates query string, which omits `status=all`.
 
 ## Repo
 
@@ -64,8 +65,10 @@ Because the default status is `open` (not `all`), the client always sends the
 
 - Prisma `findMany` org-scoped, including `payments` and
   `estimate → location → customer` (name only).
-- `balanceDue = round2(amount − Σ payments.amount)` using `lib/money.ts`.
-- Facet counts via `groupBy(status)` with the same org + search `where`.
+- `balanceDue = round2(amount − Σ payments.amount)` (local `round2` in
+  `invoiceRepo.ts`).
+- Facet counts via `groupBy(status)` with an org-only `where` (no search or
+  status filter), matching the estimates-list facet behavior.
 - Sort `customer` orders by the joined customer name; others are direct
   columns. `sentAt desc` puts never-sent drafts last (nulls last).
 
@@ -93,7 +96,8 @@ the repo and the list component — the same split `EstimateStatusFilter` uses
   "lead")` redirect, `<Suspense>` around the list view.
 - `components/invoices/InvoiceList.tsx` — cloned from
   `components/estimates/EstimateList.tsx`: `useTableQueryState`,
-  `useDebouncedValue` search, status pills (Open listed first and default),
+  `useDebouncedValue` search, status pills (All listed first and default,
+  Open second),
   `SortableHeader` columns, pagination, density toggle, mobile collapse.
 - Row links to `/invoices/[id]`. Status rendered with the existing invoice
   status badge styling. Overdue = open status && `dueDate < today` → red due

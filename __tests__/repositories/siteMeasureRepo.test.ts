@@ -184,6 +184,28 @@ describe("listSiteMeasures (paginated)", () => {
       })
     );
   });
+
+  it("omits the siteMeasureNumber clause when query overflows Int32", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    await listSiteMeasures("org1", { ...base, q: "99999999999" });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          orgId: "org1",
+          OR: [
+            {
+              location: {
+                customer: {
+                  name: { contains: "99999999999", mode: "insensitive" },
+                },
+              },
+            },
+          ],
+        }),
+      })
+    );
+  });
 });
 
 // ── getSiteMeasure ──────────────────────────────────────────────────────────────

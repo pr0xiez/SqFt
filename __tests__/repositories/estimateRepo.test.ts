@@ -164,6 +164,19 @@ describe("listEstimates (paginated)", () => {
     );
   });
 
+  it("omits the estimateNumber clause when query overflows Int32", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    mockGroupBy();
+    await listEstimates("org1", { ...baseParams, q: "99999999999" });
+    const call = estimateFindMany.mock.calls[0][0] as {
+      where: { OR?: unknown[] };
+    };
+    const or = call.where.OR;
+    expect(or).toHaveLength(1);
+    expect(or?.[0]).not.toHaveProperty("estimateNumber");
+  });
+
   it("searches customer name (contains) and exact estimate number for numeric q", async () => {
     estimateFindMany.mockResolvedValue([]);
     estimateCount.mockResolvedValue(0);

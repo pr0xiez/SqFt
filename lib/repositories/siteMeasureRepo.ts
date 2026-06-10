@@ -1,6 +1,7 @@
 import type { Prisma } from "@/app/generated/prisma/client";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
 const SITE_MEASURE_LIST_INCLUDE = {
@@ -103,7 +104,8 @@ function siteMeasureSearchWhere(
       },
     },
   ];
-  if (/^\d+$/.test(cleaned)) or.push({ siteMeasureNumber: Number(cleaned) });
+  const n = searchableInt(cleaned);
+  if (n !== null) or.push({ siteMeasureNumber: n });
   return { OR: or };
 }
 

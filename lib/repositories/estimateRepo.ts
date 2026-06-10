@@ -5,6 +5,7 @@ import { EstimateHasEventsError, EstimateLockedError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
@@ -206,7 +207,8 @@ function estimateSearchWhere(q: string): Prisma.EstimateWhereInput | null {
       },
     },
   ];
-  if (/^\d+$/.test(cleaned)) or.push({ estimateNumber: Number(cleaned) });
+  const n = searchableInt(cleaned);
+  if (n !== null) or.push({ estimateNumber: n });
   return { OR: or };
 }
 

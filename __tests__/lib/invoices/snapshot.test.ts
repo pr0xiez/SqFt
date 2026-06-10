@@ -13,7 +13,7 @@ const source: ProrationSource = {
     deposit: 0,
     hasUnresolvedLines: false,
   },
-  lineMeta: [{ name: "Carpet Tear Out", description: "Remove carpet" }],
+  lineMeta: [{ id: 1, name: "Carpet Tear Out", description: "Remove carpet" }],
 };
 
 describe("snapshotInvoice", () => {

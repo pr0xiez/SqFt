@@ -49,14 +49,24 @@ export function prorateInvoice(
   const ratio = estimateTotal === 0 ? 0 : amount / estimateTotal;
   const folded = foldMarkupIntoLines(source.view);
 
+  // Re-pair line metadata to the computed view line BY ID, not by array
+  // position. `folded[idx]` ↔ `view.lines[idx]` is aligned by construction
+  // (both derive from the same `view`), but `lineMeta` is a separate array, so
+  // join it to the view by id to avoid silently billing the wrong name on a row
+  // if the two ever diverge in order/count.
+  const metaById = new Map<
+    (typeof source.lineMeta)[number]["id"],
+    (typeof source.lineMeta)[number]
+  >(source.lineMeta.map((m) => [m.id, m]));
+
   const rows: ProratedLine[] = [];
-  source.view.lines.forEach((_line, idx) => {
+  source.view.lines.forEach((line, idx) => {
     const priced = folded[idx];
     // Unresolved line (no resolvable price): omit it rather than bill $0, so it
     // is never confused with a deliberate $0 (free) line. The builder is warned
     // separately (InvoicesSection) that such lines won't be billed.
     if (priced == null) return;
-    const meta = source.lineMeta[idx];
+    const meta = metaById.get(line.id);
     rows.push({
       name: meta?.name ?? `Item ${idx + 1}`,
       description: meta?.description ?? null,

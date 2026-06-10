@@ -73,6 +73,15 @@ Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
 `lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).
 
+`computeEstimateView` lines carry their `id` (`LineView.id`), and consumers
+that re-attach side-channel metadata to computed math **join by id, never by
+array position** — so a future reorder/filter/drop in the view is a loud
+failure, not silently mispaired money. The approval snapshot
+(`snapshotEstimate`, `lib/estimateView/snapshot.ts`) throws if a line item's id
+is absent from the computed view; invoice proration (`prorateInvoice`,
+`lib/invoices/compute.ts`) keys `lineMeta` by id (`ProrationSource.lineMeta`
+carries `id`, set in `buildInvoiceProrationSource`).
+
 ## Estimate Draft
 
 The editable, not-yet-reconciled working copy of an estimate's inputs while a
@@ -166,7 +175,10 @@ separate row. Unresolved lines are omitted rather than billed as $0, and the
 rounding residual reconciles onto the largest row so the displayed rows sum
 exactly to the billed amount without the ±cent distorting the fee row or a free
 line. Creating or editing an invoice past the estimate's unbilled balance
-throws `INVOICE_OVERBILL`.
+throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
+predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
+`OVERBILL_EPSILON` (0.005) tolerance used by both the repo guard and the create
+dialog.
 
 Invoices are emailed via a public token page (`/invoice-review/[token]`),
 reusing the React-Email + Resend flow. On send, the invoice freezes a
@@ -182,6 +194,16 @@ all billing math; editing a sent invoice or paying a void one throws
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
+**Org-wide list.** `GET /api/invoices` (lead+) lists all org invoices —
+`listInvoices` in `lib/repositories/invoiceRepo.ts` — with pagination, search
+(customer name / invoice #), sort, and a `status` filter of
+`all | open | draft | paid | void`, defaulting to **`all`**. The `open`
+group — `sent + viewed + partial` ("sent but not fully paid") — is the
+second pill and is defined once as `OPEN_INVOICE_STATUSES` in
+`components/invoices/filterInvoices.ts`. Each row carries a computed
+`balanceDue` (amount − recorded payments). Facet counts are org-wide and
+ignore the active filter/search.
+
 **Builder UI.** The estimate page's `InvoicesSection`
 (`components/invoices/`) shows a billing summary (Invoiced / Unbilled /
 Outstanding, from `computeEstimateBilling`) plus a compact per-invoice list;
@@ -194,10 +216,13 @@ all wired through react-query hooks in `lib/hooks/useInvoices.ts`. Invoices are
 to change billed lines, fix the estimate or create another invoice. The
 record-payment form defaults to the full outstanding balance but accepts
 partials, and its method dropdown excludes `stripe` (reserved for the future
-integration). The create dialog's "% of balance" mode computes the dollar
-figure client-side and always submits a flat `amount`, never `pct` — the
-backend's `pct` means "% of estimate *total*", not "% of the remaining
-balance".
+integration). The create dialog's three sizing modes (remaining / % of balance
+/ flat) resolve to a dollar amount via the shared `deriveInvoiceAmount`
+(`lib/invoices/createInvoiceForm.ts`) — the one definition of the mode→amount
+mapping, used for both the live preview and the value POSTed — so the dialog
+always submits a flat `amount`, never `pct`. (The backend's `pct` means "% of
+estimate *total*", not "% of the remaining balance", so "% of balance" is
+resolved client-side rather than sent as `pct`.)
 
 ## API Error Codes
 
