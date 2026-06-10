@@ -13,6 +13,7 @@ const NAV_TABS = [
   { href: "/customers", label: "Customers", screen: "customers" },
   { href: "/site-measures", label: "Site Measures", screen: "siteMeasures" },
   { href: "/estimates", label: "Estimates", screen: "estimate-list" },
+  { href: "/invoices", label: "Invoices", screen: "invoice-list" },
   { href: "/my-schedule", label: "My Schedule", screen: "my-schedule" },
   { href: "/schedule", label: "Schedule Manager", screen: "schedule" },
   { href: "/settings", label: "Settings", screen: "settings" },
@@ -223,6 +224,13 @@ function NavIcon({ label, active }: { label: string; active: boolean }) {
         <rect x="5" y="3" width="14" height="18" rx="1.5" />
         <path d="M12 7v10" />
         <path d="M14.5 9.5c-.7-.7-1.7-.9-2.5-.5-1 .5-1.2 1.7-.4 2.3.7.5 1.7.5 2.4 1 .8.6.6 1.8-.4 2.3-.8.4-1.8.2-2.5-.5" />
+      </svg>
+    ),
+    Invoices: (
+      <svg {...props}>
+        <title>{label}</title>
+        <path d="M6 3h12v18l-2-1.5L14 21l-2-1.5L10 21l-2-1.5L6 21V3z" />
+        <path d="M9 8h6M9 12h6" />
       </svg>
     ),
     "My Schedule": (
