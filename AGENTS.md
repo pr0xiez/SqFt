@@ -27,6 +27,9 @@ with the file that owns it.
   `EventCard`/`JobCard`/`DayAgenda`, pure logic in `lib/schedule/agenda.ts`)
   lives alongside the editable **Schedule Manager** grid (`/schedule`, lead+
   only; crew is redirected here); both read `useEvents`.
+  The org-wide **Invoices** list (`app/(app)/invoices`,
+  `components/invoices/InvoiceList`) defaults to the "All" filter, with an
+  "Open" pill (sent + viewed + partial) second, and is lead+ only.
   Auth is `app/(auth)/login`, admin is `app/(admin)/admin`. Public
   customer-facing pages are `app/estimate-review/[token]` and
   `app/invoice-review/[token]`. **People are Users** (no crew roster): managed

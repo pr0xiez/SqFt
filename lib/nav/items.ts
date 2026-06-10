@@ -5,6 +5,7 @@ export type IconId =
   | "customers"
   | "siteMeasures"
   | "estimates"
+  | "invoices"
   | "myschedule"
   | "scheduleManager"
   | "settings"
@@ -53,6 +54,12 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/estimates",
         label: "Estimates",
         icon: "estimates",
+        minRole: "lead",
+      },
+      {
+        href: "/invoices",
+        label: "Invoices",
+        icon: "invoices",
         minRole: "lead",
       },
     ],

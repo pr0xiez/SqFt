@@ -16,6 +16,7 @@ describe("navGroupsFor", () => {
       "/customers",
       "/site-measures",
       "/estimates",
+      "/invoices",
     ]);
   });
 

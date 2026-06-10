@@ -1,7 +1,15 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
 import { readApiError } from "@/lib/api/errors";
+import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
+import type { SortDirection } from "@/lib/sort";
 
 export interface InvoicePayment {
   id: number;
@@ -36,6 +44,42 @@ export interface InvoiceListItem {
   memo: string | null;
   dueDate: string | null;
   payments: Array<{ amount: number }>;
+}
+
+/**
+ * Row in the org-wide invoices list. Same shape as the repo's `InvoiceListRow`,
+ * but `Date` fields arrive over the wire as ISO strings (or null).
+ */
+export type InvoiceListRow = Omit<InvoiceListRowDb, "dueDate" | "sentAt"> & {
+  dueDate: string | null;
+  sentAt: string | null;
+};
+
+export interface InvoiceListParams {
+  page: number;
+  perPage: number;
+  sort: string;
+  dir: SortDirection;
+  q: string;
+  status: InvoiceStatusFilter;
+}
+
+export interface InvoiceListResponse {
+  items: InvoiceListRow[];
+  total: number;
+  facets: Record<string, number>;
+}
+
+/** Status is always sent explicitly, including the "all" default. */
+function invoiceListQueryString(p: InvoiceListParams): string {
+  const sp = new URLSearchParams();
+  sp.set("page", String(p.page));
+  sp.set("perPage", String(p.perPage));
+  sp.set("sort", p.sort);
+  sp.set("dir", p.dir);
+  sp.set("status", p.status);
+  if (p.q) sp.set("q", p.q);
+  return sp.toString();
 }
 
 export interface InvoiceDetail {
@@ -82,6 +126,18 @@ export function useInvoices(estimateId: number) {
   });
 }
 
+export function useInvoiceList(params: InvoiceListParams) {
+  return useQuery({
+    queryKey: ["invoices", "list", params],
+    queryFn: async () =>
+      jsonOrThrow<InvoiceListResponse>(
+        await fetch(`/api/invoices?${invoiceListQueryString(params)}`),
+        "Failed to load invoices"
+      ),
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useInvoice(id: number) {
   return useQuery({
     queryKey: ["invoices", id],
@@ -117,6 +173,7 @@ export function useCreateInvoice(estimateId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
       qc.invalidateQueries({ queryKey: ["estimates", estimateId] });
+      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
     },
   });
 }
@@ -141,6 +198,7 @@ export function useSendInvoice(id: number, estimateId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices", id] });
       qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
+      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
     },
   });
 }
@@ -168,6 +226,7 @@ export function useRecordPayment(id: number, estimateId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices", id] });
       qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
+      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
     },
   });
 }
@@ -183,6 +242,7 @@ export function useVoidInvoice(id: number, estimateId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices", id] });
       qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
+      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
     },
   });
 }

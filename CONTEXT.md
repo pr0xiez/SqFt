@@ -194,6 +194,16 @@ all billing math; editing a sent invoice or paying a void one throws
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
+**Org-wide list.** `GET /api/invoices` (lead+) lists all org invoices —
+`listInvoices` in `lib/repositories/invoiceRepo.ts` — with pagination, search
+(customer name / invoice #), sort, and a `status` filter of
+`all | open | draft | paid | void`, defaulting to **`all`**. The `open`
+group — `sent + viewed + partial` ("sent but not fully paid") — is the
+second pill and is defined once as `OPEN_INVOICE_STATUSES` in
+`components/invoices/filterInvoices.ts`. Each row carries a computed
+`balanceDue` (amount − recorded payments). Facet counts are org-wide and
+ignore the active filter/search.
+
 **Builder UI.** The estimate page's `InvoicesSection`
 (`components/invoices/`) shows a billing summary (Invoiced / Unbilled /
 Outstanding, from `computeEstimateBilling`) plus a compact per-invoice list;
