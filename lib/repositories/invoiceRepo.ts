@@ -3,6 +3,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { computeEstimateBilling } from "@/lib/invoices/compute";
+import { isOverbill } from "@/lib/invoices/createInvoiceForm";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { prisma } from "@/lib/prisma";
 
@@ -130,7 +131,7 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
       estimateTotal,
       estimate.invoices.map(toInvoiceLike)
     );
-    if (amount > billing.unbilled + 0.005) {
+    if (isOverbill(amount, billing.unbilled)) {
       throw new InvoiceOverbillError(billing.unbilled);
     }
 
@@ -242,7 +243,7 @@ export async function updateInvoice(
         .filter((i) => i.id !== id)
         .map(toInvoiceLike);
       const billing = computeEstimateBilling(view.total, others);
-      if (amount > billing.unbilled + 0.005) {
+      if (isOverbill(amount, billing.unbilled)) {
         throw new InvoiceOverbillError(billing.unbilled);
       }
       data.amount = amount;
