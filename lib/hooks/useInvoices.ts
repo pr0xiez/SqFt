@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
 import { readApiError } from "@/lib/api/errors";
+import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
 import type { SortDirection } from "@/lib/sort";
 
 export interface InvoicePayment {
@@ -45,18 +46,14 @@ export interface InvoiceListItem {
   payments: Array<{ amount: number }>;
 }
 
-/** Row in the org-wide invoices list (dates serialized as ISO strings). */
-export interface InvoiceListRow {
-  id: number;
-  invoiceNumber: number;
-  status: string;
-  amount: number;
-  balanceDue: number;
+/**
+ * Row in the org-wide invoices list. Same shape as the repo's `InvoiceListRow`,
+ * but `Date` fields arrive over the wire as ISO strings (or null).
+ */
+export type InvoiceListRow = Omit<InvoiceListRowDb, "dueDate" | "sentAt"> & {
   dueDate: string | null;
   sentAt: string | null;
-  estimateId: number;
-  customerName: string | null;
-}
+};
 
 export interface InvoiceListParams {
   page: number;

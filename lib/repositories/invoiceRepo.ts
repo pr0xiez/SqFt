@@ -10,6 +10,7 @@ import { computeEstimateBilling } from "@/lib/invoices/compute";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
@@ -536,9 +537,8 @@ function invoiceSearchWhere(q: string): Prisma.InvoiceWhereInput | null {
       },
     },
   ];
-  const n = Number(cleaned);
-  if (/^\d+$/.test(cleaned) && Number.isSafeInteger(n) && n <= 2147483647)
-    or.push({ invoiceNumber: n });
+  const n = searchableInt(cleaned);
+  if (n !== null) or.push({ invoiceNumber: n });
   return { OR: or };
 }
 
