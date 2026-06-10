@@ -73,10 +73,7 @@ export interface InvoiceListResponse {
   facets: Record<string, number>;
 }
 
-/**
- * Unlike the estimates query string, status is always sent: the API
- * defaults a missing status to "open", not "all".
- */
+/** Status is always sent explicitly, including the "all" default. */
 function invoiceListQueryString(p: InvoiceListParams): string {
   const sp = new URLSearchParams();
   sp.set("page", String(p.page));

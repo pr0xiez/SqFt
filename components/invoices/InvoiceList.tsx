@@ -20,8 +20,8 @@ import { cycleSort } from "@/lib/sort";
 import { fmtDollar } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
-  { value: "open", label: "Open" },
   { value: "all", label: "All" },
+  { value: "open", label: "Open" },
   { value: "draft", label: "Draft" },
   { value: "paid", label: "Paid" },
   { value: "void", label: "Void" },
@@ -63,7 +63,7 @@ function fmtDate(iso: string | null): string {
 export function InvoiceListView() {
   const router = useRouter();
   const [query, setQueryState] = useState<string>("");
-  const [status, setStatusState] = useState<InvoiceStatusFilter>("open");
+  const [status, setStatusState] = useState<InvoiceStatusFilter>("all");
 
   const {
     sort,

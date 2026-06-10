@@ -57,7 +57,7 @@ describe("GET /api/invoices", () => {
     expect(res.status).toBe(401);
   });
 
-  it("defaults to status=open and sentAt desc", async () => {
+  it("defaults to status=all and sentAt desc", async () => {
     const res = await GET(
       makeRequest("GET", "http://x/api/invoices"),
       noParams
@@ -67,7 +67,7 @@ describe("GET /api/invoices", () => {
       "org1",
       expect.objectContaining({
         page: 1,
-        status: "open",
+        status: "all",
         sort: { key: "sentAt", direction: "desc" },
         q: "",
       })
@@ -125,14 +125,14 @@ describe("GET /api/invoices", () => {
     );
   });
 
-  it("falls back to status=open for an unknown status value", async () => {
+  it("falls back to status=all for an unknown status value", async () => {
     await GET(
       makeRequest("GET", "http://x/api/invoices?status=bogus"),
       noParams
     );
     expect(mockList).toHaveBeenCalledWith(
       "org1",
-      expect.objectContaining({ status: "open" })
+      expect.objectContaining({ status: "all" })
     );
   });
 });

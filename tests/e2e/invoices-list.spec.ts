@@ -62,16 +62,37 @@ test.describe
       await ctx.close();
     });
 
-    test("Invoices nav tab opens the list defaulting to Open", async () => {
+    test("Invoices nav tab opens the list defaulting to All", async () => {
       const page = await ctx.newPage();
       await page.goto("/estimates");
       await page.getByRole("link", { name: "Invoices" }).first().click();
       await expect(page).toHaveURL(/\/invoices$/);
 
-      // the just-sent invoice sorts first (sentAt desc) under the default
-      // Open filter…
+      // Default is the All filter: the just-sent invoice sorts first (sentAt
+      // desc)…
       await expect(invoiceRow(page, sentInvoiceNumber).first()).toBeVisible();
-      // …and the draft one is excluded entirely
+      // …and the draft is included too. Search by number so the nulls-last
+      // draft is on page 1 even with invoices accumulated from earlier runs.
+      await page
+        .locator('input[placeholder^="Search invoice"]')
+        .fill(`#${draftInvoiceNumber}`);
+      await expect(invoiceRow(page, draftInvoiceNumber).first()).toBeVisible();
+      await page.close();
+    });
+
+    test("Open pill excludes drafts", async () => {
+      const page = await ctx.newPage();
+      await page.goto("/invoices");
+      // Exact match: the dev-tools button "Open Next.js Dev Tools" also
+      // starts with "Open".
+      await page.getByRole("button", { name: "Open", exact: true }).click();
+
+      const search = page.locator('input[placeholder^="Search invoice"]');
+      // The sent invoice is open → visible under the Open filter.
+      await search.fill(`#${sentInvoiceNumber}`);
+      await expect(invoiceRow(page, sentInvoiceNumber).first()).toBeVisible();
+      // The draft is not open → excluded even when searched directly.
+      await search.fill(`#${draftInvoiceNumber}`);
       await expect(invoiceRow(page, draftInvoiceNumber)).toHaveCount(0);
       await page.close();
     });

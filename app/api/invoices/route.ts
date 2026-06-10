@@ -29,7 +29,7 @@ export const GET = apiRoute({ minRole: "lead" }, async ({ req, orgId }) => {
     statusParam &&
     (INVOICE_STATUS_FILTERS as readonly string[]).includes(statusParam)
       ? (statusParam as InvoiceStatusFilter)
-      : "open";
+      : "all";
 
   return listInvoices(orgId, { page, perPage, sort, q, status });
 });

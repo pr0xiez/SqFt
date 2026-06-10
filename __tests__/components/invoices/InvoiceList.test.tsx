@@ -72,13 +72,20 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("InvoiceListView", () => {
-  it("defaults to the open filter and renders rows with balance due", async () => {
+  it("defaults to the all filter and renders rows with balance due", async () => {
     render(wrap(<InvoiceListView />));
     await waitFor(() => expect(screen.getByText("#9001")).toBeDefined());
-    expect(lastUrl).toContain("status=open");
+    expect(lastUrl).toContain("status=all");
     expect(screen.getByText("Dana Floors")).toBeDefined();
     // balanceDue 3000 rendered via fmtDollar
     expect(screen.getAllByText(fmtDollar(3000)).length).toBeGreaterThan(0);
+  });
+
+  it("switches to the open filter via the pill", async () => {
+    render(wrap(<InvoiceListView />));
+    await waitFor(() => expect(screen.getByText("#9001")).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: /Open/ }));
+    await waitFor(() => expect(lastUrl).toContain("status=open"));
   });
 
   it("switches the status filter via pills", async () => {
@@ -289,7 +296,7 @@ describe("InvoiceListView", () => {
     vi.useRealTimers();
   });
 
-  it("shows the open-specific empty state", async () => {
+  it("shows the open-specific empty state when the Open pill is active", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -306,6 +313,8 @@ describe("InvoiceListView", () => {
       )
     );
     render(wrap(<InvoiceListView />));
+    // Default is "all"; the open-specific copy only applies under the Open pill.
+    fireEvent.click(screen.getByRole("button", { name: /Open/ }));
     await waitFor(() =>
       expect(screen.getByText(/No open invoices/)).toBeDefined()
     );
