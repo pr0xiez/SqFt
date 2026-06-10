@@ -18,6 +18,15 @@ function wrap(ui: React.ReactNode) {
   return <QueryClientProvider client={qc}>{ui}</QueryClientProvider>;
 }
 
+/** Format a date ISO string the same way the component does. */
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 const listBody = {
   items: [
     {
@@ -80,7 +89,12 @@ describe("InvoiceListView", () => {
   });
 
   it("marks overdue partial rows with accent color but not paid rows", async () => {
+    // Use a past date that is unambiguously overdue in any timezone.
+    // Derive the expected rendered text the same way the component does so the
+    // assertion is timezone-safe.
     const pastDate = "2020-01-01T00:00:00.000Z";
+    const expectedDateText = fmtDate(pastDate);
+
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -129,11 +143,10 @@ describe("InvoiceListView", () => {
     const { container } = render(wrap(<InvoiceListView />));
     await waitFor(() => expect(screen.getByText("#1001")).toBeDefined());
 
-    // fmtDate("2020-01-01T00:00:00.000Z") renders as "Dec 31, 2019" in local time
-    // (UTC midnight → previous day in most locales). Query all due-date divs by text.
+    // Query all due-date divs by the dynamically computed text.
     const allDivs = Array.from(container.querySelectorAll("div"));
     const dueDateCells = allDivs.filter(
-      (el) => el.textContent?.trim() === "Dec 31, 2019"
+      (el) => el.textContent?.trim() === expectedDateText
     );
     expect(dueDateCells.length).toBeGreaterThan(0);
 
@@ -150,6 +163,130 @@ describe("InvoiceListView", () => {
         el.className.includes("text-[var(--muted)]")
     );
     expect(paidDueCell).toBeDefined();
+  });
+
+  it("does NOT mark as overdue an invoice due today (inclusive due-day boundary)", async () => {
+    // Fix 'now' to local noon on 2026-06-15.
+    const fakeNow = new Date(2026, 5, 15, 12, 0, 0);
+    // dueDate = start of today in local time, expressed as ISO (may be any UTC offset).
+    const dueTodayIso = new Date(2026, 5, 15).toISOString();
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(fakeNow);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 20,
+                  invoiceNumber: 2001,
+                  status: "partial",
+                  amount: 3000,
+                  balanceDue: 1500,
+                  dueDate: dueTodayIso,
+                  sentAt: "2026-06-01T00:00:00.000Z",
+                  estimateId: 3,
+                  customerName: "Today Corp",
+                },
+              ],
+              total: 1,
+              facets: {
+                all: 1,
+                open: 1,
+                draft: 0,
+                sent: 0,
+                viewed: 0,
+                partial: 1,
+                paid: 0,
+                void: 0,
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+      )
+    );
+
+    const { container } = render(wrap(<InvoiceListView />));
+    await waitFor(() => expect(screen.getByText("#2001")).toBeDefined());
+
+    const expectedDateText = fmtDate(dueTodayIso);
+    const allDivs = Array.from(container.querySelectorAll("div"));
+    const dueDateCell = allDivs.find(
+      (el) => el.textContent?.trim() === expectedDateText
+    );
+    expect(dueDateCell).toBeDefined();
+
+    // Due today → NOT overdue: no accent class, no title="Overdue"
+    expect(dueDateCell?.className.includes("text-[var(--accent)]")).toBe(false);
+    expect(dueDateCell?.getAttribute("title")).not.toBe("Overdue");
+
+    vi.useRealTimers();
+  });
+
+  it("marks as overdue an invoice due yesterday (inclusive due-day boundary)", async () => {
+    // Fix 'now' to local noon on 2026-06-15.
+    const fakeNow = new Date(2026, 5, 15, 12, 0, 0);
+    // dueDate = start of yesterday in local time.
+    const dueYesterdayIso = new Date(2026, 5, 14).toISOString();
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(fakeNow);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 21,
+                  invoiceNumber: 2002,
+                  status: "partial",
+                  amount: 3000,
+                  balanceDue: 1500,
+                  dueDate: dueYesterdayIso,
+                  sentAt: "2026-06-01T00:00:00.000Z",
+                  estimateId: 4,
+                  customerName: "Yesterday Corp",
+                },
+              ],
+              total: 1,
+              facets: {
+                all: 1,
+                open: 1,
+                draft: 0,
+                sent: 0,
+                viewed: 0,
+                partial: 1,
+                paid: 0,
+                void: 0,
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+      )
+    );
+
+    const { container } = render(wrap(<InvoiceListView />));
+    await waitFor(() => expect(screen.getByText("#2002")).toBeDefined());
+
+    const expectedDateText = fmtDate(dueYesterdayIso);
+    const allDivs = Array.from(container.querySelectorAll("div"));
+    const dueDateCell = allDivs.find(
+      (el) => el.textContent?.trim() === expectedDateText
+    );
+    expect(dueDateCell).toBeDefined();
+
+    // Due yesterday → overdue: accent class present, title="Overdue"
+    expect(dueDateCell?.className.includes("text-[var(--accent)]")).toBe(true);
+    expect(dueDateCell?.getAttribute("title")).toBe("Overdue");
+
+    vi.useRealTimers();
   });
 
   it("shows the open-specific empty state", async () => {
