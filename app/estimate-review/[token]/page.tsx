@@ -44,7 +44,6 @@ export default async function PublicEstimatePage({ params }: Props) {
     siteMeasure: {
       id: estimate.siteMeasure.id,
       siteMeasureNumber: estimate.siteMeasure.siteMeasureNumber,
-      title: estimate.siteMeasure.title,
     },
     customer: estimate.siteMeasure.location.customer
       ? {

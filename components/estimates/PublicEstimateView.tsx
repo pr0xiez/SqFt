@@ -21,7 +21,7 @@ export interface PublicEstimate {
   convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
-  siteMeasure: { id: number; siteMeasureNumber: number | null; title: string };
+  siteMeasure: { id: number; siteMeasureNumber: number | null };
   customer: {
     name: string;
     address: string | null;
@@ -83,10 +83,7 @@ export function PublicEstimateView({ estimate, token }: Props) {
               date={estimate.date}
               org={estimate.org}
             />
-            <PartiesBlock
-              customer={estimate.customer}
-              projectTitle={estimate.siteMeasure.title}
-            />
+            <PartiesBlock customer={estimate.customer} />
             <RoomsList rooms={rooms} />
             <LineItemsTable
               lineItems={estimate.lineItems}

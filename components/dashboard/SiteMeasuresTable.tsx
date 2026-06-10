@@ -111,7 +111,6 @@ export function SiteMeasuresTable({ siteMeasures }: Props) {
                   {est.location?.address && (
                     <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
                       {est.location.address.split(",")[0]}
-                      {est.title ? ` · ${est.title}` : ""}
                     </div>
                   )}
                 </td>

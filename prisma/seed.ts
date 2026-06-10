@@ -1062,7 +1062,6 @@ async function main() {
       orgId: org.id,
       locationId: locations[0].id,
       siteMeasureNumber: 1046,
-      title: "Basement",
       items: {
         create: [
           {
@@ -1085,7 +1084,6 @@ async function main() {
       orgId: org.id,
       locationId: hendersonRental.id,
       siteMeasureNumber: 1047,
-      title: "Rental refresh",
       items: {
         create: [
           {
@@ -1338,7 +1336,6 @@ async function main() {
         orgId: org.id,
         locationId: location.id,
         siteMeasureNumber: nextSiteMeasureNumber++,
-        title: `Bulk site measure ${seq}`,
         items:
           bucket === "empty"
             ? undefined

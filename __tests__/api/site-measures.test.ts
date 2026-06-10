@@ -47,7 +47,7 @@ beforeEach(() => {
 describe("GET /api/site-measures", () => {
   it("passes parsed params and returns the paginated envelope", async () => {
     mockList.mockResolvedValue({
-      items: [{ id: 1, title: "Job A" }],
+      items: [{ id: 1 }],
       total: 1,
       facets: { all: 1, empty: 0, measured: 0, estimated: 1 },
       // biome-ignore lint/suspicious/noExplicitAny: test stub envelope
@@ -96,7 +96,6 @@ describe("POST /api/site-measures", () => {
     const res = await POST(
       makeRequest("POST", "http://x/api/site-measures", {
         locationId: 1,
-        title: "New",
       }),
       params({})
     );
@@ -111,7 +110,7 @@ describe("POST /api/site-measures", () => {
 describe("GET /api/site-measures/[id]", () => {
   it("calls getSiteMeasure with parsed id and org", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockGet.mockResolvedValue({ id: 1, title: "Job A" } as any);
+    mockGet.mockResolvedValue({ id: 1 } as any);
     const res = await GET(
       makeRequest("GET", "http://x/api/site-measures/1"),
       params({ id: "1" })
@@ -131,12 +130,12 @@ describe("GET /api/site-measures/[id]", () => {
 });
 
 describe("PATCH /api/site-measures/[id]", () => {
-  it("forwards title updates to saveSiteMeasure", async () => {
+  it("forwards locationId updates to saveSiteMeasure", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockSave.mockResolvedValue({ id: 5, title: "Updated" } as any);
+    mockSave.mockResolvedValue({ id: 5 } as any);
     const res = await PATCH(
       makeRequest("PATCH", "http://x/api/site-measures/5", {
-        title: "Updated",
+        locationId: 3,
       }),
       params({ id: "5" })
     );
@@ -144,7 +143,7 @@ describe("PATCH /api/site-measures/[id]", () => {
     expect(mockSave).toHaveBeenCalledWith(
       5,
       "org1",
-      expect.objectContaining({ title: "Updated" })
+      expect.objectContaining({ locationId: 3 })
     );
   });
 
@@ -172,7 +171,7 @@ describe("PATCH /api/site-measures/[id]", () => {
     mockSave.mockResolvedValue({ id: 7 } as any);
     await PATCH(
       makeRequest("PATCH", "http://x/api/site-measures/7", {
-        title: "Title only",
+        locationId: 3,
       }),
       params({ id: "7" })
     );
@@ -196,7 +195,7 @@ describe("PATCH /api/site-measures/[id]", () => {
   it("returns NOT_FOUND when saveSiteMeasure returns null", async () => {
     mockSave.mockResolvedValue(null);
     const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/site-measures/99", { title: "Gone" }),
+      makeRequest("PATCH", "http://x/api/site-measures/99", { locationId: 3 }),
       params({ id: "99" })
     );
     expect(res.status).toBe(404);

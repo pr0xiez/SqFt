@@ -12,7 +12,6 @@ interface EstimateOption {
   id: number;
   estimateNumber: number;
   siteMeasure: {
-    title: string;
     location?: { customer?: { id: number } | null } | null | undefined;
   };
 }
@@ -232,7 +231,6 @@ export function EventFormPanel({
                   {customerEstimates.map((q) => (
                     <option key={q.id} value={q.id}>
                       Estimate #{q.estimateNumber}
-                      {q.siteMeasure.title ? ` — ${q.siteMeasure.title}` : ""}
                     </option>
                   ))}
                 </>

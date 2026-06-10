@@ -171,12 +171,10 @@ export function SiteMeasureListView() {
                 </div>
                 <div className={cn("px-3.5", rowPad)}>
                   <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                    {est.title || est.location?.customer?.name || "—"}
+                    {est.location?.customer?.name || "—"}
                   </div>
                   <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
-                    {est.title
-                      ? (est.location?.customer?.name ?? "")
-                      : (est.location?.address ?? "")}
+                    {est.location?.address ?? ""}
                   </div>
                 </div>
                 <div

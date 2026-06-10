@@ -99,7 +99,6 @@ const ESTIMATE_LIST_INCLUDE = {
     select: {
       id: true,
       siteMeasureNumber: true,
-      title: true,
       location: {
         select: {
           id: true,
@@ -125,7 +124,6 @@ export type EstimateWithSiteMeasureSummaryNarrow = Prisma.EstimateGetPayload<{
       select: {
         id: true;
         siteMeasureNumber: true;
-        title: true;
         location: {
           select: {
             id: true;
@@ -264,7 +262,6 @@ export async function listEstimatesForSiteMeasure(
         select: {
           id: true,
           siteMeasureNumber: true,
-          title: true,
           location: {
             select: {
               id: true,

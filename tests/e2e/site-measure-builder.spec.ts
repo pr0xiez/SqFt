@@ -4,7 +4,7 @@ import { createCustomerAndEstimate, reloadFresh } from "./fixtures/seed";
 
 // ── 3.1 SiteMeasure Builder ──────────────────────────────────────────────────────
 //
-// Coverage for the heart of the app: editing rooms, title, and rooms on
+// Coverage for the heart of the app: editing rooms on
 // `/site-measures/[id]`. Two layers:
 //   • Direct PATCH /api/site-measures/[id] tests pin down the wire contract — they
 //     are the regression for the "every save returns 400" bug where the zod
@@ -116,19 +116,6 @@ test.describe
       expect(patch.status()).toBe(200);
     });
 
-    test("3.1.4 PATCH persists title", async () => {
-      const res = await ctx.request.patch(
-        `/api/site-measures/${siteMeasureId}`,
-        {
-          data: { title: "Henderson Living Room" },
-        }
-      );
-      expect(res.status()).toBe(200);
-      const get = await ctx.request.get(`/api/site-measures/${siteMeasureId}`);
-      const body = await get.json();
-      expect(body.title).toBe("Henderson Living Room");
-    });
-
     test("3.1.5 PATCH rejects items with missing id (zod still enforces shape)", async () => {
       const res = await ctx.request.patch(
         `/api/site-measures/${siteMeasureId}`,
@@ -148,7 +135,7 @@ test.describe
       const res = await otherCtx.request.patch(
         `/api/site-measures/${siteMeasureId}`,
         {
-          data: { title: "Hacked" },
+          data: { items: [] },
         }
       );
       expect(res.status()).toBe(404);
@@ -160,7 +147,7 @@ test.describe
       const res = await anonCtx.request.patch(
         `/api/site-measures/${siteMeasureId}`,
         {
-          data: { title: "Anon" },
+          data: { items: [] },
         }
       );
       expect(res.status()).toBe(401);
@@ -365,48 +352,5 @@ test.describe
       await expect(
         page.getByRole("heading", { name: /^Estimate #/ })
       ).toBeVisible();
-    });
-  });
-
-// ── 3.3 SiteMeasure Builder UI — title ──────────────────────────────────────────
-
-test.describe
-  .serial("3.3 SiteMeasure Builder UI — title", () => {
-    let ctx: BrowserContext;
-    let page: Page;
-    let siteMeasureId: number;
-
-    test.beforeAll(async ({ browser }) => {
-      ctx = await browser.newContext();
-      page = await loginAsWorkerOrg(browser, ctx);
-      const ids = await createCustomerAndEstimate(ctx.request);
-      siteMeasureId = ids.siteMeasureId;
-    });
-
-    test.afterAll(async () => {
-      await ctx.close();
-    });
-
-    test("3.3.1 editing the title saves and persists", async () => {
-      await page.goto(`/site-measures/${siteMeasureId}`);
-      // Title is rendered as a button until clicked; clicking opens an input.
-      await page
-        .getByRole("button", { name: /untitled site measure/i })
-        .click();
-      const titleInput = page.getByPlaceholder("Untitled site measure");
-      await titleInput.fill("Henderson — Whole house");
-
-      await Promise.all([
-        page.waitForResponse(
-          (r) =>
-            r.url().endsWith(`/api/site-measures/${siteMeasureId}`) &&
-            r.request().method() === "PATCH" &&
-            r.status() === 200
-        ),
-        titleInput.blur(),
-      ]);
-
-      await reloadFresh(page);
-      await expect(page.getByText("Henderson — Whole house")).toBeVisible();
     });
   });

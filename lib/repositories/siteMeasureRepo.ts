@@ -45,7 +45,6 @@ type SiteMeasureItemInput = Omit<
 };
 
 export type SiteMeasurePatch = {
-  title?: string;
   locationId?: number;
   items?: SiteMeasureItemInput[];
 };

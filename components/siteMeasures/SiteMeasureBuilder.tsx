@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 import { RoomSection } from "@/components/siteMeasures/RoomSection";
 import { SiteMeasureEstimatesCard } from "@/components/siteMeasures/SiteMeasureEstimatesCard";
 import { Button } from "@/components/ui/Button";
@@ -23,24 +22,6 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
   const updateSiteMeasure = useUpdateSiteMeasure(siteMeasureId);
   const createEstimate = useCreateEstimate();
   const { showToast } = useToast();
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
-  const titleInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editingTitle) titleInputRef.current?.focus();
-  }, [editingTitle]);
-
-  async function saveTitle() {
-    const trimmed = titleDraft.trim();
-    setEditingTitle(false);
-    if (trimmed === (siteMeasure?.title ?? "")) return;
-    try {
-      await updateSiteMeasure.mutateAsync({ title: trimmed });
-    } catch {
-      showToast("Failed to save title");
-    }
-  }
 
   async function handleCreateEstimate() {
     try {
@@ -75,49 +56,16 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
         <div>
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1.5">
-            Site Measure #{siteMeasure.siteMeasureNumber ?? siteMeasure.id} ·{" "}
+          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
+            Site Measure #{siteMeasure.siteMeasureNumber ?? siteMeasure.id}
+          </h1>
+          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
             {new Date(siteMeasure.date).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
-            })}
-          </div>
-          {editingTitle ? (
-            <input
-              ref={titleInputRef}
-              type="text"
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") titleInputRef.current?.blur();
-                if (e.key === "Escape") {
-                  setEditingTitle(false);
-                }
-              }}
-              className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em] bg-transparent border-b border-[var(--ink-2)] outline-none w-full max-w-[480px]"
-              placeholder="Untitled site measure"
-            />
-          ) : (
-            <button
-              type="button"
-              className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em] cursor-text hover:opacity-70 transition-opacity text-left"
-              onClick={() => {
-                setTitleDraft(siteMeasure.title ?? "");
-                setEditingTitle(true);
-              }}
-              title="Click to edit title"
-            >
-              {siteMeasure.title || (
-                <span className="text-[var(--muted)]">
-                  Untitled site measure
-                </span>
-              )}
-            </button>
-          )}
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
-            {rooms.length} room{rooms.length === 1 ? "" : "s"} ·{" "}
+            })}{" "}
+            · {rooms.length} room{rooms.length === 1 ? "" : "s"} ·{" "}
             {Math.round(totalArea)} sqft
           </div>
         </div>
