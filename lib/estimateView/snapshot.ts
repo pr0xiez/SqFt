@@ -1,5 +1,5 @@
 import { computeEstimateView } from "./compute";
-import type { EstimateInput, LineItemCalc, RoomItem } from "./types";
+import type { EstimateInput, LineItemCalc, LineView, RoomItem } from "./types";
 
 /** Side-channel metadata attached to a snapshot but not part of the math.
  *  `customer.address` is sourced from the estimate's Location (passed in by
@@ -49,6 +49,14 @@ export function snapshotEstimate(
   meta: EstimateSnapshotMeta
 ): EstimateSnapshot {
   const view = computeEstimateView(input);
+  // Re-pair each line item's computed math to its metadata BY ID, not by array
+  // position. computeEstimateView is the single source of truth and its lines
+  // already carry `id`; keying by id makes any future reorder/filter/drop in
+  // the view a loud failure here rather than silently baking wrong money onto
+  // the wrong line of an approved, customer-facing artifact.
+  const viewById = new Map<LineView["id"], LineView>(
+    view.lines.map((l) => [l.id, l])
+  );
 
   return {
     estimateNumber: meta.estimateNumber,
@@ -68,20 +76,28 @@ export function snapshotEstimate(
       note: i.note ?? null,
       text: i.text ?? null,
     })),
-    lineItems: input.lineItems.map((li: LineItemCalc, idx: number) => ({
-      id: li.id,
-      sortOrder: li.sortOrder ?? 0,
-      name: li.name,
-      description: li.description ?? null,
-      rate: li.rate,
-      qtyMode: li.qtyMode,
-      qty: li.qty ?? null,
-      wastePct: li.wastePct,
-      unitLabel: li.unitLabel,
-      linkedRoomIds: li.linkedRoomIds,
-      effectiveQty: view.lines[idx]?.effectiveQty ?? null,
-      subtotal: view.lines[idx]?.subtotal ?? null,
-    })),
+    lineItems: input.lineItems.map((li: LineItemCalc) => {
+      const computed = viewById.get(li.id);
+      if (computed == null) {
+        throw new Error(
+          `snapshotEstimate: no computed view line for line item id ${li.id}`
+        );
+      }
+      return {
+        id: li.id,
+        sortOrder: li.sortOrder ?? 0,
+        name: li.name,
+        description: li.description ?? null,
+        rate: li.rate,
+        qtyMode: li.qtyMode,
+        qty: li.qty ?? null,
+        wastePct: li.wastePct,
+        unitLabel: li.unitLabel,
+        linkedRoomIds: li.linkedRoomIds,
+        effectiveQty: computed.effectiveQty,
+        subtotal: computed.subtotal,
+      };
+    }),
     totals: {
       subtotal: view.subtotal,
       markup: view.markup,

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EstimateInput } from "@/lib/estimateView";
+import * as compute from "@/lib/estimateView/compute";
 import {
   type EstimateSnapshotMeta,
   snapshotEstimate,
@@ -103,5 +104,65 @@ describe("snapshotEstimate", () => {
       effectiveQty: 545,
       subtotal: 545 * 4.85,
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("pairs each line item's math to its computed view line BY ID (two lines, distinct rate/qty)", () => {
+    const twoLine: EstimateInput = {
+      ...input,
+      lineItems: [
+        {
+          id: 10,
+          sortOrder: 0,
+          name: "LVP",
+          rate: 4.85,
+          qtyMode: "manual",
+          qty: 100,
+          wastePct: 0,
+          unitLabel: "ft²",
+          linkedRoomIds: [],
+        },
+        {
+          id: 20,
+          sortOrder: 1,
+          name: "Trim",
+          rate: 2,
+          qtyMode: "manual",
+          qty: 50,
+          wastePct: 0,
+          unitLabel: "ft",
+          linkedRoomIds: [],
+        },
+      ],
+    };
+    const snap = snapshotEstimate(twoLine, meta);
+    const byId = new Map(snap.lineItems.map((li) => [li.id, li]));
+    expect(byId.get(10)).toMatchObject({
+      effectiveQty: 100,
+      subtotal: 100 * 4.85,
+    });
+    expect(byId.get(20)).toMatchObject({ effectiveQty: 50, subtotal: 100 });
+  });
+
+  it("throws loudly if the computed view drops a line item (no silent null mispairing)", () => {
+    // Stub computeEstimateView to return a view that omits the line item's id,
+    // simulating a future reorder/filter/drop regression. The snapshot must
+    // fail loudly rather than bake a null onto an approved artifact.
+    vi.spyOn(compute, "computeEstimateView").mockReturnValue({
+      lines: [], // dropped the line for id 1
+      subtotal: 0,
+      markup: 0,
+      beforeFee: 0,
+      convenienceFee: 0,
+      total: 0,
+      deposit: 0,
+      hasUnresolvedLines: false,
+    });
+    expect(() => snapshotEstimate(input, meta)).toThrow(
+      /no computed view line for line item id 1/
+    );
   });
 });

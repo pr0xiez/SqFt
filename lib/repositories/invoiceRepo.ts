@@ -20,13 +20,14 @@ type HydratedEstimate = Parameters<typeof fromPrismaEstimate>[0];
 /** Build the ProrationSource (estimate view + per-line metadata) from a hydrated estimate. */
 export function buildInvoiceProrationSource(
   estimate: HydratedEstimate & {
-    lineItems: Array<{ name: string; description: string | null }>;
+    lineItems: Array<{ id: number; name: string; description: string | null }>;
   }
 ): ProrationSource {
   const view = computeEstimateView(fromPrismaEstimate(estimate));
   return {
     view,
     lineMeta: estimate.lineItems.map((li) => ({
+      id: li.id,
       name: li.name,
       description: li.description ?? null,
     })),
