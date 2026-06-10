@@ -73,6 +73,15 @@ Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
 `lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).
 
+`computeEstimateView` lines carry their `id` (`LineView.id`), and consumers
+that re-attach side-channel metadata to computed math **join by id, never by
+array position** — so a future reorder/filter/drop in the view is a loud
+failure, not silently mispaired money. The approval snapshot
+(`snapshotEstimate`, `lib/estimateView/snapshot.ts`) throws if a line item's id
+is absent from the computed view; invoice proration (`prorateInvoice`,
+`lib/invoices/compute.ts`) keys `lineMeta` by id (`ProrationSource.lineMeta`
+carries `id`, set in `buildInvoiceProrationSource`).
+
 ## Estimate Draft
 
 The editable, not-yet-reconciled working copy of an estimate's inputs while a

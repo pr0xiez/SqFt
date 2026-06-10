@@ -1,4 +1,4 @@
-import type { EstimateView } from "@/lib/estimateView/types";
+import type { EstimateView, LineView } from "@/lib/estimateView/types";
 
 /** One invoice's billable identity for math purposes. */
 export interface InvoiceLike {
@@ -39,10 +39,17 @@ export interface ProratedBreakdown {
   total: number;
 }
 
-/** Estimate-view + the source line metadata proration needs. */
+/** Estimate-view + the source line metadata proration needs.
+ *  `lineMeta` carries each line's `id` so proration can re-pair metadata to the
+ *  computed `view.lines` by id rather than by array position — see
+ *  `prorateInvoice`. */
 export interface ProrationSource {
   view: EstimateView;
-  lineMeta: Array<{ name: string; description: string | null }>;
+  lineMeta: Array<{
+    id: LineView["id"];
+    name: string;
+    description: string | null;
+  }>;
   convenienceFeeLabel?: string;
 }
 

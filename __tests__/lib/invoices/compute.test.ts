@@ -43,8 +43,8 @@ describe("prorateInvoice", () => {
       hasUnresolvedLines: false,
     },
     lineMeta: [
-      { name: "Carpet Tear Out", description: "Remove carpet" },
-      { name: "RED OAK", description: "Install oak" },
+      { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
+      { id: 2, name: "RED OAK", description: "Install oak" },
     ],
   };
 
@@ -140,10 +140,10 @@ describe("prorateInvoice", () => {
         hasUnresolvedLines: false,
       },
       lineMeta: [
-        { name: "Tear out", description: null },
-        { name: "Underlay", description: null },
-        { name: "RED OAK", description: null },
-        { name: "Free haul-away", description: null },
+        { id: 1, name: "Tear out", description: null },
+        { id: 2, name: "Underlay", description: null },
+        { id: 3, name: "RED OAK", description: null },
+        { id: 4, name: "Free haul-away", description: null },
       ],
     };
     const out = prorateInvoice(freeSource, 50);
@@ -152,6 +152,37 @@ describe("prorateInvoice", () => {
     const sum = out.lines.reduce((s, l) => s + l.amount, 0);
     expect(Math.round(sum * 100) / 100).toBe(50);
     expect(out.total).toBe(50);
+  });
+
+  it("matches metadata to each computed line BY ID, not by array position", () => {
+    // lineMeta is in a DIFFERENT order than view.lines (id 2 first, id 1
+    // second). A positional join would mislabel the rows; keying by id keeps
+    // each row's name/description attached to the right computed amount.
+    const diverged: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: 1, subtotal: 307 },
+          { id: 2, effectiveQty: 1, subtotal: 3380 },
+        ],
+        subtotal: 3687,
+        markup: 0,
+        beforeFee: 3687,
+        convenienceFee: 0,
+        total: 3687,
+        deposit: 0,
+        hasUnresolvedLines: false,
+      },
+      lineMeta: [
+        { id: 2, name: "RED OAK", description: "Install oak" },
+        { id: 1, name: "Carpet Tear Out", description: "Remove carpet" },
+      ],
+    };
+    const out = prorateInvoice(diverged, 3687); // ratio 1
+    // Row order follows view.lines (id 1 then id 2); names track by id.
+    expect(out.lines).toEqual([
+      { name: "Carpet Tear Out", description: "Remove carpet", amount: 307 },
+      { name: "RED OAK", description: "Install oak", amount: 3380 },
+    ]);
   });
 
   it("omits UNRESOLVED (null) lines from the breakdown instead of billing them as $0", () => {
@@ -174,9 +205,9 @@ describe("prorateInvoice", () => {
         hasUnresolvedLines: true,
       },
       lineMeta: [
-        { name: "Carpet tear-out", description: null },
-        { name: "Stair nosing", description: null },
-        { name: "Red oak install", description: null },
+        { id: 1, name: "Carpet tear-out", description: null },
+        { id: 2, name: "Stair nosing", description: null },
+        { id: 3, name: "Red oak install", description: null },
       ],
     };
     const out = prorateInvoice(withUnresolved, 4000);
