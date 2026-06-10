@@ -243,8 +243,14 @@ export function InvoiceListView() {
                       {row.customerName ?? "—"}
                     </div>
                     <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap md:hidden">
-                      #{row.invoiceNumber} · {fmtDollar(row.balanceDue)} due ·{" "}
-                      <span className={pillColor}>{row.status}</span>
+                      #{row.invoiceNumber} ·{" "}
+                      <span
+                        className={overdue ? "text-[var(--accent)]" : undefined}
+                        title={overdue ? "Overdue" : undefined}
+                      >
+                        {fmtDollar(row.balanceDue)} due
+                      </span>{" "}
+                      · <span className={pillColor}>{row.status}</span>
                     </div>
                   </div>
                   <div className={cn("px-3.5 hidden md:block", rowPad)}>
