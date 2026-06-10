@@ -2,7 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
+import {
+  type InvoiceStatusFilter,
+  OPEN_INVOICE_STATUSES,
+} from "@/components/invoices/filterInvoices";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -33,16 +36,19 @@ const STATUS_PILL_COLOR: Record<string, string> = {
   void: "text-[var(--accent)]",
 };
 
-const OPEN_SET = new Set(["sent", "viewed", "partial"]);
+const OPEN_SET = new Set<string>(OPEN_INVOICE_STATUSES);
 
 type SortKey = "number" | "customer" | "amount" | "dueDate" | "sentAt";
 
 function isOverdue(row: InvoiceListRow): boolean {
-  return (
-    OPEN_SET.has(row.status) &&
-    row.dueDate !== null &&
-    new Date(row.dueDate).getTime() < Date.now()
+  if (!OPEN_SET.has(row.status) || row.dueDate === null) return false;
+  const due = new Date(row.dueDate);
+  const endOfDueDay = new Date(
+    due.getFullYear(),
+    due.getMonth(),
+    due.getDate() + 1
   );
+  return Date.now() >= endOfDueDay.getTime();
 }
 
 function fmtDate(iso: string | null): string {
@@ -268,6 +274,7 @@ export function InvoiceListView() {
                       overdue ? "text-[var(--accent)]" : "text-[var(--muted)]",
                       rowPad
                     )}
+                    title={overdue ? "Overdue" : undefined}
                   >
                     {fmtDate(row.dueDate)}
                   </div>
