@@ -136,6 +136,7 @@ model SiteMeasure {
   items     SiteMeasureItem[]
   estimates Estimate[]
 
+  @@unique([orgId, siteMeasureNumber])
   @@index([orgId])
 }
 
@@ -199,6 +200,7 @@ model Estimate {
   revisedFrom   Estimate?  @relation("EstimateRevisions", fields: [revisedFromId], references: [id], onDelete: SetNull)
   revisedBy     Estimate[] @relation("EstimateRevisions")
 
+  @@unique([orgId, estimateNumber])
   @@index([orgId])
 }
 

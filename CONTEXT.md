@@ -41,6 +41,21 @@ resolver in `lib/events/serialize.ts`) and `customer.phone`, so the agenda
 card and job-card detail sheet need no extra fetch. Agenda sectioning
 (My/Team × Day/Week) is pure logic in `lib/schedule/agenda.ts`.
 
+## Document Numbers
+
+Site measures, estimates, and invoices each carry a per-org sequential number
+(`siteMeasureNumber`, `estimateNumber`, `invoiceNumber`) allocated from a
+counter on `Organization` (`nextSiteMeasureNumber` / `nextEstimateNumber` /
+`nextInvoiceNumber`). The create paths in the repos (`siteMeasureRepo` /
+`estimateRepo` / `invoiceRepo`) reserve a number with an **atomic
+increment-returning update** inside the create transaction
+(`organization.update({ data: { nextXNumber: { increment: 1 } }, select: { … } })`,
+then `reserved = returned − 1`). This locks the org row so concurrent creates
+can't allocate the same number — a plain `findUnique` read does **not** lock
+under READ COMMITTED. The numbers are guarded by `@@unique([orgId, *Number])`
+on each model (`siteMeasureNumber` is nullable, so multiple NULLs are allowed).
+Do not reintroduce a read-then-write allocation.
+
 ## Location
 
 A physical site address belonging to a customer (`address`, optional `label`

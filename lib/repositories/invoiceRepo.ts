@@ -142,20 +142,21 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
       throw new InvoiceOverbillError(billing.unbilled);
     }
 
-    const org = await tx.organization.findUniqueOrThrow({
+    // Atomically reserve the next number. The increment-returning update locks
+    // the Organization row, so concurrent creates can't allocate the same
+    // number (a plain read does not lock under READ COMMITTED).
+    const org = await tx.organization.update({
       where: { id: orgId },
+      data: { nextInvoiceNumber: { increment: 1 } },
       select: { nextInvoiceNumber: true, defaultPaymentInstructions: true },
     });
-    await tx.organization.update({
-      where: { id: orgId },
-      data: { nextInvoiceNumber: org.nextInvoiceNumber + 1 },
-    });
+    const invoiceNumber = org.nextInvoiceNumber - 1;
 
     return tx.invoice.create({
       data: {
         orgId,
         estimateId: input.estimateId,
-        invoiceNumber: org.nextInvoiceNumber,
+        invoiceNumber,
         status: "draft",
         amount,
         pct,
