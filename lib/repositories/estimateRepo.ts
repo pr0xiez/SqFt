@@ -3,6 +3,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import { EstimateHasEventsError, EstimateLockedError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { round2 } from "@/lib/money";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { searchableInt } from "@/lib/repositories/search";
@@ -37,7 +38,7 @@ async function syncEstimateTotal(
   const total =
     hydrated.lineItems.length === 0
       ? null
-      : computeEstimateView(fromPrismaEstimate(hydrated)).total;
+      : round2(computeEstimateView(fromPrismaEstimate(hydrated)).total);
   await tx.estimate.update({ where: { id: estimateId }, data: { total } });
   return total;
 }

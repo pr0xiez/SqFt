@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeEstimateView } from "@/lib/estimateView";
+import { round2 } from "@/lib/money";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 
 const baseLi = (over: Partial<LineItemCalc> = {}): LineItemCalc => ({
@@ -158,6 +159,41 @@ describe("computeEstimateView — totals breakdown", () => {
     expect(v.subtotal).toBe(100);
     expect(v.hasUnresolvedLines).toBe(true);
     expect(v.lines[1].subtotal).toBeNull();
+  });
+
+  it("rounds every monetary output to cents (no IEEE-754 drift)", () => {
+    // 3 lines that each produce a raw float with trailing-digit drift, plus
+    // markup/fee/deposit rates chosen to surface the classic 100.33000000000001
+    // artifacts if any figure escaped round2.
+    const v = computeEstimateView({
+      lineItems: [
+        baseLi({ id: 1, qty: 3, rate: 33.33 }), // 99.99
+        baseLi({ id: 2, qty: 7, rate: 14.33 }), // 100.31
+        baseLi({ id: 3, qty: 1, rate: 0.1 }), // 0.1
+      ],
+      items: [],
+      markupPct: 17, // exercises subtotal * (17/100)
+      convenienceFeeRate: 0.029, // odd rate → fractional cents
+      depositPct: 0.5,
+    });
+
+    // Every monetary field must be exactly its own round2 — i.e. already at
+    // cent precision, with no ...0001 / ...9999 tail.
+    const atCents = (n: number) => round2(n) === n;
+    expect(atCents(v.subtotal)).toBe(true);
+    expect(atCents(v.markup)).toBe(true);
+    expect(atCents(v.beforeFee)).toBe(true);
+    expect(atCents(v.convenienceFee)).toBe(true);
+    expect(atCents(v.total)).toBe(true);
+    expect(atCents(v.deposit)).toBe(true);
+    for (const line of v.lines) {
+      if (line.subtotal !== null) expect(atCents(line.subtotal)).toBe(true);
+    }
+
+    // And the breakdown stays internally consistent at cent precision.
+    expect(v.subtotal).toBe(200.4); // 99.99 + 100.31 + 0.1
+    expect(v.beforeFee).toBe(round2(v.subtotal + v.markup));
+    expect(v.total).toBe(round2(v.beforeFee + v.convenienceFee));
   });
 
   it("returns zeros (not nulls) when there are no line items", () => {

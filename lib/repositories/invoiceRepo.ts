@@ -9,6 +9,7 @@ import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { computeEstimateBilling } from "@/lib/invoices/compute";
 import { isOverbill } from "@/lib/invoices/createInvoiceForm";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
+import { round2 } from "@/lib/money";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { searchableInt } from "@/lib/repositories/search";
@@ -16,10 +17,6 @@ import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
-}
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 /** Hydrated estimate shape the proration source needs (matches fromPrismaEstimate input). */
@@ -72,7 +69,7 @@ function toInvoiceLike(inv: {
   return {
     amount: inv.amount,
     status: inv.status,
-    paidAmount: inv.payments.reduce((s, p) => s + p.amount, 0),
+    paidAmount: round2(inv.payments.reduce((s, p) => s + p.amount, 0)),
   };
 }
 
@@ -399,7 +396,9 @@ export async function recordPayment(
       },
     });
 
-    const paid = inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+    const paid = round2(
+      inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount
+    );
     const status = nextInvoiceStatus({
       current: inv.status,
       amount: inv.amount,

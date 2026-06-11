@@ -69,6 +69,17 @@ the send-email route, the estimate list endpoint, and the approval snapshot —
 derives its numbers from this one function so the labeled breakdown can never
 diverge across surfaces.
 
+**Every monetary output is rounded to cents** via `round2` (`lib/money.ts`):
+each per-line `subtotal` is rounded before it is summed, then each derived
+figure (`subtotal`, `markup`, `beforeFee`, `convenienceFee`, `total`,
+`deposit`) is rounded in turn. Rounding at these boundaries keeps the breakdown
+internally consistent at cent precision (`beforeFee === subtotal + markup`,
+`total === beforeFee + convenienceFee`) and stops raw IEEE-754 drift
+(`100.33000000000001`) from leaking into the persisted `Estimate.total`
+(`syncEstimateTotal`, `lib/repositories/estimateRepo.ts`) or the downstream
+invoice billing math (`lib/invoices/`), which assumes its inputs are already at
+cents.
+
 Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
 `lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).
