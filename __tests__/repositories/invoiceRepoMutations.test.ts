@@ -298,7 +298,15 @@ describe("voidInvoice", () => {
   it("voids a non-void invoice, logs the event, and re-reads it", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 1 });
     invoiceEventCreate.mockResolvedValue({});
-    invoiceFindFirst.mockResolvedValue({ id: 1, status: "void" });
+    invoiceFindFirst.mockResolvedValue({
+      id: 1,
+      status: "void",
+      estimate: {
+        siteMeasure: {
+          location: { customer: { email: "janet@example.com" } },
+        },
+      },
+    });
 
     const result = await voidInvoice(1, "org1");
 
@@ -313,7 +321,11 @@ describe("voidInvoice", () => {
         data: expect.objectContaining({ type: "voided" }),
       })
     );
-    expect(result).toEqual({ id: 1, status: "void" });
+    expect(result).toEqual({
+      id: 1,
+      status: "void",
+      customerEmail: "janet@example.com",
+    });
   });
 
   it("returns null and does not log when the invoice was already void", async () => {

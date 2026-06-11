@@ -247,7 +247,7 @@ export function InvoiceDetail({
         invoiceId={inv.id}
         estimateId={estimateId}
         invoiceNumber={inv.invoiceNumber}
-        customerEmail={inv.sentToEmail}
+        customerEmail={inv.sentToEmail ?? inv.customerEmail}
         alreadySent={!isDraft}
         open={sendOpen}
         onClose={() => setSendOpen(false)}
