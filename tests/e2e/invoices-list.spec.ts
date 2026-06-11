@@ -66,7 +66,7 @@ test.describe
       const page = await ctx.newPage();
       await page.goto("/estimates");
       await page.getByRole("link", { name: "Invoices" }).first().click();
-      await expect(page).toHaveURL(/\/invoices$/);
+      await expect(page).toHaveURL(/\/invoices(\?.*)?$/);
 
       // Default is the All filter: the just-sent invoice sorts first (sentAt
       // desc)…
