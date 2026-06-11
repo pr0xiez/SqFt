@@ -29,7 +29,6 @@ export interface SiteMeasure {
   id: number;
   orgId: string;
   locationId: number;
-  title: string;
   siteMeasureNumber?: number | null;
   date: string;
   createdAt: string;
@@ -41,11 +40,9 @@ export interface SiteMeasure {
 
 export interface CreateSiteMeasureInput {
   locationId: number;
-  title?: string;
 }
 
 export interface UpdateSiteMeasureInput {
-  title?: string;
   locationId?: number;
   items?: RoomItem[];
 }

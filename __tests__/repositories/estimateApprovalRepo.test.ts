@@ -20,7 +20,6 @@ async function makeSentEstimate() {
       orgId: org.id,
       locationId: location.id,
       siteMeasureNumber: 1,
-      title: "Kitchen",
     },
   });
   const estimate = await prisma.estimate.create({

@@ -240,7 +240,7 @@ describe("createSiteMeasure", () => {
     organizationUpdate.mockResolvedValue({});
     txEstimateCreate.mockResolvedValue({ id: 1, siteMeasureNumber: 42 });
 
-    await createSiteMeasure("org1", { locationId: 9, title: "Job" });
+    await createSiteMeasure("org1", { locationId: 9 });
 
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org1" },
@@ -286,19 +286,6 @@ describe("createSiteMeasure", () => {
 // ── saveSiteMeasure ─────────────────────────────────────────────────────────────
 
 describe("saveSiteMeasure", () => {
-  it("updates only top-level fields when no items provided", async () => {
-    estimateUpdateMany.mockResolvedValue({ count: 1 });
-    estimateFindFirst.mockResolvedValue({ id: 1 });
-
-    await saveSiteMeasure(1, "org1", { title: "Renamed" });
-
-    expect(estimateUpdateMany).toHaveBeenCalledWith({
-      where: { id: 1, orgId: "org1" },
-      data: { title: "Renamed" },
-    });
-    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
-  });
-
   it("forwards locationId to siteMeasure.updateMany", async () => {
     locationFindFirst.mockResolvedValue({ id: 42 });
     estimateUpdateMany.mockResolvedValue({ count: 1 });
@@ -327,8 +314,9 @@ describe("saveSiteMeasure", () => {
   });
 
   it("returns null when nothing matches the id+org", async () => {
+    locationFindFirst.mockResolvedValue({ id: 42 });
     estimateUpdateMany.mockResolvedValue({ count: 0 });
-    const result = await saveSiteMeasure(99, "org1", { title: "x" });
+    const result = await saveSiteMeasure(99, "org1", { locationId: 42 });
     expect(result).toBeNull();
   });
 

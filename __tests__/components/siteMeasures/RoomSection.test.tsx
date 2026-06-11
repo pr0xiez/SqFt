@@ -11,7 +11,6 @@ function siteMeasure(items: RoomItem[] = []): SiteMeasure {
     id: 1,
     orgId: "org_1",
     locationId: 1,
-    title: "Test",
     date: "2026-06-07T00:00:00.000Z",
     createdAt: "2026-06-07T00:00:00.000Z",
     items,

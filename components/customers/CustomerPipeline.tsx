@@ -71,13 +71,7 @@ function SiteMeasureRow({
         <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
           {formatShortDate(siteMeasure.date)}
         </span>
-        <div className="flex-1 min-w-0">
-          {siteMeasure.title && (
-            <span className="text-[12.5px] font-[600] tracking-[-0.005em] truncate block">
-              {siteMeasure.title}
-            </span>
-          )}
-        </div>
+        <div className="flex-1 min-w-0" />
         <div className="flex items-center gap-3 shrink-0">
           {acceptedCount > 0 && (
             <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] uppercase tracking-[.08em]">

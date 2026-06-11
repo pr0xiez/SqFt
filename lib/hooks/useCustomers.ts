@@ -40,7 +40,6 @@ export interface CustomerListEstimateSummary {
 export interface CustomerSiteMeasureSummary {
   id: number;
   siteMeasureNumber: number | null;
-  title: string;
   date: string;
   createdAt: string;
   estimates: CustomerEstimateSummary[];

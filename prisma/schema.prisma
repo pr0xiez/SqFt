@@ -128,7 +128,6 @@ model SiteMeasure {
   org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   locationId        Int
   location          Location     @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  title             String       @default("")
   siteMeasureNumber Int?
   date              DateTime     @default(now())
   createdAt         DateTime     @default(now())

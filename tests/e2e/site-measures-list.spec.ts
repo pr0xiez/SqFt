@@ -153,6 +153,10 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
   test("15.2.2 status pill filters server-side with status=estimated", async ({
     browser,
   }) => {
+    // This test seeds two records, then waits on two list fetches (each
+    // allowing a 30s cold Vercel-preview/Neon start). The default 30s per-test
+    // timeout is too tight for that worst case, so give it explicit headroom.
+    test.setTimeout(90_000);
     // Avoid the literal pill labels in customer names so a text lookup can't
     // confuse a seeded row with a status pill.
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
