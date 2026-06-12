@@ -69,6 +69,19 @@ the send-email route, the estimate list endpoint, and the approval snapshot —
 derives its numbers from this one function so the labeled breakdown can never
 diverge across surfaces.
 
+Every **dollar** output is settled to whole cents via `round2` (`lib/money.ts`)
+before it leaves `computeEstimateView`: each per-line `subtotal`, then the
+totals `subtotal`, `markup`, `beforeFee`, `convenienceFee`, `total`, and
+`deposit` — so no raw IEEE-754 product/sum escapes into persistence
+(`Estimate.total` via `syncEstimateTotal`), the customer document, or downstream
+billing (`lib/invoices/`). Each field rounds from its unrounded running value
+(not a prior rounded field) so a half-cent never compounds across the chain. The
+quantity output `effectiveQty` and the rate/pct *inputs* (`markupPct`,
+`convenienceFeeRate`, `depositPct`) are **not** money and stay unrounded. (Money
+is still stored as Postgres `Float`; the integer-cents/`Decimal` schema
+migration is a separate, larger follow-up — rounding at this seam removes the
+drift in the meantime.)
+
 Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
 `lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).

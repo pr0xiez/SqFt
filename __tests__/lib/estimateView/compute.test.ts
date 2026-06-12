@@ -173,3 +173,79 @@ describe("computeEstimateView — totals breakdown", () => {
     expect(v.hasUnresolvedLines).toBe(false);
   });
 });
+
+describe("computeEstimateView — money is rounded to cents (no float drift)", () => {
+  const isWholeCents = (n: number) => n === Math.round(n * 100) / 100;
+
+  it("rounds each line subtotal to cents", () => {
+    // 3 × 100.3 = 300.90000000000003 in IEEE-754; the view must settle to 300.9.
+    const v = computeEstimateView({
+      lineItems: [baseLi({ qty: 3, rate: 100.3 })],
+      items: [],
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+    expect(v.lines[0].subtotal).toBe(300.9);
+    expect(v.subtotal).toBe(300.9);
+  });
+
+  it("sums rounded line subtotals so the total never carries binary drift", () => {
+    // 100.3 + 0.03 = 100.33000000000001 raw; settled it is exactly 100.33.
+    const v = computeEstimateView({
+      lineItems: [
+        baseLi({ id: 1, qty: 1, rate: 100.3 }),
+        baseLi({ id: 2, qty: 1, rate: 0.03 }),
+      ],
+      items: [],
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+    expect(v.subtotal).toBe(100.33);
+    expect(isWholeCents(v.subtotal)).toBe(true);
+  });
+
+  it("rounds markup, beforeFee, convenienceFee, total and deposit to whole cents", () => {
+    // subtotal 100.10; markup @33% = 33.033 → 33.03; beforeFee 133.13;
+    // fee @7.5% = 9.98475 → 9.98; total 143.11; deposit @33% = 47.2263 → 47.23.
+    const v = computeEstimateView({
+      lineItems: [baseLi({ qty: 1, rate: 100.1 })],
+      items: [],
+      markupPct: 33,
+      convenienceFeeRate: 0.075,
+      depositPct: 0.33,
+    });
+    for (const amount of [
+      v.subtotal,
+      v.markup,
+      v.beforeFee,
+      v.convenienceFee,
+      v.total,
+      v.deposit,
+    ]) {
+      expect(isWholeCents(amount)).toBe(true);
+    }
+    expect(v.subtotal).toBe(100.1);
+    expect(v.markup).toBe(33.03);
+    expect(v.beforeFee).toBe(133.13);
+    expect(v.convenienceFee).toBe(9.98);
+    expect(v.total).toBe(143.11);
+    expect(v.deposit).toBe(47.23);
+  });
+
+  it("does not round the qty/rate inputs — only the resulting amounts", () => {
+    // effectiveQty is a quantity (waste-applied), not money: it stays unrounded.
+    const v = computeEstimateView({
+      lineItems: [
+        baseLi({ qtyMode: "linked_area", wastePct: 7, linkedRoomIds: [1] }),
+      ],
+      items: [{ id: 1, type: "room", shape: "rect", w: "10", l: "10.5" }], // 105 sqft
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+    // 105 × 1.07 = 112.35 (a non-integer qty that must NOT be rounded to cents)
+    expect(v.lines[0].effectiveQty).toBeCloseTo(112.35, 6);
+  });
+});

@@ -1,3 +1,4 @@
+import { round2 } from "@/lib/money";
 import {
   isLinkedQtyMode,
   type LineItemCalc,
@@ -14,18 +15,26 @@ import type { EstimateInput, EstimateView, LineView } from "./types";
 export function computeEstimateView(input: EstimateInput): EstimateView {
   const rooms = input.items.filter((r) => r.type === "room");
 
+  // Every dollar output is settled to cents (round2) so the view never emits a
+  // raw IEEE-754 product/sum. `effectiveQty` is a quantity, not money, so it
+  // stays unrounded; the rate/pct *inputs* (markupPct, convenienceFeeRate,
+  // depositPct) are likewise left alone — only the resulting amounts round.
+  // Per-line subtotals round first, then the totals sum the already-rounded
+  // values, so the displayed rows always add up to the displayed subtotal with
+  // no penny gap, and a half-cent never compounds across the chain.
   const lines: LineView[] = input.lineItems.map((li) => {
     const effectiveQty = resolveQty(li, rooms);
-    const subtotal = effectiveQty === null ? null : effectiveQty * li.rate;
+    const subtotal =
+      effectiveQty === null ? null : round2(effectiveQty * li.rate);
     return { id: li.id, effectiveQty, subtotal };
   });
 
-  const subtotal = lines.reduce((sum, l) => sum + (l.subtotal ?? 0), 0);
-  const markup = subtotal * (input.markupPct / 100);
-  const beforeFee = subtotal + markup;
-  const convenienceFee = beforeFee * input.convenienceFeeRate;
-  const total = beforeFee + convenienceFee;
-  const deposit = total * input.depositPct;
+  const subtotal = round2(lines.reduce((sum, l) => sum + (l.subtotal ?? 0), 0));
+  const markup = round2(subtotal * (input.markupPct / 100));
+  const beforeFee = round2(subtotal + markup);
+  const convenienceFee = round2(beforeFee * input.convenienceFeeRate);
+  const total = round2(beforeFee + convenienceFee);
+  const deposit = round2(total * input.depositPct);
   const hasUnresolvedLines = lines.some((l) => l.subtotal === null);
 
   return {
