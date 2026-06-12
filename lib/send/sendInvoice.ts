@@ -9,6 +9,7 @@ import {
   getInvoiceForSend,
   markInvoiceSent,
   rotateInvoiceToken,
+  writeInvoiceEvent,
 } from "@/lib/repositories";
 import { buildInvoiceProrationSource } from "@/lib/repositories/invoiceRepo";
 import { runSendPipeline, type Sendable, type SendRequest } from "./pipeline";
@@ -36,9 +37,13 @@ const invoiceSendable: Sendable<InvoiceForSend, InvoicePrepared> = {
   currentToken: (invoice) => invoice.publicToken,
   rotateToken: rotateInvoiceToken,
 
-  // Invoices do not audit link rotation yet (unlike estimates). Explicit
-  // no-op so the asymmetry is a visible decision, not drift.
-  onTokenRotated: async () => {},
+  onTokenRotated: (id, req) =>
+    writeInvoiceEvent({
+      invoiceId: id,
+      type: "link_rotated",
+      actorEmail: req.sender.email,
+      actorName: req.sender.name,
+    }),
 
   publicPath: (token) => `/invoice-review/${token}`,
 
