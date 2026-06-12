@@ -2,6 +2,7 @@ import type { APIRequestContext } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
+  clearStorageOnNextLoad,
   createCustomer,
   createCustomerAndEstimate,
   createEstimate,
@@ -172,7 +173,14 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
     const emptyCust = await createCustomer(ctx.request, { name: emptyName });
     await createSiteMeasure(ctx.request, emptyCust.id);
 
-    await page.evaluate(() => localStorage.clear());
+    // The clear must take effect on the NEXT document, not the dashboard we
+    // are still on: the dashboard primes the exact query key this list mounts
+    // with (page 1, perPage 25, date desc, status all), and its persister can
+    // re-write that cache entry after an in-page localStorage.clear(). A
+    // replayed entry is fresh within the 60s staleTime, so the list page
+    // would never issue the fetch the waitForResponse below needs (the
+    // 2026-06-11 CI failure mode — all retries timed out identically).
+    await clearStorageOnNextLoad(ctx);
     // Wait for the initial list fetch so the seeded rows are in the response
     // before asserting visibility (avoids a render race on slower CI). The
     // generous timeout absorbs a cold Vercel-preview serverless start plus
@@ -233,13 +241,17 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
     const otherCust = await createCustomer(ctx.request, { name: otherName });
     await createSiteMeasure(ctx.request, otherCust.id);
 
-    await page.evaluate(() => localStorage.clear());
+    // Same persisted-cache hazard as 15.2.2: clear storage at next document
+    // load so the list page cannot hydrate the dashboard's fresh cache entry
+    // and skip the fetch this waitForResponse depends on.
+    await clearStorageOnNextLoad(ctx);
     await Promise.all([
       page.waitForResponse(
         (r) =>
           isListRequest(r.url()) &&
           r.request().method() === "GET" &&
-          r.status() === 200
+          r.status() === 200,
+        { timeout: 30_000 }
       ),
       page.goto("/site-measures"),
     ]);
