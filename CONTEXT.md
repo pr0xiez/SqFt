@@ -227,6 +227,34 @@ always submits a flat `amount`, never `pct`. (The backend's `pct` means "% of
 estimate *total*", not "% of the remaining balance", so "% of balance" is
 resolved client-side rather than sent as `pct`.)
 
+## Send Pipeline
+
+Emailing a customer-facing document (estimate, invoice) is one spine, owned
+by `runSendPipeline` (`lib/send/pipeline.ts`): load + status guard → token
+rotation (only when requested or the token is missing) → public URL → prepare
+→ email → mark-sent → after-send side effects. The load-bearing invariants: a
+**failed email never marks the document sent**, and mark-sent receives the
+same prepared payload the email was built from, so what was mailed and what
+was frozen (the invoice snapshot) cannot diverge.
+
+Per-document variation lives in a **Sendable** adapter
+(`lib/send/sendEstimate.ts`, `lib/send/sendInvoice.ts`): the org-scoped load,
+the status guard (estimate: approved/declined → `ESTIMATE_LOCKED`; invoice:
+void → `INVOICE_VOID`), the token column + rotation, the email payload,
+mark-sent, and the estimate-only opportunistic customer-email update.
+`onTokenRotated` is a **required** member — both documents log a
+`link_rotated` event with actor attribution, and a document that chooses not
+to audit rotation must say so with an explicit no-op, so silence is a visible
+decision rather than drift. The existing repo mark-sent transactions keep
+owning their atomic `sent`/`resent` event logging; the pipeline only
+sequences.
+
+No Prisma crosses the pipeline's seam — persistence arrives through the
+adapter's functions — so the spine's ordering/error tests
+(`__tests__/lib/send/pipeline.test.ts`) run against an in-memory fake with no
+database. Routes are thin: parse input, resolve the sender (`requireSender`,
+`lib/send/sender.ts`), call `sendEstimate` / `sendInvoice`.
+
 ## API Error Codes
 
 Every API route returns errors as `{ error: { code, message, details? } }`.

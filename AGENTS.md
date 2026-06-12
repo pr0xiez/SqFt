@@ -53,6 +53,11 @@ with the file that owns it.
   save policy lives here, not in the React layer.
 - `lib/invoices/` — **billing math** (`computeEstimateBilling`,
   `prorateInvoice`) plus invoice `snapshot.ts` / `schema.ts`.
+- `lib/send/` — **the send pipeline**: `runSendPipeline` (the one spine behind
+  "email a customer-facing document") plus the per-document `Sendable`
+  adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin
+  callers; ordering/error invariants live here (see *Send Pipeline* in
+  `CONTEXT.md`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
