@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 
 const estimateFindMany = vi.fn();
 const estimateFindFirst = vi.fn();
@@ -12,6 +13,8 @@ const estimateItemCreateMany = vi.fn();
 const organizationFindUnique = vi.fn();
 const organizationUpdate = vi.fn();
 const locationFindFirst = vi.fn();
+const eventCount = vi.fn();
+const invoiceCount = vi.fn();
 
 const txMock = {
   siteMeasure: {
@@ -19,7 +22,10 @@ const txMock = {
     count: estimateCount,
     findFirst: estimateFindFirst,
     create: txEstimateCreate,
+    deleteMany: estimateDeleteMany,
   },
+  event: { count: eventCount },
+  invoice: { count: invoiceCount },
   siteMeasureItem: {
     deleteMany: estimateItemDeleteMany,
     createMany: estimateItemCreateMany,
@@ -368,11 +374,36 @@ describe("saveSiteMeasure", () => {
 
 describe("deleteSiteMeasure", () => {
   it("returns true when something was deleted", async () => {
+    eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(0);
     estimateDeleteMany.mockResolvedValue({ count: 1 });
     expect(await deleteSiteMeasure(1, "org1")).toBe(true);
   });
   it("returns false when nothing matched", async () => {
+    eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(0);
     estimateDeleteMany.mockResolvedValue({ count: 0 });
     expect(await deleteSiteMeasure(99, "org1")).toBe(false);
+  });
+  it("refuses when a descendant estimate has scheduled events", async () => {
+    eventCount.mockResolvedValue(2);
+    await expect(deleteSiteMeasure(1, "org1")).rejects.toBeInstanceOf(
+      EstimateHasEventsError
+    );
+    expect(eventCount).toHaveBeenCalledWith({
+      where: { orgId: "org1", estimate: { siteMeasureId: 1 } },
+    });
+    expect(estimateDeleteMany).not.toHaveBeenCalled();
+  });
+  it("refuses when a descendant estimate has invoices", async () => {
+    eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(3);
+    await expect(deleteSiteMeasure(1, "org1")).rejects.toBeInstanceOf(
+      HasInvoicesError
+    );
+    expect(invoiceCount).toHaveBeenCalledWith({
+      where: { orgId: "org1", estimate: { siteMeasureId: 1 } },
+    });
+    expect(estimateDeleteMany).not.toHaveBeenCalled();
   });
 });

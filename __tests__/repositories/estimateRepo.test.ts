@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EstimateHasEventsError } from "@/lib/api/errors";
+import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 
 const estimateFindMany = vi.fn();
 const estimateFindFirst = vi.fn();
@@ -17,6 +17,7 @@ const siteMeasureFindFirst = vi.fn();
 const organizationFindUnique = vi.fn();
 const organizationUpdate = vi.fn();
 const eventCount = vi.fn();
+const invoiceCount = vi.fn();
 
 const txMock: {
   estimate: {
@@ -37,6 +38,7 @@ const txMock: {
     update: typeof organizationUpdate;
   };
   event: { count: typeof eventCount };
+  invoice: { count: typeof invoiceCount };
   estimateEvent: { create: ReturnType<typeof vi.fn> };
 } = {
   estimate: {
@@ -57,6 +59,7 @@ const txMock: {
     update: organizationUpdate,
   },
   event: { count: eventCount },
+  invoice: { count: invoiceCount },
   estimateEvent: { create: vi.fn() },
 };
 
@@ -445,8 +448,21 @@ describe("deleteEstimate", () => {
     expect(estimateDeleteMany).not.toHaveBeenCalled();
   });
 
-  it("deletes when there are no tied events", async () => {
+  it("refuses when there are invoices (cascade would erase the payment ledger)", async () => {
     eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(2);
+    await expect(deleteEstimate(1, "org1")).rejects.toBeInstanceOf(
+      HasInvoicesError
+    );
+    expect(invoiceCount).toHaveBeenCalledWith({
+      where: { orgId: "org1", estimateId: 1 },
+    });
+    expect(estimateDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it("deletes when there are no tied events or invoices", async () => {
+    eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(0);
     estimateDeleteMany.mockResolvedValue({ count: 1 });
     expect(await deleteEstimate(1, "org1")).toBe(true);
   });

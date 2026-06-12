@@ -81,6 +81,33 @@ function assertJobHasEstimate(
   }
 }
 
+/**
+ * Event FKs are global autoincrement ids, so an unchecked customerId/estimateId
+ * would let one org attach (and then read, via listEvents' include) another
+ * org's customer or estimate. Pass `null`/`undefined` to skip a field — only
+ * values actually being written are validated.
+ */
+async function assertFksInOrg(
+  orgId: string,
+  customerId: number | null | undefined,
+  estimateId: number | null | undefined
+) {
+  if (customerId != null) {
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, orgId },
+      select: { id: true },
+    });
+    if (!customer) throw new ValidationError("Invalid customer");
+  }
+  if (estimateId != null) {
+    const estimate = await prisma.estimate.findFirst({
+      where: { id: estimateId, orgId },
+      select: { id: true },
+    });
+    if (!estimate) throw new ValidationError("Invalid estimate");
+  }
+}
+
 export type EventCreateInput = Omit<
   Prisma.EventUncheckedCreateInput,
   "orgId" | "assignees"
@@ -94,6 +121,7 @@ export type EventUpdateInput = Prisma.EventUncheckedUpdateInput & {
 
 export async function createEvent(orgId: string, data: EventCreateInput) {
   assertJobHasEstimate(data.type, data.estimateId ?? null);
+  await assertFksInOrg(orgId, data.customerId, data.estimateId);
   const { assigneeIds, ...rest } = data;
   return prisma.event.create({
     data: {
@@ -124,6 +152,11 @@ export async function updateEvent(
       ? current.estimateId
       : (data.estimateId as number | null);
   assertJobHasEstimate(nextType, nextEstimateId);
+  await assertFksInOrg(
+    orgId,
+    typeof data.customerId === "number" ? data.customerId : null,
+    typeof data.estimateId === "number" ? data.estimateId : null
+  );
 
   const { assigneeIds, ...rest } = data;
 

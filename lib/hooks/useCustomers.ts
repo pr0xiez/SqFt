@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { readApiError } from "@/lib/api/errors";
 import type { SortDirection } from "@/lib/sort";
 
 export type EstimateStatus =
@@ -203,7 +204,14 @@ export function useDeleteCustomer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      await fetch(`/api/customers/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/customers/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const { message } = await readApiError(
+          res,
+          "Failed to delete customer"
+        );
+        throw new Error(message);
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });

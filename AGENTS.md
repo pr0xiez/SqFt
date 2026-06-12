@@ -89,6 +89,20 @@ with the file that owns it.
 - A fresh worktree may have an **incomplete `node_modules`** (missing
   `@prisma/client` / `pg`) — `next dev`, E2E, and the DB/email vitest suites
   can't run there until you `npm install`.
+- **Every public (token-authed) page or API must be allowlisted in
+  `lib/publicRoutes.ts`** (consumed by the auth proxy in `proxy.ts`), or
+  customers get redirected to `/login`. E2E tests for public pages must
+  navigate with a **logged-out** context — a logged-in context masks a missing
+  allowlist entry.
+- **Record ids are global autoincrement ints, not org-scoped.** Any repo
+  function or route that accepts a cross-record FK id (like
+  `Event.customerId` / `Event.estimateId`) must validate it against the
+  caller's `orgId` before writing, or one org can link to — and then read via
+  relation includes — another org's data.
+- **The Customer→Location→SiteMeasure→Estimate→Invoice→Payment chain is
+  `onDelete: Cascade`.** Delete paths at every level must guard against
+  cascading away financial records (`HAS_INVOICES`) and scheduled events
+  (`ESTIMATE_HAS_EVENTS`) — don't add a new delete path without those checks.
 
 ## Keeping these docs current
 

@@ -31,6 +31,11 @@ test.describe
       await ctx.request.post(`/api/invoices/${invoiceId}/send`, {
         data: { to: "customer@example.com", subject: "Invoice #1" },
       });
+      // Partial payment: the public page must show the remaining balance,
+      // not the full invoice amount.
+      await ctx.request.post(`/api/invoices/${invoiceId}/payments`, {
+        data: { amount: 40, method: "check" },
+      });
       const inv = await (
         await ctx.request.get(`/api/invoices/${invoiceId}`)
       ).json();
@@ -41,14 +46,25 @@ test.describe
       await ctx.close();
     });
 
-    test("public invoice shows balance due but never a Markup line", async () => {
-      const page = await ctx.newPage();
+    // The public page is navigated LOGGED OUT on purpose: customers open the
+    // emailed link with no session, and a logged-in context would mask a
+    // missing allowlist entry in lib/publicRoutes.ts (the proxy would
+    // redirect anonymous visitors to /login).
+    test("public invoice loads without a session and shows the remaining balance, never a Markup line", async ({
+      browser,
+    }) => {
+      const anonCtx = await browser.newContext();
+      const page = await anonCtx.newPage();
       await page.goto(`/invoice-review/${token}`);
+      await expect(page).toHaveURL(new RegExp(`/invoice-review/${token}$`));
       await expect(page.getByText("Balance due")).toBeVisible();
+      await expect(page.getByText("Paid to date")).toBeVisible();
+      // Remaining balance ($100 − $40) appears in the header and balance row.
+      await expect(page.getByText("$60.00").first()).toBeVisible();
       await expect(page.getByText("Markup", { exact: false })).toHaveCount(0);
       await expect(
         page.getByText("Labor & margin", { exact: false })
       ).toHaveCount(0);
-      await page.close();
+      await anonCtx.close();
     });
   });

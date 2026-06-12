@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isPublicReviewPath } from "@/lib/publicRoutes";
 
 export default auth((req) => {
   if (req.nextUrl.pathname.startsWith("/api/")) {
@@ -18,17 +19,12 @@ export default auth((req) => {
   const isAuth = !!req.auth;
   const isAuthRoute = req.nextUrl.pathname.startsWith("/login");
   const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");
-  const isPublicReview = req.nextUrl.pathname.startsWith("/estimate-review/");
-  // /api/estimate-review/[token]/approve and .../decline are unauthenticated —
-  // the token itself is the credential, so let them through just like the page
-  // route. Any new route under /api/estimate-review/ must enforce its own auth
-  // inside the handler.
-  const isPublicReviewApi = req.nextUrl.pathname.startsWith(
-    "/api/estimate-review/"
-  );
 
-  // Allow auth API routes and public token-authed estimate pages through unconditionally
-  if (isApiAuth || isPublicReview || isPublicReviewApi)
+  // Allow auth API routes and public token-authed review pages (estimate +
+  // invoice) through unconditionally — the token in the URL is the credential.
+  // The allowlist lives in lib/publicRoutes.ts; any new public surface must be
+  // added there.
+  if (isApiAuth || isPublicReviewPath(req.nextUrl.pathname))
     return NextResponse.next();
 
   const isApiRoute = req.nextUrl.pathname.startsWith("/api/");

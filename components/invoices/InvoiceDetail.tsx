@@ -180,9 +180,21 @@ export function InvoiceDetail({
                 </tbody>
               </table>
             )}
+            {paid > 0 ? (
+              <>
+                <div className="flex justify-between text-[13px] border-t border-[var(--line-2)] mt-2 pt-2">
+                  <span>Invoice total</span>
+                  <span>{fmtDollar(inv.amount)}</span>
+                </div>
+                <div className="flex justify-between text-[13px] pt-1">
+                  <span>Paid to date</span>
+                  <span>−{fmtDollar(paid)}</span>
+                </div>
+              </>
+            ) : null}
             <div className="flex justify-between font-[700] text-[15px] border-t border-[var(--line-2)] mt-2 pt-2">
               <span>Balance due</span>
-              <span>{fmtDollar(inv.amount)}</span>
+              <span>{fmtDollar(outstanding)}</span>
             </div>
           </div>
         </div>

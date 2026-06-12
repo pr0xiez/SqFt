@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { readApiError } from "@/lib/api/errors";
 import type { SortDirection } from "@/lib/sort";
 import type { RoomItem } from "@/lib/utils";
 
@@ -141,7 +142,16 @@ export function useDeleteSiteMeasure() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      await fetch(`/api/site-measures/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/site-measures/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const { message } = await readApiError(
+          res,
+          "Failed to delete site measure"
+        );
+        throw new Error(message);
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["siteMeasures"] }),
   });

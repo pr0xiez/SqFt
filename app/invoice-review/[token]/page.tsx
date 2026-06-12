@@ -4,6 +4,7 @@ import {
   type PublicInvoice,
   PublicInvoiceView,
 } from "@/components/invoices/PublicInvoiceView";
+import { round2 } from "@/lib/money";
 import { getInvoiceByToken, markInvoiceViewed } from "@/lib/repositories";
 import { fmtDollar } from "@/lib/utils";
 
@@ -47,6 +48,10 @@ export default async function PublicInvoicePage({ params }: Props) {
   }
 
   const snap = invoice.snapshot as unknown as SnapshotShape;
+  // Balance due reflects the live payment ledger, not the frozen snapshot —
+  // a partially-paid invoice must not show the full amount as still owed.
+  const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));
+  const balanceDue = round2(invoice.amount - paid);
   const view: PublicInvoice = {
     invoiceNumber: invoice.invoiceNumber,
     status: invoice.status,
@@ -54,6 +59,8 @@ export default async function PublicInvoicePage({ params }: Props) {
       ? new Date(snap.dueDate).toLocaleDateString("en-US")
       : null,
     amountFormatted: fmtDollar(invoice.amount),
+    paidFormatted: paid > 0 ? fmtDollar(paid) : null,
+    balanceDueFormatted: fmtDollar(balanceDue),
     memo: snap.memo,
     terms: snap.terms,
     paymentInstructions: snap.paymentInstructions,
