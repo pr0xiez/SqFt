@@ -6,6 +6,7 @@ vi.mock("@/lib/repositories", () => ({
   rotateApprovalToken: vi.fn(),
   markEstimateSent: vi.fn(),
   writeEstimateEvent: vi.fn(),
+  updateCustomerEmail: vi.fn(),
 }));
 vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockResolvedValue("org1"),
@@ -38,6 +39,7 @@ const {
   rotateApprovalToken,
   markEstimateSent,
   writeEstimateEvent,
+  updateCustomerEmail,
 } = await import("@/lib/repositories");
 const { requireSession } = await import("@/lib/tenant");
 const { sendEstimateEmail } = await import("@/lib/email/sendEstimateEmail");
@@ -49,6 +51,7 @@ const mockMarkSent = vi.mocked(markEstimateSent);
 const mockWriteEvent = vi.mocked(writeEstimateEvent);
 const mockRequireSession = vi.mocked(requireSession);
 const mockSendEstimateEmail = vi.mocked(sendEstimateEmail);
+const mockUpdateCustomerEmail = vi.mocked(updateCustomerEmail);
 
 const validBody = { to: "henderson@example.com", subject: "Q5001" };
 
@@ -230,5 +233,96 @@ describe("POST /api/estimates/[id]/send", () => {
     expect(res.status).toBe(502);
     expect((await res.json()).error.code).toBe("EMAIL_FAILED");
     expect(mockMarkSent).not.toHaveBeenCalled();
+  });
+
+  function mockEstimateWithCustomerEmail(customerEmail: string) {
+    mockGetEstimate.mockResolvedValue({
+      id: 1,
+      orgId: "org1",
+      status: "draft",
+      approvalToken: "token-xyz",
+      estimateNumber: 5001,
+      convenienceFeeRate: 0.03,
+      markupPct: 0,
+      depositPct: 0.5,
+      lineItems: [],
+      siteMeasure: {
+        items: [],
+        location: { customer: { id: 7, name: "Janet", email: customerEmail } },
+      },
+      // biome-ignore lint/suspicious/noExplicitAny: partial test fixture
+    } as any);
+    mockSendEstimateEmail.mockResolvedValue({ ok: true });
+    mockMarkSent.mockResolvedValue(true);
+  }
+
+  it("persists the edited recipient email and reports customerEmailSaved: true", async () => {
+    mockEstimateWithCustomerEmail("old@example.com");
+    mockUpdateCustomerEmail.mockResolvedValue(true);
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "new@example.com",
+        subject: "x",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: true });
+    expect(mockUpdateCustomerEmail).toHaveBeenCalledWith(
+      7,
+      "org1",
+      "new@example.com"
+    );
+  });
+
+  it("still returns ok but reports customerEmailSaved: false when no row was updated", async () => {
+    mockEstimateWithCustomerEmail("old@example.com");
+    mockUpdateCustomerEmail.mockResolvedValue(false);
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "new@example.com",
+        subject: "x",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: false });
+  });
+
+  it("does not fail the send when the customer-email save throws, but reports customerEmailSaved: false", async () => {
+    mockEstimateWithCustomerEmail("old@example.com");
+    mockUpdateCustomerEmail.mockRejectedValue(new Error("db down"));
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "new@example.com",
+        subject: "x",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: false });
+    expect(mockMarkSent).toHaveBeenCalled();
+  });
+
+  it("does not attempt to save when the recipient matches the stored email", async () => {
+    mockEstimateWithCustomerEmail("same@example.com");
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "same@example.com",
+        subject: "x",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: true });
+    expect(mockUpdateCustomerEmail).not.toHaveBeenCalled();
   });
 });

@@ -292,3 +292,22 @@ export async function deleteCustomer(
   const result = await prisma.customer.deleteMany({ where: { id, orgId } });
   return result.count > 0;
 }
+
+/**
+ * Opportunistically persist the address an estimate was actually sent to back
+ * onto the customer. Org-scoped. Returns true when a row was updated, false
+ * when the customer wasn't found in the org (no matching row). DB errors are
+ * not swallowed — they propagate so the caller can decide whether the save is
+ * best-effort or required.
+ */
+export async function updateCustomerEmail(
+  id: number,
+  orgId: string,
+  email: string
+): Promise<boolean> {
+  const result = await prisma.customer.updateMany({
+    where: { id, orgId },
+    data: { email },
+  });
+  return result.count > 0;
+}

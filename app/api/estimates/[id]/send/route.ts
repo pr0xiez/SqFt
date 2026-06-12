@@ -15,6 +15,7 @@ import {
   getEstimate,
   markEstimateSent,
   rotateApprovalToken,
+  updateCustomerEmail,
   writeEstimateEvent,
 } from "@/lib/repositories";
 import { requireSession } from "@/lib/tenant";
@@ -78,12 +79,27 @@ export const POST = apiRoute(
     });
     if (!marked) throw new NotFoundError();
 
+    // Opportunistically persist the edited recipient address back onto the
+    // customer. This is best-effort: the estimate has already been sent and
+    // marked sent, so a failure here must NOT fail the request — but we must
+    // also not pretend it succeeded (see #175). Surface the outcome to the
+    // client via `customerEmailSaved` so the UI can warn the user.
     const sendCustomer = estimate.siteMeasure.location.customer;
+    let customerEmailSaved = true;
     if (sendCustomer && sendCustomer.email !== to) {
-      void updateCustomerEmail(sendCustomer.id, orgId, to);
+      try {
+        customerEmailSaved = await updateCustomerEmail(
+          sendCustomer.id,
+          orgId,
+          to
+        );
+      } catch (err) {
+        logError({ errorMessage: "Failed to save customer email", err });
+        customerEmailSaved = false;
+      }
     }
 
-    return { ok: true };
+    return { ok: true, customerEmailSaved };
   }
 );
 
@@ -92,19 +108,4 @@ async function getOrgForEmail(orgId: string) {
     where: { id: orgId },
     select: { name: true, phone: true, logo: true },
   });
-}
-
-async function updateCustomerEmail(
-  customerId: number,
-  orgId: string,
-  email: string
-) {
-  try {
-    await prisma.customer.updateMany({
-      where: { id: customerId, orgId },
-      data: { email },
-    });
-  } catch (err) {
-    logError({ errorMessage: "Failed to save customer email", err });
-  }
 }

@@ -193,10 +193,17 @@ export interface SendEstimateVariables {
   regenerateLink?: boolean;
 }
 
+export interface SendEstimateResult {
+  ok: true;
+  customerEmailSaved: boolean;
+}
+
 export function useSendEstimate(estimateId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: SendEstimateVariables): Promise<{ ok: true }> => {
+    mutationFn: async (
+      vars: SendEstimateVariables
+    ): Promise<SendEstimateResult> => {
       const res = await fetch(`/api/estimates/${estimateId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

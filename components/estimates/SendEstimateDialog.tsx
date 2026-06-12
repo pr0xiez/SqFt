@@ -47,13 +47,20 @@ export function SendEstimateDialog({
 
   async function onSend() {
     try {
-      await send.mutateAsync({
+      const result = await send.mutateAsync({
         to: to.trim(),
         subject: subject.trim(),
         message: message.trim() || undefined,
         regenerateLink: regenerate || undefined,
       });
-      showToast("Estimate sent");
+      if (result.customerEmailSaved) {
+        showToast("Estimate sent");
+      } else {
+        showToast(
+          "Estimate sent",
+          "Couldn't save this email to the customer — update it on their profile if needed."
+        );
+      }
       onClose();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Send failed");
