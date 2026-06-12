@@ -98,6 +98,17 @@ export class InvoiceLockedError extends ConflictError {
   }
 }
 
+/**
+ * Thrown when sending a void invoice. Distinct from INVOICE_LOCKED ("sent,
+ * no longer editable") — void is a terminal state with a different remedy
+ * (create a new invoice).
+ */
+export class InvoiceVoidError extends ConflictError {
+  constructor() {
+    super("This invoice is void and cannot be sent.", "INVOICE_VOID");
+  }
+}
+
 export class InvoiceOverbillError extends ConflictError {
   readonly unbilled: number;
   constructor(unbilled: number) {

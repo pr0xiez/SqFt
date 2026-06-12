@@ -1,4 +1,4 @@
-import { ConflictError } from "@/lib/api/errors";
+import { InvoiceVoidError } from "@/lib/api/errors";
 import {
   type SendInvoiceEmailInput,
   sendInvoiceEmail,
@@ -29,7 +29,7 @@ const invoiceSendable: Sendable<InvoiceForSend, InvoicePrepared> = {
 
   guard(invoice) {
     if (invoice.status === "void") {
-      throw new ConflictError("Cannot send a void invoice");
+      throw new InvoiceVoidError();
     }
   },
 

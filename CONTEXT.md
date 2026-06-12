@@ -248,7 +248,7 @@ Standard codes:
 Domain codes:
 
 - `ESTIMATE_LOCKED` (409) — caller tried to mutate an estimate whose status is
-  `approved` or `declined`.
+  `approved` or `declined` (including re-sending it).
 - `ESTIMATE_HAS_EVENTS` (409) — caller tried to delete an estimate (or a site
   measure / customer above it — the cascade reaches descendant estimates) that
   still has scheduled Events (jobs) referencing it.
@@ -258,10 +258,14 @@ Domain codes:
   silently erase financial records; void invoices instead of deleting their
   records. Thrown by all three delete paths (`deleteEstimate`,
   `deleteSiteMeasure`, `deleteCustomer`).
-- `EMAIL_FAILED` (502) — upstream email provider rejected the send. Returned
-  by the estimate-send route when Resend reports a non-OK result.
+- `EMAIL_FAILED` (502) — upstream email provider rejected the send. Minted by
+  the send pipeline (`lib/send/pipeline.ts`) when the email port reports a
+  non-OK result.
 - `INVOICE_LOCKED` (409) — caller tried to edit an invoice that has been sent
   (status is no longer `draft`), or record a payment on a `void` invoice.
+- `INVOICE_VOID` (409) — caller tried to send a `void` invoice. Distinct from
+  `INVOICE_LOCKED`: void is terminal, and the remedy is creating a new
+  invoice, not unlocking this one.
 - `INVOICE_OVERBILL` (409) — caller tried to invoice more than the estimate's
   unbilled balance (estimate total − Σ non-void invoice amounts).
 

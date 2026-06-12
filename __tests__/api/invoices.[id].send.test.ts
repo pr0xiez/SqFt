@@ -72,7 +72,7 @@ vi.mock("next/server", async (importOriginal) => {
 
 import { POST } from "@/app/api/invoices/[id]/send/route";
 import { sendInvoiceEmail } from "@/lib/email/sendInvoiceEmail";
-import { markInvoiceSent } from "@/lib/repositories";
+import { getInvoiceForSend, markInvoiceSent } from "@/lib/repositories";
 
 const ctx = params({ id: "9" });
 
@@ -96,5 +96,23 @@ describe("POST /api/invoices/[id]/send", () => {
       "org_1",
       expect.objectContaining({ snapshot: expect.any(Object) })
     );
+  });
+
+  it("returns INVOICE_VOID when the invoice is void", async () => {
+    vi.mocked(getInvoiceForSend).mockResolvedValueOnce({
+      id: 9,
+      status: "void",
+      publicToken: "tok",
+    } as never);
+    const res = await POST(
+      makeRequest("POST", "http://t/api/invoices/9/send", {
+        to: "alex@x.com",
+        subject: "Invoice #7465",
+      }),
+      ctx
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("INVOICE_VOID");
+    expect(sendInvoiceEmail).not.toHaveBeenCalled();
   });
 });

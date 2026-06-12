@@ -1,4 +1,4 @@
-import { ConflictError } from "@/lib/api/errors";
+import { EstimateLockedError } from "@/lib/api/errors";
 import {
   type SendEstimateEmailInput,
   sendEstimateEmail,
@@ -25,7 +25,7 @@ const estimateSendable: Sendable<
 
   guard(estimate) {
     if (estimate.status === "approved" || estimate.status === "declined") {
-      throw new ConflictError(`Cannot re-send a ${estimate.status} estimate`);
+      throw new EstimateLockedError(estimate.status);
     }
   },
 
