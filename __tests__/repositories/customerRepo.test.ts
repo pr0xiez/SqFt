@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 
 const findMany = vi.fn();
 const findFirst = vi.fn();
@@ -6,11 +7,26 @@ const create = vi.fn();
 const updateMany = vi.fn();
 const deleteMany = vi.fn();
 const queryRaw = vi.fn();
+const eventCount = vi.fn();
+const invoiceCount = vi.fn();
+
+const txMock = {
+  customer: { deleteMany },
+  event: { count: eventCount },
+  invoice: { count: invoiceCount },
+};
+
+const $transaction = vi.fn(
+  async (
+    arg: ((tx: typeof txMock) => Promise<unknown>) | Promise<unknown>[]
+  ) => (Array.isArray(arg) ? Promise.all(arg) : arg(txMock))
+);
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     customer: { findMany, findFirst, create, updateMany, deleteMany },
     $queryRaw: queryRaw,
+    $transaction,
   },
 }));
 
@@ -108,12 +124,45 @@ describe("updateCustomer", () => {
 
 describe("deleteCustomer", () => {
   it("returns false when nothing was deleted", async () => {
+    eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(0);
     deleteMany.mockResolvedValue({ count: 0 });
     expect(await deleteCustomer(99, "org1")).toBe(false);
   });
 
   it("returns true when deleted", async () => {
+    eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(0);
     deleteMany.mockResolvedValue({ count: 1 });
     expect(await deleteCustomer(1, "org1")).toBe(true);
+  });
+
+  it("refuses when a descendant estimate has scheduled events", async () => {
+    eventCount.mockResolvedValue(1);
+    await expect(deleteCustomer(1, "org1")).rejects.toBeInstanceOf(
+      EstimateHasEventsError
+    );
+    expect(eventCount).toHaveBeenCalledWith({
+      where: {
+        orgId: "org1",
+        estimate: { siteMeasure: { location: { customerId: 1 } } },
+      },
+    });
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses when a descendant estimate has invoices", async () => {
+    eventCount.mockResolvedValue(0);
+    invoiceCount.mockResolvedValue(2);
+    await expect(deleteCustomer(1, "org1")).rejects.toBeInstanceOf(
+      HasInvoicesError
+    );
+    expect(invoiceCount).toHaveBeenCalledWith({
+      where: {
+        orgId: "org1",
+        estimate: { siteMeasure: { location: { customerId: 1 } } },
+      },
+    });
+    expect(deleteMany).not.toHaveBeenCalled();
   });
 });

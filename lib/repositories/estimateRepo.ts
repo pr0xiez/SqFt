@@ -1,7 +1,11 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
-import { EstimateHasEventsError, EstimateLockedError } from "@/lib/api/errors";
+import {
+  EstimateHasEventsError,
+  EstimateLockedError,
+  HasInvoicesError,
+} from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
@@ -390,7 +394,9 @@ export async function saveEstimate(
 /**
  * Delete a estimate. Refuses (throws EstimateHasEventsError) when any Event still
  * references it — those are jobs that depend on this estimate per the
- * type=job→estimateId invariant.
+ * type=job→estimateId invariant — and (throws HasInvoicesError) when any
+ * invoice exists, since Estimate→Invoice→Payment is onDelete: Cascade and the
+ * delete would silently erase financial records.
  */
 export async function deleteEstimate(
   id: number,
@@ -401,6 +407,10 @@ export async function deleteEstimate(
       where: { orgId, estimateId: id },
     });
     if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
+    const invoiceCount = await tx.invoice.count({
+      where: { orgId, estimateId: id },
+    });
+    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
     const result = await tx.estimate.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });

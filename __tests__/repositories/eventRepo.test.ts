@@ -6,6 +6,8 @@ const eventFindFirst = vi.fn();
 const eventCreate = vi.fn();
 const eventUpdate = vi.fn();
 const eventDeleteMany = vi.fn();
+const customerFindFirst = vi.fn();
+const estimateFindFirst = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -16,6 +18,8 @@ vi.mock("@/lib/prisma", () => ({
       update: eventUpdate,
       deleteMany: eventDeleteMany,
     },
+    customer: { findFirst: customerFindFirst },
+    estimate: { findFirst: estimateFindFirst },
   },
 }));
 
@@ -23,7 +27,12 @@ const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
   "@/lib/repositories/eventRepo"
 );
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // In-org FKs resolve by default; org-validation tests override with null.
+  customerFindFirst.mockResolvedValue({ id: 1 });
+  estimateFindFirst.mockResolvedValue({ id: 1 });
+});
 
 describe("listEvents", () => {
   it("scopes by orgId and orders by date,startTime", async () => {
@@ -99,6 +108,55 @@ describe("createEvent", () => {
     ).rejects.toBeInstanceOf(ValidationError);
     expect(eventCreate).not.toHaveBeenCalled();
   });
+
+  it("rejects a customerId that isn't in the caller's org", async () => {
+    customerFindFirst.mockResolvedValueOnce(null);
+    await expect(
+      createEvent("org1", {
+        type: "visit",
+        title: "Measure",
+        customerId: 77,
+        date: new Date(),
+        startTime: "10:00",
+        endTime: "11:00",
+      })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(customerFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 77, orgId: "org1" } })
+    );
+    expect(eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an estimateId that isn't in the caller's org", async () => {
+    estimateFindFirst.mockResolvedValueOnce(null);
+    await expect(
+      createEvent("org1", {
+        type: "job",
+        title: "Install",
+        estimateId: 42,
+        date: new Date(),
+        startTime: "08:00",
+        endTime: "16:00",
+      })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(estimateFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 42, orgId: "org1" } })
+    );
+    expect(eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("does not look up FKs when none are supplied", async () => {
+    eventCreate.mockResolvedValue({ id: 1 });
+    await createEvent("org1", {
+      type: "visit",
+      title: "Measure",
+      date: new Date(),
+      startTime: "10:00",
+      endTime: "11:00",
+    });
+    expect(customerFindFirst).not.toHaveBeenCalled();
+    expect(estimateFindFirst).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateEvent", () => {
@@ -126,6 +184,32 @@ describe("updateEvent", () => {
     eventUpdate.mockResolvedValue({ id: 1 });
     await updateEvent(1, "org1", { estimateId: 2 });
     expect(eventUpdate).toHaveBeenCalled();
+  });
+
+  it("rejects changing customerId to one outside the org", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "visit", estimateId: null });
+    customerFindFirst.mockResolvedValueOnce(null);
+    await expect(
+      updateEvent(1, "org1", { customerId: 77 })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(eventUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects changing estimateId to one outside the org", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "job", estimateId: 1 });
+    estimateFindFirst.mockResolvedValueOnce(null);
+    await expect(
+      updateEvent(1, "org1", { estimateId: 42 })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(eventUpdate).not.toHaveBeenCalled();
+  });
+
+  it("does not look up FKs that aren't being changed", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "visit", estimateId: null });
+    eventUpdate.mockResolvedValue({ id: 1 });
+    await updateEvent(1, "org1", { title: "Renamed" });
+    expect(customerFindFirst).not.toHaveBeenCalled();
+    expect(estimateFindFirst).not.toHaveBeenCalled();
   });
 
   it("uses set semantics when assigneeIds is supplied", async () => {

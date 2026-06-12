@@ -1,4 +1,5 @@
 import { Prisma } from "@/app/generated/prisma/client";
+import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import type { SortDirection } from "@/lib/sort";
@@ -285,10 +286,30 @@ export async function updateCustomer(
   return prisma.customer.findFirst({ where: { id, orgId } });
 }
 
+/**
+ * Delete a customer. The cascade reaches every descendant estimate via
+ * Location→SiteMeasure→Estimate (and Estimate→Invoice→Payment is also
+ * Cascade), so this refuses — like deleteEstimate — while a descendant
+ * estimate has scheduled Events or any invoice. Otherwise deleting the
+ * customer would bypass the guards that deleting the estimate itself enforces.
+ */
 export async function deleteCustomer(
   id: number,
   orgId: string
 ): Promise<boolean> {
-  const result = await prisma.customer.deleteMany({ where: { id, orgId } });
-  return result.count > 0;
+  return prisma.$transaction(async (tx) => {
+    const descendantEstimates = {
+      estimate: { siteMeasure: { location: { customerId: id } } },
+    };
+    const eventCount = await tx.event.count({
+      where: { orgId, ...descendantEstimates },
+    });
+    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
+    const invoiceCount = await tx.invoice.count({
+      where: { orgId, ...descendantEstimates },
+    });
+    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
+    const result = await tx.customer.deleteMany({ where: { id, orgId } });
+    return result.count > 0;
+  });
 }

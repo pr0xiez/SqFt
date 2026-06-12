@@ -184,7 +184,10 @@ Invoices are emailed via a public token page (`/invoice-review/[token]`),
 reusing the React-Email + Resend flow. On send, the invoice freezes a
 `snapshot` (identity + prorated lines + balance-due totals) so the customer
 document can never drift from later estimate edits; the public page renders
-from that snapshot and flips `sent → viewed` on first open.
+from that snapshot and flips `sent → viewed` on first open. **Balance due is
+the exception**: both the public page and the builder's `InvoiceDetail`
+compute it live from the payments ledger (`amount − Σ payments`) — a
+partially-paid invoice must never show the full amount as still owed.
 
 Payments are recorded manually into a `Payment` ledger (the schema is
 Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
@@ -246,8 +249,15 @@ Domain codes:
 
 - `ESTIMATE_LOCKED` (409) — caller tried to mutate an estimate whose status is
   `approved` or `declined`.
-- `ESTIMATE_HAS_EVENTS` (409) — caller tried to delete an estimate that still
-  has scheduled Events (jobs) referencing it.
+- `ESTIMATE_HAS_EVENTS` (409) — caller tried to delete an estimate (or a site
+  measure / customer above it — the cascade reaches descendant estimates) that
+  still has scheduled Events (jobs) referencing it.
+- `HAS_INVOICES` (409) — caller tried to delete an estimate / site measure /
+  customer whose (descendant) estimates carry invoices. The
+  Estimate→Invoice→Payment chain is `onDelete: Cascade`, so the delete would
+  silently erase financial records; void invoices instead of deleting their
+  records. Thrown by all three delete paths (`deleteEstimate`,
+  `deleteSiteMeasure`, `deleteCustomer`).
 - `EMAIL_FAILED` (502) — upstream email provider rejected the send. Returned
   by the estimate-send route when Resend reports a non-OK result.
 - `INVOICE_LOCKED` (409) — caller tried to edit an invoice that has been sent

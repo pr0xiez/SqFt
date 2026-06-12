@@ -4,7 +4,12 @@ export interface PublicInvoice {
   invoiceNumber: number;
   status: string;
   dueLabel: string | null;
+  /** The full invoice amount. */
   amountFormatted: string;
+  /** Sum of recorded payments; null when nothing has been paid yet. */
+  paidFormatted: string | null;
+  /** amount − payments — what the customer still owes. */
+  balanceDueFormatted: string;
   memo: string | null;
   terms: string;
   paymentInstructions: string;
@@ -50,7 +55,7 @@ export function PublicInvoiceView({ invoice }: { invoice: PublicInvoice }) {
             </div>
           ) : null}
           <div className="text-[32px] font-[700] leading-none mt-2">
-            {invoice.amountFormatted}
+            {invoice.balanceDueFormatted}
           </div>
         </div>
       </header>
@@ -96,10 +101,22 @@ export function PublicInvoiceView({ invoice }: { invoice: PublicInvoice }) {
           ))}
         </tbody>
         <tfoot>
+          {invoice.paidFormatted ? (
+            <>
+              <tr>
+                <td className="py-2">Invoice total</td>
+                <td className="py-2 text-right">{invoice.amountFormatted}</td>
+              </tr>
+              <tr>
+                <td className="py-2">Paid to date</td>
+                <td className="py-2 text-right">−{invoice.paidFormatted}</td>
+              </tr>
+            </>
+          ) : null}
           <tr>
             <td className="py-3 font-[700]">Balance due</td>
             <td className="py-3 text-right font-[700]">
-              {invoice.amountFormatted}
+              {invoice.balanceDueFormatted}
             </td>
           </tr>
         </tfoot>

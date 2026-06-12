@@ -73,6 +73,22 @@ export class EstimateHasEventsError extends ConflictError {
   }
 }
 
+/**
+ * Thrown by the estimate / site-measure / customer delete paths when the
+ * cascade would erase invoices (and their payment ledger). Invoices are
+ * permanent financial records: void them, keep the records.
+ */
+export class HasInvoicesError extends ConflictError {
+  readonly invoiceCount: number;
+  constructor(invoiceCount: number) {
+    super(
+      `Can't delete: ${invoiceCount} invoice(s) (and any recorded payments) are attached. Void invoices instead of deleting their records.`,
+      "HAS_INVOICES"
+    );
+    this.invoiceCount = invoiceCount;
+  }
+}
+
 export class InvoiceLockedError extends ConflictError {
   constructor() {
     super(

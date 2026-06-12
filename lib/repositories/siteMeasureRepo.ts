@@ -1,4 +1,5 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { searchableInt } from "@/lib/repositories/search";
@@ -262,10 +263,27 @@ export async function saveSiteMeasure(
   });
 }
 
+/**
+ * Delete a site measure. The cascade reaches every descendant estimate (and
+ * Estimate→Invoice→Payment is also Cascade), so this refuses — like
+ * deleteEstimate — while a descendant estimate has scheduled Events or any
+ * invoice. Otherwise deleting a site measure would bypass the guards that
+ * deleting the estimate itself enforces.
+ */
 export async function deleteSiteMeasure(
   id: number,
   orgId: string
 ): Promise<boolean> {
-  const result = await prisma.siteMeasure.deleteMany({ where: { id, orgId } });
-  return result.count > 0;
+  return prisma.$transaction(async (tx) => {
+    const eventCount = await tx.event.count({
+      where: { orgId, estimate: { siteMeasureId: id } },
+    });
+    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
+    const invoiceCount = await tx.invoice.count({
+      where: { orgId, estimate: { siteMeasureId: id } },
+    });
+    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
+    const result = await tx.siteMeasure.deleteMany({ where: { id, orgId } });
+    return result.count > 0;
+  });
 }
