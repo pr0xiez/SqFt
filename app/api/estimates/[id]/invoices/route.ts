@@ -4,7 +4,7 @@ import { estimateIdParams } from "@/lib/estimates/schema";
 import { invoiceCreateSchema } from "@/lib/invoices/schema";
 import { createInvoice, listInvoicesForEstimate } from "@/lib/repositories";
 
-export const GET = apiRoute(async ({ orgId, params }) => {
+export const GET = apiRoute({ minRole: "lead" }, async ({ orgId, params }) => {
   const { id } = estimateIdParams.parse(params);
   return listInvoicesForEstimate(id, orgId);
 });
