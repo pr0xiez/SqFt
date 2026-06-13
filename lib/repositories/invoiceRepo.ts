@@ -307,6 +307,33 @@ export async function rotateInvoiceToken(id: number, orgId: string) {
   return res.count > 0 ? token : null;
 }
 
+export interface WriteInvoiceEventInput {
+  invoiceId: number;
+  type: "link_rotated";
+  actorEmail?: string;
+  actorName?: string;
+}
+
+/**
+ * Append a lifecycle event that isn't already written atomically by its
+ * mutation (markInvoiceSent / voidInvoice / recordPayment own their own
+ * events inside their transactions). Callers must have already org-scoped
+ * the invoice.
+ */
+export async function writeInvoiceEvent(
+  input: WriteInvoiceEventInput
+): Promise<void> {
+  await prisma.invoiceEvent.create({
+    data: {
+      invoiceId: input.invoiceId,
+      type: input.type,
+      source: "builder",
+      actorEmail: input.actorEmail ?? null,
+      actorName: input.actorName ?? null,
+    },
+  });
+}
+
 export interface MarkInvoiceSentInput {
   to: string;
   subject: string;

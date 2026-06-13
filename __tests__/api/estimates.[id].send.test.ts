@@ -162,7 +162,7 @@ describe("POST /api/estimates/[id]/send", () => {
     );
   });
 
-  it("returns CONFLICT when the estimate is already approved", async () => {
+  it("returns ESTIMATE_LOCKED when the estimate is already approved", async () => {
     mockGetEstimate.mockResolvedValue({
       id: 1,
       orgId: "org1",
@@ -177,6 +177,7 @@ describe("POST /api/estimates/[id]/send", () => {
       params({ id: "1" })
     );
     expect(res.status).toBe(409);
+    expect((await res.json()).error.code).toBe("ESTIMATE_LOCKED");
     expect(mockSendEstimateEmail).not.toHaveBeenCalled();
   });
 
