@@ -3,7 +3,7 @@ import { apiRoute } from "@/lib/api/route";
 import { invoiceIdParams, invoiceUpdateSchema } from "@/lib/invoices/schema";
 import { getInvoice, updateInvoice } from "@/lib/repositories";
 
-export const GET = apiRoute(async ({ orgId, params }) => {
+export const GET = apiRoute({ minRole: "lead" }, async ({ orgId, params }) => {
   const { id } = invoiceIdParams.parse(params);
   const invoice = await getInvoice(id, orgId);
   if (!invoice) throw new NotFoundError();
