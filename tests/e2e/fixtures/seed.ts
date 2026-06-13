@@ -1,4 +1,9 @@
-import { type APIRequestContext, expect, type Page } from "@playwright/test";
+import {
+  type APIRequestContext,
+  type BrowserContext,
+  expect,
+  type Page,
+} from "@playwright/test";
 
 // ── reload helper ────────────────────────────────────────────────────────────
 
@@ -9,6 +14,31 @@ import { type APIRequestContext, expect, type Page } from "@playwright/test";
 export async function reloadFresh(page: Page): Promise<void> {
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+}
+
+/**
+ * Guarantee every document loaded in `ctx` from now on starts with empty
+ * localStorage.
+ *
+ * A plain `page.evaluate(() => localStorage.clear())` before a goto is racy:
+ * the old page keeps running until the navigation commits, and its React
+ * Query persister (sync-storage, ~1s throttle) re-writes the whole cache
+ * whenever any still-settling query lands — undoing the clear. The next page
+ * then hydrates a fresh-within-staleTime list entry and never refetches, so a
+ * `waitForResponse` on the list endpoint hangs forever. An init script runs
+ * at document start of the new page, after the old document (and its pending
+ * persister write) is gone and before app code can hydrate.
+ */
+export async function clearStorageOnNextLoad(
+  ctx: BrowserContext
+): Promise<void> {
+  await ctx.addInitScript(() => {
+    try {
+      window.localStorage.clear();
+    } catch {
+      // Opaque-origin frames (about:blank etc.) throw; nothing to clear there.
+    }
+  });
 }
 
 // ── customer / siteMeasure ──────────────────────────────────────────────────────
