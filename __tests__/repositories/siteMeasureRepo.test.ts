@@ -240,17 +240,21 @@ describe("getSiteMeasure", () => {
 // ── createSiteMeasure ───────────────────────────────────────────────────────────
 
 describe("createSiteMeasure", () => {
-  it("allocates the next siteMeasureNumber from Organization.nextSiteMeasureNumber", async () => {
+  it("atomically allocates the next siteMeasureNumber via an increment-returning update", async () => {
     locationFindFirst.mockResolvedValue({ id: 9 });
-    organizationFindUnique.mockResolvedValue({ nextSiteMeasureNumber: 42 });
-    organizationUpdate.mockResolvedValue({});
+    // The atomic increment returns the post-increment counter; the reserved
+    // number is that value minus one.
+    organizationUpdate.mockResolvedValue({ nextSiteMeasureNumber: 43 });
     txEstimateCreate.mockResolvedValue({ id: 1, siteMeasureNumber: 42 });
 
     await createSiteMeasure("org1", { locationId: 9 });
 
+    // Must not read the counter via a non-locking findUnique (issue #159).
+    expect(organizationFindUnique).not.toHaveBeenCalled();
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org1" },
-      data: { nextSiteMeasureNumber: 43 },
+      data: { nextSiteMeasureNumber: { increment: 1 } },
+      select: { nextSiteMeasureNumber: true },
     });
     expect(txEstimateCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -258,19 +262,6 @@ describe("createSiteMeasure", () => {
         locationId: 9,
         siteMeasureNumber: 42,
       }),
-    });
-  });
-
-  it("defaults siteMeasureNumber to 1 when org counter missing", async () => {
-    locationFindFirst.mockResolvedValue({ id: 9 });
-    organizationFindUnique.mockResolvedValue(null);
-    organizationUpdate.mockResolvedValue({});
-    txEstimateCreate.mockResolvedValue({ id: 1, siteMeasureNumber: 1 });
-
-    await createSiteMeasure("org1", { locationId: 9 });
-
-    expect(txEstimateCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ siteMeasureNumber: 1 }),
     });
   });
 

@@ -109,8 +109,9 @@ describe("createInvoice", () => {
 
   it("flat-amount path: stores the rounded amount and null pct", async () => {
     estimateFindFirst.mockResolvedValue(estimateFixture({ total: 1000 }));
-    orgFindUniqueOrThrow.mockResolvedValue({
-      nextInvoiceNumber: 7,
+    // Atomic increment returns the post-increment counter; reserved number is -1.
+    orgUpdate.mockResolvedValue({
+      nextInvoiceNumber: 8,
       defaultPaymentInstructions: "Pay here",
     });
     invoiceCreate.mockResolvedValue({ id: 10 });
@@ -134,8 +135,8 @@ describe("createInvoice", () => {
 
   it("pct-of-total path: derives amount from estimate total and stores pct", async () => {
     estimateFindFirst.mockResolvedValue(estimateFixture({ total: 1000 }));
-    orgFindUniqueOrThrow.mockResolvedValue({
-      nextInvoiceNumber: 1,
+    orgUpdate.mockResolvedValue({
+      nextInvoiceNumber: 2,
       defaultPaymentInstructions: "",
     });
     invoiceCreate.mockResolvedValue({ id: 11 });
@@ -149,20 +150,27 @@ describe("createInvoice", () => {
     );
   });
 
-  it("increments the org's nextInvoiceNumber", async () => {
+  it("atomically increments the org's nextInvoiceNumber via an increment-returning update", async () => {
     estimateFindFirst.mockResolvedValue(estimateFixture({ total: 1000 }));
-    orgFindUniqueOrThrow.mockResolvedValue({
-      nextInvoiceNumber: 42,
+    orgUpdate.mockResolvedValue({
+      nextInvoiceNumber: 43,
       defaultPaymentInstructions: "",
     });
     invoiceCreate.mockResolvedValue({ id: 12 });
 
     await createInvoice("org1", { estimateId: 1, amount: 100 });
 
-    expect(orgUpdate).toHaveBeenCalledWith(
+    // Must not read the counter via a non-locking findUniqueOrThrow (issue #159).
+    expect(orgFindUniqueOrThrow).not.toHaveBeenCalled();
+    expect(orgUpdate).toHaveBeenCalledWith({
+      where: { id: "org1" },
+      data: { nextInvoiceNumber: { increment: 1 } },
+      select: { nextInvoiceNumber: true, defaultPaymentInstructions: true },
+    });
+    // Reserved number is the pre-increment value (returned - 1).
+    expect(invoiceCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "org1" },
-        data: { nextInvoiceNumber: 43 },
+        data: expect.objectContaining({ invoiceNumber: 42 }),
       })
     );
   });
@@ -171,8 +179,8 @@ describe("createInvoice", () => {
     estimateFindFirst.mockResolvedValue(
       estimateFixture({ total: 1000, terms: "Due on receipt" })
     );
-    orgFindUniqueOrThrow.mockResolvedValue({
-      nextInvoiceNumber: 1,
+    orgUpdate.mockResolvedValue({
+      nextInvoiceNumber: 2,
       defaultPaymentInstructions: "",
     });
     invoiceCreate.mockResolvedValue({ id: 13 });

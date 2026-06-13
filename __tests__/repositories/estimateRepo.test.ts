@@ -246,23 +246,32 @@ describe("createEstimate", () => {
     expect(txEstimateCreate).not.toHaveBeenCalled();
   });
 
-  it("allocates the next estimateNumber from Organization.nextEstimateNumber", async () => {
+  it("atomically allocates the next estimateNumber via an increment-returning update", async () => {
     siteMeasureFindFirst.mockResolvedValue({ id: 1 });
-    organizationFindUnique.mockResolvedValue({
-      nextEstimateNumber: 5005,
+    // The atomic increment returns the post-increment counter; the reserved
+    // number is that value minus one.
+    organizationUpdate.mockResolvedValue({
+      nextEstimateNumber: 5006,
       defaultDepositPct: 0.3,
       defaultTerms: "",
       defaultValidityDays: 21,
     });
-    organizationUpdate.mockResolvedValue({});
     txEstimateCreate.mockResolvedValue({ id: 100, estimateNumber: 5005 });
     estimateFindFirst.mockResolvedValue({ id: 100 });
 
     await createEstimate("org1", { siteMeasureId: 1 });
 
+    // Must not read the counter via a non-locking findUnique (issue #159).
+    expect(organizationFindUnique).not.toHaveBeenCalled();
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org1" },
-      data: { nextEstimateNumber: 5006 },
+      data: { nextEstimateNumber: { increment: 1 } },
+      select: {
+        nextEstimateNumber: true,
+        defaultDepositPct: true,
+        defaultTerms: true,
+        defaultValidityDays: true,
+      },
     });
     expect(txEstimateCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -284,13 +293,12 @@ describe("createEstimate — org defaults", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     siteMeasureFindFirst.mockResolvedValue({ id: 7 });
-    organizationFindUnique.mockResolvedValue({
-      nextEstimateNumber: 1042,
+    organizationUpdate.mockResolvedValue({
+      nextEstimateNumber: 1043,
       defaultDepositPct: 0.4,
       defaultTerms: "Custom terms text.",
       defaultValidityDays: 30,
     });
-    organizationUpdate.mockResolvedValue({});
     txEstimateCreate.mockResolvedValue({ id: 999 });
     estimateFindFirst.mockResolvedValue({ id: 999 });
   });

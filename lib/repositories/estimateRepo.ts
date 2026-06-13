@@ -303,8 +303,12 @@ export async function createEstimate(
     });
     if (!siteMeasure) return null;
 
-    const org = await tx.organization.findUnique({
+    // Atomically reserve the next number. The increment-returning update locks
+    // the Organization row, so concurrent creates can't allocate the same
+    // number (a plain findUnique read does not lock under READ COMMITTED).
+    const org = await tx.organization.update({
       where: { id: orgId },
+      data: { nextEstimateNumber: { increment: 1 } },
       select: {
         nextEstimateNumber: true,
         defaultDepositPct: true,
@@ -312,11 +316,7 @@ export async function createEstimate(
         defaultValidityDays: true,
       },
     });
-    const estimateNumber = org?.nextEstimateNumber ?? 1;
-    await tx.organization.update({
-      where: { id: orgId },
-      data: { nextEstimateNumber: estimateNumber + 1 },
-    });
+    const estimateNumber = org.nextEstimateNumber - 1;
 
     const created = await tx.estimate.create({
       data: {
@@ -326,9 +326,9 @@ export async function createEstimate(
         status: "draft",
         convenienceFeeRate: 0.03,
         markupPct: 0,
-        depositPct: org?.defaultDepositPct ?? 0.3,
-        terms: org?.defaultTerms ?? "",
-        validityDays: org?.defaultValidityDays ?? 21,
+        depositPct: org.defaultDepositPct ?? 0.3,
+        terms: org.defaultTerms ?? "",
+        validityDays: org.defaultValidityDays ?? 21,
       },
     });
 

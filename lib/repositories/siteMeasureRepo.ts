@@ -187,15 +187,15 @@ export async function createSiteMeasure(
     });
     if (!location) return null;
 
-    const org = await tx.organization.findUnique({
+    // Atomically reserve the next number. The increment-returning update locks
+    // the Organization row, so concurrent creates can't allocate the same
+    // number (a plain findUnique read does not lock under READ COMMITTED).
+    const org = await tx.organization.update({
       where: { id: orgId },
+      data: { nextSiteMeasureNumber: { increment: 1 } },
       select: { nextSiteMeasureNumber: true },
     });
-    const siteMeasureNumber = org?.nextSiteMeasureNumber ?? 1;
-    await tx.organization.update({
-      where: { id: orgId },
-      data: { nextSiteMeasureNumber: siteMeasureNumber + 1 },
-    });
+    const siteMeasureNumber = org.nextSiteMeasureNumber - 1;
     return tx.siteMeasure.create({
       data: { ...data, orgId, siteMeasureNumber },
     });
