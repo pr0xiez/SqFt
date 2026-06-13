@@ -98,6 +98,7 @@ export interface InvoiceDetail {
   publicToken: string | null;
   sentAt: string | null;
   sentToEmail: string | null;
+  customerEmail: string | null;
   viewedAt: string | null;
   paidAt: string | null;
   voidedAt: string | null;

@@ -59,9 +59,28 @@ const INVOICE_INCLUDE = {
   invoiceEvents: { orderBy: { createdAt: "desc" } },
 } satisfies Prisma.InvoiceInclude;
 
+/** Detail include also pulls the customer email so the send form can prefill it. */
+const INVOICE_DETAIL_INCLUDE = {
+  ...INVOICE_INCLUDE,
+  estimate: {
+    select: {
+      siteMeasure: {
+        select: {
+          location: { select: { customer: { select: { email: true } } } },
+        },
+      },
+    },
+  },
+} satisfies Prisma.InvoiceInclude;
+
 export type InvoiceWithDetails = Prisma.InvoiceGetPayload<{
   include: typeof INVOICE_INCLUDE;
 }>;
+
+/** A single invoice plus the customer email derived from its estimate chain. */
+export type InvoiceDetailRecord = InvoiceWithDetails & {
+  customerEmail: string | null;
+};
 
 /** Sum recorded payments → InvoiceLike for billing math. */
 function toInvoiceLike(inv: {
@@ -90,11 +109,17 @@ export async function listInvoicesForEstimate(
 export async function getInvoice(
   id: number,
   orgId: string
-): Promise<InvoiceWithDetails | null> {
-  return prisma.invoice.findFirst({
+): Promise<InvoiceDetailRecord | null> {
+  const invoice = await prisma.invoice.findFirst({
     where: { id, orgId },
-    include: INVOICE_INCLUDE,
+    include: INVOICE_DETAIL_INCLUDE,
   });
+  if (!invoice) return null;
+  const { estimate, ...rest } = invoice;
+  return {
+    ...rest,
+    customerEmail: estimate.siteMeasure.location.customer.email,
+  };
 }
 
 export interface CreateInvoiceInput {
