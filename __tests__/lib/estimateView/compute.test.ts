@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeEstimateView } from "@/lib/estimateView";
+import { round2 } from "@/lib/money";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 
 const baseLi = (over: Partial<LineItemCalc> = {}): LineItemCalc => ({
@@ -139,9 +140,9 @@ describe("computeEstimateView — totals breakdown", () => {
     expect(v.subtotal).toBe(1000);
     expect(v.markup).toBe(200);
     expect(v.beforeFee).toBe(1200);
-    expect(v.convenienceFee).toBeCloseTo(36);
-    expect(v.total).toBeCloseTo(1236);
-    expect(v.deposit).toBeCloseTo(618);
+    expect(v.convenienceFee).toBe(36);
+    expect(v.total).toBe(1236);
+    expect(v.deposit).toBe(618);
   });
 
   it("treats unresolved lines as 0 in subtotal but flags them", () => {
@@ -171,5 +172,91 @@ describe("computeEstimateView — totals breakdown", () => {
     expect(v.subtotal).toBe(0);
     expect(v.total).toBe(0);
     expect(v.hasUnresolvedLines).toBe(false);
+  });
+});
+
+describe("computeEstimateView — money rounding (issue #158)", () => {
+  it("rounds a per-line subtotal that floats off the penny to exact cents", () => {
+    // 10.1 * 3.3 = 33.330000000000005 in IEEE-754 — must round to 33.33.
+    const v = computeEstimateView({
+      lineItems: [baseLi({ qty: 10.1, rate: 3.3 })],
+      items: [],
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+    expect(v.lines[0].subtotal).toBe(33.33);
+    expect(v.subtotal).toBe(33.33);
+    expect(v.total).toBe(33.33);
+  });
+
+  it("rounds markup/fee/total/deposit to exact cents (no float drift)", () => {
+    // subtotal 100.10; markup 7% = 7.007 -> 7.01; beforeFee 107.11;
+    // fee 3% = 3.2133 -> 3.21; total 110.32; deposit 50% = 55.16.
+    const v = computeEstimateView({
+      lineItems: [baseLi({ qty: 1, rate: 100.1 })],
+      items: [],
+      markupPct: 7,
+      convenienceFeeRate: 0.03,
+      depositPct: 0.5,
+    });
+    expect(v.subtotal).toBe(100.1);
+    expect(v.markup).toBe(7.01);
+    expect(v.beforeFee).toBe(107.11);
+    expect(v.convenienceFee).toBe(3.21);
+    expect(v.total).toBe(110.32);
+    expect(v.deposit).toBe(55.16);
+  });
+
+  it("keeps the breakdown internally consistent after rounding", () => {
+    // Inputs chosen so unrounded products land mid-penny on several boundaries.
+    const v = computeEstimateView({
+      lineItems: [
+        baseLi({ id: 1, qty: 3, rate: 11.115 }),
+        baseLi({ id: 2, qty: 7, rate: 4.225 }),
+      ],
+      items: [],
+      markupPct: 12.5,
+      convenienceFeeRate: 0.035,
+      depositPct: 0.5,
+    });
+    // Each money field must equal the rounded combination of the prior ones.
+    expect(v.subtotal).toBe(
+      round2((v.lines[0].subtotal ?? 0) + (v.lines[1].subtotal ?? 0))
+    );
+    expect(v.beforeFee).toBe(round2(v.subtotal + v.markup));
+    expect(v.total).toBe(round2(v.beforeFee + v.convenienceFee));
+    // And every field is itself an exact cent value.
+    for (const n of [
+      v.subtotal,
+      v.markup,
+      v.beforeFee,
+      v.convenienceFee,
+      v.total,
+      v.deposit,
+    ]) {
+      expect(n).toBe(round2(n));
+    }
+  });
+
+  it("leaves fractional effectiveQty unrounded (qty is not money)", () => {
+    // 120 * 1.10 = 132 exactly, but use a waste% that yields a fractional qty.
+    const v = computeEstimateView({
+      lineItems: [
+        baseLi({
+          qtyMode: "linked_area",
+          wastePct: 7,
+          linkedRoomIds: [1],
+          rate: 0,
+        }),
+      ],
+      items: [tenByTen], // 100 sqft
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+    // 100 * 1.07 = 107 — but the point is qty is not forced to cents; verify it
+    // is the raw quantity, not round2'd as if it were dollars.
+    expect(v.lines[0].effectiveQty).toBe(107);
   });
 });

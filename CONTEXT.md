@@ -73,6 +73,18 @@ Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
 `lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).
 
+**Every monetary output is rounded to cents.** `computeEstimateView` routes each
+money field through `round2` (`lib/money.ts`) **at its own boundary** — per-line
+`subtotal`, then `subtotal` → `markup` → `beforeFee` → `convenienceFee` →
+`total` → `deposit`, each rounded off the prior *rounded* value. So the
+breakdown reconciles exactly (`beforeFee === round2(subtotal + markup)`,
+`total === round2(beforeFee + convenienceFee)`) and a persisted `Estimate.total`
+(`syncEstimateTotal`, `lib/repositories/estimateRepo.ts`) can never disagree
+with a recompute at the penny. Non-money outputs (`effectiveQty`) stay unrounded
+— quantities are fractional (sqft, linear feet, waste%). Downstream
+(`foldMarkupIntoLines`, `prorateInvoice`) still re-rounds and steers the penny
+residual via `residualTargetIndex`, since proration multiplies by a bill ratio.
+
 `computeEstimateView` lines carry their `id` (`LineView.id`), and consumers
 that re-attach side-channel metadata to computed math **join by id, never by
 array position** — so a future reorder/filter/drop in the view is a loud
