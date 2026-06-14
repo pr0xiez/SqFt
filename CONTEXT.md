@@ -311,6 +311,16 @@ Domain codes:
   invoice, not unlocking this one.
 - `INVOICE_OVERBILL` (409) — caller tried to invoice more than the estimate's
   unbilled balance (estimate total − Σ non-void invoice amounts).
+- `STRIPE_NOT_CONNECTED` (409) — pay route / Checkout creation for an org with
+  no connected account or `stripeChargesEnabled=false`.
+- `INVOICE_ALREADY_PAID` (409) — pay route invoked when the live balance is ≤ 0
+  or the invoice is `paid`/`void`.
+- `STRIPE_ONBOARDING_FAILED` (502) — Stripe API rejected an
+  accounts/account_links/checkout-session create.
+- `STRIPE_ORG_MISMATCH` (422) — webhook PaymentIntent's destination and
+  `metadata.invoiceId` disagree on an org; logged + acked, never recorded.
+- `STRIPE_WEBHOOK_SIGNATURE_FAILED` (400) — bare webhook route rejected the
+  signature; plain 400 Response (not the envelope).
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.

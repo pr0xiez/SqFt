@@ -120,6 +120,41 @@ export class InvoiceOverbillError extends ConflictError {
   }
 }
 
+/** Pay route / Checkout creation for an org that hasn't completed Connect onboarding. */
+export class StripeNotConnectedError extends ConflictError {
+  constructor() {
+    super(
+      "This business hasn't finished setting up online payments yet.",
+      "STRIPE_NOT_CONNECTED"
+    );
+  }
+}
+
+/** Live balance is already ≤ 0 (or invoice is paid/void) — nothing to charge. */
+export class InvoiceAlreadyPaidError extends ConflictError {
+  constructor() {
+    super("This invoice has no balance due.", "INVOICE_ALREADY_PAID");
+  }
+}
+
+/** accounts.create / account_links.create / checkout.sessions.create failed upstream. */
+export class StripeOnboardingError extends ApiError {
+  constructor(message = "Payment provider error") {
+    super({ code: "STRIPE_ONBOARDING_FAILED", status: 502, message });
+  }
+}
+
+/**
+ * Webhook resolved a PaymentIntent whose transfer destination and
+ * metadata.invoiceId don't agree on one org. Never writes the ledger. Logged
+ * and acknowledged (200) so Stripe stops retrying a structurally-bad event.
+ */
+export class StripeOrgMismatchError extends ApiError {
+  constructor(message = "Stripe payment org mismatch") {
+    super({ code: "STRIPE_ORG_MISMATCH", status: 422, message });
+  }
+}
+
 export class EmailFailedError extends ApiError {
   constructor(message: string) {
     super({ code: "EMAIL_FAILED", status: 502, message });
