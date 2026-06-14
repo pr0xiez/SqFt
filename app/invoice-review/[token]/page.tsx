@@ -52,6 +52,13 @@ export default async function PublicInvoicePage({ params }: Props) {
   // a partially-paid invoice must not show the full amount as still owed.
   const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));
   const balanceDue = round2(invoice.amount - paid);
+  // The Pay button targets the live-balance pay route only when the org can
+  // charge and a balance is actually owed (the route re-checks both).
+  const canPay =
+    invoice.org.stripeChargesEnabled &&
+    balanceDue > 0 &&
+    invoice.status !== "paid" &&
+    invoice.status !== "void";
   const view: PublicInvoice = {
     invoiceNumber: invoice.invoiceNumber,
     status: invoice.status,
@@ -64,7 +71,7 @@ export default async function PublicInvoicePage({ params }: Props) {
     memo: snap.memo,
     terms: snap.terms,
     paymentInstructions: snap.paymentInstructions,
-    payUrl: snap.stripePaymentLinkUrl,
+    payUrl: canPay ? `/api/invoice-review/${token}/pay` : null,
     org: {
       name: snap.org.name,
       phone: snap.org.phone,

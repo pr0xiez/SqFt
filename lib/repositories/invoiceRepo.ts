@@ -617,7 +617,74 @@ export async function appendInvoiceEvent(input: {
 export async function getInvoiceByToken(token: string) {
   return prisma.invoice.findUnique({
     where: { publicToken: token },
-    include: INVOICE_INCLUDE,
+    include: {
+      ...INVOICE_INCLUDE,
+      org: { select: { stripeChargesEnabled: true } },
+    },
+  });
+}
+
+export interface InvoicePayContext {
+  invoiceId: number;
+  orgId: string;
+  invoiceNumber: number;
+  status: string;
+  balanceDueCents: number;
+  connectAccountId: string | null;
+  chargesEnabled: boolean;
+  customerEmail: string | null;
+}
+
+/** Everything the public pay route needs, by token. */
+export async function getInvoicePayContext(
+  token: string
+): Promise<InvoicePayContext | null> {
+  const inv = await prisma.invoice.findUnique({
+    where: { publicToken: token },
+    select: {
+      id: true,
+      orgId: true,
+      invoiceNumber: true,
+      status: true,
+      amount: true,
+      payments: { select: { amount: true } },
+      org: {
+        select: { stripeConnectAccountId: true, stripeChargesEnabled: true },
+      },
+      estimate: {
+        select: {
+          siteMeasure: {
+            select: {
+              location: { select: { customer: { select: { email: true } } } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!inv) return null;
+  const paid = inv.payments.reduce((s, p) => s + p.amount, 0);
+  return {
+    invoiceId: inv.id,
+    orgId: inv.orgId,
+    invoiceNumber: inv.invoiceNumber,
+    status: inv.status,
+    balanceDueCents: Math.round(round2(inv.amount - paid) * 100),
+    connectAccountId: inv.org.stripeConnectAccountId,
+    chargesEnabled: inv.org.stripeChargesEnabled,
+    customerEmail: inv.estimate.siteMeasure.location?.customer?.email ?? null,
+  };
+}
+
+/** Stamp the PaymentIntent id when a Checkout Session is created. */
+export async function setInvoicePaymentIntent(
+  invoiceId: number,
+  orgId: string,
+  paymentIntentId: string
+): Promise<void> {
+  await prisma.invoice.updateMany({
+    where: { id: invoiceId, orgId },
+    data: { stripePaymentIntentId: paymentIntentId },
   });
 }
 
