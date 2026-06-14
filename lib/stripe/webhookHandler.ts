@@ -69,11 +69,12 @@ async function recordFromPaymentIntentId(
   const ctx = await deps.resolvePaymentContext(metadataInvoiceId);
   if (!ctx) return;
 
-  if (
-    destination &&
-    ctx.orgConnectAccountId &&
-    destination !== ctx.orgConnectAccountId
-  ) {
+  // Any present transfer destination MUST equal the resolved org's connected
+  // account — including when the org has none (orgConnectAccountId === null),
+  // where a non-null destination is by definition a cross-org mismatch. Folding
+  // the null case into the `&&` would silently skip the guard and let a foreign
+  // destination be recorded onto an un-onboarded org's invoice.
+  if (destination && destination !== ctx.orgConnectAccountId) {
     await deps.appendInvoiceEvent({
       invoiceId: ctx.invoiceId,
       type: "stripe_org_mismatch",

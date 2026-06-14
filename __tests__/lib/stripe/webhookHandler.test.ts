@@ -169,6 +169,30 @@ describe("handleStripeEvent", () => {
     expect(d.events[0]).toMatchObject({ type: "stripe_org_mismatch" });
   });
 
+  it("rejects a settled charge when the invoice's org has no connected account", async () => {
+    // A PaymentIntent carrying a real-looking destination must NOT be recorded
+    // onto an invoice whose org never onboarded (orgConnectAccountId === null):
+    // any present destination that doesn't equal the org's account is a mismatch.
+    const d = deps({
+      gateway: makeFakeGateway({ paymentIntents: { pi_1: pi() as never } }),
+      resolvePaymentContext: async () => ({
+        invoiceId: 42,
+        orgId: "org1",
+        orgConnectAccountId: null,
+      }),
+    });
+    await handleStripeEvent(
+      {
+        id: "evt_8",
+        type: "payment_intent.succeeded",
+        data: { object: { id: "pi_1" } },
+      } as never,
+      d
+    );
+    expect(d.recorded).toHaveLength(0);
+    expect(d.events[0]).toMatchObject({ type: "stripe_org_mismatch" });
+  });
+
   it("ignores unrelated events without throwing", async () => {
     const d = deps();
     await expect(
