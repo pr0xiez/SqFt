@@ -19,13 +19,19 @@ describe("isPublicReviewPath", () => {
     expect(isPublicReviewPath("/invoice-review/some-token-abc123")).toBe(true);
   });
 
+  it("allows the public pay route and the Stripe webhook", () => {
+    expect(
+      isPublicReviewPath("/api/invoice-review/some-token-abc123/pay")
+    ).toBe(true);
+    expect(isPublicReviewPath("/api/stripe/webhook")).toBe(true);
+  });
+
   it("does not allow authed builder pages or APIs", () => {
     expect(isPublicReviewPath("/")).toBe(false);
     expect(isPublicReviewPath("/invoices")).toBe(false);
     expect(isPublicReviewPath("/invoices/12")).toBe(false);
     expect(isPublicReviewPath("/api/invoices")).toBe(false);
     expect(isPublicReviewPath("/estimates/12")).toBe(false);
-    expect(isPublicReviewPath("/api/invoice-review/tok")).toBe(false);
   });
 
   it("does not allow prefix look-alikes without the trailing slash", () => {
