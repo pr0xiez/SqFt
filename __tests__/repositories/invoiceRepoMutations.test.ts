@@ -2,12 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
 
 // --- Prisma mock ----------------------------------------------------------
-// createInvoice / updateInvoice / recordPayment / markInvoiceSent /
-// markInvoiceViewed run inside prisma.$transaction(async (tx) => ...).
-// We make $transaction invoke its callback with a `tx` object whose model
-// delegates are the same vi.fn()s used for the non-transactional calls, so a
-// single set of mocks covers both styles. voidInvoice / getInvoice call the
-// top-level prisma client directly.
+// createInvoice / updateInvoice / voidInvoice / recordPayment /
+// markInvoiceSent / markInvoiceViewed run inside
+// prisma.$transaction(async (tx) => ...). We make $transaction invoke its
+// callback with a `tx` object whose model delegates are the same vi.fn()s used
+// for the non-transactional calls, so a single set of mocks covers both styles.
 
 const estimateFindFirst = vi.fn();
 const invoiceFindFirst = vi.fn();
@@ -306,15 +305,7 @@ describe("voidInvoice", () => {
   it("voids a non-void invoice, logs the event, and re-reads it", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 1 });
     invoiceEventCreate.mockResolvedValue({});
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "void",
-      estimate: {
-        siteMeasure: {
-          location: { customer: { email: "janet@example.com" } },
-        },
-      },
-    });
+    invoiceFindFirst.mockResolvedValue({ id: 1, status: "void" });
 
     const result = await voidInvoice(1, "org1");
 
@@ -329,17 +320,36 @@ describe("voidInvoice", () => {
         data: expect.objectContaining({ type: "voided" }),
       })
     );
-    expect(result).toEqual({
-      id: 1,
-      status: "void",
-      customerEmail: "janet@example.com",
-    });
+    expect(result).toEqual({ id: 1, status: "void" });
   });
 
-  it("returns null and does not log when the invoice was already void", async () => {
+  it("commits the status flip + audit event atomically in one transaction (#160)", async () => {
+    // Void is terminal/irreversible: the updateMany and the voided event must
+    // run on the SAME transactional client so a partial failure can't void the
+    // invoice without recording the audit event (or vice versa). The re-read
+    // also happens inside the transaction (tx.invoice.findFirst), not via a
+    // separate top-level getInvoice round-trip.
+    invoiceUpdateMany.mockResolvedValue({ count: 1 });
+    invoiceEventCreate.mockResolvedValue({});
+    invoiceFindFirst.mockResolvedValue({ id: 1, status: "void" });
+
+    await voidInvoice(1, "org1");
+
+    expect($transaction).toHaveBeenCalledTimes(1);
+    expect(typeof $transaction.mock.calls[0][0]).toBe("function");
+    // Both the status flip and its audit event were written together.
+    expect(invoiceUpdateMany).toHaveBeenCalledTimes(1);
+    expect(invoiceEventCreate).toHaveBeenCalledTimes(1);
+    expect(invoiceFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 1, orgId: "org1" } })
+    );
+  });
+
+  it("returns null and does not log or re-read when already void", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 0 });
 
     expect(await voidInvoice(1, "org1")).toBeNull();
+    expect($transaction).toHaveBeenCalledTimes(1);
     expect(invoiceEventCreate).not.toHaveBeenCalled();
     expect(invoiceFindFirst).not.toHaveBeenCalled();
   });

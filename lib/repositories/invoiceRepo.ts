@@ -288,15 +288,23 @@ export async function updateInvoice(
 }
 
 export async function voidInvoice(id: number, orgId: string) {
-  const res = await prisma.invoice.updateMany({
-    where: { id, orgId, status: { not: "void" } },
-    data: { status: "void", voidedAt: new Date() },
+  // Void is terminal and irreversible: the status flip and its audit event must
+  // commit atomically (mirroring markInvoiceSent / recordPayment), so a partial
+  // failure can't leave the invoice voided with no `voided` event.
+  return prisma.$transaction(async (tx) => {
+    const res = await tx.invoice.updateMany({
+      where: { id, orgId, status: { not: "void" } },
+      data: { status: "void", voidedAt: new Date() },
+    });
+    if (res.count === 0) return null;
+    await tx.invoiceEvent.create({
+      data: { invoiceId: id, type: "voided", source: "builder" },
+    });
+    return tx.invoice.findFirst({
+      where: { id, orgId },
+      include: INVOICE_INCLUDE,
+    });
   });
-  if (res.count === 0) return null;
-  await prisma.invoiceEvent.create({
-    data: { invoiceId: id, type: "voided", source: "builder" },
-  });
-  return getInvoice(id, orgId);
 }
 
 export async function rotateInvoiceToken(id: number, orgId: string) {
