@@ -204,11 +204,17 @@ the exception**: both the public page and the builder's `InvoiceDetail`
 compute it live from the payments ledger (`amount − Σ payments`) — a
 partially-paid invoice must never show the full amount as still owed.
 
-Payments are recorded manually into a `Payment` ledger (the schema is
-Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
-invoice status from the ledger. A `void` invoice is terminal and excluded from
-all billing math; editing a sent invoice or paying a void one throws
-`INVOICE_LOCKED`. Every lifecycle action appends an `InvoiceEvent`.
+Payments are recorded into a `Payment` ledger either manually (`recordPayment`)
+or automatically from Stripe (`recordStripePayment`, keyed idempotently on
+`Payment.stripeChargeId`). The ledger holds **settled money only**: an in-flight
+ACH writes no Payment row, only an `ach_processing` InvoiceEvent, so
+`nextInvoiceStatus` is unchanged and an unsettled payment never reads as paid.
+Online payment flows through Stripe Connect (Express) destination charges — see
+the *Online Payments* section and
+`docs/superpowers/specs/2026-06-14-online-payments-design.md`. Each payment
+recomputes the invoice status from the ledger. A `void` invoice is terminal and
+excluded from all billing math; editing a sent invoice or paying a void one
+throws `INVOICE_LOCKED`. Every lifecycle action appends an `InvoiceEvent`.
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
@@ -269,6 +275,38 @@ adapter's functions — so the spine's ordering/error tests
 (`__tests__/lib/send/pipeline.test.ts`) run against an in-memory fake with no
 database. Routes are thin: parse input, resolve the sender (`requireSender`,
 `lib/send/sender.ts`), call `sendEstimate` / `sendInvoice`.
+
+## Online Payments
+
+A customer pays an invoice from the public `/invoice-review/[token]` page via
+**Stripe Connect (Express)**, one connected account per org. All Stripe access
+sits behind a `StripeGateway` **port** (`lib/stripe/gateway.ts`) with a real
+implementation (`realGateway.ts`, the only SDK call surface) and an in-memory
+`fakeGateway.ts`, mirroring the send-pipeline seam — so the checkout builder
+(`checkout.ts`, pure destination-charge params), onboarding orchestration
+(`onboarding.ts`), and webhook dispatch (`webhookHandler.ts`) are all unit-
+testable with no network and no DB.
+
+The on-demand pay route (`GET /api/invoice-review/[token]/pay`) reads the
+**live balance**, gates on the org's `stripeChargesEnabled` mirror (throws
+`STRIPE_NOT_CONNECTED` / `INVOICE_ALREADY_PAID`), creates a Stripe-hosted
+Checkout Session (cards + ACH) and 303s to it. The Pay button on the public
+page renders only when `stripeChargesEnabled && balance > 0` and the invoice
+isn't paid/void.
+
+A signature-verified **webhook** (`POST /api/stripe/webhook`, a bare route — see
+*Gotchas* in AGENTS.md) is the sole source of truth: `handleStripeEvent` records
+a Payment via `recordStripePayment` **only on settled events** (cards:
+`checkout.session.completed`+paid; ACH: `async_payment_succeeded` /
+`payment_intent.succeeded`). In-flight ACH and failures write only
+`ach_processing` / `ach_failed` / `payment_failed` InvoiceEvent markers, never a
+ledger row — so the ledger stays settled-money-only and `nextInvoiceStatus` is
+untouched. A PaymentIntent whose transfer destination disagrees with its
+`metadata.invoiceId` org is logged (`stripe_org_mismatch`) and never recorded.
+`account.updated` mirrors onboarding status onto the org's `stripe*` columns
+(written only by the webhook / status sync — never client-settable). Connect
+onboarding/refresh/status are admin routes under `/api/org/stripe-connect`,
+surfaced in the workspace **Payments** settings section.
 
 ## API Error Codes
 

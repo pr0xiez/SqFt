@@ -58,6 +58,11 @@ with the file that owns it.
   adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin
   callers; ordering/error invariants live here (see *Send Pipeline* in
   `CONTEXT.md`).
+- `lib/stripe/` — **online payments**: the `StripeGateway` port (`gateway.ts` +
+  `realGateway.ts` + `fakeGateway.ts`), the pure Checkout builder (`checkout.ts`),
+  Connect onboarding (`onboarding.ts`), and the webhook dispatch
+  (`webhookHandler.ts`). Routes are thin; all SDK access is behind the port.
+  See *Online Payments* in `CONTEXT.md`.
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
@@ -108,6 +113,11 @@ with the file that owns it.
   `onDelete: Cascade`.** Delete paths at every level must guard against
   cascading away financial records (`HAS_INVOICES`) and scheduled events
   (`ESTIMATE_HAS_EVENTS`) — don't add a new delete path without those checks.
+- **The Stripe webhook (`/api/stripe/webhook`) is a BARE route** — not wrapped
+  in `apiRoute`/`publicRoute` (they consume the raw body needed for signature
+  verification). It plus `/api/invoice-review/` (the pay route) are allowlisted
+  in `lib/publicRoutes.ts`. Record Stripe payments only on settled events; the
+  ledger means settled money only (see *Online Payments* in `CONTEXT.md`).
 
 ## Keeping these docs current
 
