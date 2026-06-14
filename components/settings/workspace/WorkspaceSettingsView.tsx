@@ -6,6 +6,7 @@ import { BrandSection } from "./BrandSection";
 import { DefaultsSection } from "./DefaultsSection";
 import { IdentitySection } from "./IdentitySection";
 import { Masthead } from "./Masthead";
+import { PaymentsSection } from "./PaymentsSection";
 import { SaveBar } from "./SaveBar";
 import { Toc } from "./Toc";
 import {
@@ -14,9 +15,9 @@ import {
   type WorkspaceSettingsInitial,
 } from "./types";
 
-type Props = { initial: WorkspaceSettingsInitial };
+type Props = { initial: WorkspaceSettingsInitial; justReturned: boolean };
 
-export function WorkspaceSettingsView({ initial }: Props) {
+export function WorkspaceSettingsView({ initial, justReturned }: Props) {
   const [snapshot, setSnapshot] = useState<WorkspaceSettingsForm>(() =>
     toForm(initial)
   );
@@ -66,6 +67,10 @@ export function WorkspaceSettingsView({ initial }: Props) {
             onChange={onChange}
           />
           <DefaultsSection form={form} onChange={onChange} />
+          <PaymentsSection
+            initial={initial.stripeConnect}
+            justReturned={justReturned}
+          />
         </main>
       </div>
       <SaveBar

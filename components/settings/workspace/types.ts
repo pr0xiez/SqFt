@@ -11,6 +11,11 @@ export type WorkspaceSettingsInitial = {
   defaultValidityDays: number;
   defaultUnitLabel: string;
   defaultTerms: string;
+  stripeConnect: {
+    onboardingStatus: string;
+    chargesEnabled: boolean;
+    requirementsDue: string[];
+  };
 };
 
 export type WorkspaceSettingsForm = {

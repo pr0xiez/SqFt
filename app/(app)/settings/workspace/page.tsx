@@ -5,7 +5,13 @@ import { requireSession } from "@/lib/tenant";
 
 export const metadata = { title: "Workspace · Settings · SqFt" };
 
-export default async function WorkspaceSettingsPage() {
+export default async function WorkspaceSettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ stripe?: string }>;
+}) {
+  const justReturned = (await searchParams)?.stripe === "return";
+
   const session = await requireSession();
   if (session.user.role !== "admin") {
     redirect("/settings");
@@ -26,8 +32,25 @@ export default async function WorkspaceSettingsPage() {
       defaultValidityDays: true,
       defaultUnitLabel: true,
       defaultTerms: true,
+      stripeOnboardingStatus: true,
+      stripeChargesEnabled: true,
+      stripeRequirementsDue: true,
     },
   });
 
-  return <WorkspaceSettingsView initial={org} />;
+  return (
+    <WorkspaceSettingsView
+      justReturned={justReturned}
+      initial={{
+        ...org,
+        stripeConnect: {
+          onboardingStatus: org.stripeOnboardingStatus,
+          chargesEnabled: org.stripeChargesEnabled,
+          requirementsDue: Array.isArray(org.stripeRequirementsDue)
+            ? (org.stripeRequirementsDue as string[])
+            : [],
+        },
+      }}
+    />
+  );
 }

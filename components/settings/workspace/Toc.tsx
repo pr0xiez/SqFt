@@ -6,6 +6,7 @@ const ENTRIES = [
   { id: "identity", n: "01", label: "Identity" },
   { id: "brand", n: "02", label: "Brand & Estimate Style" },
   { id: "defaults", n: "03", label: "Estimating Defaults" },
+  { id: "payments", n: "04", label: "Payments" },
 ];
 
 export function Toc() {
