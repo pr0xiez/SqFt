@@ -480,6 +480,139 @@ export async function recordPayment(
   });
 }
 
+function isUniqueViolation(e: unknown): boolean {
+  return (e as { code?: string } | null)?.code === "P2002";
+}
+
+export interface RecordStripePaymentInput {
+  amount: number;
+  method: "card" | "ach";
+  stripeChargeId: string;
+  stripePaymentIntentId: string;
+  paidAt?: Date;
+  stripeEventId?: string;
+}
+
+/**
+ * Record a SETTLED Stripe payment into the ledger — the no-human counterpart
+ * to recordPayment. Idempotent on Payment.stripeChargeId (find-first → skip,
+ * with a P2002 catch as the hard backstop). Writes recordedByEmail:null /
+ * recordedByName:'Stripe'. Reuses nextInvoiceStatus unchanged (we only ever
+ * write rows for settled money, so an in-flight ACH never reaches here).
+ */
+export async function recordStripePayment(
+  invoiceId: number,
+  orgId: string,
+  input: RecordStripePaymentInput
+): Promise<"recorded" | "duplicate" | "not_found"> {
+  return prisma.$transaction(async (tx) => {
+    const dupe = await tx.payment.findUnique({
+      where: { stripeChargeId: input.stripeChargeId },
+      select: { id: true },
+    });
+    if (dupe) return "duplicate";
+
+    const inv = await tx.invoice.findFirst({
+      where: { id: invoiceId, orgId },
+      include: { payments: { select: { amount: true } } },
+    });
+    if (!inv) return "not_found";
+    if (inv.status === "void") return "duplicate";
+
+    try {
+      await tx.payment.create({
+        data: {
+          invoiceId,
+          amount: input.amount,
+          method: input.method,
+          paidAt: input.paidAt ?? new Date(),
+          recordedByEmail: null,
+          recordedByName: "Stripe",
+          stripeChargeId: input.stripeChargeId,
+        },
+      });
+    } catch (e) {
+      if (isUniqueViolation(e)) return "duplicate";
+      throw e;
+    }
+
+    const paid = inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+    const status = nextInvoiceStatus({
+      current: inv.status,
+      amount: inv.amount,
+      paid,
+    });
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status,
+        paidAt: status === "paid" ? new Date() : null,
+        stripePaymentIntentId: input.stripePaymentIntentId,
+      },
+    });
+    await tx.invoiceEvent.create({
+      data: {
+        invoiceId,
+        type: "payment_recorded",
+        source: "system",
+        metadata: {
+          amount: input.amount,
+          method: input.method,
+          stripeChargeId: input.stripeChargeId,
+          stripePaymentIntentId: input.stripePaymentIntentId,
+          stripeEventId: input.stripeEventId ?? null,
+        },
+      },
+    });
+    return "recorded";
+  });
+}
+
+/** Resolve the org + connected-account for a webhook PaymentIntent's invoice. */
+export async function getStripeInvoiceContext(
+  metadataInvoiceId: number
+): Promise<{
+  invoiceId: number;
+  orgId: string;
+  orgConnectAccountId: string | null;
+} | null> {
+  const inv = await prisma.invoice.findUnique({
+    where: { id: metadataInvoiceId },
+    select: {
+      id: true,
+      orgId: true,
+      org: { select: { stripeConnectAccountId: true } },
+    },
+  });
+  if (!inv) return null;
+  return {
+    invoiceId: inv.id,
+    orgId: inv.orgId,
+    orgConnectAccountId: inv.org.stripeConnectAccountId,
+  };
+}
+
+/** Append a non-transactional invoice event (used by the webhook for markers). */
+export async function appendInvoiceEvent(input: {
+  invoiceId: number;
+  type: string;
+  source: "customer" | "system" | "builder";
+  metadata?: Record<string, unknown>;
+}): Promise<void> {
+  await prisma.invoiceEvent.create({
+    data: {
+      invoiceId: input.invoiceId,
+      type: input.type,
+      source: input.source,
+      // Cast at the Prisma boundary: the handler-facing type is a plain record;
+      // the column is JSON. Keeps the StripeWebhookDeps interface SDK-free.
+      metadata: (input.metadata ?? undefined) as
+        | Prisma.InputJsonValue
+        | undefined,
+    },
+  });
+}
+
 /** Public token lookup (no org scope — the token authorizes). */
 export async function getInvoiceByToken(token: string) {
   return prisma.invoice.findUnique({
