@@ -252,11 +252,21 @@ rotation (only when requested or the token is missing) → public URL → prepar
 same prepared payload the email was built from, so what was mailed and what
 was frozen (the invoice snapshot) cannot diverge.
 
+The pipeline returns a **`SendResult`** (`{ afterSentOk: boolean }`). The
+optional `afterSent` side effect is best-effort — its failure **never** fails a
+send that already went out — but it is no longer *silently* swallowed: a
+rejection is logged **and** reported as `afterSentOk: false`, so the caller can
+surface a partial success. The estimate send route does exactly this, returning
+`{ ok: true, customerEmailSaved }` so a failed customer-email persist is visible
+to the client instead of vanishing into the logs (the `SendEstimateDialog`
+toast warns when it's `false`).
+
 Per-document variation lives in a **Sendable** adapter
 (`lib/send/sendEstimate.ts`, `lib/send/sendInvoice.ts`): the org-scoped load,
 the status guard (estimate: approved/declined → `ESTIMATE_LOCKED`; invoice:
 void → `INVOICE_VOID`), the token column + rotation, the email payload,
-mark-sent, and the estimate-only opportunistic customer-email update.
+mark-sent, and the estimate-only opportunistic customer-email update (via
+`updateCustomerEmail` in `customerRepo` — no inline Prisma in the adapter).
 `onTokenRotated` is a **required** member — both documents log a
 `link_rotated` event with actor attribution, and a document that chooses not
 to audit rotation must say so with an explicit no-op, so silence is a visible

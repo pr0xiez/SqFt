@@ -8,7 +8,10 @@ export const POST = apiRoute(
   async ({ orgId, input, params }) => {
     const sender = await requireSender();
     const { id } = estimateIdParams.parse(params);
-    await sendEstimate(id, orgId, { ...input, sender });
-    return { ok: true };
+    const { afterSentOk } = await sendEstimate(id, orgId, { ...input, sender });
+    // The send itself succeeded (a failure would have thrown). `afterSentOk`
+    // reports the best-effort customer-email save: surface it so the UI can
+    // warn when the email didn't persist, instead of it failing silently.
+    return { ok: true, customerEmailSaved: afterSentOk };
   }
 );

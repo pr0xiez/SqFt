@@ -20,7 +20,10 @@ import { logError } from "@/lib/logger";
  * - `markSent` receives the same prepared value the email was built from, so
  *   what was mailed and what was persisted cannot diverge.
  * - `afterSent` is awaited but can never fail a send that already happened —
- *   rejections are logged and swallowed.
+ *   rejections are logged and swallowed, but their outcome is *reported* to
+ *   the caller via `SendResult.afterSentOk`, so a best-effort side effect
+ *   (e.g. the estimate's opportunistic customer-email save) that fails is
+ *   observable to the client instead of vanishing into the logs.
  *
  * Error modes: NotFoundError (missing doc, failed rotation, mark-sent miss),
  * whatever ConflictError subclass the guard throws, EmailFailedError. Routes
@@ -100,8 +103,21 @@ export interface Sendable<
   ): Promise<boolean>;
 
   /** Optional post-send side effect (estimate: opportunistic customer-email
-   *  update). Awaited, but failures are logged and swallowed. */
+   *  update). Awaited, but failures never fail the send — they are logged and
+   *  reported back as `afterSentOk: false` instead of being swallowed. */
   afterSent?(doc: TDoc, req: TReq): Promise<void>;
+}
+
+/**
+ * Outcome of a completed send. The document was emailed and marked sent (any
+ * failure before that throws). `afterSentOk` reports whether the optional
+ * best-effort `afterSent` side effect succeeded: `true` when it ran cleanly or
+ * the document declares no side effect, `false` when it threw (the failure was
+ * logged, not propagated). Callers surface this so a swallowed metadata write
+ * is observable rather than silent.
+ */
+export interface SendResult {
+  afterSentOk: boolean;
 }
 
 export async function runSendPipeline<
@@ -113,7 +129,7 @@ export async function runSendPipeline<
   id: number,
   orgId: string,
   req: TReq
-): Promise<void> {
+): Promise<SendResult> {
   const doc = await sendable.load(id, orgId);
   if (!doc) throw new NotFoundError();
 
@@ -140,6 +156,8 @@ export async function runSendPipeline<
       await sendable.afterSent(doc, req);
     } catch (err) {
       logError({ errorMessage: "Post-send side effect failed", err });
+      return { afterSentOk: false };
     }
   }
+  return { afterSentOk: true };
 }

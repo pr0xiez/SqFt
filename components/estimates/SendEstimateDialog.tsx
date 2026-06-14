@@ -47,13 +47,19 @@ export function SendEstimateDialog({
 
   async function onSend() {
     try {
-      await send.mutateAsync({
+      const { customerEmailSaved } = await send.mutateAsync({
         to: to.trim(),
         subject: subject.trim(),
         message: message.trim() || undefined,
         regenerateLink: regenerate || undefined,
       });
-      showToast("Estimate sent");
+      // The estimate went out; the customer-email save is best-effort. Warn
+      // when it didn't persist so the stale address isn't a silent surprise.
+      showToast(
+        customerEmailSaved
+          ? "Estimate sent"
+          : "Estimate sent, but the customer email couldn't be saved"
+      );
       onClose();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Send failed");

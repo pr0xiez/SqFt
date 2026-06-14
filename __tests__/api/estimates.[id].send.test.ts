@@ -6,6 +6,11 @@ vi.mock("@/lib/repositories", () => ({
   rotateApprovalToken: vi.fn(),
   markEstimateSent: vi.fn(),
   writeEstimateEvent: vi.fn(),
+  updateCustomerEmail: vi.fn(),
+}));
+vi.mock("@/lib/logger", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/logger")>()),
+  logError: vi.fn(),
 }));
 vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockResolvedValue("org1"),
@@ -38,6 +43,7 @@ const {
   rotateApprovalToken,
   markEstimateSent,
   writeEstimateEvent,
+  updateCustomerEmail,
 } = await import("@/lib/repositories");
 const { requireSession } = await import("@/lib/tenant");
 const { sendEstimateEmail } = await import("@/lib/email/sendEstimateEmail");
@@ -47,6 +53,7 @@ const mockGetEstimate = vi.mocked(getEstimate);
 const mockRotate = vi.mocked(rotateApprovalToken);
 const mockMarkSent = vi.mocked(markEstimateSent);
 const mockWriteEvent = vi.mocked(writeEstimateEvent);
+const mockUpdateCustomerEmail = vi.mocked(updateCustomerEmail);
 const mockRequireSession = vi.mocked(requireSession);
 const mockSendEstimateEmail = vi.mocked(sendEstimateEmail);
 
@@ -55,6 +62,7 @@ const validBody = { to: "henderson@example.com", subject: "Q5001" };
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.PUBLIC_BASE_URL = "https://app.sqft.dev";
+  mockUpdateCustomerEmail.mockResolvedValue(1);
   mockRequireSession.mockResolvedValue({
     user: {
       id: "u1",
@@ -231,5 +239,82 @@ describe("POST /api/estimates/[id]/send", () => {
     expect(res.status).toBe(502);
     expect((await res.json()).error.code).toBe("EMAIL_FAILED");
     expect(mockMarkSent).not.toHaveBeenCalled();
+  });
+
+  it("persists the new send-to email and reports customerEmailSaved: true", async () => {
+    mockGetEstimate.mockResolvedValue({
+      id: 1,
+      orgId: "org1",
+      status: "draft",
+      approvalToken: "token-xyz",
+      estimateNumber: 5001,
+      convenienceFeeRate: 0.03,
+      markupPct: 0,
+      depositPct: 0.5,
+      lineItems: [],
+      siteMeasure: {
+        items: [],
+        // On-file email differs from where we're sending, so the
+        // opportunistic save should fire.
+        location: { customer: { id: 42, name: "Janet", email: "old@x.com" } },
+      },
+      // biome-ignore lint/suspicious/noExplicitAny: partial test fixture
+    } as any);
+    mockSendEstimateEmail.mockResolvedValue({ ok: true });
+    mockMarkSent.mockResolvedValue(true);
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "new@example.com",
+        subject: "Q5001",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: true });
+    expect(mockUpdateCustomerEmail).toHaveBeenCalledWith(
+      42,
+      "org1",
+      "new@example.com"
+    );
+  });
+
+  it("still returns 200 but flags customerEmailSaved: false when the email save fails", async () => {
+    mockGetEstimate.mockResolvedValue({
+      id: 1,
+      orgId: "org1",
+      status: "draft",
+      approvalToken: "token-xyz",
+      estimateNumber: 5001,
+      convenienceFeeRate: 0.03,
+      markupPct: 0,
+      depositPct: 0.5,
+      lineItems: [],
+      siteMeasure: {
+        items: [],
+        location: { customer: { id: 42, name: "Janet", email: "old@x.com" } },
+      },
+      // biome-ignore lint/suspicious/noExplicitAny: partial test fixture
+    } as any);
+    mockSendEstimateEmail.mockResolvedValue({ ok: true });
+    mockMarkSent.mockResolvedValue(true);
+    // The opportunistic customer-email persist blows up — this must NOT fail
+    // the send (the email already went out), but it must be observable to the
+    // client rather than swallowed.
+    mockUpdateCustomerEmail.mockRejectedValue(new Error("db down"));
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "new@example.com",
+        subject: "Q5001",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: false });
+    // The send still completed end to end.
+    expect(mockMarkSent).toHaveBeenCalled();
   });
 });

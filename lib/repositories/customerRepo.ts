@@ -287,6 +287,24 @@ export async function updateCustomer(
 }
 
 /**
+ * Org-scoped email update. Used by the send pipeline to opportunistically keep
+ * a customer's email current with where their document was actually sent.
+ * Returns the number of rows updated (0 when the id/org doesn't match), so the
+ * caller can tell a no-op from a real persist.
+ */
+export async function updateCustomerEmail(
+  id: number,
+  orgId: string,
+  email: string
+): Promise<number> {
+  const result = await prisma.customer.updateMany({
+    where: { id, orgId },
+    data: { email },
+  });
+  return result.count;
+}
+
+/**
  * Delete a customer. The cascade reaches every descendant estimate via
  * Location→SiteMeasure→Estimate (and Estimate→Invoice→Payment is also
  * Cascade), so this refuses — like deleteEstimate — while a descendant

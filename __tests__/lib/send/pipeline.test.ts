@@ -202,16 +202,33 @@ describe("runSendPipeline", () => {
     );
   });
 
-  it("awaits afterSent after markSent and swallows its failure", async () => {
+  it("reports afterSentOk: true when there is no side effect", async () => {
+    const { sendable } = fake();
+    await expect(
+      runSendPipeline(sendable, 7, "org1", baseReq)
+    ).resolves.toEqual({ afterSentOk: true });
+  });
+
+  it("reports afterSentOk: true when afterSent runs cleanly", async () => {
+    const { sendable } = fake({ afterSent: async () => {} });
+    await expect(
+      runSendPipeline(sendable, 7, "org1", baseReq)
+    ).resolves.toEqual({ afterSentOk: true });
+  });
+
+  it("awaits afterSent after markSent and reports its failure instead of swallowing it", async () => {
     const { sendable, calls } = fake({
       afterSent: async () => {
         calls.push("afterSent");
         throw new Error("side effect blew up");
       },
     });
+    // The send still succeeds (the email already went out)…
     await expect(
       runSendPipeline(sendable, 7, "org1", baseReq)
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual(
+      { afterSentOk: false } // …but the failure is reported, not silent.
+    );
     expect(calls.indexOf("afterSent")).toBeGreaterThan(
       calls.indexOf("markSent")
     );

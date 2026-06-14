@@ -9,10 +9,16 @@ import {
   getEstimate,
   markEstimateSent,
   rotateApprovalToken,
+  updateCustomerEmail,
   writeEstimateEvent,
 } from "@/lib/repositories";
 import type { EstimateWithDetails } from "@/lib/repositories/estimateRepo";
-import { runSendPipeline, type Sendable, type SendRequest } from "./pipeline";
+import {
+  runSendPipeline,
+  type Sendable,
+  type SendRequest,
+  type SendResult,
+} from "./pipeline";
 
 export type EstimateSendRequest = SendRequest & { message?: string };
 
@@ -76,14 +82,14 @@ const estimateSendable: Sendable<
     }),
 
   // Opportunistically keep the customer's email current with where the
-  // estimate was actually sent. The pipeline swallows and logs failures.
+  // estimate was actually sent. Best-effort: a failure here never fails the
+  // send (the email already went out), but the pipeline reports it back as
+  // `afterSentOk: false` so the route can tell the client the email wasn't
+  // saved instead of swallowing it silently.
   async afterSent(estimate, req) {
     const customer = estimate.siteMeasure.location.customer;
     if (!customer || customer.email === req.to) return;
-    await prisma.customer.updateMany({
-      where: { id: customer.id, orgId: estimate.orgId },
-      data: { email: req.to },
-    });
+    await updateCustomerEmail(customer.id, estimate.orgId, req.to);
   },
 };
 
@@ -92,6 +98,6 @@ export function sendEstimate(
   id: number,
   orgId: string,
   req: EstimateSendRequest
-): Promise<void> {
+): Promise<SendResult> {
   return runSendPipeline(estimateSendable, id, orgId, req);
 }

@@ -12,7 +12,12 @@ import {
   writeInvoiceEvent,
 } from "@/lib/repositories";
 import { buildInvoiceProrationSource } from "@/lib/repositories/invoiceRepo";
-import { runSendPipeline, type Sendable, type SendRequest } from "./pipeline";
+import {
+  runSendPipeline,
+  type Sendable,
+  type SendRequest,
+  type SendResult,
+} from "./pipeline";
 
 type InvoiceForSend = NonNullable<
   Awaited<ReturnType<typeof getInvoiceForSend>>
@@ -121,6 +126,6 @@ export function sendInvoice(
   id: number,
   orgId: string,
   req: SendRequest
-): Promise<void> {
+): Promise<SendResult> {
   return runSendPipeline(invoiceSendable, id, orgId, req);
 }
