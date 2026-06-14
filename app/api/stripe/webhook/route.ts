@@ -1,3 +1,4 @@
+import type Stripe from "stripe";
 import { logError } from "@/lib/logger";
 import { realGateway } from "@/lib/stripe/realGateway";
 import {
@@ -19,7 +20,7 @@ export async function POST(req: Request): Promise<Response> {
   const signature = req.headers.get("stripe-signature");
   const rawBody = await req.text();
 
-  let event;
+  let event: Stripe.Event;
   try {
     event = realGateway.constructWebhookEvent(rawBody, signature);
   } catch (err) {
