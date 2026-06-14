@@ -1,5 +1,12 @@
 import type Stripe from "stripe";
-import type { RecordStripePaymentInput } from "@/lib/repositories/invoiceRepo";
+import {
+  appendInvoiceEvent,
+  getStripeInvoiceContext,
+  type RecordStripePaymentInput,
+  recordStripePayment,
+} from "@/lib/repositories/invoiceRepo";
+import { mirrorAccountStatus } from "@/lib/stripe/onboarding";
+import { realGateway } from "@/lib/stripe/realGateway";
 import type { StripeGateway } from "./gateway";
 
 export interface PaymentContext {
@@ -202,4 +209,15 @@ export async function handleStripeEvent(
     default:
       break;
   }
+}
+
+/** Production deps: realGateway + Prisma-backed repo functions. */
+export function buildProdWebhookDeps(): StripeWebhookDeps {
+  return {
+    gateway: realGateway,
+    recordStripePayment,
+    resolvePaymentContext: (invoiceId) => getStripeInvoiceContext(invoiceId),
+    appendInvoiceEvent: (input) => appendInvoiceEvent(input),
+    mirrorAccountStatus,
+  };
 }

@@ -15,6 +15,9 @@ const PUBLIC_REVIEW_PREFIXES = [
   // Public pay entrypoint: creates a Checkout Session for the live balance and
   // 303s to Stripe. Token in the URL is the credential.
   "/api/invoice-review/",
+  // Stripe webhook — signature-verified inside the handler (the signature is
+  // the credential). Must bypass the auth proxy.
+  "/api/stripe/webhook",
 ];
 
 export function isPublicReviewPath(pathname: string): boolean {
