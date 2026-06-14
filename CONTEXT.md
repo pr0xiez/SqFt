@@ -74,8 +74,10 @@ before it leaves `computeEstimateView`: each per-line `subtotal`, then the
 totals `subtotal`, `markup`, `beforeFee`, `convenienceFee`, `total`, and
 `deposit` — so no raw IEEE-754 product/sum escapes into persistence
 (`Estimate.total` via `syncEstimateTotal`), the customer document, or downstream
-billing (`lib/invoices/`). Each field rounds from its unrounded running value
-(not a prior rounded field) so a half-cent never compounds across the chain. The
+billing (`lib/invoices/`). Each total rounds from the prior *rounded* field
+(line subtotals round first, then the totals sum and round those already-settled
+values), so the displayed breakdown always adds up — `subtotal + markup =
+beforeFee`, `beforeFee + convenienceFee = total` — with no penny gap. The
 quantity output `effectiveQty` and the rate/pct *inputs* (`markupPct`,
 `convenienceFeeRate`, `depositPct`) are **not** money and stay unrounded. (Money
 is still stored as Postgres `Float`; the integer-cents/`Decimal` schema
