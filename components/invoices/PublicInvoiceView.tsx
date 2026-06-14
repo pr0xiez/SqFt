@@ -24,9 +24,31 @@ export interface PublicInvoice {
   lines: Array<{ name: string; description: string | null; amount: number }>;
 }
 
-export function PublicInvoiceView({ invoice }: { invoice: PublicInvoice }) {
+export function PublicInvoiceView({
+  invoice,
+  paymentBanner = null,
+}: {
+  invoice: PublicInvoice;
+  paymentBanner?: "received" | "processing" | "failed" | null;
+}) {
   return (
     <main className="max-w-[640px] mx-auto p-8">
+      {paymentBanner ? (
+        <div
+          className={[
+            "mb-4 rounded-md px-4 py-3 text-[13px]",
+            paymentBanner === "failed"
+              ? "bg-red-50 text-red-700"
+              : "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--ink)]",
+          ].join(" ")}
+        >
+          {paymentBanner === "received"
+            ? "Payment received — thank you. It may take a moment to reflect below."
+            : paymentBanner === "processing"
+              ? "A bank payment is processing. This can take 1–4 business days to clear."
+              : "Your last payment attempt didn't go through. Please try again."}
+        </div>
+      ) : null}
       <header className="flex items-start justify-between gap-6 pb-6 border-b border-[var(--line)] mb-6 flex-wrap">
         <div>
           {invoice.org.logo ? (

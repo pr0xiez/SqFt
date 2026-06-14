@@ -2,7 +2,10 @@
 
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { PublicInvoiceView } from "@/components/invoices/PublicInvoiceView";
+import {
+  type PublicInvoice,
+  PublicInvoiceView,
+} from "@/components/invoices/PublicInvoiceView";
 
 describe("PublicInvoiceView", () => {
   it("renders the balance due, bill-to, and prorated lines", () => {
@@ -108,5 +111,40 @@ describe("PublicInvoiceView", () => {
     expect(screen.queryByText("Invoice total")).toBeNull();
     expect(screen.queryByText("Paid to date")).toBeNull();
     expect(screen.getByText("Balance due")).toBeDefined();
+  });
+});
+
+const bannerBase: PublicInvoice = {
+  invoiceNumber: 7,
+  status: "sent",
+  dueLabel: null,
+  amountFormatted: "$500.00",
+  paidFormatted: null,
+  balanceDueFormatted: "$500.00",
+  memo: null,
+  terms: "",
+  paymentInstructions: "",
+  payUrl: "/api/invoice-review/tok/pay",
+  org: { name: "Floors Co", phone: null, address: null, logo: null },
+  customer: null,
+  lines: [{ name: "Install", description: null, amount: 500 }],
+};
+
+describe("PublicInvoiceView payment banner", () => {
+  it("shows a 'received' banner when paymentBanner='received'", () => {
+    render(<PublicInvoiceView invoice={bannerBase} paymentBanner="received" />);
+    expect(screen.getByText(/payment received/i)).toBeInTheDocument();
+  });
+
+  it("shows a 'processing' banner for in-flight ACH", () => {
+    render(
+      <PublicInvoiceView invoice={bannerBase} paymentBanner="processing" />
+    );
+    expect(screen.getByText(/processing/i)).toBeInTheDocument();
+  });
+
+  it("renders no banner when paymentBanner is null", () => {
+    render(<PublicInvoiceView invoice={bannerBase} paymentBanner={null} />);
+    expect(screen.queryByText(/payment received/i)).not.toBeInTheDocument();
   });
 });

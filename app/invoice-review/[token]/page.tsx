@@ -15,6 +15,7 @@ export const metadata = {
 
 interface Props {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ paid?: string }>;
 }
 
 type SnapshotShape = {
@@ -33,7 +34,10 @@ type SnapshotShape = {
   lines: Array<{ name: string; description: string | null; amount: number }>;
 };
 
-export default async function PublicInvoicePage({ params }: Props) {
+export default async function PublicInvoicePage({
+  params,
+  searchParams,
+}: Props) {
   const { token } = await params;
   if (!token || token.length < 16 || token.length > 128) notFound();
 
@@ -59,6 +63,28 @@ export default async function PublicInvoicePage({ params }: Props) {
     balanceDue > 0 &&
     invoice.status !== "paid" &&
     invoice.status !== "void";
+
+  // Payment-status banner: the ?paid=1 success return wins; otherwise the most
+  // recent payment-relevant event decides the persistent banner. invoiceEvents
+  // are ordered createdAt:desc by INVOICE_INCLUDE, so .find is the latest.
+  const justPaid = (await searchParams)?.paid === "1";
+  const lastPayEvent = invoice.invoiceEvents.find((e) =>
+    [
+      "payment_recorded",
+      "ach_processing",
+      "ach_failed",
+      "payment_failed",
+    ].includes(e.type)
+  );
+  const banner: "received" | "processing" | "failed" | null = justPaid
+    ? "received"
+    : lastPayEvent?.type === "ach_processing"
+      ? "processing"
+      : lastPayEvent?.type === "ach_failed" ||
+          lastPayEvent?.type === "payment_failed"
+        ? "failed"
+        : null;
+
   const view: PublicInvoice = {
     invoiceNumber: invoice.invoiceNumber,
     status: invoice.status,
@@ -82,5 +108,5 @@ export default async function PublicInvoicePage({ params }: Props) {
     lines: snap.lines,
   };
 
-  return <PublicInvoiceView invoice={view} />;
+  return <PublicInvoiceView invoice={view} paymentBanner={banner} />;
 }
