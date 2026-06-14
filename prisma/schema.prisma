@@ -46,6 +46,16 @@ model Organization {
   defaultPaymentInstructions String   @default("")
   stripeConnectAccountId     String?
 
+  // ── CONNECT ONBOARDING MIRROR (added 2026-06-14) ───────────────────────────
+  // System-managed: written only by the account.updated webhook / status sync.
+  // Never client-settable.
+  stripeChargesEnabled   Boolean @default(false)
+  stripePayoutsEnabled   Boolean @default(false)
+  stripeDetailsSubmitted Boolean @default(false)
+  stripeOnboardingStatus String  @default("none") // none | pending | action_needed | enabled
+  stripeRequirementsDue  Json?
+  stripeDisabledReason   String?
+
   users             User[]
   invoices          Invoice[]
   customers         Customer[]
