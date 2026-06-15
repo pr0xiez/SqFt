@@ -16,9 +16,14 @@ const invoiceCreate = vi.fn();
 const invoiceUpdate = vi.fn();
 const invoiceUpdateMany = vi.fn();
 const paymentCreate = vi.fn();
+const paymentAggregate = vi.fn();
 const invoiceEventCreate = vi.fn();
 const orgFindUniqueOrThrow = vi.fn();
 const orgUpdate = vi.fn();
+// recordPayment locks the invoice row with `tx.$queryRaw(... FOR UPDATE)`
+// before reading the ledger. By default the lock "finds" the row; the
+// not-found test overrides this to resolve `[]`.
+const queryRaw = vi.fn().mockResolvedValue([{ id: 1 }]);
 
 const tx = {
   estimate: { findFirst: estimateFindFirst },
@@ -29,12 +34,13 @@ const tx = {
     update: invoiceUpdate,
     updateMany: invoiceUpdateMany,
   },
-  payment: { create: paymentCreate },
+  payment: { create: paymentCreate, aggregate: paymentAggregate },
   invoiceEvent: { create: invoiceEventCreate },
   organization: {
     findUniqueOrThrow: orgFindUniqueOrThrow,
     update: orgUpdate,
   },
+  $queryRaw: queryRaw,
 };
 
 // NOTE: this mock runs the callback inline and does NOT model rollback — calls
@@ -58,7 +64,13 @@ const {
   markInvoiceViewed,
 } = await import("@/lib/repositories/invoiceRepo");
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // clearAllMocks wipes the default implementation; re-arm the row lock so it
+  // "finds" the invoice by default. paymentAggregate defaults to an empty sum.
+  queryRaw.mockResolvedValue([{ id: 1 }]);
+  paymentAggregate.mockResolvedValue({ _sum: { amount: 0 } });
+});
 
 /** A hydrated estimate whose computed view total is `total`. */
 function estimateFixture(opts: {
@@ -361,6 +373,49 @@ describe("recordPayment", () => {
     expect(paymentCreate).not.toHaveBeenCalled();
   });
 
+  it("locks the org-scoped invoice row FOR UPDATE before reading the ledger", async () => {
+    // Serialization guard (issue #206): concurrent recordPayment calls must
+    // serialize on a SELECT ... FOR UPDATE row lock so each sees the other's
+    // committed payment, and the paid sum is a DB-side aggregate inside the
+    // lock — never a pre-lock read. Assert the lock fires, it is org-scoped,
+    // and the status is derived from the aggregate (not inv.payments).
+    invoiceFindFirst
+      .mockResolvedValueOnce({ id: 1, status: "partial", amount: 100 })
+      .mockResolvedValueOnce({ id: 1, status: "paid" });
+    paymentCreate.mockResolvedValue({});
+    paymentAggregate.mockResolvedValue({ _sum: { amount: 100 } });
+    invoiceUpdate.mockResolvedValue({});
+    invoiceEventCreate.mockResolvedValue({});
+
+    await recordPayment(1, "org1", { ...paymentInput, amount: 40 });
+
+    // The lock is taken before the payment INSERT and before the aggregate.
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    const lockSql = JSON.stringify(queryRaw.mock.calls[0][0]);
+    expect(lockSql).toContain("FOR UPDATE");
+    // Org-scoped parameters carried into the locking query.
+    expect(queryRaw.mock.calls[0][0].values).toEqual([1, "org1"]);
+    expect(paymentAggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { invoiceId: 1 },
+        _sum: { amount: true },
+      })
+    );
+    expect(invoiceUpdate.mock.calls[0][0].data.status).toBe("paid");
+  });
+
+  it("returns null without inserting when the FOR UPDATE lock finds no row", async () => {
+    // The row lock is the org-scoped existence check now; if it matches nothing
+    // (wrong id or foreign org) we must bail before touching the ledger.
+    queryRaw.mockResolvedValue([]);
+
+    expect(
+      await recordPayment(99, "org1", { ...paymentInput, amount: 10 })
+    ).toBeNull();
+    expect(paymentCreate).not.toHaveBeenCalled();
+    expect(invoiceUpdate).not.toHaveBeenCalled();
+  });
+
   it("throws InvoiceLockedError when the invoice is void", async () => {
     invoiceFindFirst.mockResolvedValue({
       id: 1,
@@ -396,14 +451,11 @@ describe("recordPayment", () => {
 
   it("becomes partial when some but not all is paid", async () => {
     invoiceFindFirst
-      .mockResolvedValueOnce({
-        id: 1,
-        status: "sent",
-        amount: 100,
-        payments: [{ amount: 20 }],
-      })
+      .mockResolvedValueOnce({ id: 1, status: "sent", amount: 100 })
       .mockResolvedValueOnce({ id: 1, status: "partial" });
     paymentCreate.mockResolvedValue({});
+    // Locked-ledger aggregate: prior 20 + the 30 just inserted = 50 of 100.
+    paymentAggregate.mockResolvedValue({ _sum: { amount: 50 } });
     invoiceUpdate.mockResolvedValue({});
     invoiceEventCreate.mockResolvedValue({});
 
@@ -421,14 +473,11 @@ describe("recordPayment", () => {
 
   it("becomes paid (with paidAt set) when fully covered", async () => {
     invoiceFindFirst
-      .mockResolvedValueOnce({
-        id: 1,
-        status: "partial",
-        amount: 100,
-        payments: [{ amount: 60 }],
-      })
+      .mockResolvedValueOnce({ id: 1, status: "partial", amount: 100 })
       .mockResolvedValueOnce({ id: 1, status: "paid" });
     paymentCreate.mockResolvedValue({});
+    // Locked-ledger aggregate: prior 60 + the 40 just inserted = 100 of 100.
+    paymentAggregate.mockResolvedValue({ _sum: { amount: 100 } });
     invoiceUpdate.mockResolvedValue({});
     invoiceEventCreate.mockResolvedValue({});
 
@@ -444,14 +493,11 @@ describe("recordPayment", () => {
     // overbill guard (unlike create/updateInvoice). A payment exceeding the
     // invoice amount must be accepted and the invoice settles to "paid".
     invoiceFindFirst
-      .mockResolvedValueOnce({
-        id: 1,
-        status: "sent",
-        amount: 100,
-        payments: [],
-      })
+      .mockResolvedValueOnce({ id: 1, status: "sent", amount: 100 })
       .mockResolvedValueOnce({ id: 1, status: "paid" });
     paymentCreate.mockResolvedValue({});
+    // Locked-ledger aggregate: the single 150 payment exceeds the 100 amount.
+    paymentAggregate.mockResolvedValue({ _sum: { amount: 150 } });
     invoiceUpdate.mockResolvedValue({});
     invoiceEventCreate.mockResolvedValue({});
 

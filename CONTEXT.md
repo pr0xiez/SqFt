@@ -206,9 +206,15 @@ partially-paid invoice must never show the full amount as still owed.
 
 Payments are recorded manually into a `Payment` ledger (the schema is
 Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
-invoice status from the ledger. A `void` invoice is terminal and excluded from
-all billing math; editing a sent invoice or paying a void one throws
-`INVOICE_LOCKED`. Every lifecycle action appends an `InvoiceEvent`.
+invoice status from the ledger. `recordPayment` (`invoiceRepo.ts`) first takes a
+`SELECT … FOR UPDATE` row lock on the org-scoped invoice, then sums the ledger
+with a DB-side aggregate **after** inserting the new `Payment` — so concurrent
+payment recordings serialize and the recomputed `status`/`paidAt` always reflect
+every committed payment (a read-then-write off a pre-lock ledger snapshot drifts
+under READ COMMITTED — the same hazard **Document Numbers** documents). A `void`
+invoice is terminal and excluded from all billing math; editing a sent invoice
+or paying a void one throws `INVOICE_LOCKED`. Every lifecycle action appends an
+`InvoiceEvent`.
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 

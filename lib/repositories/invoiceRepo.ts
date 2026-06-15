@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { Prisma } from "@/app/generated/prisma/client";
+import { Prisma } from "@/app/generated/prisma/client";
 import {
   type InvoiceStatusFilter,
   OPEN_INVOICE_STATUSES,
@@ -432,9 +432,25 @@ export async function recordPayment(
   input: RecordPaymentInput
 ) {
   return prisma.$transaction(async (tx) => {
+    // Lock the invoice row up front (SELECT ... FOR UPDATE). Without this lock,
+    // two concurrent recordPayment transactions could each read the ledger
+    // before the other's payment INSERT commits and each recompute `status` /
+    // `paidAt` from an incomplete view — leaving a fully-paid invoice stuck at
+    // `partial` under READ COMMITTED (the same hazard CONTEXT.md "Document
+    // Numbers" documents for the per-org counter). Org-scoped so a foreign
+    // org can't lock — or touch — this row. The lock serializes concurrent
+    // recordPayment calls so the ledger read below sees every committed payment.
+    const locked = await tx.$queryRaw<{ id: number }[]>(
+      Prisma.sql`SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} AND "orgId" = ${orgId} FOR UPDATE`
+    );
+    if (locked.length === 0) return null;
+
+    // Read the invoice + ledger AFTER acquiring the lock, so the recomputed
+    // paid sum reflects every payment committed before this transaction —
+    // never a stale read taken before serialization.
     const inv = await tx.invoice.findFirst({
       where: { id: invoiceId, orgId },
-      include: { payments: { select: { amount: true } } },
+      select: { status: true, amount: true },
     });
     if (!inv) return null;
     if (inv.status === "void") throw new InvoiceLockedError();
@@ -452,7 +468,13 @@ export async function recordPayment(
       },
     });
 
-    const paid = inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+    // Aggregate the full ledger inside the locked transaction (includes the
+    // payment just inserted) rather than summing a pre-lock read + input.amount.
+    const agg = await tx.payment.aggregate({
+      where: { invoiceId },
+      _sum: { amount: true },
+    });
+    const paid = agg._sum.amount ?? 0;
     const status = nextInvoiceStatus({
       current: inv.status,
       amount: inv.amount,
