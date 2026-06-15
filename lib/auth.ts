@@ -3,7 +3,14 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { refreshAuthToken } from "@/lib/auth/refreshToken";
 import { prisma } from "@/lib/prisma";
+import { findAuthUser } from "@/lib/repositories/userRepo";
+
+// Re-validate live sessions at most this often to act on archive/role/org
+// changes; also the JWT/session lifetime. Shorter than NextAuth's 30-day
+// default so a revoked session can't linger.
+const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 days
 
 // Extend the built-in session types to include orgId and role
 declare module "next-auth" {
@@ -29,7 +36,8 @@ const loginSchema = z.object({
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE },
+  jwt: { maxAge: SESSION_MAX_AGE },
   trustHost: true,
   pages: {
     signIn: "/login",
@@ -70,11 +78,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
+      // Initial sign-in: bake the authority claims from the authorized user.
       if (user) {
         token.orgId = user.orgId;
         token.role = user.role;
+        return token;
       }
-      return token;
+      // Subsequent requests: re-validate against the live DB record so an admin
+      // archiving the user or changing their role/org takes effect on the
+      // existing session. A null result revokes the session.
+      return refreshAuthToken(token, findAuthUser);
     },
     async session({ session, token }) {
       if (token) {

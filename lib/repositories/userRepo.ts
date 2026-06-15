@@ -55,6 +55,21 @@ export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }
 
+/** The session-authority fields, re-read on every token refresh (see `lib/auth.ts`). */
+export type AuthUser = { orgId: string; role: string; archived: boolean };
+
+/**
+ * Load the live authorization state for a user by id. Used by the JWT callback
+ * to re-validate already-issued sessions: a `null` result means the user no
+ * longer exists (treat as revoked); `archived` means deactivated.
+ */
+export function findAuthUser(id: string): Promise<AuthUser | null> {
+  return prisma.user.findUnique({
+    where: { id },
+    select: { orgId: true, role: true, archived: true },
+  });
+}
+
 export function findUserRow(
   id: string,
   orgId: string
