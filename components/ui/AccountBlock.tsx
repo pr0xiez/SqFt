@@ -1,7 +1,8 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useLogout } from "@/components/ui/useLogout";
 import { cn } from "@/lib/cn";
 import { getInitials } from "@/lib/nav/initials";
 
@@ -13,6 +14,7 @@ export function AccountBlock({
   const { data: session } = useSession();
   const user = session?.user;
   const initials = getInitials(user?.name, user?.email);
+  const logout = useLogout();
 
   return (
     <div className="flex flex-col gap-3">
@@ -49,7 +51,7 @@ export function AccountBlock({
 
       <button
         type="button"
-        onClick={() => signOut({ callbackUrl: "/login" })}
+        onClick={() => logout({ callbackUrl: "/login" })}
         className={cn(
           "w-full flex items-center justify-center gap-2",
           "px-3 py-2.5 rounded-[var(--r)]",
