@@ -120,6 +120,24 @@ export async function setArchived(
   return prisma.user.findFirst({ where: { id, orgId }, select: USER_SELECT });
 }
 
+export type SessionClaims = { archived: boolean; role: string; orgId: string };
+
+/**
+ * Minimal lookup used to re-validate a live JWT against the DB on every token
+ * refresh (see the `jwt` callback in `lib/auth.ts`). Selects only the claims
+ * that gate access — archived / role / orgId — to keep this hot-path query
+ * cheap. Returns null if the user no longer exists.
+ *
+ * NOTE: User ids are global ints, so we look up by id alone and read orgId back
+ * from the row; the token's stale orgId/role are never trusted for the refresh.
+ */
+export function findSessionClaims(id: string): Promise<SessionClaims | null> {
+  return prisma.user.findUnique({
+    where: { id },
+    select: { archived: true, role: true, orgId: true },
+  });
+}
+
 export async function validateUserIds(
   orgId: string,
   ids: string[]

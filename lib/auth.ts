@@ -3,7 +3,9 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { revalidateJwt } from "@/lib/authToken";
 import { prisma } from "@/lib/prisma";
+import { findSessionClaims } from "@/lib/repositories/userRepo";
 
 // Extend the built-in session types to include orgId and role
 declare module "next-auth" {
@@ -22,6 +24,12 @@ declare module "next-auth" {
   }
 }
 
+// Re-validate live sessions against the DB this often. Shorter than NextAuth's
+// 30-day default so that, even in the worst case, a revoked/demoted user can't
+// outlive this window — though the `jwt` callback below normally revokes/refreshes
+// on the very next request.
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8; // 8 hours
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
@@ -29,7 +37,7 @@ const loginSchema = z.object({
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
   trustHost: true,
   pages: {
     signIn: "/login",
@@ -69,12 +77,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.orgId = user.orgId;
-        token.role = user.role;
-      }
-      return token;
+    jwt({ token, user }) {
+      return revalidateJwt(token, user, findSessionClaims);
     },
     async session({ session, token }) {
       if (token) {

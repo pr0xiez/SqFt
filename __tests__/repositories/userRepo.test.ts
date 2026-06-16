@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import {
   createUser,
+  findSessionClaims,
   listAssignableUsers,
   listUsers,
   setArchived,
@@ -80,5 +81,17 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("userRepo", () => {
 
   it("setArchived refuses to archive the last active admin", async () => {
     await expect(setArchived(adminId, orgId, true)).rejects.toThrow(/admin/i);
+  });
+
+  it("findSessionClaims returns current archived/role/orgId, null when gone", async () => {
+    const claims = await findSessionClaims(crewId);
+    expect(claims).toEqual({ archived: false, role: "crew", orgId });
+
+    // Reflects a live archive immediately (drives JWT session revocation).
+    await setArchived(crewId, orgId, true);
+    expect((await findSessionClaims(crewId))?.archived).toBe(true);
+    await setArchived(crewId, orgId, false);
+
+    expect(await findSessionClaims("nonexistent-id")).toBeNull();
   });
 });
