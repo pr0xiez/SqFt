@@ -78,15 +78,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // Initial sign-in: bake the authority claims from the authorized user.
+      // Initial sign-in: bake the authority claims from the authorized user
+      // and stamp the revalidation clock so the throttle window starts now.
       if (user) {
         token.orgId = user.orgId;
         token.role = user.role;
+        token.revalidatedAt = Math.floor(Date.now() / 1000);
         return token;
       }
-      // Subsequent requests: re-validate against the live DB record so an admin
-      // archiving the user or changing their role/org takes effect on the
-      // existing session. A null result revokes the session.
+      // Subsequent requests: re-validate against the live DB record (throttled
+      // to once per REVALIDATE_INTERVAL_SECONDS) so an admin archiving the user
+      // or changing their role/org takes effect on the existing session. A null
+      // result revokes the session.
       return refreshAuthToken(token, findAuthUser);
     },
     async session({ session, token }) {
