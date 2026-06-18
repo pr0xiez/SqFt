@@ -27,6 +27,12 @@ A user has a `role` (`admin | lead | crew`) and an optional free-text `title`
 to calendar Events; the schedule's crew picker and `/api/users/assignable` are
 sourced from active users. `User.archived` **deactivates** a person: they can't
 log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
+Archiving and role changes take effect on **live sessions**, not just at next
+login: the JWT `jwt` callback (`lib/auth.ts`) re-reads `archived`/`role`/`orgId`
+from the DB on every request via `revalidateSessionClaims` (`userRepo`) —
+revoking the session (returns `null`) if the user is archived or deleted, and
+otherwise refreshing the claims so role/org changes apply immediately. Sessions
+also carry an explicit 8-hour `maxAge` (not NextAuth's 30-day default).
 Events link assigned users via the `Event.assignees` relation
 (`eventRepo` `assigneeIds: string[]`). People are managed on the admin
 **Members** page (`/settings/members`) — the single people-management surface

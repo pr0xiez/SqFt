@@ -55,6 +55,30 @@ export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }
 
+/** The claims a live session is allowed to carry, re-read from the DB. */
+export type SessionClaims = { orgId: string; role: string };
+
+/**
+ * Re-validate a live session against current DB state for `userId`.
+ *
+ * Returns the user's current `{ orgId, role }` so a JWT's claims can be
+ * refreshed on every request — making role and org changes take effect live —
+ * or `null` when the session must be revoked: the user no longer exists or has
+ * been archived (deactivated). Looked up by id alone (a User belongs to exactly
+ * one org) and the org claim is sourced from the row, never trusted from the
+ * token. Consumed by the `jwt` callback in `lib/auth.ts`.
+ */
+export async function revalidateSessionClaims(
+  userId: string
+): Promise<SessionClaims | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { orgId: true, role: true, archived: true },
+  });
+  if (!user || user.archived) return null;
+  return { orgId: user.orgId, role: user.role };
+}
+
 export function findUserRow(
   id: string,
   orgId: string
