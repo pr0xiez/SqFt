@@ -32,6 +32,26 @@ Events link assigned users via the `Event.assignees` relation
 **Members** page (`/settings/members`) — the single people-management surface
 (role, title, archive/restore); there is no separate crew roster.
 
+## Session & Authorization
+
+Auth uses NextAuth (v5, JWT strategy) in `lib/auth.ts`; the JWT carries `orgId`
+and `role`, read back via `lib/tenant.ts` and role-gated by `apiRoute({ minRole
+})`. Because the token is signed at sign-in, those claims would otherwise be
+trusted unchanged until expiry — so a demotion, archive, or deletion would not
+reach a live session (issue #203). To close that, the `jwt` callback
+**re-validates against the DB** on subsequent requests via the pure policy
+`revalidateToken` (`lib/auth/revalidate.ts`, no NextAuth/Prisma imports) using
+`getAuthState(id)` (`lib/repositories/userRepo.ts`, returns `role`/`orgId`/
+`archived` or `null`). The policy **invalidates the session** (`jwt` returns
+`null`) when the user is gone or `archived`, and otherwise refreshes
+`role`/`orgId`; the `session` callback rejects a claim-less token so an
+invalidated session can't leak through. The DB read is **throttled** to a short
+interval stamped on the token as `revalidatedAt` (default 60s, override via
+`AUTH_REVALIDATE_INTERVAL_MS`, `0` = every request) — that interval is the
+**maximum staleness** of a role change / archive / revocation. `session.maxAge`
+(24h) is a hard backstop. Login itself still rejects archived users in
+`authorize()`.
+
 The editable **Schedule Manager** grid (`/schedule`, **lead+ only** — crew is
 redirected to `/my-schedule`) and the read-only, mobile-first **My Schedule**
 day view (`/my-schedule`, any role incl. crew — crew's home page) both read the

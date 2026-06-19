@@ -16,6 +16,28 @@ export type UserRow = Prisma.UserGetPayload<{ select: typeof USER_SELECT }>;
 
 export type AssignableUser = { id: string; name: string; title: string | null };
 
+/** Auth-relevant snapshot of a user, used to re-validate live JWT sessions. */
+export type AuthState = { role: string; orgId: string; archived: boolean };
+
+/**
+ * Load the current auth-relevant fields for a user by their global id.
+ *
+ * Used by the NextAuth `jwt` callback to re-validate a live session so that a
+ * role change (via /settings/members), an archive, or removal of the user
+ * takes effect without waiting for the token to expire (issue #203). Returns
+ * `null` if the user no longer exists. NOT org-scoped: the JWT only carries the
+ * user id, and this is the call that re-derives the trusted `orgId` claim from
+ * the DB.
+ */
+export async function getAuthState(id: string): Promise<AuthState | null> {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: { role: true, orgId: true, archived: true },
+  });
+  if (!user) return null;
+  return { role: user.role, orgId: user.orgId, archived: user.archived };
+}
+
 export function listUsers(
   orgId: string,
   opts: { includeArchived?: boolean } = {}
