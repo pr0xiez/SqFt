@@ -173,3 +173,65 @@ describe("computeEstimateView — totals breakdown", () => {
     expect(v.hasUnresolvedLines).toBe(false);
   });
 });
+
+describe("computeEstimateView — cent rounding (issue #158)", () => {
+  /** Every monetary output of the SSOT view is rounded to whole cents — no raw
+   *  IEEE-754 float drift escapes. */
+  const isExactCents = (n: number) => n === Math.round(n * 100) / 100;
+
+  it("rounds the per-line subtotal so qty × rate never drifts past cents", () => {
+    // 0.1 * 0.2 = 0.020000000000000004 in IEEE-754; rounded it is exactly 0.02.
+    const v = computeEstimateView({
+      lineItems: [baseLi({ qty: 0.1, rate: 0.2 })],
+      items: [],
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+    expect(v.lines[0].subtotal).toBe(0.02);
+    expect(v.subtotal).toBe(0.02);
+  });
+
+  it("rounds markup/fee/total/deposit to exact cents (no 100.33000000000001)", () => {
+    const v = computeEstimateView({
+      // subtotal 100.30; the classic float case is 100.3 + 0.03.
+      lineItems: [baseLi({ qty: 1, rate: 100.3 })],
+      items: [],
+      markupPct: 7.5, // markup = 7.5225 → 7.52
+      convenienceFeeRate: 0.029, // fee on (100.30+7.52)=107.82 → 3.126.. → 3.13
+      depositPct: 0.5,
+    });
+    for (const n of [
+      v.subtotal,
+      v.markup,
+      v.beforeFee,
+      v.convenienceFee,
+      v.total,
+      v.deposit,
+    ]) {
+      expect(isExactCents(n)).toBe(true);
+    }
+    // total reconciles exactly from the two rounded components.
+    expect(v.total).toBe(
+      Math.round((v.beforeFee + v.convenienceFee) * 100) / 100
+    );
+  });
+
+  it("produces a total that reconciles with the summed rounded breakdown", () => {
+    const v = computeEstimateView({
+      lineItems: [
+        baseLi({ id: 1, qty: 33.33, rate: 3 }), // 99.99
+        baseLi({ id: 2, qty: 1, rate: 0.005 }), // 0.01 (rounds up)
+      ],
+      items: [],
+      markupPct: 0,
+      convenienceFeeRate: 0,
+      depositPct: 0,
+    });
+    const lineSum =
+      Math.round(v.lines.reduce((s, l) => s + (l.subtotal ?? 0), 0) * 100) /
+      100;
+    expect(v.subtotal).toBe(lineSum);
+    expect(v.total).toBe(v.subtotal);
+  });
+});

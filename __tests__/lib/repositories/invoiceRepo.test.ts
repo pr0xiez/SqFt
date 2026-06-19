@@ -73,4 +73,23 @@ describe("nextInvoiceStatus", () => {
       "void"
     );
   });
+
+  it("triggers paid-in-full when rounded partial payments sum to the amount (issue #158)", () => {
+    // Three $20.20 partials against a $60.60 invoice. In raw IEEE-754 the ledger
+    // sums to 60.599999999999994 — strictly LESS than 60.60. The repo rounds the
+    // payment ledger to cents (toInvoiceLike / recordPayment) before deriving the
+    // status, so the comparison is against an exact 60.60 and the invoice flips
+    // to `paid` instead of getting stuck `partial` a sub-cent short.
+    const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+    const rawSum = 20.2 + 20.2 + 20.2; // 60.599999999999994
+    expect(rawSum).toBeLessThan(60.6); // the drift this rounding guards against
+    expect(round2(rawSum)).toBe(60.6); // rounding collapses it to exact cents
+    expect(
+      nextInvoiceStatus({
+        current: "partial",
+        amount: 60.6,
+        paid: round2(rawSum),
+      })
+    ).toBe("paid");
+  });
 });

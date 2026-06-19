@@ -84,6 +84,19 @@ the send-email route, the estimate list endpoint, and the approval snapshot —
 derives its numbers from this one function so the labeled breakdown can never
 diverge across surfaces.
 
+**Every monetary output is rounded to cents** (`round2`, `lib/money.ts`) at the
+boundary it is produced: the per-line `subtotal`, then `subtotal` / `markup` /
+`beforeFee` / `convenienceFee` / `total` / `deposit`. So no caller (nor the
+persisted `Estimate.total`, written from `view.total` by `syncEstimateTotal`)
+sees raw IEEE-754 drift (`100.3 + 0.03 → 100.33000000000001`), and the running
+subtotal is a sum of exact cents rather than an accumulation of binary error.
+`effectiveQty` is a *measured quantity* (sq ft / linear ft), not money, and is
+left unrounded. **Money is still stored as Postgres `Float`** (issue #158);
+rounding the SSOT math is the correctness fix — a Float→`numeric`/Decimal column
+migration is deferred (it ripples Prisma's `Decimal` type across ~30 number-typed
+call sites). `fromPrismaEstimate` is already Decimal-safe (`toNum`/`toNumOrNull`)
+so that future migration needs no change to the math.
+
 Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
 `lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).

@@ -142,7 +142,9 @@ describe("snapshotEstimate", () => {
     const byId = new Map(snap.lineItems.map((li) => [li.id, li]));
     expect(byId.get(10)).toMatchObject({
       effectiveQty: 100,
-      subtotal: 100 * 4.85,
+      // 100 * 4.85 is 484.99999999999994 in raw IEEE-754; the SSOT view now
+      // rounds per-line subtotals to exact cents (issue #158), so it is 485.
+      subtotal: 485,
     });
     expect(byId.get(20)).toMatchObject({ effectiveQty: 50, subtotal: 100 });
   });

@@ -1,15 +1,37 @@
 import { type LineItemCalc, parseQtyMode, type RoomItem } from "@/lib/utils";
 import type { EstimateInput } from "./types";
 
+/** A money/number column as Prisma may hand it back: a plain `number` today
+ *  (Float columns) or a `Decimal`-like object once these columns migrate to
+ *  Postgres `numeric`. Decimal instances stringify to their exact value, so
+ *  `toNum` reconstructs the JS number via `Number(...)` without pulling in the
+ *  Prisma runtime. */
+type Numeric = number | { toString(): string } | null | undefined;
+
+/** Coerce a Prisma numeric column (Float `number` or `Decimal`) to a JS number.
+ *  Keeps the estimate-view math number-based regardless of the column's storage
+ *  type, so a Float→Decimal schema migration needs no change to the SSOT math. */
+function toNum(value: Numeric): number {
+  if (value == null) return 0;
+  return typeof value === "number" ? value : Number(value.toString());
+}
+
+/** Same as `toNum` but preserves `null` (for nullable money columns like
+ *  `LineItem.qty`). */
+function toNumOrNull(value: Numeric): number | null {
+  if (value == null) return null;
+  return typeof value === "number" ? value : Number(value.toString());
+}
+
 /** Minimal shape of a Prisma `LineItem` row — just the columns the view needs. */
 interface PrismaLineItemRow {
   id: number;
   name: string;
   description?: string | null;
-  rate: number;
+  rate: Numeric;
   qtyMode: string;
-  qty: number | null;
-  wastePct: number;
+  qty: Numeric;
+  wastePct: Numeric;
   unitLabel: string;
   linkedRoomIds: number[];
   sortOrder?: number;
@@ -28,9 +50,9 @@ interface PrismaEstimateItemRow {
 }
 
 export interface PrismaEstimateForView {
-  markupPct: number;
-  convenienceFeeRate: number;
-  depositPct: number;
+  markupPct: Numeric;
+  convenienceFeeRate: Numeric;
+  depositPct: Numeric;
   lineItems: PrismaLineItemRow[];
   siteMeasure: { items: PrismaEstimateItemRow[] };
 }
@@ -45,9 +67,9 @@ export function fromPrismaEstimate(
   return {
     lineItems: estimate.lineItems.map(toLineItemCalc),
     items: estimate.siteMeasure.items.map(toRoomItem),
-    markupPct: estimate.markupPct,
-    convenienceFeeRate: estimate.convenienceFeeRate,
-    depositPct: estimate.depositPct,
+    markupPct: toNum(estimate.markupPct),
+    convenienceFeeRate: toNum(estimate.convenienceFeeRate),
+    depositPct: toNum(estimate.depositPct),
   };
 }
 
@@ -56,10 +78,10 @@ function toLineItemCalc(row: PrismaLineItemRow): LineItemCalc {
     id: row.id,
     name: row.name,
     description: row.description ?? null,
-    rate: row.rate,
+    rate: toNum(row.rate),
     qtyMode: parseQtyMode(row.qtyMode),
-    qty: row.qty,
-    wastePct: row.wastePct,
+    qty: toNumOrNull(row.qty),
+    wastePct: toNum(row.wastePct),
     unitLabel: row.unitLabel,
     linkedRoomIds: row.linkedRoomIds,
     sortOrder: row.sortOrder,
