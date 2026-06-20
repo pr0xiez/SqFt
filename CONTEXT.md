@@ -96,6 +96,21 @@ estimates under the same site measure (they're marked `declined` with a
 
 Estimate status values: `draft | sent | viewed | approved | declined`.
 
+## Auth & Session
+
+Sessions are JWT-strategy NextAuth (`lib/auth.ts`). `orgId` and `role` are
+claims in the token. They are **not trusted forever**: on subsequent requests
+the `jwt` callback re-reads the authoritative user row from the DB (throttled to
+once per `REVALIDATE_INTERVAL_MS`, default 60s — see `lib/auth/revalidate.ts`,
+DB read via `lib/repositories/userRepo.ts#findAuthUser`) and refreshes
+`token.role`/`token.orgId`. A role demotion/promotion therefore takes effect on
+a live session within ~a minute; if the user no longer exists the callback
+returns `null`, which drops the session cookie. `session.maxAge` is 12h (the
+hard ceiling for an idle token, well below the NextAuth 30-day default). This
+re-read runs on the Node.js runtime — Next 16 Proxy (`proxy.ts`) defaults to
+Node.js, so the Prisma query is safe there. (If a `User.archived` flag is added,
+`findAuthUser` should exclude archived rows so they hit the invalidate path.)
+
 ## API Error Codes
 
 Every API route returns errors as `{ error: { code, message, details? } }`.

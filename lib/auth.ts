@@ -3,7 +3,9 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { decideRevalidation, shouldRevalidate } from "@/lib/auth/revalidate";
 import { prisma } from "@/lib/prisma";
+import { findAuthUser } from "@/lib/repositories/userRepo";
 
 // Extend the built-in session types to include orgId and role
 declare module "next-auth" {
@@ -29,7 +31,12 @@ const loginSchema = z.object({
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  // Re-validation in the `jwt` callback (below) bounds how long a stale claim
+  // can live, but maxAge is the hard ceiling on a token whose owner never makes
+  // a request again. 12h keeps an abandoned session from lingering for the
+  // NextAuth default 30 days, at the cost of asking active users to re-auth
+  // roughly once a workday.
+  session: { strategy: "jwt", maxAge: 12 * 60 * 60 },
   trustHost: true,
   pages: {
     signIn: "/login",
@@ -69,10 +76,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
+      // Initial sign-in: `user` is the value returned by `authorize()`.
       if (user) {
         token.orgId = user.orgId;
         token.role = user.role;
+        token.revalidatedAt = Date.now();
+        return token;
       }
+
+      // Subsequent requests (#203): claims were baked in at sign-in and would
+      // otherwise be trusted forever. Re-read the authoritative user row from
+      // the DB (throttled) so role demotions/promotions and account deletion
+      // take effect on a live session instead of waiting for token expiry.
+      // The proxy/`auth()` wrapper runs this on the Node.js runtime (Next 16
+      // Proxy defaults to Node.js), so the Prisma read here is safe.
+      const now = Date.now();
+      if (!token.sub || !shouldRevalidate(token, now)) {
+        return token;
+      }
+
+      const dbUser = await findAuthUser(token.sub);
+      const result = decideRevalidation(dbUser, now);
+      if (result.kind === "invalidate") {
+        // Returning null tells NextAuth to drop the session cookie.
+        return null;
+      }
+      token.orgId = result.orgId;
+      token.role = result.role;
+      token.revalidatedAt = result.revalidatedAt;
       return token;
     },
     async session({ session, token }) {
