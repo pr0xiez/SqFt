@@ -208,7 +208,10 @@ Payments are recorded manually into a `Payment` ledger (the schema is
 Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
 invoice status from the ledger. A `void` invoice is terminal and excluded from
 all billing math; editing a sent invoice or paying a void one throws
-`INVOICE_LOCKED`. Every lifecycle action appends an `InvoiceEvent`.
+`INVOICE_LOCKED`. Its public link dies with it: the review page `notFound()`s a
+`void` invoice (and `PublicInvoiceView` never renders a pay CTA for one) so a
+stale email link can't view or pay a cancelled document. Every lifecycle action
+appends an `InvoiceEvent`.
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
