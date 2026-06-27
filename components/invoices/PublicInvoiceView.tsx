@@ -122,7 +122,9 @@ export function PublicInvoiceView({ invoice }: { invoice: PublicInvoice }) {
         </tfoot>
       </table>
 
-      {invoice.payUrl ? (
+      {/* A void invoice is terminal and not payable — never surface a pay CTA
+          for it, even if a Stripe link is still present in the snapshot. */}
+      {invoice.payUrl && invoice.status !== "void" ? (
         <div className="my-6">
           <a
             href={invoice.payUrl}

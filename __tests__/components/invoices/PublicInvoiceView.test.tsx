@@ -109,4 +109,34 @@ describe("PublicInvoiceView", () => {
     expect(screen.queryByText("Paid to date")).toBeNull();
     expect(screen.getByText("Balance due")).toBeDefined();
   });
+
+  it("never shows a Pay invoice CTA for a voided invoice, even with a payUrl", () => {
+    render(
+      <PublicInvoiceView
+        invoice={{
+          invoiceNumber: 7468,
+          status: "void",
+          dueLabel: null,
+          amountFormatted: "$5000.00",
+          paidFormatted: null,
+          balanceDueFormatted: "$5000.00",
+          memo: null,
+          terms: "",
+          paymentInstructions: "",
+          payUrl: "https://pay.stripe.com/abc123",
+          org: {
+            name: "All About Hardwood",
+            phone: null,
+            address: null,
+            logo: null,
+          },
+          customer: null,
+          lines: [
+            { name: "Hardwood Install", description: null, amount: 5000 },
+          ],
+        }}
+      />
+    );
+    expect(screen.queryByRole("link", { name: "Pay invoice" })).toBeNull();
+  });
 });
