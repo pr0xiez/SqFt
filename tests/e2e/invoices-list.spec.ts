@@ -84,8 +84,10 @@ test.describe
       const page = await ctx.newPage();
       await page.goto("/invoices");
       // Exact match: the dev-tools button "Open Next.js Dev Tools" also
-      // starts with "Open".
-      await page.getByRole("button", { name: "Open", exact: true }).click();
+      // starts with "Open". Generous timeout for Vercel preview cold starts.
+      await page
+        .getByRole("button", { name: "Open", exact: true })
+        .click({ timeout: 30_000 });
 
       const search = page.locator('input[placeholder^="Search invoice"]');
       // The sent invoice is open → visible under the Open filter.
