@@ -184,7 +184,8 @@ Markup is folded into the line prices (via `foldMarkupIntoLines` — see
 **Markup**), so neither a "Markup" row nor a fee row is emitted. Unresolved
 lines are omitted rather than billed as $0, and the rounding residual
 reconciles onto the largest row so the displayed rows sum exactly to the billed
-amount without the ±cent distorting a free line. Creating or editing an invoice past the estimate's unbilled balance
+amount without the ±cent distorting a free line. Creating or editing an
+invoice past the estimate's unbilled balance
 throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
 predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
 `OVERBILL_EPSILON` (0.005) tolerance used by both the repo guard and the create
