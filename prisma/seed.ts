@@ -1374,7 +1374,7 @@ async function main() {
         siteMeasureId: siteMeasure.id,
         estimateNumber,
         status,
-          markupPct: 35,
+        markupPct: 35,
         depositPct: 0.5,
         // Non-draft estimates were "sent", so they carry a (unique) token + the
         // relevant timestamps; drafts carry none.
