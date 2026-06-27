@@ -9,6 +9,10 @@ import {
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import {
+  type InvoiceableCandidate,
+  toInvoiceableCandidates,
+} from "@/lib/quickCreate/candidates";
 import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
@@ -254,6 +258,54 @@ export async function listEstimates(
   }
 
   return { items, total, facets };
+}
+
+/**
+ * Quick-invoice search: estimates whose customer matches `q` that still have a
+ * billable balance (`unbilled > 0`). Drafts are included — billability is the
+ * remaining balance, not a status gate, mirroring InvoicesSection. Returns the
+ * org's default deposit pct alongside, so the invoice dialog can seed its %.
+ */
+export async function listInvoiceableEstimates(
+  orgId: string,
+  q: string,
+  limit = 8
+): Promise<{ items: InvoiceableCandidate[]; defaultDepositPct: number }> {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { defaultDepositPct: true },
+  });
+  const defaultDepositPct = org?.defaultDepositPct ?? 0.3;
+
+  const search = estimateSearchWhere(q);
+  if (!search) return { items: [], defaultDepositPct };
+
+  const rows = await prisma.estimate.findMany({
+    where: { orgId, ...search },
+    orderBy: { estimateNumber: "desc" },
+    // Over-fetch then filter to unbilled>0 in pure code, so fully-billed
+    // estimates don't crowd out billable ones within the result cap.
+    take: limit * 4,
+    select: {
+      id: true,
+      estimateNumber: true,
+      status: true,
+      total: true,
+      siteMeasure: {
+        select: {
+          location: {
+            select: { address: true, customer: { select: { name: true } } },
+          },
+        },
+      },
+      invoices: { select: { amount: true, status: true } },
+    },
+  });
+
+  return {
+    items: toInvoiceableCandidates(rows).slice(0, limit),
+    defaultDepositPct,
+  };
 }
 
 export async function listEstimatesForSiteMeasure(

@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { NewMenu } from "@/components/quick-create/NewMenu";
 import { AccountBlock } from "@/components/ui/AccountBlock";
 import { NavMenu } from "@/components/ui/NavMenu";
 import { NavIcon } from "@/components/ui/nav-icons";
+import { hasMinRole } from "@/lib/auth/permissions";
 import { cn } from "@/lib/cn";
 import { useSidebarCollapsed } from "@/lib/hooks/useSidebarCollapsed";
 import {
@@ -20,6 +22,7 @@ export function SideNav() {
   const { data: session } = useSession();
   const { collapsed, toggle } = useSidebarCollapsed(session?.user?.id);
   const role = session?.user?.role ?? "crew";
+  const canQuickCreate = hasMinRole(role, "lead");
 
   return (
     <aside
@@ -50,6 +53,17 @@ export function SideNav() {
           {collapsed ? "⟩" : "⟨"}
         </button>
       </div>
+
+      {canQuickCreate && (
+        <div
+          className={cn(
+            "shrink-0",
+            collapsed ? "flex justify-center pb-1" : "px-3 pb-2"
+          )}
+        >
+          <NewMenu collapsed={collapsed} />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-2">
         {collapsed ? (
