@@ -48,16 +48,24 @@ schema, docs, seed, and tests, so that:
 
 ### 1. Estimate math — `lib/estimateView/`
 
+Once the fee is gone, `beforeFee` (`subtotal + markup`) is **identical to**
+`total`. So we retire **both** `convenienceFee` and `beforeFee` and let `total`
+carry the marked-up amount.
+
 - `compute.ts`: remove `convenienceFee` and `beforeFee`. New math:
   `markup = subtotal * (markupPct / 100)`, `total = subtotal + markup`,
   `deposit = total * depositPct`.
 - `types.ts`: remove `convenienceFeeRate` from `EstimateInput`; remove
-  `convenienceFee` (and the now-redundant `beforeFee`, if it was only an
-  intermediate) from `EstimateView`. Keep `subtotal`, `markup`, `total`,
-  `deposit`, `hasUnresolvedLines`.
+  `convenienceFee` and `beforeFee` from `EstimateView`. Keep `subtotal`,
+  `markup`, `total`, `deposit`, `hasUnresolvedLines`.
+- `markup.ts` (`foldMarkupIntoLines`): currently folds line prices to
+  `view.beforeFee`. Retarget to `view.total` (same value, post-removal) and
+  update the doc comment (`factor = total / subtotal`, reconcile to `total`).
 - `fromPrisma.ts`: stop mapping `convenienceFeeRate` from the Prisma row.
-- `snapshot.ts`: stop reading/writing `convenienceFeeRate` and
-  `totals.convenienceFee`.
+- `snapshot.ts`: stop reading/writing `convenienceFeeRate`,
+  `totals.convenienceFee`, and any `beforeFee` in the frozen totals.
+- `lib/money.ts`: doc-comment-only mention of `beforeFee` — reword so the
+  comment doesn't reference a removed field (no logic change).
 
 ### 2. Estimate draft / reducer — `lib/estimateDraft/`
 
@@ -99,8 +107,15 @@ schema, docs, seed, and tests, so that:
   prop pass-through, the `onCommitFee` wiring, and the `setConvenienceFeeRate`
   dispatch.
 - `components/estimates/public-estimate/TotalsBlock.tsx`: remove the
-  "Convenience fee" row and its `convenienceFeeRate`/`convenienceFee` props
-  (totals become Subtotal → Total).
+  "Convenience fee" row and its `convenienceFeeRate`/`convenienceFee` props.
+  With the fee gone the marked-up subtotal equals the total, so the two-row
+  Subtotal → Total display would be redundant — collapse to a single **Total**
+  row (plus the existing **Deposit** row). (Exact row layout finalized in the
+  plan.)
+- `components/estimates/PublicEstimateView.tsx`: drop `convenienceFeeRate` from
+  the `PublicEstimate` type and the `computeEstimateView` input; stop
+  destructuring `convenienceFee`; replace `markedUpSubtotal = view.beforeFee`
+  with `view.total`; remove the fee props passed to `TotalsBlock`.
 - `app/estimate-review/[token]/page.tsx` and the `PublicEstimate` shape it
   builds: drop `convenienceFeeRate`.
 
@@ -143,9 +158,15 @@ Update (don't just append) the sections that name the convenience fee:
 ### 10. Tests
 
 - `__tests__/lib/estimateView/compute.test.ts`: drop the fee assertions; update
-  `total` expectations to `subtotal + markup`.
+  `total` expectations to `subtotal + markup`; remove `beforeFee` references.
+- `__tests__/lib/estimateView/markup.test.ts`: update any `beforeFee`
+  references/expectations to `total`.
+- `__tests__/lib/estimateView/snapshot.test.ts`: remove `beforeFee` /
+  `convenienceFee` from expected snapshot totals.
 - `__tests__/lib/invoices/compute.test.ts`: remove the fee-row proration test;
-  keep rounding-reconciliation coverage.
+  keep rounding-reconciliation coverage; fix any `beforeFee` use.
+- `__tests__/lib/invoices/snapshot.test.ts`: remove `convenienceFee`/`beforeFee`
+  from expected totals.
 - `__tests__/lib/estimateDraft/reduce.test.ts`: remove the
   `setConvenienceFeeRate` test.
 - `__tests__/api/estimates.[id].test.ts`: remove the `convenienceFeeRate` range
