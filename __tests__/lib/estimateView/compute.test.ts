@@ -28,7 +28,6 @@ describe("computeEstimateView — effectiveQty resolution", () => {
       lineItems: [baseLi({ qty: 150, rate: 0 })],
       items: [],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     expect(v.lines[0].effectiveQty).toBe(150);
@@ -39,7 +38,6 @@ describe("computeEstimateView — effectiveQty resolution", () => {
       lineItems: [baseLi({ qty: null })],
       items: [],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     expect(v.lines[0].effectiveQty).toBeNull();
@@ -61,7 +59,6 @@ describe("computeEstimateView — effectiveQty resolution", () => {
         { id: 2, type: "room", shape: "rect", w: "5", l: "4" }, // 20 sqft
       ],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     // 120 * 1.10 = 132
@@ -82,7 +79,6 @@ describe("computeEstimateView — effectiveQty resolution", () => {
         { id: 2, type: "room", shape: "rect", w: "10", l: "10" },
       ],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     // (40 + 40) * 1.10 = 88
@@ -94,7 +90,6 @@ describe("computeEstimateView — effectiveQty resolution", () => {
       lineItems: [baseLi({ qtyMode: "linked_area", linkedRoomIds: [99] })],
       items: [tenByTen],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     expect(v.lines[0].effectiveQty).toBeNull();
@@ -106,7 +101,6 @@ describe("computeEstimateView — effectiveQty resolution", () => {
       lineItems: [baseLi({ qtyMode: "linked_area", linkedRoomIds: [1, 2] })],
       items: [tenByTen, { id: 2, type: "note", text: "see spec" }],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     expect(v.lines[0].effectiveQty).toBe(100);
@@ -122,26 +116,22 @@ describe("computeEstimateView — totals breakdown", () => {
       ],
       items: [],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     expect(v.subtotal).toBe(370); // 350 + 20
   });
 
-  it("applies markup to subtotal, then fee to subtotal+markup", () => {
+  it("applies markup to subtotal; total is subtotal + markup", () => {
     const v = computeEstimateView({
       lineItems: [baseLi({ qty: 1000, rate: 1 })], // subtotal 1000
       items: [],
       markupPct: 20, // markup = 200
-      convenienceFeeRate: 0.03, // fee = 1200 * 0.03 = 36
-      depositPct: 0.5, // deposit = 1236 * 0.5 = 618
+      depositPct: 0.5, // deposit = 1200 * 0.5 = 600
     });
     expect(v.subtotal).toBe(1000);
     expect(v.markup).toBe(200);
-    expect(v.beforeFee).toBe(1200);
-    expect(v.convenienceFee).toBeCloseTo(36);
-    expect(v.total).toBeCloseTo(1236);
-    expect(v.deposit).toBeCloseTo(618);
+    expect(v.total).toBeCloseTo(1200);
+    expect(v.deposit).toBeCloseTo(600);
   });
 
   it("treats unresolved lines as 0 in subtotal but flags them", () => {
@@ -152,7 +142,6 @@ describe("computeEstimateView — totals breakdown", () => {
       ],
       items: [],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
     expect(v.subtotal).toBe(100);
@@ -165,7 +154,6 @@ describe("computeEstimateView — totals breakdown", () => {
       lineItems: [],
       items: [],
       markupPct: 20,
-      convenienceFeeRate: 0.03,
       depositPct: 0.5,
     });
     expect(v.subtotal).toBe(0);

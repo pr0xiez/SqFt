@@ -32,7 +32,7 @@ describe("saveEstimate lockdown", () => {
   it("throws EstimateLockedError and does not mutate when estimate is approved", async () => {
     tx.estimate.findFirst.mockResolvedValue({ id: 7, status: "approved" });
     await expect(
-      saveEstimate(7, "org_1", { convenienceFeeRate: 0.1 })
+      saveEstimate(7, "org_1", { markupPct: 5 })
     ).rejects.toBeInstanceOf(EstimateLockedError);
     expect(tx.estimate.update).not.toHaveBeenCalled();
   });
@@ -40,7 +40,7 @@ describe("saveEstimate lockdown", () => {
   it("throws EstimateLockedError and does not mutate when estimate is declined", async () => {
     tx.estimate.findFirst.mockResolvedValue({ id: 7, status: "declined" });
     await expect(
-      saveEstimate(7, "org_1", { convenienceFeeRate: 0.1 })
+      saveEstimate(7, "org_1", { markupPct: 5 })
     ).rejects.toBeInstanceOf(EstimateLockedError);
     expect(tx.estimate.update).not.toHaveBeenCalled();
   });

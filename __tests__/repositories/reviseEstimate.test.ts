@@ -43,7 +43,6 @@ describe("reviseEstimate", () => {
       orgId: "org_1",
       siteMeasureId: 42,
       estimateNumber: 5001,
-      convenienceFeeRate: 0.03,
       markupPct: 35,
       depositPct: 0.5,
       items: [{ id: "r1", type: "room", name: "Kitchen", area: 200 }],
@@ -63,7 +62,6 @@ describe("reviseEstimate", () => {
     tx.estimate.findFirst.mockResolvedValueOnce({
       id: 99,
       markupPct: 35,
-      convenienceFeeRate: 0.03,
       depositPct: 0.5,
       lineItems: [],
       siteMeasure: { items: [] },

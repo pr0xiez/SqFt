@@ -22,7 +22,6 @@ function generateToken(): string {
  *  siteMeasure.items satisfies this. */
 type HydratedForTotal = {
   markupPct: number;
-  convenienceFeeRate: number;
   depositPct: number;
   lineItems: Parameters<typeof fromPrismaEstimate>[0]["lineItems"];
   siteMeasure: {
@@ -157,7 +156,6 @@ type LineItemInput = Omit<
 
 export type EstimatePatch = {
   status?: "draft" | "sent" | "approved" | "declined";
-  convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemInput[];
@@ -324,7 +322,6 @@ export async function createEstimate(
         siteMeasureId: input.siteMeasureId,
         estimateNumber,
         status: "draft",
-        convenienceFeeRate: 0.03,
         markupPct: 0,
         depositPct: org.defaultDepositPct ?? 0.3,
         terms: org.defaultTerms ?? "",
@@ -462,7 +459,6 @@ export async function reviseEstimate(
         estimateNumber: newEstimateNumber,
         status: "draft",
         date: new Date(),
-        convenienceFeeRate: original.convenienceFeeRate,
         markupPct: original.markupPct,
         depositPct: original.depositPct,
         approvalToken: generateToken(),

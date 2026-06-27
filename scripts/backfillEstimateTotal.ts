@@ -15,7 +15,6 @@ async function main() {
     select: {
       id: true,
       markupPct: true,
-      convenienceFeeRate: true,
       depositPct: true,
       lineItems: true,
       siteMeasure: { select: { items: true } },

@@ -22,9 +22,7 @@ export function computeEstimateView(input: EstimateInput): EstimateView {
 
   const subtotal = lines.reduce((sum, l) => sum + (l.subtotal ?? 0), 0);
   const markup = subtotal * (input.markupPct / 100);
-  const beforeFee = subtotal + markup;
-  const convenienceFee = beforeFee * input.convenienceFeeRate;
-  const total = beforeFee + convenienceFee;
+  const total = subtotal + markup;
   const deposit = total * input.depositPct;
   const hasUnresolvedLines = lines.some((l) => l.subtotal === null);
 
@@ -32,8 +30,6 @@ export function computeEstimateView(input: EstimateInput): EstimateView {
     lines,
     subtotal,
     markup,
-    beforeFee,
-    convenienceFee,
     total,
     deposit,
     hasUnresolvedLines,

@@ -35,11 +35,10 @@ export function computeEstimateBilling(
 /**
  * Prorate an estimate's labeled breakdown by `amount / estimateTotal`, then
  * reconcile rounding onto the largest row so the displayed rows sum EXACTLY to
- * `amount`. Markup is folded into each line's price (never its own row); the
- * convenience-fee row appears only when the fee is non-zero. Putting the
- * residual on the largest row keeps the ±cent off the convenience-fee row and
- * off any $0 (free) line. Unresolved lines (no resolvable price) are omitted
- * from the breakdown rather than billed as $0.
+ * `amount`. Markup is folded into each line's price (never its own row).
+ * Putting the residual on the largest row keeps the ±cent off any $0 (free)
+ * line. Unresolved lines (no resolvable price) are omitted from the breakdown
+ * rather than billed as $0.
  */
 export function prorateInvoice(
   source: ProrationSource,
@@ -73,16 +72,8 @@ export function prorateInvoice(
       amount: round2(priced * ratio),
     });
   });
-  if (source.view.convenienceFee > 0) {
-    rows.push({
-      name: source.convenienceFeeLabel ?? "Convenience fee",
-      description: null,
-      amount: round2(source.view.convenienceFee * ratio),
-    });
-  }
-
   // Reconcile: force the sum to equal `amount` by adjusting the largest row, so
-  // the ±cent never distorts the convenience-fee row or a $0 (free) line.
+  // the ±cent never distorts a $0 (free) line.
   const target = round2(amount);
   const sum = round2(rows.reduce((s, r) => s + r.amount, 0));
   const drift = round2(target - sum);

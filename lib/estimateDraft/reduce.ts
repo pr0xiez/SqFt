@@ -69,11 +69,6 @@ export function reduceEstimateDraft(
       const lineItems = draft.lineItems.filter((i) => i.id !== action.id);
       return { draft: { ...draft, lineItems }, save: { lineItems } };
     }
-    case "setConvenienceFeeRate":
-      return {
-        draft: { ...draft, convenienceFeeRate: action.value },
-        save: { convenienceFeeRate: action.value },
-      };
     case "setMarkupPct":
       return {
         draft: { ...draft, markupPct: action.value },

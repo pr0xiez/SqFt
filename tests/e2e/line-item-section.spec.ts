@@ -228,7 +228,7 @@ test.describe("18.3 Line item section — totals", () => {
     ).toBeVisible();
 
     // Totals % inputs are the decimal inputs after qty/rate/subtotal:
-    // index 3 = convenience fee %, 4 = markup %, 5 = deposit %.
+    // index 3 = markup %, 4 = deposit %.
     // Each commit waits for its own PATCH so the saves don't interleave.
     const decimals = page.locator('input[inputmode="decimal"]');
     const waitPatch = () =>
@@ -239,23 +239,17 @@ test.describe("18.3 Line item section — totals", () => {
           r.status() === 200
       );
 
-    const fee = decimals.nth(3);
-    await fee.fill("10");
-    const [feePatch] = await Promise.all([waitPatch(), fee.blur()]);
-    expect(feePatch.status()).toBe(200);
-
-    const markup = decimals.nth(4);
+    const markup = decimals.nth(3);
     await markup.fill("20");
     await Promise.all([waitPatch(), markup.blur()]);
 
-    const deposit = decimals.nth(5);
+    const deposit = decimals.nth(4);
     await deposit.fill("25");
     await Promise.all([waitPatch(), deposit.blur()]);
 
     const get = await ctx.request.get(`/api/estimates/${estimate.id}`);
     const body = await get.json();
-    // Fee/deposit persist as rates (0–1); markup persists as a percent.
-    expect(body.convenienceFeeRate).toBeCloseTo(0.1, 5);
+    // Deposit persists as a rate (0–1); markup persists as a percent.
     expect(body.markupPct).toBe(20);
     expect(body.depositPct).toBeCloseTo(0.25, 5);
 
