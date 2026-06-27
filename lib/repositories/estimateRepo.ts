@@ -17,7 +17,7 @@ function generateToken(): string {
 }
 
 /** Minimal hydrate shape `syncEstimateTotal` needs — matches the input of
- *  `fromPrismaEstimate` (markup/fee/deposit rates + lineItems + siteMeasure
+ *  `fromPrismaEstimate` (markup/deposit rates + lineItems + siteMeasure
  *  items). Any of the standard estimate includes that bring lineItems and
  *  siteMeasure.items satisfies this. */
 type HydratedForTotal = {
