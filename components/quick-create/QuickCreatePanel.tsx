@@ -74,7 +74,7 @@ export function QuickCreatePanel({
             <button
               type="button"
               onClick={onClose}
-              className="font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-[var(--surface)] border border-[var(--line)] rounded-[6px] px-4 py-[9px] cursor-pointer hover:border-[var(--ink-2)]"
+              className="font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-[var(--surface)] border border-[var(--line)] rounded-[6px] px-4 py-[9px] whitespace-nowrap cursor-pointer hover:border-[var(--ink-2)]"
             >
               Cancel
             </button>
@@ -83,7 +83,7 @@ export function QuickCreatePanel({
               onClick={onCreate}
               disabled={createDisabled}
               className={cn(
-                "font-[var(--font-mono)] text-[11px] rounded-[6px] px-4 py-[9px] border",
+                "font-[var(--font-mono)] text-[11px] rounded-[6px] px-4 py-[9px] border whitespace-nowrap",
                 createDisabled
                   ? "text-[var(--muted)] bg-[var(--surface-2)] border-[var(--line)] cursor-not-allowed"
                   : "text-white bg-[var(--accent)] border-[var(--accent)] cursor-pointer hover:bg-[var(--accent-l)]"
