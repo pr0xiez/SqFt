@@ -96,8 +96,8 @@ test.describe
     });
 
     // The Pay now button is only rendered when the org has stripeConnectStatus='active'.
-    // Without Stripe connect configured in the test org this button will not be
-    // present; in that case the test exits early rather than failing.
+    // No E2E fixture can set that yet, so when the button is absent this test
+    // reports as SKIPPED (not a silent pass) to keep CI coverage honest.
     // In a Stripe-connected test/CI environment this exercises the full click→POST
     // path, with the checkout endpoint stubbed so no real Stripe hosted page opens.
     test("Pay now button issues checkout POST and follows redirect URL", async ({
@@ -126,10 +126,17 @@ test.describe
 
       const payBtn = page.getByRole("button", { name: /pay now/i });
 
-      // If the button isn't visible the org lacks Stripe connect — skip.
-      if (!(await payBtn.isVisible({ timeout: 2000 }).catch(() => false))) {
+      // If the button isn't visible the org lacks Stripe connect. Report this as
+      // a skip (visible in the CI report) instead of passing vacuously.
+      const payBtnVisible = await payBtn
+        .isVisible({ timeout: 2000 })
+        .catch(() => false);
+      if (!payBtnVisible) {
         await anonCtx.close();
-        return;
+        test.skip(
+          true,
+          "requires a Stripe-connected test org (stripeConnectStatus='active')"
+        );
       }
 
       await payBtn.click();
