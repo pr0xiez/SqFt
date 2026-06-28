@@ -161,6 +161,7 @@ export function useCreateEstimate() {
     onSuccess: (q) => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["siteMeasures", q.siteMeasureId] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }
@@ -179,6 +180,7 @@ export function useUpdateEstimate(id: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["estimates", id] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }
@@ -211,6 +213,7 @@ export function useSendEstimate(estimateId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["estimates", estimateId] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }
@@ -233,6 +236,9 @@ export function useDeleteEstimate() {
       if (res.status === 204) return { ok: true };
       return res.json();
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["estimates"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+    },
   });
 }
