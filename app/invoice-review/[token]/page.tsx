@@ -37,7 +37,10 @@ type SnapshotShape = {
   lines: Array<{ name: string; description: string | null; amount: number }>;
 };
 
-export default async function PublicInvoicePage({ params, searchParams }: Props) {
+export default async function PublicInvoicePage({
+  params,
+  searchParams,
+}: Props) {
   const { token } = await params;
   const { pay } = await searchParams;
   if (!token || token.length < 16 || token.length > 128) notFound();
