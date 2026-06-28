@@ -71,9 +71,10 @@ with the file that owns it.
   `ConnectStatus` union, onboarding-link generation), `checkout.ts`
   (`buildCheckoutParams`, `createInvoiceCheckoutSession` — creates the
   Checkout Session on the connected account), `webhook.ts`
-  (`verifyStripeWebhook`, `handleStripeWebhookEvent` — signature-verified
+  (`constructStripeEvent`, `handleStripeEvent` — signature-verified
   event handler). The admin Stripe onboarding surface is `/settings/payments`
-  (`app/(admin)/admin/settings/payments`). The raw-body webhook receiver is
+  (`app/(app)/settings/payments`, admin-gated inline — `(app)` is the authed
+  builder route group, not `(admin)`). The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);

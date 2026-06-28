@@ -217,12 +217,14 @@ export function InvoiceDetail({
                   className="flex justify-between text-[12.5px] py-1.5 border-b border-[var(--line)] last:border-b-0"
                 >
                   <div>
-                    {p.method === "stripe" && p.stripeNetAmount != null ? (
+                    {p.method === "stripe" &&
+                    p.stripeNetAmount != null &&
+                    p.stripeFeeAmount != null ? (
                       <>
                         <span>Paid {fmtDollar(p.amount)}</span>
                         <div className="text-[11px] text-[var(--muted)]">
-                          Stripe fee {fmtDollar(p.stripeFeeAmount ?? 0)} · You
-                          netted {fmtDollar(p.stripeNetAmount)}
+                          Stripe fee {fmtDollar(p.stripeFeeAmount)} · You netted{" "}
+                          {fmtDollar(p.stripeNetAmount)}
                         </div>
                       </>
                     ) : (
