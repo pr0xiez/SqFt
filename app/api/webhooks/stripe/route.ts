@@ -1,0 +1,55 @@
+import { headers } from "next/headers";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { recordStripePayment } from "@/lib/repositories/invoiceRepo";
+import { getStripe } from "@/lib/stripe/client";
+import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
+
+export async function POST(req: Request) {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) return new NextResponse("not configured", { status: 500 });
+
+  const body = await req.text(); // RAW body — required for signature verification
+  const sig = (await headers()).get("stripe-signature");
+  let event: ReturnType<typeof constructStripeEvent>;
+  try {
+    event = constructStripeEvent(body, sig, secret);
+  } catch {
+    return new NextResponse("invalid signature", { status: 400 });
+  }
+
+  try {
+    await handleStripeEvent(event, {
+      isProcessed: async (id) =>
+        Boolean(
+          await prisma.processedStripeEvent.findUnique({ where: { id } })
+        ),
+      markProcessed: async (id, type) => {
+        await prisma.processedStripeEvent.create({ data: { id, type } });
+      },
+      record: (input) => recordStripePayment(input),
+      retrieveCharge: async (accountId, paymentIntentId) => {
+        const stripe = getStripe();
+        const pi = await stripe.paymentIntents.retrieve(
+          paymentIntentId,
+          { expand: ["latest_charge.balance_transaction"] },
+          { stripeAccount: accountId }
+        );
+        const charge = pi.latest_charge as {
+          id: string;
+          balance_transaction?: { fee: number; net: number } | null;
+        } | null;
+        const bt = charge?.balance_transaction ?? null;
+        return {
+          id: charge?.id ?? `pi_${paymentIntentId}`,
+          balanceFee: bt ? bt.fee / 100 : null,
+          balanceNet: bt ? bt.net / 100 : null,
+        };
+      },
+    });
+  } catch (_err) {
+    // Returning 500 makes Stripe retry — acceptable since handling is idempotent.
+    return new NextResponse("handler error", { status: 500 });
+  }
+  return new NextResponse(null, { status: 200 });
+}
