@@ -22,7 +22,6 @@ export interface DashboardKpis {
 
 const revenueSelect = {
   markupPct: true,
-  convenienceFeeRate: true,
   depositPct: true,
   lineItems: {
     select: {

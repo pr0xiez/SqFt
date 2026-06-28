@@ -154,10 +154,12 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
   test("15.2.2 status pill filters server-side with status=estimated", async ({
     browser,
   }) => {
-    // This test seeds two records, then waits on two list fetches (each
-    // allowing a 30s cold Vercel-preview/Neon start). The default 30s per-test
-    // timeout is too tight for that worst case, so give it explicit headroom.
-    test.setTimeout(90_000);
+    // This test seeds two records, then waits on two list fetches. The first
+    // fetch can hit a cold Vercel-preview serverless start AND a cold Neon
+    // connection simultaneously — each alone can push past 30s. The second
+    // fetch is fast (connections are warm), so 30s remains fine there.
+    // Budget: 60s (first response) + 30s (filter response) + ~20s headroom = 110s.
+    test.setTimeout(120_000);
     // Avoid the literal pill labels in customer names so a text lookup can't
     // confuse a seeded row with a status pill.
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -182,16 +184,16 @@ test.describe("15.2 SiteMeasures list — server-driven pagination", () => {
     // 2026-06-11 CI failure mode — all retries timed out identically).
     await clearStorageOnNextLoad(ctx);
     // Wait for the initial list fetch so the seeded rows are in the response
-    // before asserting visibility (avoids a render race on slower CI). The
-    // generous timeout absorbs a cold Vercel-preview serverless start plus
-    // Neon connection latency, which can exceed the 10s action default.
+    // before asserting visibility (avoids a render race on slower CI). 60s
+    // absorbs the worst-case cold Vercel-preview + Neon connection latency;
+    // 30s proved insufficient when both go cold simultaneously (CI flake).
     await Promise.all([
       page.waitForResponse(
         (r) =>
           isListRequest(r.url()) &&
           r.request().method() === "GET" &&
           r.status() === 200,
-        { timeout: 30_000 }
+        { timeout: 60_000 }
       ),
       page.goto("/site-measures"),
     ]);

@@ -20,7 +20,6 @@ export type { EstimateSavePatch };
 interface Props {
   lineItems: EstimateDraft["lineItems"];
   rooms: RoomItem[];
-  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   readOnly?: boolean;
@@ -36,7 +35,6 @@ function tempLiId() {
 export function LineItemSection({
   lineItems: initialLineItems,
   rooms,
-  convenienceFeeRate: initialFee,
   markupPct: initialMarkup,
   depositPct: initialDeposit,
   readOnly = false,
@@ -47,7 +45,6 @@ export function LineItemSection({
   // Intentionally not resynced from server refetch — see CONTEXT.md.
   const [draft, setDraft] = useState<EstimateDraft>(() => ({
     lineItems: initialLineItems,
-    convenienceFeeRate: initialFee,
     markupPct: initialMarkup,
     depositPct: initialDeposit,
   }));
@@ -83,7 +80,6 @@ export function LineItemSection({
         lineItems: draft.lineItems,
         items: rooms,
         markupPct: draft.markupPct,
-        convenienceFeeRate: draft.convenienceFeeRate,
         depositPct: draft.depositPct,
       }),
     [draft, rooms]
@@ -93,16 +89,9 @@ export function LineItemSection({
     [view.lines]
   );
 
-  const {
-    subtotal,
-    markup: markupAmt,
-    convenienceFee: feeAmt,
-    total,
-    deposit,
-  } = view;
+  const { subtotal, markup: markupAmt, total, deposit } = view;
 
   // EstimateTotals speaks display percentages; the Draft holds storage form.
-  const feePct = Math.round(draft.convenienceFeeRate * 1000) / 10;
   const depositDisplayPct = Math.round(draft.depositPct * 1000) / 10;
 
   return (
@@ -185,17 +174,12 @@ export function LineItemSection({
         {draft.lineItems.length > 0 && (
           <EstimateTotals
             subtotal={subtotal}
-            feePct={feePct}
             markupPct={draft.markupPct}
             depositPct={depositDisplayPct}
-            feeAmt={feeAmt}
             markupAmt={markupAmt}
             total={total}
             deposit={deposit}
             readOnly={readOnly}
-            onCommitFee={(next) =>
-              dispatch({ type: "setConvenienceFeeRate", value: next / 100 })
-            }
             onCommitMarkup={(next) =>
               dispatch({ type: "setMarkupPct", value: next })
             }

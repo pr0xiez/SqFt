@@ -34,7 +34,6 @@ export function snapshotInvoice(
     totals: {
       subtotal: source.view.subtotal,
       markup: source.view.markup,
-      convenienceFee: source.view.convenienceFee,
       balanceDue: meta.amount,
     },
   };

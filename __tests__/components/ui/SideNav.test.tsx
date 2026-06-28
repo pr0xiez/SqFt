@@ -9,19 +9,28 @@ vi.mock("next-auth/react", () => ({
   signOut: vi.fn(),
 }));
 
+import { QuickCreateProvider } from "@/components/quick-create/QuickCreateProvider";
 import { SideNav } from "@/components/ui/SideNav";
 
 beforeEach(() => localStorage.clear());
 
+function renderSideNav() {
+  return render(
+    <QuickCreateProvider>
+      <SideNav />
+    </QuickCreateProvider>
+  );
+}
+
 describe("SideNav", () => {
   it("renders grouped destinations when expanded", () => {
-    render(<SideNav />);
+    renderSideNav();
     expect(screen.getByText("Pipeline")).toBeInTheDocument();
     expect(screen.getByText("Customers")).toBeInTheDocument();
   });
 
   it("collapsing hides group labels and persists the state", () => {
-    render(<SideNav />);
+    renderSideNav();
     fireEvent.click(screen.getByRole("button", { name: /collapse sidebar/i }));
     expect(screen.queryByText("Pipeline")).not.toBeInTheDocument();
     expect(localStorage.getItem("sqft.sidebar.collapsed")).toBe("1");

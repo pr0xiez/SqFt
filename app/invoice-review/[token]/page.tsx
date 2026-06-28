@@ -39,6 +39,9 @@ export default async function PublicInvoicePage({ params }: Props) {
 
   const invoice = await getInvoiceByToken(token);
   if (!invoice || !invoice.snapshot) notFound();
+  // A void invoice is terminal: the link must die with it so a customer can't
+  // open — or pay — a cancelled invoice from a stale email.
+  if (invoice.status === "void") notFound();
 
   if (invoice.status === "sent") {
     const h = await headers();

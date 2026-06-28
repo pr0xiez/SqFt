@@ -74,8 +74,8 @@ The measurement record for a location: a set of room measurements
 ## Estimate View
 
 The fully-computed read model of an estimate: per-line `effectiveQty` and
-`subtotal`, plus totals (`subtotal`, `markup`, `convenienceFee`, `total`,
-`deposit`) and a `hasUnresolvedLines` flag.
+`subtotal`, plus totals (`subtotal`, `markup`, `total`, `deposit`) and a
+`hasUnresolvedLines` flag.
 
 Single source of truth for estimate math. Produced by `computeEstimateView` in
 `lib/estimateView/` (`compute.ts`). Every caller — the editor
@@ -100,17 +100,17 @@ carries `id`, set in `buildInvoiceProrationSource`).
 ## Estimate Draft
 
 The editable, not-yet-reconciled working copy of an estimate's inputs while a
-lead is building it: the `lineItems` plus the three money fields
-(`convenienceFeeRate`, `markupPct`, `depositPct`). The write-side counterpart
-to **Estimate View** — Draft is what you *edit*, View is what you *read* (the
-computed totals derived from a Draft).
+lead is building it: the `lineItems` plus the two money fields
+(`markupPct`, `depositPct`). The write-side counterpart to **Estimate View** —
+Draft is what you *edit*, View is what you *read* (the computed totals derived
+from a Draft).
 
 Held in **storage form**, identical to the Prisma columns and to
-`EstimateInput`: `convenienceFeeRate` and `depositPct` are decimals (`0.03`,
-`0.5`), `markupPct` is a percentage (`20`). Percent ↔ decimal conversion for
-fee/deposit happens only in the on-screen input widgets, never inside the
-Draft, so a Draft can be handed straight to `computeEstimateView` and straight
-into a save patch with no translation.
+`EstimateInput`: `depositPct` is a decimal (`0.5`), `markupPct` is a
+percentage (`20`). Percent ↔ decimal conversion for deposit happens only in
+the on-screen input widgets, never inside the Draft, so a Draft can be handed
+straight to `computeEstimateView` and straight into a save patch with no
+translation.
 
 The Draft's mutation semantics live in a pure reducer (`lib/estimateDraft/`):
 `(draft, action) → { draft, save }`. Actions are the editing operations —
@@ -131,31 +131,27 @@ any emitted patch to `onSave`.
 `markupPct` is an **internal** pricing setting — the customer never sees a
 "Markup" or "Labor & margin" line. On every customer-facing surface the markup
 is instead *folded* into the line-item prices: each resolved line is shown at
-`lineSubtotal × (view.beforeFee / view.subtotal)`, reconciled so the displayed
-rows sum exactly to the marked-up subtotal (`view.beforeFee`). Internal builder
-views (the estimate editor totals, billing breakdowns) still break markup out
-as its own number.
+`lineSubtotal × (view.total / view.subtotal)`, reconciled so the displayed
+rows sum exactly to `view.total`. Internal builder views (the estimate editor
+totals, billing breakdowns) still break markup out as its own number.
 
 The fold lives in `foldMarkupIntoLines` (`lib/estimateView/markup.ts`), next to
 the estimate-view math. It returns one amount per line — `null` stays `null`
 for unresolved lines, which receive no markup. The penny-rounding residual is
 steered onto the largest-priced resolved line by `residualTargetIndex`
-(`lib/money.ts`), so the ±cent never lands on a $0 (free) line, an unresolved
-line, or the convenience-fee row. `lib/money.ts` is the shared home for
+(`lib/money.ts`), so the ±cent never lands on a $0 (free) line or an
+unresolved line. `lib/money.ts` is the shared home for
 `round2` and `residualTargetIndex`, used by both the fold and invoice
 proration.
 
 Two customer surfaces consume the fold:
 
 - **Public estimate** — line rows render marked-up prices; `TotalsBlock`
-  (`components/estimates/public-estimate/`) shows Subtotal (already marked up)
-  → Convenience fee → Total, with **no** "Labor & margin" row. Already-signed
-  snapshots keep their frozen historical form and are never rewritten.
+  (`components/estimates/public-estimate/`) shows the marked-up Total (and
+  deposit), with **no** "Labor & margin" row. Already-signed snapshots keep
+  their frozen historical form and are never rewritten.
 - **Invoice** — `prorateInvoice` distributes the folded line prices by the bill
   ratio and emits no "Markup" row (see **Invoice**).
-
-The convenience fee is *not* folded — it stays its own customer-facing row/line
-because it is a legitimate fee.
 
 ## Estimate Approval
 
@@ -185,11 +181,11 @@ billing math is the single source of truth in `lib/invoices/` (mirroring
 outstanding across an estimate's non-void invoices, and `prorateInvoice` splits
 each invoice's amount across the estimate's line items by the bill ratio.
 Markup is folded into the line prices (via `foldMarkupIntoLines` — see
-**Markup**), so no "Markup" row is emitted; only the convenience fee remains a
-separate row. Unresolved lines are omitted rather than billed as $0, and the
-rounding residual reconciles onto the largest row so the displayed rows sum
-exactly to the billed amount without the ±cent distorting the fee row or a free
-line. Creating or editing an invoice past the estimate's unbilled balance
+**Markup**), so neither a "Markup" row nor a fee row is emitted. Unresolved
+lines are omitted rather than billed as $0, and the rounding residual
+reconciles onto the largest row so the displayed rows sum exactly to the billed
+amount without the ±cent distorting a free line. Creating or editing an
+invoice past the estimate's unbilled balance
 throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
 predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
 `OVERBILL_EPSILON` (0.005) tolerance used by both the repo guard and the create
@@ -208,7 +204,10 @@ Payments are recorded manually into a `Payment` ledger (the schema is
 Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
 invoice status from the ledger. A `void` invoice is terminal and excluded from
 all billing math; editing a sent invoice or paying a void one throws
-`INVOICE_LOCKED`. Every lifecycle action appends an `InvoiceEvent`.
+`INVOICE_LOCKED`. Its public link dies with it: the review page `notFound()`s a
+`void` invoice (and `PublicInvoiceView` never renders a pay CTA for one) so a
+stale email link can't view or pay a cancelled document. Every lifecycle action
+appends an `InvoiceEvent`.
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
@@ -269,6 +268,31 @@ adapter's functions — so the spine's ordering/error tests
 (`__tests__/lib/send/pipeline.test.ts`) run against an in-memory fake with no
 database. Routes are thin: parse input, resolve the sender (`requireSender`,
 `lib/send/sender.ts`), call `sendEstimate` / `sendInvoice`.
+
+## Quick Create
+
+A global **"+ New" launcher** (sidebar + mobile drawer, lead+ only) opens a
+slide-over that creates the next record in the chain by searching a customer
+and picking the linkable parent — no separate "choose a customer, then choose a
+site measure" steps. Two flows, one shell (`components/quick-create/`,
+`QuickCreatePanel` is the presentational shell; `QuickCreateProvider` mounts the
+panels and owns the hand-off):
+
+- **Quick estimate** — search site measures (`useSiteMeasures`), pick one,
+  create the estimate and open its (blank) builder — the same
+  create-and-open action `SiteMeasureBuilder` exposes.
+- **Quick invoice** — search **billable** estimates (those with a remaining
+  balance, `unbilled > 0` — drafts included, mirroring `InvoicesSection`; *not*
+  a status gate), pick one, then hand off to the existing `CreateInvoiceDialog`
+  so the user chooses the amount before the draft is created and the ledger page
+  opens.
+
+Billable candidates come from `GET /api/estimates/invoiceable?q=`
+(`listInvoiceableEstimates` in `lib/repositories/estimateRepo.ts`), which shapes
+rows through the pure `toInvoiceableCandidates` (`lib/quickCreate/candidates.ts`)
+— unbilled is derived from the single-source-of-truth `computeEstimateBilling`,
+so voided invoices and cents rounding match the rest of the app. The endpoint
+also returns the org's `defaultDepositPct` to seed the invoice dialog.
 
 ## API Error Codes
 

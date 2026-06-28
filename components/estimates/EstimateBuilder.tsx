@@ -52,7 +52,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
     lineItems: estimate.lineItems ?? [],
     items: estimate.siteMeasure.items,
     markupPct: estimate.markupPct,
-    convenienceFeeRate: estimate.convenienceFeeRate,
     depositPct: estimate.depositPct,
   });
 
@@ -144,7 +143,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
       <LineItemSection
         lineItems={estimate.lineItems ?? []}
         rooms={rooms}
-        convenienceFeeRate={estimate.convenienceFeeRate}
         markupPct={estimate.markupPct}
         depositPct={estimate.depositPct}
         readOnly={locked}

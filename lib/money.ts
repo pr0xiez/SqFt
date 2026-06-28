@@ -11,7 +11,7 @@ export function round2(n: number): number {
  *
  * Falls back to the last resolved entry only when every resolved amount is ≤ 0
  * — a degenerate case that in practice carries no residual (a zero/negative
- * subtotal yields a zero/negative `beforeFee`, hence zero drift). Returns -1
+ * subtotal yields a zero/negative `total`, hence zero drift). Returns -1
  * when there is no resolved entry at all.
  */
 export function residualTargetIndex(

@@ -13,8 +13,6 @@ export interface EstimateInput {
   items: RoomItem[];
   /** Markup as a percentage value, e.g. `20` for 20%. Matches Prisma column. */
   markupPct: number;
-  /** Convenience fee as a decimal rate, e.g. `0.03` for 3%. Matches Prisma column. */
-  convenienceFeeRate: number;
   /** Deposit as a decimal rate, e.g. `0.5` for 50%. Matches Prisma column. */
   depositPct: number;
 }
@@ -36,10 +34,6 @@ export interface EstimateView {
   /** subtotal × markupPct / 100 */
   markup: number;
   /** subtotal + markup */
-  beforeFee: number;
-  /** beforeFee × convenienceFeeRate */
-  convenienceFee: number;
-  /** beforeFee + convenienceFee */
   total: number;
   /** total × depositPct */
   deposit: number;

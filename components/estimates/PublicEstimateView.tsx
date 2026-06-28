@@ -18,7 +18,6 @@ export interface PublicEstimate {
   estimateNumber: number;
   status: "draft" | "sent" | "viewed" | "approved" | "declined";
   date: string | Date;
-  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   siteMeasure: { id: number; siteMeasureNumber: number | null };
@@ -55,12 +54,10 @@ export function PublicEstimateView({ estimate, token }: Props) {
     lineItems: estimate.lineItems,
     items: estimate.items,
     markupPct: estimate.markupPct,
-    convenienceFeeRate: estimate.convenienceFeeRate,
     depositPct: estimate.depositPct,
   });
-  const { convenienceFee, total, deposit } = view;
+  const { total, deposit } = view;
   const foldedLineAmounts = foldMarkupIntoLines(view);
-  const markedUpSubtotal = view.beforeFee;
 
   return (
     <div className="min-h-screen bg-[var(--bg)]">
@@ -94,9 +91,6 @@ export function PublicEstimateView({ estimate, token }: Props) {
               }
             />
             <TotalsBlock
-              subtotal={markedUpSubtotal}
-              convenienceFee={convenienceFee}
-              convenienceFeeRate={estimate.convenienceFeeRate}
               total={total}
               deposit={deposit}
               depositPct={estimate.depositPct}

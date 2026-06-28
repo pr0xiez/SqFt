@@ -38,7 +38,6 @@ export default async function PublicEstimatePage({ params }: Props) {
     estimateNumber: estimate.estimateNumber,
     status: estimate.status as PublicEstimate["status"],
     date: estimate.date,
-    convenienceFeeRate: estimate.convenienceFeeRate,
     markupPct: estimate.markupPct,
     depositPct: estimate.depositPct,
     siteMeasure: {

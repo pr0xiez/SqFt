@@ -50,7 +50,6 @@ export interface ProrationSource {
     name: string;
     description: string | null;
   }>;
-  convenienceFeeLabel?: string;
 }
 
 export interface InvoiceSnapshotMeta {
@@ -86,7 +85,6 @@ export interface InvoiceSnapshot
   totals: {
     subtotal: number;
     markup: number;
-    convenienceFee: number;
     balanceDue: number;
   };
 }

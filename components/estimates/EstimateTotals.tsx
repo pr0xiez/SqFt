@@ -5,30 +5,24 @@ import { fmtDollar } from "@/lib/utils";
 
 interface Props {
   subtotal: number;
-  feePct: number;
   markupPct: number;
   depositPct: number; // depositPctState
-  feeAmt: number;
   markupAmt: number;
   total: number;
   deposit: number;
   readOnly: boolean;
-  onCommitFee: (nextPct: number) => void;
   onCommitMarkup: (nextPct: number) => void;
   onCommitDeposit: (nextPct: number) => void;
 }
 
 export function EstimateTotals({
   subtotal,
-  feePct,
   markupPct,
   depositPct,
-  feeAmt,
   markupAmt,
   total,
   deposit,
   readOnly,
-  onCommitFee,
   onCommitMarkup,
   onCommitDeposit,
 }: Props) {
@@ -45,17 +39,9 @@ export function EstimateTotals({
         </div>
         <div />
       </div>
-      {/* Convenience fee */}
-      <PctRow
-        label="Convenience fee"
-        valuePct={feePct}
-        suffix={fmtDollar(feeAmt)}
-        readOnly={readOnly}
-        onCommit={onCommitFee}
-      />
       {/* Markup */}
       <PctRow
-        label="Markup (on subtotal + fee)"
+        label="Markup"
         valuePct={markupPct}
         suffix={fmtDollar(markupAmt)}
         readOnly={readOnly}

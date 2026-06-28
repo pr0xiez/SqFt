@@ -25,7 +25,6 @@ export interface EstimateSnapshotMeta {
 export interface EstimateSnapshot {
   estimateNumber: number;
   date: string;
-  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   customer: EstimateSnapshotMeta["customer"];
@@ -35,7 +34,6 @@ export interface EstimateSnapshot {
   totals: {
     subtotal: number;
     markup: number;
-    convenienceFee: number;
     total: number;
     deposit: number;
   };
@@ -61,7 +59,6 @@ export function snapshotEstimate(
   return {
     estimateNumber: meta.estimateNumber,
     date: typeof meta.date === "string" ? meta.date : meta.date.toISOString(),
-    convenienceFeeRate: input.convenienceFeeRate,
     markupPct: input.markupPct,
     depositPct: input.depositPct,
     customer: meta.customer,
@@ -101,7 +98,6 @@ export function snapshotEstimate(
     totals: {
       subtotal: view.subtotal,
       markup: view.markup,
-      convenienceFee: view.convenienceFee,
       total: view.total,
       deposit: view.deposit,
     },

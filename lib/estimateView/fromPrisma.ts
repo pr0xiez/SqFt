@@ -29,7 +29,6 @@ interface PrismaEstimateItemRow {
 
 export interface PrismaEstimateForView {
   markupPct: number;
-  convenienceFeeRate: number;
   depositPct: number;
   lineItems: PrismaLineItemRow[];
   siteMeasure: { items: PrismaEstimateItemRow[] };
@@ -46,7 +45,6 @@ export function fromPrismaEstimate(
     lineItems: estimate.lineItems.map(toLineItemCalc),
     items: estimate.siteMeasure.items.map(toRoomItem),
     markupPct: estimate.markupPct,
-    convenienceFeeRate: estimate.convenienceFeeRate,
     depositPct: estimate.depositPct,
   };
 }

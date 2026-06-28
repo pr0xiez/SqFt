@@ -7,8 +7,6 @@ function view(partial: Partial<EstimateView>): EstimateView {
     lines: [],
     subtotal: 0,
     markup: 0,
-    beforeFee: 0,
-    convenienceFee: 0,
     total: 0,
     deposit: 0,
     hasUnresolvedLines: false,
@@ -24,13 +22,12 @@ describe("foldMarkupIntoLines", () => {
         { id: 2, effectiveQty: 1, subtotal: 3380 },
       ],
       subtotal: 3687,
-      beforeFee: 3687,
       total: 3687,
     });
     expect(foldMarkupIntoLines(v)).toEqual([307, 3380]);
   });
 
-  it("distributes markup proportionally and sums exactly to beforeFee", () => {
+  it("distributes markup proportionally and sums exactly to total", () => {
     const v = view({
       lines: [
         { id: 1, effectiveQty: 1, subtotal: 307 },
@@ -38,7 +35,6 @@ describe("foldMarkupIntoLines", () => {
       ],
       subtotal: 3687,
       markup: 368.7,
-      beforeFee: 4055.7,
       total: 4055.7,
     });
     const out = foldMarkupIntoLines(v);
@@ -57,7 +53,6 @@ describe("foldMarkupIntoLines", () => {
       ],
       subtotal: 100,
       markup: 33.34,
-      beforeFee: 133.34,
       total: 133.34,
     });
     const out = foldMarkupIntoLines(v);
@@ -65,10 +60,10 @@ describe("foldMarkupIntoLines", () => {
     expect(out[1]).toBe(133.34);
   });
 
-  it("reconciles rounding drift onto the largest-priced line so folded amounts sum exactly to beforeFee", () => {
+  it("reconciles rounding drift onto the largest-priced line so folded amounts sum exactly to total", () => {
     // 33.33 / 33.33 / 33.34 at 10% markup → 36.663 / 36.663 / 36.674.
     // Per-line round2 gives 36.66 / 36.66 / 36.67 = 109.99 — a cent short of
-    // beforeFee (110). The drift branch must add the missing +0.01 to the
+    // total (110). The drift branch must add the missing +0.01 to the
     // largest-priced resolved line (here, the last). (None of the cases above
     // produce drift !== 0.)
     const v = view({
@@ -79,7 +74,6 @@ describe("foldMarkupIntoLines", () => {
       ],
       subtotal: 100,
       markup: 10,
-      beforeFee: 110,
       total: 110,
     });
     const out = foldMarkupIntoLines(v);
@@ -100,7 +94,6 @@ describe("foldMarkupIntoLines", () => {
       ],
       subtotal: 100,
       markup: 10,
-      beforeFee: 110,
       total: 110,
     });
     const out = foldMarkupIntoLines(v);
@@ -120,7 +113,6 @@ describe("foldMarkupIntoLines", () => {
       ],
       subtotal: 100,
       markup: 10,
-      beforeFee: 110,
       total: 110,
     });
     expect(foldMarkupIntoLines(v)).toEqual([36.68, 36.66, 36.66]);
@@ -139,7 +131,6 @@ describe("foldMarkupIntoLines", () => {
       ],
       subtotal: 100,
       markup: 10,
-      beforeFee: 110,
       total: 110,
     });
     const out = foldMarkupIntoLines(v);

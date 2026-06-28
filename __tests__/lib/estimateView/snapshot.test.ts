@@ -8,7 +8,6 @@ import {
 
 describe("snapshotEstimate", () => {
   const input: EstimateInput = {
-    convenienceFeeRate: 0.075,
     markupPct: 35,
     depositPct: 0.5,
     items: [
@@ -61,7 +60,6 @@ describe("snapshotEstimate", () => {
     const snap = snapshotEstimate(input, meta);
     expect(snap).toMatchObject({
       estimateNumber: 5001,
-      convenienceFeeRate: 0.075,
       markupPct: 35,
       depositPct: 0.5,
       customer: expect.objectContaining({ name: "J. Henderson" }),
@@ -70,7 +68,6 @@ describe("snapshotEstimate", () => {
       lineItems: expect.any(Array),
       totals: expect.objectContaining({
         subtotal: expect.any(Number),
-        convenienceFee: expect.any(Number),
         total: expect.any(Number),
       }),
     });
@@ -155,8 +152,6 @@ describe("snapshotEstimate", () => {
       lines: [], // dropped the line for id 1
       subtotal: 0,
       markup: 0,
-      beforeFee: 0,
-      convenienceFee: 0,
       total: 0,
       deposit: 0,
       hasUnresolvedLines: false,

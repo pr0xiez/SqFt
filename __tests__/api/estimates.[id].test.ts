@@ -83,10 +83,10 @@ describe("PATCH /api/estimates/[id]", () => {
     expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
   });
 
-  it("rejects convenienceFeeRate out of range with VALIDATION_FAILED", async () => {
+  it("rejects depositPct out of range with VALIDATION_FAILED", async () => {
     const res = await PATCH(
       makeRequest("PATCH", "http://x/api/estimates/1", {
-        convenienceFeeRate: 2,
+        depositPct: 2,
       }),
       params({ id: "1" })
     );

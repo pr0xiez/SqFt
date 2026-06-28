@@ -1,9 +1,6 @@
 import { fmtDollar } from "@/lib/utils";
 
 interface Props {
-  subtotal: number;
-  convenienceFee: number;
-  convenienceFeeRate: number;
   total: number;
   deposit: number;
   depositPct: number;
@@ -12,12 +9,6 @@ interface Props {
 export function TotalsBlock(props: Props) {
   return (
     <div className="mt-6 flex flex-col items-end gap-2">
-      <Row label="Subtotal" value={fmtDollar(props.subtotal)} />
-      <Row
-        label={`Convenience fee · ${(props.convenienceFeeRate * 100).toFixed(1)}%`}
-        value={fmtDollar(props.convenienceFee)}
-      />
-      <div className="h-[1.5px] bg-[var(--ink)] w-[280px] my-1.5" />
       <div className="grid grid-cols-[auto_140px] gap-8 items-baseline">
         <div className="font-[var(--font-mono)] text-[11px] text-[var(--ink)] tracking-[.06em] uppercase font-[600] text-right">
           Total due
@@ -32,19 +23,6 @@ export function TotalsBlock(props: Props) {
           {Math.round(props.depositPct * 100)}%)
         </div>
       )}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="grid grid-cols-[auto_140px] gap-8 items-baseline">
-      <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] text-right">
-        {label}
-      </div>
-      <div className="font-[var(--font-mono)] text-[13px] font-[600] text-right text-[var(--ink-2)]">
-        {value}
-      </div>
     </div>
   );
 }

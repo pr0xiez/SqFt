@@ -9,6 +9,10 @@ import {
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import {
+  type InvoiceableCandidate,
+  toInvoiceableCandidates,
+} from "@/lib/quickCreate/candidates";
 import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
@@ -17,12 +21,11 @@ function generateToken(): string {
 }
 
 /** Minimal hydrate shape `syncEstimateTotal` needs — matches the input of
- *  `fromPrismaEstimate` (markup/fee/deposit rates + lineItems + siteMeasure
+ *  `fromPrismaEstimate` (markup/deposit rates + lineItems + siteMeasure
  *  items). Any of the standard estimate includes that bring lineItems and
  *  siteMeasure.items satisfies this. */
 type HydratedForTotal = {
   markupPct: number;
-  convenienceFeeRate: number;
   depositPct: number;
   lineItems: Parameters<typeof fromPrismaEstimate>[0]["lineItems"];
   siteMeasure: {
@@ -157,7 +160,6 @@ type LineItemInput = Omit<
 
 export type EstimatePatch = {
   status?: "draft" | "sent" | "approved" | "declined";
-  convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemInput[];
@@ -256,6 +258,54 @@ export async function listEstimates(
   return { items, total, facets };
 }
 
+/**
+ * Quick-invoice search: estimates whose customer matches `q` that still have a
+ * billable balance (`unbilled > 0`). Drafts are included — billability is the
+ * remaining balance, not a status gate, mirroring InvoicesSection. Returns the
+ * org's default deposit pct alongside, so the invoice dialog can seed its %.
+ */
+export async function listInvoiceableEstimates(
+  orgId: string,
+  q: string,
+  limit = 8
+): Promise<{ items: InvoiceableCandidate[]; defaultDepositPct: number }> {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { defaultDepositPct: true },
+  });
+  const defaultDepositPct = org?.defaultDepositPct ?? 0.3;
+
+  const search = estimateSearchWhere(q);
+  if (!search) return { items: [], defaultDepositPct };
+
+  const rows = await prisma.estimate.findMany({
+    where: { orgId, ...search },
+    orderBy: { estimateNumber: "desc" },
+    // Over-fetch then filter to unbilled>0 in pure code, so fully-billed
+    // estimates don't crowd out billable ones within the result cap.
+    take: limit * 4,
+    select: {
+      id: true,
+      estimateNumber: true,
+      status: true,
+      total: true,
+      siteMeasure: {
+        select: {
+          location: {
+            select: { address: true, customer: { select: { name: true } } },
+          },
+        },
+      },
+      invoices: { select: { amount: true, status: true } },
+    },
+  });
+
+  return {
+    items: toInvoiceableCandidates(rows).slice(0, limit),
+    defaultDepositPct,
+  };
+}
+
 export async function listEstimatesForSiteMeasure(
   siteMeasureId: number,
   orgId: string
@@ -324,7 +374,6 @@ export async function createEstimate(
         siteMeasureId: input.siteMeasureId,
         estimateNumber,
         status: "draft",
-        convenienceFeeRate: 0.03,
         markupPct: 0,
         depositPct: org.defaultDepositPct ?? 0.3,
         terms: org.defaultTerms ?? "",
@@ -462,7 +511,6 @@ export async function reviseEstimate(
         estimateNumber: newEstimateNumber,
         status: "draft",
         date: new Date(),
-        convenienceFeeRate: original.convenienceFeeRate,
         markupPct: original.markupPct,
         depositPct: original.depositPct,
         approvalToken: generateToken(),

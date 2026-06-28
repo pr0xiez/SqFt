@@ -148,10 +148,12 @@ jobs:
         env:
           BASE_URL: ${{ steps.vercel.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-      - name: Upload Playwright report
-        if: always() && steps.changes.outputs.app == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 14
+      # Temporarily disabled: out of artifact-storage resources. Re-enable when
+      # storage frees up.
+      # - name: Upload Playwright report
+      #   if: always() && steps.changes.outputs.app == 'true'
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: playwright-report
+      #     path: playwright-report/
+      #     retention-days: 14

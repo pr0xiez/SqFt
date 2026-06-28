@@ -28,7 +28,6 @@ export interface EstimateListItem {
   estimateNumber: number;
   status: string;
   date: string;
-  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   createdAt: string;
@@ -53,7 +52,6 @@ export interface EstimateDetail {
   estimateNumber: number;
   status: string;
   date: string;
-  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
   approvalToken?: string | null;
@@ -85,7 +83,6 @@ export interface EstimateDetail {
 
 export interface UpdateEstimateInput {
   status?: "draft" | "sent" | "approved" | "declined";
-  convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemCalc[];

@@ -2,14 +2,12 @@ import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc } from "@/lib/utils";
 
 /** The editable working copy of an estimate's inputs — see CONTEXT.md
- *  "Estimate Draft". Held in storage form: `convenienceFeeRate` and
- *  `depositPct` are decimals (0.03, 0.5), `markupPct` is a percentage (20),
- *  identical to the Prisma columns and to `EstimateInput`. A Draft can be fed
- *  straight to `computeEstimateView` and straight into a save patch with no
- *  unit conversion. */
+ *  "Estimate Draft". Held in storage form: `depositPct` is a decimal (0.5),
+ *  `markupPct` is a percentage (20), identical to the Prisma columns and to
+ *  `EstimateInput`. A Draft can be fed straight to `computeEstimateView` and
+ *  straight into a save patch with no unit conversion. */
 export interface EstimateDraft {
   lineItems: LineItemCalc[];
-  convenienceFeeRate: number;
   markupPct: number;
   depositPct: number;
 }
@@ -19,7 +17,6 @@ export interface EstimateDraft {
  *  shape so the adapter can hand it straight to `onSave`. */
 export interface EstimateSavePatch {
   lineItems?: LineItemCalc[];
-  convenienceFeeRate?: number;
   markupPct?: number;
   depositPct?: number;
 }
@@ -48,8 +45,6 @@ export type EstimateDraftAction =
       effectiveQty: number | null;
       nextSubtotal: number | null;
     }
-  /** Set the convenience fee rate (decimal, e.g. 0.03). */
-  | { type: "setConvenienceFeeRate"; value: number }
   /** Set the markup percentage (e.g. 20). */
   | { type: "setMarkupPct"; value: number }
   /** Set the deposit rate (decimal, e.g. 0.5). */

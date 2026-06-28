@@ -10,6 +10,7 @@ test.describe
   .serial("Public invoice review", () => {
     let ctx: BrowserContext;
     let token: string;
+    let invoiceId: number;
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
@@ -25,9 +26,9 @@ test.describe
       await ctx.request.patch(`/api/estimates/${estimateId}`, {
         data: { markupPct: 25, lineItems: [{ ...est.lineItems[0], qty: 100 }] },
       });
-      const { invoiceId } = await seedInvoice(ctx.request, estimateId, {
+      ({ invoiceId } = await seedInvoice(ctx.request, estimateId, {
         amount: 100,
-      });
+      }));
       await ctx.request.post(`/api/invoices/${invoiceId}/send`, {
         data: { to: "customer@example.com", subject: "Invoice #1" },
       });
@@ -65,6 +66,24 @@ test.describe
       await expect(
         page.getByText("Labor & margin", { exact: false })
       ).toHaveCount(0);
+      await anonCtx.close();
+    });
+
+    // Runs last in the serial block: voiding is terminal. A customer holding a
+    // stale link to a cancelled invoice must not be able to view or pay it.
+    test("a voided invoice's public link is dead — 404, no Pay invoice CTA", async ({
+      browser,
+    }) => {
+      const voidRes = await ctx.request.post(`/api/invoices/${invoiceId}/void`);
+      expect(voidRes.ok()).toBeTruthy();
+
+      const anonCtx = await browser.newContext();
+      const page = await anonCtx.newPage();
+      const res = await page.goto(`/invoice-review/${token}`);
+      expect(res?.status()).toBe(404);
+      await expect(page.getByRole("link", { name: "Pay invoice" })).toHaveCount(
+        0
+      );
       await anonCtx.close();
     });
   });

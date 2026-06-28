@@ -76,7 +76,6 @@ function estimateFixture(opts: {
     orgId: "org1",
     terms: opts.terms ?? "Net 30",
     markupPct: 0,
-    convenienceFeeRate: 0,
     depositPct: 0,
     lineItems: [
       {
