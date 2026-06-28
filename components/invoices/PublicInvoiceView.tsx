@@ -1,3 +1,4 @@
+import { PayInvoiceButton } from "@/components/invoices/PayInvoiceButton";
 import { fmtDollar } from "@/lib/utils";
 
 export interface PublicInvoice {
@@ -13,7 +14,13 @@ export interface PublicInvoice {
   memo: string | null;
   terms: string;
   paymentInstructions: string;
-  payUrl: string | null;
+  /** True when the org has an active Stripe Connect account and there is a
+   *  balance remaining. Replaces the old static `payUrl` field. */
+  canPayOnline: boolean;
+  /** The invoice's public token — passed through to PayInvoiceButton. */
+  token: string;
+  /** Reflects the ?pay= query param set by Stripe's return URL. */
+  payResult: "success" | "cancelled" | null;
   org: {
     name: string;
     phone: string | null;
@@ -122,16 +129,19 @@ export function PublicInvoiceView({ invoice }: { invoice: PublicInvoice }) {
         </tfoot>
       </table>
 
-      {/* A void invoice is terminal and not payable — never surface a pay CTA
-          for it, even if a Stripe link is still present in the snapshot. */}
-      {invoice.payUrl && invoice.status !== "void" ? (
+      {invoice.payResult === "success" ? (
+        <div className="my-6 rounded-md bg-green-50 border border-green-200 px-5 py-4 text-[14px] font-[600] text-green-800">
+          Payment received — thank you!
+        </div>
+      ) : invoice.payResult === "cancelled" ? (
+        <div className="my-6 rounded-md bg-[var(--surface)] border border-[var(--line)] px-5 py-4 text-[14px] text-[var(--muted)]">
+          Payment cancelled.
+        </div>
+      ) : null}
+
+      {invoice.canPayOnline ? (
         <div className="my-6">
-          <a
-            href={invoice.payUrl}
-            className="inline-block bg-[var(--accent)] text-white px-6 py-3 rounded-md font-[600]"
-          >
-            Pay invoice
-          </a>
+          <PayInvoiceButton token={invoice.token} />
         </div>
       ) : null}
 

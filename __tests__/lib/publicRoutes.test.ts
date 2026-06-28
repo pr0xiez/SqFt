@@ -15,8 +15,13 @@ describe("isPublicReviewPath", () => {
     ).toBe(true);
   });
 
-  it("allows the public invoice-review page (invoice email links)", () => {
+  it("allows the public invoice-review page and its checkout API", () => {
     expect(isPublicReviewPath("/invoice-review/some-token-abc123")).toBe(true);
+    // The checkout API is also public — the token in the URL is the credential
+    // and each route validates it server-side.
+    expect(
+      isPublicReviewPath("/api/invoice-review/some-token-abc123/checkout")
+    ).toBe(true);
   });
 
   it("does not allow authed builder pages or APIs", () => {
@@ -25,7 +30,6 @@ describe("isPublicReviewPath", () => {
     expect(isPublicReviewPath("/invoices/12")).toBe(false);
     expect(isPublicReviewPath("/api/invoices")).toBe(false);
     expect(isPublicReviewPath("/estimates/12")).toBe(false);
-    expect(isPublicReviewPath("/api/invoice-review/tok")).toBe(false);
   });
 
   it("does not allow prefix look-alikes without the trailing slash", () => {

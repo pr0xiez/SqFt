@@ -5,7 +5,11 @@ import {
   PublicInvoiceView,
 } from "@/components/invoices/PublicInvoiceView";
 import { round2 } from "@/lib/money";
-import { getInvoiceByToken, markInvoiceViewed } from "@/lib/repositories";
+import {
+  getInvoiceByToken,
+  getOrgStripe,
+  markInvoiceViewed,
+} from "@/lib/repositories";
 import { fmtDollar } from "@/lib/utils";
 
 export const metadata = {
@@ -15,13 +19,13 @@ export const metadata = {
 
 interface Props {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ pay?: string }>;
 }
 
 type SnapshotShape = {
   memo: string | null;
   terms: string;
   paymentInstructions: string;
-  stripePaymentLinkUrl: string | null;
   dueDate: string | null;
   org: {
     name: string;
@@ -33,8 +37,9 @@ type SnapshotShape = {
   lines: Array<{ name: string; description: string | null; amount: number }>;
 };
 
-export default async function PublicInvoicePage({ params }: Props) {
+export default async function PublicInvoicePage({ params, searchParams }: Props) {
   const { token } = await params;
+  const { pay } = await searchParams;
   if (!token || token.length < 16 || token.length > 128) notFound();
 
   const invoice = await getInvoiceByToken(token);
@@ -55,6 +60,18 @@ export default async function PublicInvoicePage({ params }: Props) {
   // a partially-paid invoice must not show the full amount as still owed.
   const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));
   const balanceDue = round2(invoice.amount - paid);
+
+  // Check whether this org has an active Stripe Connect account so we can
+  // surface the Pay now button. We already know the invoice isn't void.
+  const orgStripe = await getOrgStripe(invoice.orgId);
+  const canPayOnline =
+    orgStripe.stripeConnectStatus === "active" &&
+    balanceDue > 0 &&
+    invoice.status !== "void";
+
+  const payResult: "success" | "cancelled" | null =
+    pay === "success" ? "success" : pay === "cancelled" ? "cancelled" : null;
+
   const view: PublicInvoice = {
     invoiceNumber: invoice.invoiceNumber,
     status: invoice.status,
@@ -67,7 +84,9 @@ export default async function PublicInvoicePage({ params }: Props) {
     memo: snap.memo,
     terms: snap.terms,
     paymentInstructions: snap.paymentInstructions,
-    payUrl: snap.stripePaymentLinkUrl,
+    canPayOnline,
+    token,
+    payResult,
     org: {
       name: snap.org.name,
       phone: snap.org.phone,
