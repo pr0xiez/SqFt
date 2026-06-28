@@ -279,7 +279,6 @@ describe("createEstimate", () => {
         siteMeasureId: 1,
         estimateNumber: 5005,
         status: "draft",
-        convenienceFeeRate: 0.03,
         markupPct: 0,
         depositPct: 0.3,
         terms: "",
@@ -323,7 +322,6 @@ describe("saveEstimate", () => {
     estimateFindFirst.mockResolvedValue({
       id: 1,
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0.3,
       lineItems: [],
       siteMeasure: { items: [] },
@@ -367,7 +365,6 @@ describe("saveEstimate", () => {
     estimateFindFirst.mockResolvedValue({
       id: 1,
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0.3,
       lineItems: [],
       siteMeasure: { items: [] },
@@ -401,7 +398,6 @@ describe("saveEstimate — total denormalization", () => {
     estimateFindFirst.mockResolvedValue({
       id: 1,
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0.3,
       lineItems: [
         {
@@ -432,7 +428,6 @@ describe("saveEstimate — total denormalization", () => {
     estimateFindFirst.mockResolvedValue({
       id: 1,
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0.3,
       lineItems: [],
       siteMeasure: { items: [] },

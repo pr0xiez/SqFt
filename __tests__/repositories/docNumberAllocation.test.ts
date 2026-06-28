@@ -92,7 +92,6 @@ describe("createInvoice — atomic number allocation", () => {
       orgId: "org_1",
       terms: "",
       markupPct: 0,
-      convenienceFeeRate: 0.03,
       depositPct: 0.5,
       lineItems: [],
       siteMeasure: { items: [] },

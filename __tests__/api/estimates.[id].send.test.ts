@@ -74,7 +74,6 @@ describe("POST /api/estimates/[id]/send", () => {
       status: "draft",
       approvalToken: "token-xyz",
       estimateNumber: 5001,
-      convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
       lineItems: [
@@ -126,7 +125,6 @@ describe("POST /api/estimates/[id]/send", () => {
       status: "draft",
       approvalToken: null,
       estimateNumber: 5001,
-      convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
       lineItems: [],
@@ -211,7 +209,6 @@ describe("POST /api/estimates/[id]/send", () => {
       status: "draft",
       approvalToken: "t",
       estimateNumber: 5001,
-      convenienceFeeRate: 0.03,
       markupPct: 0,
       depositPct: 0.5,
       lineItems: [],

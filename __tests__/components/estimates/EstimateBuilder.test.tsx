@@ -77,7 +77,6 @@ function makeEstimate(over: Partial<EstimateDetail> = {}): EstimateDetail {
     estimateNumber: 1001,
     status: "draft",
     date: "2026-06-01",
-    convenienceFeeRate: 0,
     markupPct: 0,
     depositPct: 0.3,
     approvalToken: null,

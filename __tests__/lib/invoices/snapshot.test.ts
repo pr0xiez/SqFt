@@ -7,8 +7,6 @@ const source: ProrationSource = {
     lines: [{ id: 1, effectiveQty: 1, subtotal: 307 }],
     subtotal: 307,
     markup: 0,
-    beforeFee: 307,
-    convenienceFee: 0,
     total: 307,
     deposit: 0,
     hasUnresolvedLines: false,

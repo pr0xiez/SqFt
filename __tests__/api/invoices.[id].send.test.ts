@@ -11,7 +11,6 @@ const estimate = {
   terms: "50% to schedule",
   paymentInstructions: "",
   markupPct: 0,
-  convenienceFeeRate: 0,
   depositPct: 0.5,
   lineItems: [
     {

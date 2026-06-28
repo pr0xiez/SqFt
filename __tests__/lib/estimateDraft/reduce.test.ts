@@ -35,7 +35,6 @@ const li = (over: Partial<LineItemCalc> = {}): LineItemCalc => ({
 
 const draft = (over: Partial<EstimateDraft> = {}): EstimateDraft => ({
   lineItems: [],
-  convenienceFeeRate: 0.03,
   markupPct: 0,
   depositPct: 0.5,
   ...over,
@@ -69,7 +68,6 @@ describe("reduceEstimateDraft — addLineItem", () => {
       lineItems: next.lineItems,
       items: [],
       markupPct: 0,
-      convenienceFeeRate: 0,
       depositPct: 0,
     });
 
@@ -109,16 +107,6 @@ describe("reduceEstimateDraft — updateLineItem", () => {
 });
 
 describe("reduceEstimateDraft — money field setters", () => {
-  it("setConvenienceFeeRate stores the decimal and saves just that field", () => {
-    const start = draft({ convenienceFeeRate: 0.03 });
-    const { draft: next, save } = reduceEstimateDraft(start, {
-      type: "setConvenienceFeeRate",
-      value: 0.1,
-    });
-    expect(next.convenienceFeeRate).toBe(0.1);
-    expect(save).toEqual({ convenienceFeeRate: 0.1 });
-  });
-
   it("setMarkupPct stores the percent and saves just that field", () => {
     const start = draft({ markupPct: 0 });
     const { draft: next, save } = reduceEstimateDraft(start, {

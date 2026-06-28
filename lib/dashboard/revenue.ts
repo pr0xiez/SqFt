@@ -26,7 +26,6 @@ const MONTH_GOAL = 65_000;
 
 const revenueSelect = {
   markupPct: true,
-  convenienceFeeRate: true,
   depositPct: true,
   approvedAt: true,
   lineItems: {
