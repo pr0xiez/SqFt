@@ -24,7 +24,8 @@ export function getStripe(): Stripe {
   }
   if (!_client) {
     _client = new Stripe(key, {
-      apiVersion: API_VERSION as Stripe.LatestApiVersion,
+      // biome-ignore lint/suspicious/noExplicitAny: Stripe SDK types don't include all supported versions
+      apiVersion: API_VERSION as any,
     });
   }
   return _client;
