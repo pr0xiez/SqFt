@@ -5,9 +5,12 @@ describe("mapCapabilityStatus", () => {
   it("maps active to active", () => {
     expect(mapCapabilityStatus("active")).toBe("active");
   });
-  it("maps unrequested/pending/inactive to pending", () => {
+  it("maps unrequested/pending/inactive/unsupported to pending", () => {
     expect(mapCapabilityStatus("pending")).toBe("pending");
     expect(mapCapabilityStatus("unrequested")).toBe("pending");
+    // 'unsupported' (capability unavailable for the account) maps to pending:
+    // the account can't process payments, same as not-yet-approved.
+    expect(mapCapabilityStatus("unsupported")).toBe("pending");
     expect(mapCapabilityStatus(undefined)).toBe("pending");
   });
   it("maps restricted/disabled to restricted", () => {
