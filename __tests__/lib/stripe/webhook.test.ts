@@ -42,17 +42,26 @@ describe("handleStripeEvent", () => {
     );
   });
 
-  it("is idempotent on event id", async () => {
+  it("is idempotent on event id — a duplicate delivery records nothing", async () => {
     const d = deps();
+    // A complete, recordable event so the first delivery DOES record — the
+    // point is that re-delivering the SAME event id must not record twice.
     const ev = {
       id: "evt_2",
-      type: "payment_intent.succeeded",
-      data: { object: {} },
+      type: "checkout.session.completed",
+      account: "acct_1",
+      data: {
+        object: {
+          payment_intent: "pi_2",
+          metadata: { invoiceId: "88", orgId: "org_1" },
+          amount_total: 12000,
+        },
+      },
     } as never;
     await handleStripeEvent(ev, d);
-    await handleStripeEvent(ev, d);
-    // second delivery short-circuits before doing work
-    expect(d.record).toHaveBeenCalledTimes(0); // unrelated type, but still marked processed
+    await handleStripeEvent(ev, d); // same event id re-delivered
+    // First records; second short-circuits on isProcessed → exactly one record.
+    expect(d.record).toHaveBeenCalledTimes(1);
   });
 
   it("ignores unrelated event types", async () => {
