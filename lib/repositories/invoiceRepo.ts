@@ -480,6 +480,99 @@ export async function recordPayment(
   });
 }
 
+export interface RecordStripePaymentInput {
+  paymentIntentId: string;
+  chargeId: string;
+  orgId: string;
+  invoiceId: number;
+  amount: number;
+  feeAmount: number | null;
+  netAmount: number | null;
+}
+
+/**
+ * Idempotent Stripe payment recorder. Returns `{ recorded: true }` on the
+ * first successful write, `{ recorded: false }` if the chargeId is already
+ * present (soft idempotency check) or if the invoice is missing / void. A
+ * racing double-insert that slips past the soft check is caught via the
+ * `@unique` constraint on `Payment.stripeChargeId` (P2002 → `recorded: false`).
+ */
+export async function recordStripePayment(
+  input: RecordStripePaymentInput
+): Promise<{ recorded: boolean }> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Soft idempotency check: a payment with this chargeId already exists.
+      const existing = await tx.payment.findUnique({
+        where: { stripeChargeId: input.chargeId },
+        select: { id: true },
+      });
+      if (existing) return { recorded: false };
+
+      const inv = await tx.invoice.findFirst({
+        where: { id: input.invoiceId, orgId: input.orgId },
+        include: { payments: { select: { amount: true } } },
+      });
+      if (!inv) return { recorded: false };
+      if (inv.status === "void") return { recorded: false };
+
+      await tx.payment.create({
+        data: {
+          invoiceId: input.invoiceId,
+          amount: input.amount,
+          method: "stripe",
+          stripeChargeId: input.chargeId,
+          stripeFeeAmount: input.feeAmount,
+          stripeNetAmount: input.netAmount,
+          recordedByName: "Stripe",
+        },
+      });
+
+      const paid =
+        inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+      const status = nextInvoiceStatus({
+        current: inv.status,
+        amount: inv.amount,
+        paid,
+      });
+      await tx.invoice.update({
+        where: { id: input.invoiceId },
+        data: {
+          status,
+          paidAt: status === "paid" ? new Date() : null,
+          stripePaymentIntentId: input.paymentIntentId,
+        },
+      });
+      await tx.invoiceEvent.create({
+        data: {
+          invoiceId: input.invoiceId,
+          type: "payment_recorded",
+          source: "customer",
+          actorName: "Stripe",
+          metadata: {
+            amount: input.amount,
+            method: "stripe",
+            fee: input.feeAmount,
+            net: input.netAmount,
+          },
+        },
+      });
+      return { recorded: true };
+    });
+  } catch (err) {
+    // Hard idempotency backstop: two deliveries raced past the findUnique check
+    // and the second lost the @unique constraint on stripeChargeId → P2002.
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      (err as { code?: string }).code === "P2002"
+    ) {
+      return { recorded: false };
+    }
+    throw err;
+  }
+}
+
 /** Public token lookup (no org scope — the token authorizes). */
 export async function getInvoiceByToken(token: string) {
   return prisma.invoice.findUnique({
