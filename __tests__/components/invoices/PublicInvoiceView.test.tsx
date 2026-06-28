@@ -20,6 +20,7 @@ const base: PublicInvoice = {
   canPayOnline: false,
   token: "test-token-1234567890abcdef",
   payResult: null,
+  sessionId: null,
   org: { name: "All About Hardwood", phone: null, address: null, logo: null },
   customer: null,
   lines: [{ name: "Hardwood Install", description: null, amount: 5000 }],

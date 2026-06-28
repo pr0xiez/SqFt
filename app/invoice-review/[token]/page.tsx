@@ -19,7 +19,7 @@ export const metadata = {
 
 interface Props {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ pay?: string }>;
+  searchParams: Promise<{ pay?: string; session_id?: string }>;
 }
 
 type SnapshotShape = {
@@ -42,7 +42,7 @@ export default async function PublicInvoicePage({
   searchParams,
 }: Props) {
   const { token } = await params;
-  const { pay } = await searchParams;
+  const { pay, session_id } = await searchParams;
   if (!token || token.length < 16 || token.length > 128) notFound();
 
   const invoice = await getInvoiceByToken(token);
@@ -74,6 +74,7 @@ export default async function PublicInvoicePage({
 
   const payResult: "success" | "cancelled" | null =
     pay === "success" ? "success" : pay === "cancelled" ? "cancelled" : null;
+  const sessionId = payResult === "success" && session_id ? session_id : null;
 
   const view: PublicInvoice = {
     invoiceNumber: invoice.invoiceNumber,
@@ -90,6 +91,7 @@ export default async function PublicInvoicePage({
     canPayOnline,
     token,
     payResult,
+    sessionId,
     org: {
       name: snap.org.name,
       phone: snap.org.phone,

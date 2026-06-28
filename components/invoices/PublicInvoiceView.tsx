@@ -1,4 +1,5 @@
 import { PayInvoiceButton } from "@/components/invoices/PayInvoiceButton";
+import { PaymentConfirm } from "@/components/invoices/PaymentConfirm";
 import { fmtDollar } from "@/lib/utils";
 
 export interface PublicInvoice {
@@ -21,6 +22,8 @@ export interface PublicInvoice {
   token: string;
   /** Reflects the ?pay= query param set by Stripe's return URL. */
   payResult: "success" | "cancelled" | null;
+  /** The Checkout Session ID from ?session_id=; present only on success return. */
+  sessionId: string | null;
   org: {
     name: string;
     phone: string | null;
@@ -130,9 +133,13 @@ export function PublicInvoiceView({ invoice }: { invoice: PublicInvoice }) {
       </table>
 
       {invoice.payResult === "success" ? (
-        <div className="my-6 rounded-md bg-green-50 border border-green-200 px-5 py-4 text-[14px] font-[600] text-green-800">
-          Payment received — thank you!
-        </div>
+        invoice.sessionId ? (
+          <PaymentConfirm token={invoice.token} sessionId={invoice.sessionId} />
+        ) : (
+          <div className="my-6 rounded-md bg-green-50 border border-green-200 px-5 py-4 text-[14px] font-[600] text-green-800">
+            Payment received — thank you!
+          </div>
+        )
       ) : invoice.payResult === "cancelled" ? (
         <div className="my-6 rounded-md bg-[var(--surface)] border border-[var(--line)] px-5 py-4 text-[14px] text-[var(--muted)]">
           Payment cancelled.
