@@ -45,6 +45,8 @@ model Organization {
   nextInvoiceNumber          Int      @default(1)
   defaultPaymentInstructions String   @default("")
   stripeConnectAccountId     String?
+  stripeConnectStatus        String?   // pending | active | restricted
+  stripeConnectOnboardedAt   DateTime?
 
   users             User[]
   invoices          Invoice[]
@@ -323,6 +325,8 @@ model Payment {
   recordedByEmail String?
   recordedByName  String?
   stripeChargeId  String?  @unique
+  stripeFeeAmount Float?   // Stripe processing fee (dollars), from the balance transaction
+  stripeNetAmount Float?   // amount the contractor nets (dollars)
   createdAt       DateTime @default(now())
 
   @@index([invoiceId])
@@ -342,6 +346,13 @@ model InvoiceEvent {
   createdAt  DateTime @default(now())
 
   @@index([invoiceId, createdAt])
+}
+
+/** Webhook idempotency + audit: one row per processed Stripe event id. */
+model ProcessedStripeEvent {
+  id        String   @id // Stripe event id (evt_…)
+  type      String
+  createdAt DateTime @default(now())
 }
 
 // Calendar events: job installations, measurement visits, etc.
