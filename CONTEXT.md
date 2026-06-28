@@ -269,6 +269,31 @@ adapter's functions — so the spine's ordering/error tests
 database. Routes are thin: parse input, resolve the sender (`requireSender`,
 `lib/send/sender.ts`), call `sendEstimate` / `sendInvoice`.
 
+## Quick Create
+
+A global **"+ New" launcher** (sidebar + mobile drawer, lead+ only) opens a
+slide-over that creates the next record in the chain by searching a customer
+and picking the linkable parent — no separate "choose a customer, then choose a
+site measure" steps. Two flows, one shell (`components/quick-create/`,
+`QuickCreatePanel` is the presentational shell; `QuickCreateProvider` mounts the
+panels and owns the hand-off):
+
+- **Quick estimate** — search site measures (`useSiteMeasures`), pick one,
+  create the estimate and open its (blank) builder — the same
+  create-and-open action `SiteMeasureBuilder` exposes.
+- **Quick invoice** — search **billable** estimates (those with a remaining
+  balance, `unbilled > 0` — drafts included, mirroring `InvoicesSection`; *not*
+  a status gate), pick one, then hand off to the existing `CreateInvoiceDialog`
+  so the user chooses the amount before the draft is created and the ledger page
+  opens.
+
+Billable candidates come from `GET /api/estimates/invoiceable?q=`
+(`listInvoiceableEstimates` in `lib/repositories/estimateRepo.ts`), which shapes
+rows through the pure `toInvoiceableCandidates` (`lib/quickCreate/candidates.ts`)
+— unbilled is derived from the single-source-of-truth `computeEstimateBilling`,
+so voided invoices and cents rounding match the rest of the app. The endpoint
+also returns the org's `defaultDepositPct` to seed the invoice dialog.
+
 ## API Error Codes
 
 Every API route returns errors as `{ error: { code, message, details? } }`.

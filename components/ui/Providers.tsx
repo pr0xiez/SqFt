@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { SessionProvider } from "next-auth/react";
 import { type ReactNode, useState } from "react";
+import { QuickCreateProvider } from "@/components/quick-create/QuickCreateProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 
 const CACHE_MAX_AGE = 1000 * 60 * 60 * 24; // 24 hours
@@ -35,7 +36,9 @@ export function Providers({ children }: { children: ReactNode }) {
         client={queryClient}
         persistOptions={{ persister, maxAge: CACHE_MAX_AGE }}
       >
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <QuickCreateProvider>{children}</QuickCreateProvider>
+        </ToastProvider>
         {process.env.NODE_ENV === "development" && (
           <ReactQueryDevtools initialIsOpen={false} />
         )}

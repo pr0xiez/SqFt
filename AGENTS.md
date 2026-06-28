@@ -43,6 +43,8 @@ with the file that owns it.
   full-menu **`NavDrawer`**; crew get a slim top bar instead of the bottom bar.
   `SideNav` and `NavDrawer` share `NavMenu` + `AccountBlock`; icons live in
   `nav-icons.tsx` keyed by `IconId`. (The old `MobileSessionSheet` is gone.)
+  Both also host the lead+ **"+ New" quick-create launcher** (`NewMenu`); see
+  *Quick Create* in `CONTEXT.md`.
 - `app/api/` — route handlers, one folder per resource. They wrap `apiRoute`
   (`lib/api/route.ts`) and return the `{ error: { code, … } }` envelope defined
   in `lib/api/errors.ts` (`ApiError`, `readApiError`).
@@ -58,6 +60,12 @@ with the file that owns it.
   adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin
   callers; ordering/error invariants live here (see *Send Pipeline* in
   `CONTEXT.md`).
+- `lib/quickCreate/` — **pure quick-create logic** (`toInvoiceableCandidates`):
+  projects estimates to billable candidates (`unbilled > 0`) for the
+  quick-invoice search. The global **"+ New" launcher** UI lives in
+  `components/quick-create/` (`QuickCreateProvider` mounts the slide-overs;
+  `NewMenu` is the trigger), candidates come from
+  `GET /api/estimates/invoiceable`. See *Quick Create* in `CONTEXT.md`.
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
