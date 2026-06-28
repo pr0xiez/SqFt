@@ -116,7 +116,10 @@ export function useCreateSiteMeasure() {
       if (!res.ok) throw new Error("Failed to create siteMeasure");
       return res.json() as Promise<SiteMeasure>;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["siteMeasures"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["siteMeasures"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+    },
   });
 }
 
@@ -134,6 +137,7 @@ export function useUpdateSiteMeasure(id: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["siteMeasures"] });
       qc.invalidateQueries({ queryKey: ["siteMeasures", id] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
     },
   });
 }
@@ -153,6 +157,9 @@ export function useDeleteSiteMeasure() {
         throw new Error(message);
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["siteMeasures"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["siteMeasures"] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+    },
   });
 }
