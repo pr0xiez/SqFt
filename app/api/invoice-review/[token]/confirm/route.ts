@@ -25,6 +25,13 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
       { expand: ["payment_intent.latest_charge.balance_transaction"] },
       { stripeAccount: org.stripeConnectAccountId }
     );
+    // Bind the session to THIS invoice. The session's metadata.invoiceId is set
+    // by us at checkout creation; requiring it to match the token's invoice stops
+    // a caller from applying a different invoice's session to this one (the unique
+    // chargeId blocks a second write, but this rejects the mismatch up front).
+    if (session.metadata?.invoiceId !== String(invoice.id)) {
+      throw new NotFoundError();
+    }
     if (session.payment_status !== "paid") return { status: "pending" };
 
     const pi = session.payment_intent as {

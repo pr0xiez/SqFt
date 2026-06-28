@@ -87,11 +87,13 @@ function makeStripeMock(
     payment_status: string;
     amount_total: number;
     payment_intent: unknown;
+    metadata: { invoiceId: string };
   }> = {}
 ) {
   const session = {
     payment_status: "paid",
     amount_total: 50000,
+    metadata: { invoiceId: String(INVOICE_ID) },
     payment_intent: {
       id: PI_ID,
       latest_charge: {
@@ -159,6 +161,26 @@ describe("POST /api/invoice-review/[token]/confirm", () => {
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("NOT_FOUND");
+  });
+
+  // ── Guard: session bound to a different invoice ─────────────────────────────
+
+  it("returns NOT_FOUND when the session's metadata.invoiceId does not match the invoice", async () => {
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice());
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    // A paid session that belongs to a DIFFERENT invoice (same org). The guard
+    // must reject it before recording, so one invoice's session can't be applied
+    // to another's token.
+    const mismatchMock = makeStripeMock({ metadata: { invoiceId: "999" } });
+    // biome-ignore lint/suspicious/noExplicitAny: mock duck-type
+    mockGetStripe.mockReturnValueOnce(mismatchMock as any);
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("NOT_FOUND");
+    expect(mockRecordStripePayment).not.toHaveBeenCalled();
   });
 
   // ── Pending: unpaid session ─────────────────────────────────────────────────

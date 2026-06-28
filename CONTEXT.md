@@ -348,14 +348,13 @@ Domain codes:
   unbilled balance (estimate total − Σ non-void invoice amounts).
 - `STRIPE_NOT_CONNECTED` (409) — the org has no Stripe Connect account
   configured; homeowner cannot pay via Stripe. Thrown by the checkout-session
-  route (`lib/stripe/checkout.ts` via `app/api/invoice-review/[token]/pay`).
+  route (`app/api/invoice-review/[token]/checkout`).
 - `STRIPE_ACCOUNT_RESTRICTED` (409) — the org's Stripe Connect account exists
   but is not yet enabled for charges (onboarding incomplete). Same route as
   above.
-- `INVOICE_ALREADY_PAID` (409) — the invoice is already fully paid when a
-  Stripe checkout or reconcile-on-return is attempted. Thrown by the confirm
-  route and the webhook handler (`lib/repositories/invoiceRepo.ts` via
-  `recordStripePayment`).
+- `INVOICE_ALREADY_PAID` (409) — the invoice is already fully paid (or has no
+  remaining balance) when a Stripe checkout session is requested. Thrown by the
+  checkout-session route (`app/api/invoice-review/[token]/checkout`).
 - `STRIPE_WEBHOOK_INVALID` (400) — the `stripe-signature` header failed
   verification; the webhook payload was rejected. Thrown by
   `app/api/webhooks/stripe/route.ts`.
