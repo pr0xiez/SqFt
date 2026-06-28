@@ -66,6 +66,15 @@ with the file that owns it.
   `components/quick-create/` (`QuickCreateProvider` mounts the slide-overs;
   `NewMenu` is the trigger), candidates come from
   `GET /api/estimates/invoiceable`. See *Quick Create* in `CONTEXT.md`.
+- `lib/stripe/` — **Stripe Connect integration**: `client.ts` (Stripe SDK
+  singleton, API version pin), `connect.ts` (account create/retrieve,
+  `ConnectStatus` union, onboarding-link generation), `checkout.ts`
+  (`buildCheckoutParams`, `createInvoiceCheckoutSession` — creates the
+  Checkout Session on the connected account), `webhook.ts`
+  (`verifyStripeWebhook`, `handleStripeWebhookEvent` — signature-verified
+  event handler). The admin Stripe onboarding surface is `/settings/payments`
+  (`app/(admin)/admin/settings/payments`). The raw-body webhook receiver is
+  `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
@@ -116,6 +125,12 @@ with the file that owns it.
   `onDelete: Cascade`.** Delete paths at every level must guard against
   cascading away financial records (`HAS_INVOICES`) and scheduled events
   (`ESTIMATE_HAS_EVENTS`) — don't add a new delete path without those checks.
+- **Stripe test/live modes are isolated.** The Stripe secret key mode must
+  match the mode of the stored `stripeConnectAccountId` (an account created
+  with a test-mode key cannot be used with a live-mode key and vice versa).
+  This invariant holds by construction via the dev/prod DB split — test keys
+  in dev, live keys in production. An org onboarded in production must
+  re-onboard in any test environment (or seed a fresh test-mode account).
 
 ## Keeping these docs current
 

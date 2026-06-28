@@ -200,9 +200,20 @@ the exception**: both the public page and the builder's `InvoiceDetail`
 compute it live from the payments ledger (`amount − Σ payments`) — a
 partially-paid invoice must never show the full amount as still owed.
 
-Payments are recorded manually into a `Payment` ledger (the schema is
-Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
-invoice status from the ledger. A `void` invoice is terminal and excluded from
+Homeowners pay the exact invoice balance via a Stripe-hosted **Checkout
+Session** created on the org's Stripe Connect account (direct charge; the
+contractor bears the processing fee — no surcharge to the homeowner). The
+session is created from the public `/invoice-review/[token]` page and
+resolves on the contractor's connected account (Accounts v2, full dashboard,
+Stripe as fees+losses collector). Payment is recorded into the `Payment` ledger
+by a **signature-verified webhook** (`POST /api/webhooks/stripe`) AND an
+**idempotent reconcile-on-return** endpoint (`POST
+/api/invoice-review/[token]/confirm`), both via the idempotent
+`recordStripePayment` (keyed on `Payment.stripeChargeId @unique`). `Payment`
+carries `stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the
+charge's balance transaction on the connected account). Manual payment recording
+(cash, check, card, ACH) also remains via the builder's Record-payment dialog.
+Each payment recomputes the invoice status from the ledger. A `void` invoice is terminal and excluded from
 all billing math; editing a sent invoice or paying a void one throws
 `INVOICE_LOCKED`. Its public link dies with it: the review page `notFound()`s a
 `void` invoice (and `PublicInvoiceView` never renders a pay CTA for one) so a
@@ -335,6 +346,19 @@ Domain codes:
   invoice, not unlocking this one.
 - `INVOICE_OVERBILL` (409) — caller tried to invoice more than the estimate's
   unbilled balance (estimate total − Σ non-void invoice amounts).
+- `STRIPE_NOT_CONNECTED` (409) — the org has no Stripe Connect account
+  configured; homeowner cannot pay via Stripe. Thrown by the checkout-session
+  route (`lib/stripe/checkout.ts` via `app/api/invoice-review/[token]/pay`).
+- `STRIPE_ACCOUNT_RESTRICTED` (409) — the org's Stripe Connect account exists
+  but is not yet enabled for charges (onboarding incomplete). Same route as
+  above.
+- `INVOICE_ALREADY_PAID` (409) — the invoice is already fully paid when a
+  Stripe checkout or reconcile-on-return is attempted. Thrown by the confirm
+  route and the webhook handler (`lib/repositories/invoiceRepo.ts` via
+  `recordStripePayment`).
+- `STRIPE_WEBHOOK_INVALID` (400) — the `stripe-signature` header failed
+  verification; the webhook payload was rejected. Thrown by
+  `app/api/webhooks/stripe/route.ts`.
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.
