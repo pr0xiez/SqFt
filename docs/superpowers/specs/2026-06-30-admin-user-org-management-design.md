@@ -52,7 +52,7 @@ Building on the existing super-admin plumbing, add:
   `LastAdminError` if the change would leave an org with no active admin. Reusing
   them means an operator can't accidentally lock an org out.
 - **No new API error codes.** Reuses `EMAIL_TAKEN`, `NOT_FOUND`,
-  `VALIDATION_FAILED`, `LastAdminError` (409), and the `superAdmin` gate's
+  `VALIDATION_FAILED`, `LastAdminError` (400), and the `superAdmin` gate's
   `UNAUTHORIZED` (401) / `FORBIDDEN` (403).
 
 ## Auth plumbing: surfacing super-admin to the client
@@ -191,7 +191,7 @@ react-query hooks keyed on `["admin", "orgs", orgId, "users"]`:
 | User id not in that org | 404 `NOT_FOUND` |
 | Duplicate email on add | 409 `EMAIL_TAKEN` |
 | Invalid body | 400 `VALIDATION_FAILED` |
-| Would leave org with no active admin | 409 `LastAdminError` |
+| Would leave org with no active admin | 400 `LAST_ADMIN` (`LastAdminError`) |
 
 Client components read errors via `readApiError` and surface the message inline,
 matching the existing member/org forms.
@@ -201,7 +201,7 @@ matching the existing member/org forms.
 - `__tests__/api/admin-org-users.test.ts` (mirrors `__tests__/api/admin-orgs.test.ts`):
   gate 401/403; `GET` lists members and 404s a missing org; `POST` 201 /
   400 validation / 409 `EMAIL_TAKEN` / 404 missing org; `PATCH` role + archive
-  success, 404 when the user isn't in that org, 409 `LastAdminError`. Mocks
+  success, 404 when the user isn't in that org, 400 `LastAdminError`. Mocks
   `@/lib/repositories` + `@/lib/prisma` + `bcryptjs`, super-admin via
   `SUPER_ADMIN_EMAILS` + matching session email (same helper style as the
   existing test).
