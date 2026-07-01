@@ -23,6 +23,8 @@ interface PrismaEstimateItemRow {
   shape?: string | null;
   w?: number | null;
   l?: number | null;
+  /** Prisma JsonValue; box decomposition [{w,l}]. Narrowed in toRoomItem. */
+  segments?: unknown;
   note?: string | null;
   text?: string | null;
 }
@@ -71,6 +73,9 @@ function toRoomItem(row: PrismaEstimateItemRow): RoomItem {
     shape: row.shape === "tri" ? "tri" : row.shape === "rect" ? "rect" : null,
     w: row.w ?? null,
     l: row.l ?? null,
+    segments:
+      (row.segments as { w?: number | null; l?: number | null }[] | null) ??
+      undefined,
     name: row.name ?? null,
     note: row.note ?? null,
     text: row.text ?? null,
