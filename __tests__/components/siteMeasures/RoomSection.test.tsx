@@ -150,4 +150,52 @@ describe("RoomSection", () => {
     expect(lastCall).toHaveLength(1);
     expect(lastCall?.[0]).toMatchObject({ name: "Kitchen" });
   });
+
+  it("focuses the name input when a room is added", () => {
+    renderSection([]);
+    fireEvent.click(screen.getByText("+ Add Room"));
+    const nameInput = screen.getByPlaceholderText(
+      "Room name"
+    ) as HTMLInputElement;
+    expect(document.activeElement).toBe(nameInput);
+  });
+
+  it("adds a dimension box and sums it into the room total", () => {
+    renderSection([room({ id: 1, name: "Great Room", w: 10, l: 12 })]); // 120
+    // Add a second box.
+    fireEvent.click(screen.getByText("+ dimension"));
+    // Now two L inputs and two W inputs; fill the second box 4 × 3 = 12.
+    const ls = screen.getAllByPlaceholderText("L");
+    const ws = screen.getAllByPlaceholderText("W");
+    fireEvent.change(ls[1], { target: { value: "4" } });
+    fireEvent.change(ws[1], { target: { value: "3" } });
+    // 120 + 12 = 132 gross.
+    expect(grossArea()).toContain("132 sqft");
+  });
+
+  it("removes a dimension box and recomputes the total", () => {
+    renderSection([
+      room({
+        id: 1,
+        name: "Great Room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 4, l: 3 },
+        ],
+        w: null,
+        l: null,
+      }),
+    ]);
+    expect(grossArea()).toContain("132 sqft");
+    // Two boxes → each has a remove control; remove the second.
+    const removes = screen.getAllByLabelText("Remove dimension");
+    expect(removes).toHaveLength(2);
+    fireEvent.click(removes[1]);
+    expect(grossArea()).toContain("120 sqft");
+  });
+
+  it("does not show a per-box remove control when a room has one box", () => {
+    renderSection([room({ id: 1, w: 10, l: 12 })]);
+    expect(screen.queryByLabelText("Remove dimension")).toBeNull();
+  });
 });

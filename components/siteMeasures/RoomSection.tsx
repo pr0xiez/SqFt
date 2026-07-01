@@ -2,8 +2,8 @@
 
 import { useCallback, useState } from "react";
 import type { SiteMeasure } from "@/lib/hooks/useSiteMeasures";
-import type { RoomItem } from "@/lib/utils";
-import { roomSqft } from "@/lib/utils";
+import type { RoomItem, RoomSegment } from "@/lib/utils";
+import { roomSegments, roomSqft } from "@/lib/utils";
 
 interface Props {
   siteMeasure: SiteMeasure;
@@ -15,8 +15,26 @@ function tempId() {
   return ++_nextId;
 }
 
+/** Normalize a persisted room to the segments representation the editor uses:
+ *  legacy w/l become a single box, and the scalar w/l are cleared. */
+function toSegmentRoom(item: RoomItem): RoomItem {
+  if (item.type !== "room") return item;
+  return { ...item, segments: roomSegments(item), w: null, l: null };
+}
+
+function segmentSqft(seg: RoomSegment): number {
+  const w = typeof seg.w === "number" ? seg.w : Number(seg.w);
+  const l = typeof seg.l === "number" ? seg.l : Number(seg.l);
+  if (!Number.isFinite(w) || !Number.isFinite(l)) return 0;
+  return w * l;
+}
+
 export function RoomSection({ siteMeasure, onSave }: Props) {
-  const [items, setItems] = useState<RoomItem[]>(siteMeasure.items ?? []);
+  const [items, setItems] = useState<RoomItem[]>(() =>
+    (siteMeasure.items ?? []).map(toSegmentRoom)
+  );
+  // Id of a just-added room whose name input should grab focus once.
+  const [focusId, setFocusId] = useState<number | null>(null);
 
   const save = useCallback(
     async (newItems: RoomItem[]) => {
@@ -25,35 +43,61 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
     [onSave]
   );
 
+  function commit(newItems: RoomItem[]) {
+    setItems(newItems);
+    save(newItems);
+  }
+
   function addRoom() {
-    const newItems: RoomItem[] = [
+    const id = tempId();
+    commit([
       ...items,
       {
-        id: tempId(),
+        id,
         type: "room",
         name: "New Room",
         shape: "rect",
         w: null,
         l: null,
+        segments: [{ w: null, l: null }],
         note: "",
       },
-    ];
-    setItems(newItems);
-    save(newItems);
+    ]);
+    setFocusId(id);
   }
 
   function removeItem(id: number) {
-    const newItems = items.filter((i) => i.id !== id);
-    setItems(newItems);
-    save(newItems);
+    commit(items.filter((i) => i.id !== id));
   }
 
   function updateRoom(id: number, patch: Partial<RoomItem>) {
-    const newItems = items.map((item) =>
-      item.id === id ? { ...item, ...patch } : item
+    commit(
+      items.map((item) => (item.id === id ? { ...item, ...patch } : item))
     );
-    setItems(newItems);
-    save(newItems);
+  }
+
+  function updateSegment(
+    room: RoomItem,
+    idx: number,
+    patch: Partial<RoomSegment>
+  ) {
+    const segments = roomSegments(room).map((s, i) =>
+      i === idx ? { ...s, ...patch } : s
+    );
+    updateRoom(room.id, { segments, w: null, l: null });
+  }
+
+  function addSegment(room: RoomItem) {
+    updateRoom(room.id, {
+      segments: [...roomSegments(room), { w: null, l: null }],
+      w: null,
+      l: null,
+    });
+  }
+
+  function removeSegment(room: RoomItem, idx: number) {
+    const segments = roomSegments(room).filter((_, i) => i !== idx);
+    updateRoom(room.id, { segments, w: null, l: null });
   }
 
   const rooms = items.filter((i) => i.type === "room");
@@ -78,6 +122,13 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               <input
                 type="text"
                 value={item.name ?? ""}
+                ref={(el) => {
+                  if (el && focusId === item.id) {
+                    el.focus();
+                    el.select();
+                    setFocusId(null);
+                  }
+                }}
                 onChange={(e) => updateRoom(item.id, { name: e.target.value })}
                 placeholder="Room name"
                 className="flex-1 text-[15px] font-[600] tracking-[-0.01em] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
@@ -91,42 +142,84 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               </button>
             </div>
 
-            {/* Dimensions row */}
-            <div className="flex items-center gap-2.5 mb-3">
-              <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] min-w-[80px] tracking-[.04em]">
-                Dimensions
-              </span>
-              <input
-                type="number"
-                value={item.l ?? ""}
-                onChange={(e) =>
-                  updateRoom(item.id, {
-                    l: parseFloat(e.target.value) || undefined,
-                  })
-                }
-                placeholder="L"
-                className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="text-[14px] text-[var(--muted)]">×</span>
-              <input
-                type="number"
-                value={item.w ?? ""}
-                onChange={(e) =>
-                  updateRoom(item.id, {
-                    w: parseFloat(e.target.value) || undefined,
-                  })
-                }
-                placeholder="W"
-                className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-                ft
-              </span>
-              <div className="ml-auto text-[18px] font-[700] tracking-[-0.02em]">
-                {roomSqft(item) > 0 ? (
-                  `${Math.round(roomSqft(item))} sqft`
-                ) : (
-                  <span className="text-[var(--muted)] font-[400]">—</span>
+            {/* Dimensions — one row per box; areas sum to the room total */}
+            <div className="space-y-2 mb-3">
+              {roomSegments(item).map((seg, idx) => {
+                const boxes = roomSegments(item);
+                const sqft = segmentSqft(seg);
+                return (
+                  <div key={idx} className="flex items-center gap-2.5">
+                    <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] min-w-[80px] tracking-[.04em]">
+                      {idx === 0 ? "Dimensions" : ""}
+                    </span>
+                    <input
+                      type="number"
+                      value={seg.l ?? ""}
+                      onChange={(e) =>
+                        updateSegment(item, idx, {
+                          l: parseFloat(e.target.value) || undefined,
+                        })
+                      }
+                      placeholder="L"
+                      className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-[14px] text-[var(--muted)]">×</span>
+                    <input
+                      type="number"
+                      value={seg.w ?? ""}
+                      onChange={(e) =>
+                        updateSegment(item, idx, {
+                          w: parseFloat(e.target.value) || undefined,
+                        })
+                      }
+                      placeholder="W"
+                      className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+                      ft
+                    </span>
+                    <div className="ml-auto text-[15px] font-[700] tracking-[-0.02em]">
+                      {sqft > 0 ? (
+                        `${Math.round(sqft)} sqft`
+                      ) : (
+                        <span className="text-[var(--muted)] font-[400]">
+                          —
+                        </span>
+                      )}
+                    </div>
+                    {boxes.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeSegment(item, idx)}
+                        aria-label="Remove dimension"
+                        className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none shrink-0"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="flex items-center gap-3 pl-[90px]">
+                <button
+                  type="button"
+                  onClick={() => addSegment(item)}
+                  className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] bg-transparent border-none p-0 cursor-pointer hover:text-[var(--ink)]"
+                >
+                  + dimension
+                </button>
+                {roomSegments(item).length > 1 && (
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em]">
+                      Room total
+                    </span>
+                    <span className="text-[18px] font-[700] tracking-[-0.02em]">
+                      {roomSqft(item) > 0
+                        ? `${Math.round(roomSqft(item))} sqft`
+                        : "—"}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -175,14 +268,9 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
         </button>
         <button
           type="button"
-          onClick={() => {
-            const newItems: RoomItem[] = [
-              ...items,
-              { id: tempId(), type: "note", text: "" },
-            ];
-            setItems(newItems);
-            save(newItems);
-          }}
+          onClick={() =>
+            commit([...items, { id: tempId(), type: "note", text: "" }])
+          }
           className="flex-1 py-[11px] font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border border-dashed border-[var(--line-2)] rounded-[6px] cursor-pointer transition-colors duration-150 hover:border-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
         >
           + Add Note
