@@ -302,15 +302,21 @@ Expected: "Generated Prisma Client" (no DB connection). If it fails to resolve d
 
 - [ ] **Step 7: Pass `segments` through the repo save**
 
-In `lib/repositories/siteMeasureRepo.ts`:
+In `lib/repositories/siteMeasureRepo.ts` — keep the existing `import type { Prisma }` (the cast below is a type-only use, so a value import would fail biome's `useImportType`).
 
-1. Change the top import from type-only to a value import (needed for the `Prisma.InputJsonValue` cast type; still provides the `Prisma.*` type namespace):
+1. Override `segments` on the `SiteMeasureItemInput` type (currently ~42-47) so the wire/zod segment shape — not Prisma's `InputJsonValue` — flows in from the route. This keeps the `saveSiteMeasure(id, orgId, input)` call assignable (Prisma's `InputJsonValue` rejects the `undefined`-valued nested props that optional `w?`/`l?` produce):
 
 ```ts
-import { Prisma } from "@/app/generated/prisma/client";
+type SiteMeasureItemInput = Omit<
+  Prisma.SiteMeasureItemUncheckedCreateInput,
+  "id" | "siteMeasureId" | "segments"
+> & {
+  id?: number;
+  segments?: { w?: number | null; l?: number | null }[] | null;
+};
 ```
 
-2. In `saveSiteMeasure`, update the `createMany` mapping (currently ~235-242) so `segments` is only written when present, cast to satisfy the Json input type:
+2. In `saveSiteMeasure`, update the `createMany` mapping (currently ~235-242) so `segments` is only written when present, cast to Prisma's Json input type at this single seam:
 
 ```ts
 if (items.length > 0) {
@@ -329,7 +335,7 @@ if (items.length > 0) {
 - [ ] **Step 8: Typecheck**
 
 Run: `npm run typecheck`
-Expected: PASS. (If it reports a JSON assignability error on the `createMany` data, confirm the `as Prisma.InputJsonValue` cast from Step 7 is present.)
+Expected: PASS. (If it reports a JSON assignability error on the `createMany` data, confirm the `as Prisma.InputJsonValue` cast from Step 7 is present; if the route call `saveSiteMeasure(id, orgId, input)` errors on `items`, confirm the `SiteMeasureItemInput` `segments` override from Step 7.1 is present.)
 
 - [ ] **Step 9: Commit**
 
@@ -919,6 +925,6 @@ git commit -m "docs(context): rooms are box-decomposed in site measures"
 
 **Placeholder scan:** No TBD/TODO; every code step shows complete code. The migration dir timestamp `20260630000000` is a concrete value.
 
-**Type consistency:** `RoomSegment { w?: number | null; l?: number | null }`, `roomSegments(room): RoomSegment[]`, `RoomItem.segments?: RoomSegment[] | null` are defined in Task 1 and consumed with the same names/shapes in Tasks 3–4. Zod segment shape (`{ w, l }` nullish) matches. Repo cast uses `Prisma.InputJsonValue` after switching to a value import. The public map coerces Prisma `JsonValue` to the same `{ w, l }[]` shape.
+**Type consistency:** `RoomSegment { w?: number | null; l?: number | null }`, `roomSegments(room): RoomSegment[]`, `RoomItem.segments?: RoomSegment[] | null` are defined in Task 1 and consumed with the same names/shapes in Tasks 3–4. Zod segment shape (`{ w, l }` nullish) matches. `SiteMeasureItemInput` overrides `segments` to the same `{ w, l }[]` shape (keeping `import type { Prisma }`), with a `Prisma.InputJsonValue` cast at the `createMany` seam. The public map coerces Prisma `JsonValue` to the same `{ w, l }[]` shape.
 
 **Note on the L×W ⇄ w/l mapping:** the builder binds the **L** input to `segment.l` and **W** to `segment.w` (matching the current file's ordering); `RoomsList` prints `l×w` for parity. Area/perimeter are order-independent, so this is cosmetic only.
