@@ -41,9 +41,10 @@ export type SiteMeasureWithDetails = Prisma.SiteMeasureGetPayload<{
 
 type SiteMeasureItemInput = Omit<
   Prisma.SiteMeasureItemUncheckedCreateInput,
-  "id" | "siteMeasureId"
+  "id" | "siteMeasureId" | "segments"
 > & {
   id?: number;
+  segments?: { w?: number | null; l?: number | null }[] | null;
 };
 
 export type SiteMeasurePatch = {
@@ -234,9 +235,12 @@ export async function saveSiteMeasure(
       await tx.siteMeasureItem.deleteMany({ where: { siteMeasureId: id } });
       if (items.length > 0) {
         await tx.siteMeasureItem.createMany({
-          data: items.map(({ id: _id, ...item }) => ({
+          data: items.map(({ id: _id, segments, ...item }) => ({
             ...item,
             siteMeasureId: id,
+            ...(segments != null
+              ? { segments: segments as Prisma.InputJsonValue }
+              : {}),
           })),
         });
       }

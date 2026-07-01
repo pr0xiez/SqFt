@@ -8,6 +8,9 @@ const itemSchema = z.object({
   shape: z.enum(["rect", "tri"]).nullish(),
   w: z.number().nullish(),
   l: z.number().nullish(),
+  segments: z
+    .array(z.object({ w: z.number().nullish(), l: z.number().nullish() }))
+    .nullish(),
   note: z.string().nullish(),
   text: z.string().nullish(),
 });

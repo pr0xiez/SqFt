@@ -149,10 +149,14 @@ model SiteMeasureItem {
 
   // Room fields
   name  String?
-  shape String? // rect | tri
+  shape String? // rect | tri  (legacy single-box rooms)
   w     Float?
   l     Float?
   note  String?
+
+  // Box decomposition of a non-rectangular room: JSON array of { w, l } in
+  // feet; room sqft = Σ w*l. Null/empty means a single legacy box (w/l above).
+  segments Json?
 
   // Note fields
   text String?
