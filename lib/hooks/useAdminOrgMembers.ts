@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   MemberRole,
   MemberRow,
@@ -22,18 +22,6 @@ export type UpdateAdminUserInput = {
 };
 
 const key = (orgId: string) => ["admin", "orgs", orgId, "users"] as const;
-
-export function useListAdminOrgMembers(orgId: string, initial: MemberRow[]) {
-  return useQuery({
-    queryKey: key(orgId),
-    initialData: initial,
-    queryFn: async (): Promise<MemberRow[]> => {
-      const res = await fetch(`/api/admin/orgs/${orgId}/users`);
-      if (!res.ok) throw await readApiError(res, "Failed to load members");
-      return (await res.json()) as MemberRow[];
-    },
-  });
-}
 
 export function useCreateAdminOrgMember(orgId: string) {
   const qc = useQueryClient();
