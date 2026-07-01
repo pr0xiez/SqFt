@@ -9,6 +9,7 @@ export type IconId =
   | "myschedule"
   | "scheduleManager"
   | "settings"
+  | "admin"
   | "more";
 
 export interface NavItem {
@@ -90,6 +91,18 @@ export const SETTINGS_ITEM: NavItem = {
   label: "Settings",
   icon: "settings",
   minRole: "lead",
+};
+
+/**
+ * Super-admin console entry. Gated on `session.user.isSuperAdmin` at render time
+ * (NOT by role) — `minRole` is only here to satisfy the `NavItem` shape and is
+ * never used to filter this item.
+ */
+export const ADMIN_ITEM: NavItem = {
+  href: "/admin",
+  label: "Admin",
+  icon: "admin",
+  minRole: "admin",
 };
 
 /** A bottom-bar shortcut — a NavItem without the role gate (the bar is lead+ only). */
