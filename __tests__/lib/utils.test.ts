@@ -71,18 +71,9 @@ describe("roomSqft", () => {
     w: "10",
     l: "12",
   };
-  const triRoom: RoomItem = {
-    id: 2,
-    type: "room",
-    shape: "tri",
-    w: "10",
-    l: "8",
-  };
   const noteItem: RoomItem = { id: 4, type: "note", text: "See spec" };
 
   it("calculates rectangular area", () => expect(roomSqft(rectRoom)).toBe(120));
-  it("calculates triangular area as half of w*l", () =>
-    expect(roomSqft(triRoom)).toBe(40));
   it("returns 0 for note items", () => expect(roomSqft(noteItem)).toBe(0));
   it("returns 0 when dimensions are missing", () => {
     const empty: RoomItem = { id: 5, type: "room", shape: "rect" };
@@ -112,17 +103,6 @@ describe("roomPerimeter", () => {
       l: "15",
     };
     expect(roomPerimeter(rect)).toBe(50);
-  });
-
-  it("calculates triangle perimeter as w + l + hypotenuse", () => {
-    const tri: RoomItem = {
-      id: 2,
-      type: "room",
-      shape: "tri",
-      w: "3",
-      l: "4",
-    };
-    expect(roomPerimeter(tri)).toBe(12); // 3 + 4 + 5
   });
 
   it("returns 0 for note items", () => {
@@ -160,22 +140,6 @@ describe("estTotalArea", () => {
   });
 
   it("returns 0 for empty array", () => expect(estTotalArea([])).toBe(0));
-
-  it("counts triangle rooms as half of w*l", () => {
-    const items: RoomItem[] = [
-      { id: 1, type: "room", shape: "tri", w: "10", l: "8" },
-    ];
-    expect(estTotalArea(items)).toBe(40); // 10*8/2
-  });
-
-  it("sums mixed rect and triangle rooms", () => {
-    const items: RoomItem[] = [
-      { id: 1, type: "room", shape: "rect", w: "10", l: "10" }, // 100
-      { id: 2, type: "room", shape: "tri", w: "10", l: "8" }, // 40
-      { id: 3, type: "note", text: "note" }, // ignored
-    ];
-    expect(estTotalArea(items)).toBe(140); // 100 + 40
-  });
 });
 
 // ── getWeekStart ──────────────────────────────────────────────────────────────
@@ -282,9 +246,9 @@ describe("roomSqft with segments", () => {
   it("falls back to legacy w/l when segments is absent", () => {
     expect(roomSqft({ id: 1, type: "room", w: 10, l: 12 })).toBe(120);
   });
-  it("still halves a legacy tri room", () => {
+  it("treats a legacy tri room as a full rectangle (triangles dropped)", () => {
     expect(roomSqft({ id: 1, type: "room", shape: "tri", w: 10, l: 12 })).toBe(
-      60
+      120
     );
   });
 });

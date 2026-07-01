@@ -58,42 +58,28 @@ export function roomSegments(room: RoomItem): RoomSegment[] {
   return [{ w: parsef(room.w), l: parsef(room.l) }];
 }
 
-/** Calculate net square footage for a single room item */
+/** Net square footage for a single room: the sum of its box areas (a legacy
+ *  room without segments is treated as one box from w/l). */
 export function roomSqft(room: RoomItem): number {
   if (room.type !== "room") return 0;
-  if (room.segments && room.segments.length > 0) {
-    return room.segments.reduce((sum, s) => {
-      const w = parsef(s.w);
-      const l = parsef(s.l);
-      return w === null || l === null ? sum : sum + w * l;
-    }, 0);
-  }
-  const w = parsef(room.w);
-  const l = parsef(room.l);
-  if (w === null || l === null) return 0;
-  if ((room.shape || "rect") === "tri") return (w * l) / 2;
-  return w * l;
+  return roomSegments(room).reduce((sum, s) => {
+    const w = parsef(s.w);
+    const l = parsef(s.l);
+    return w === null || l === null ? sum : sum + w * l;
+  }, 0);
 }
 
-/** Calculate the perimeter (linear feet) of a room. Multi-box rooms sum each
- *  box's 2(w+l) (over-counts shared edges — positions aren't stored — which
- *  errs toward ordering enough trim). Legacy single-box: 2(w+l), or for tri
- *  rooms w + l + hypotenuse(w,l). Drives linear measures like shoe mold,
+/** Perimeter (linear feet) of a room: the sum of each box's 2(w+l). Multi-box
+ *  rooms over-count shared interior edges (positions aren't stored), which errs
+ *  toward ordering enough trim. Drives linear measures like shoe mold,
  *  quarter-round, transition strips. */
 export function roomPerimeter(room: RoomItem): number {
   if (room.type !== "room") return 0;
-  if (room.segments && room.segments.length > 0) {
-    return room.segments.reduce((sum, s) => {
-      const w = parsef(s.w);
-      const l = parsef(s.l);
-      return w === null || l === null ? sum : sum + 2 * (w + l);
-    }, 0);
-  }
-  const w = parsef(room.w);
-  const l = parsef(room.l);
-  if (w === null || l === null) return 0;
-  if ((room.shape || "rect") === "tri") return w + l + Math.hypot(w, l);
-  return 2 * (w + l);
+  return roomSegments(room).reduce((sum, s) => {
+    const w = parsef(s.w);
+    const l = parsef(s.l);
+    return w === null || l === null ? sum : sum + 2 * (w + l);
+  }, 0);
 }
 
 /** Sum square footage of all room items in an siteMeasure */
