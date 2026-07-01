@@ -6,5 +6,6 @@ export * from "./eventRepo";
 export * from "./invoiceRepo";
 export * from "./lineItemTemplateRepo";
 export * from "./locationRepo";
+export * from "./orgRepo";
 export * from "./siteMeasureRepo";
 export * from "./userRepo";
