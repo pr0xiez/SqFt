@@ -1,0 +1,68 @@
+import { expect, test } from "@playwright/test";
+import {
+  createOrg,
+  loginViaForm,
+  SUPER_ADMIN_EMAIL,
+  SUPER_ADMIN_PASSWORD,
+} from "./fixtures/org";
+
+test.describe("admin org member management", () => {
+  test("super-admin adds a user to an org and manages the row", async ({
+    browser,
+  }) => {
+    // A fresh org (created via the super-admin API) to mutate in isolation.
+    const org = await createOrg(browser, "member-mgmt");
+
+    const ctx = await browser.newContext();
+    const page = await loginViaForm(
+      ctx,
+      SUPER_ADMIN_EMAIL,
+      SUPER_ADMIN_PASSWORD
+    );
+
+    await page.goto(`/admin/orgs/${org.orgId}`);
+    await expect(
+      page.getByRole("heading", { name: org.orgName })
+    ).toBeVisible();
+
+    const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newEmail = `crew+${suffix}@playwright.test`;
+
+    await page.getByRole("button", { name: /add user/i }).click();
+    const form = page.locator("form");
+    await form.getByLabel(/name/i).fill(`Crew ${suffix}`);
+    await form.getByLabel(/email/i).fill(newEmail);
+    await form.getByLabel(/temporary password/i).fill(`pw-${suffix}-A1`);
+    await form.getByRole("button", { name: /^add user$/i }).click();
+
+    // Credential reveal shows the new email; then it appears in the member list.
+    await expect(page.getByText(newEmail)).toBeVisible();
+    await page.getByRole("button", { name: /done/i }).click();
+    await expect(page.getByText(newEmail)).toBeVisible();
+
+    await ctx.close();
+  });
+
+  test("Admin nav link is visible only to super-admins", async ({
+    browser,
+  }) => {
+    // Super-admin sees it.
+    const superCtx = await browser.newContext();
+    const superPage = await loginViaForm(
+      superCtx,
+      SUPER_ADMIN_EMAIL,
+      SUPER_ADMIN_PASSWORD
+    );
+    await expect(
+      superPage.getByRole("link", { name: /^Admin$/ })
+    ).toBeVisible();
+    await superCtx.close();
+
+    // A normal org admin does not.
+    const org = await createOrg(browser, "no-admin-link");
+    const ctx = await browser.newContext();
+    const page = await loginViaForm(ctx, org.adminEmail, org.adminPassword);
+    await expect(page.getByRole("link", { name: /^Admin$/ })).toHaveCount(0);
+    await ctx.close();
+  });
+});
