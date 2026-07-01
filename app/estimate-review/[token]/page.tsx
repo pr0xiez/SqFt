@@ -57,6 +57,9 @@ export default async function PublicEstimatePage({ params }: Props) {
       shape: i.shape === "rect" || i.shape === "tri" ? i.shape : null,
       w: i.w,
       l: i.l,
+      segments:
+        (i.segments as { w?: number | null; l?: number | null }[] | null) ??
+        undefined,
       name: i.name,
       note: i.note,
       text: i.text,
