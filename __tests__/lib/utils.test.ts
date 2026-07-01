@@ -11,6 +11,7 @@ import {
   parsef,
   type RoomItem,
   roomPerimeter,
+  roomSegments,
   roomSqft,
   sourceName,
   timeToMinutes,
@@ -248,5 +249,70 @@ describe("fmtDayHead", () => {
     const result = fmtDayHead(mon);
     expect(result).toMatch(/Mon/);
     expect(result).toMatch(/8/);
+  });
+});
+
+// ── segments ────────────────────────────────────────────────────────────────
+
+describe("roomSqft with segments", () => {
+  it("sums the area of every box", () => {
+    expect(
+      roomSqft({
+        id: 1,
+        type: "room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 4, l: 3 },
+        ],
+      })
+    ).toBe(132);
+  });
+  it("ignores a box missing a dimension", () => {
+    expect(
+      roomSqft({
+        id: 1,
+        type: "room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 5, l: null },
+        ],
+      })
+    ).toBe(120);
+  });
+  it("falls back to legacy w/l when segments is absent", () => {
+    expect(roomSqft({ id: 1, type: "room", w: 10, l: 12 })).toBe(120);
+  });
+  it("still halves a legacy tri room", () => {
+    expect(roomSqft({ id: 1, type: "room", shape: "tri", w: 10, l: 12 })).toBe(
+      60
+    );
+  });
+});
+
+describe("roomPerimeter with segments", () => {
+  it("sums each box's perimeter", () => {
+    // 2(10+12) + 2(4+3) = 44 + 14
+    expect(
+      roomPerimeter({
+        id: 1,
+        type: "room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 4, l: 3 },
+        ],
+      })
+    ).toBe(58);
+  });
+});
+
+describe("roomSegments", () => {
+  it("returns the room's segments when present", () => {
+    const segs = [{ w: 1, l: 2 }];
+    expect(roomSegments({ id: 1, type: "room", segments: segs })).toBe(segs);
+  });
+  it("returns a single legacy box when segments is absent", () => {
+    expect(roomSegments({ id: 1, type: "room", w: 10, l: 12 })).toEqual([
+      { w: 10, l: 12 },
+    ]);
   });
 });

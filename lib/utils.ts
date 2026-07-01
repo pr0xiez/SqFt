@@ -31,20 +31,43 @@ export function deepCopy<T>(x: T): T {
 
 // ── Room area calculations ────────────────────────────────────────────────
 
+export interface RoomSegment {
+  w?: number | null;
+  l?: number | null;
+}
+
 export interface RoomItem {
   id: number;
   type: "room" | "note";
   shape?: "rect" | "tri" | null;
   w?: string | number | null;
   l?: string | number | null;
+  /** Box decomposition of a (possibly non-rectangular) room; sqft = Σ w*l.
+   *  Absent/empty means a single legacy box described by the scalar w/l. */
+  segments?: RoomSegment[] | null;
   name?: string | null;
   note?: string | null;
   text?: string | null;
 }
 
+/** The boxes making up a room: its segments if present, else the single legacy
+ *  box from w/l. Use for display and box-count; roomSqft/roomPerimeter remain
+ *  the authoritative area/length. */
+export function roomSegments(room: RoomItem): RoomSegment[] {
+  if (room.segments && room.segments.length > 0) return room.segments;
+  return [{ w: parsef(room.w), l: parsef(room.l) }];
+}
+
 /** Calculate net square footage for a single room item */
 export function roomSqft(room: RoomItem): number {
   if (room.type !== "room") return 0;
+  if (room.segments && room.segments.length > 0) {
+    return room.segments.reduce((sum, s) => {
+      const w = parsef(s.w);
+      const l = parsef(s.l);
+      return w === null || l === null ? sum : sum + w * l;
+    }, 0);
+  }
   const w = parsef(room.w);
   const l = parsef(room.l);
   if (w === null || l === null) return 0;
@@ -52,11 +75,20 @@ export function roomSqft(room: RoomItem): number {
   return w * l;
 }
 
-/** Calculate the perimeter (linear feet) of a room. For rectangles 2(w+l);
- *  for right-triangle rooms w + l + hypotenuse(w,l). Used to drive linear
- *  measurements like shoe mold, quarter-round, or transition strips. */
+/** Calculate the perimeter (linear feet) of a room. Multi-box rooms sum each
+ *  box's 2(w+l) (over-counts shared edges — positions aren't stored — which
+ *  errs toward ordering enough trim). Legacy single-box: 2(w+l), or for tri
+ *  rooms w + l + hypotenuse(w,l). Drives linear measures like shoe mold,
+ *  quarter-round, transition strips. */
 export function roomPerimeter(room: RoomItem): number {
   if (room.type !== "room") return 0;
+  if (room.segments && room.segments.length > 0) {
+    return room.segments.reduce((sum, s) => {
+      const w = parsef(s.w);
+      const l = parsef(s.l);
+      return w === null || l === null ? sum : sum + 2 * (w + l);
+    }, 0);
+  }
   const w = parsef(room.w);
   const l = parsef(room.l);
   if (w === null || l === null) return 0;
