@@ -53,9 +53,10 @@ test.describe("admin org member management", () => {
       SUPER_ADMIN_EMAIL,
       SUPER_ADMIN_PASSWORD
     );
-    await expect(
-      superPage.getByRole("link", { name: /^Admin$/ })
-    ).toBeVisible();
+    const superNav = superPage
+      .locator('nav[aria-label="Main navigation"]')
+      .first();
+    await expect(superNav.getByRole("link", { name: /^Admin$/ })).toBeVisible();
     await superCtx.close();
 
     // A normal org admin does not.
