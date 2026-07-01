@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { prisma } from "@/lib/prisma";
 
 // Extend the built-in session types to include orgId and role
@@ -14,6 +15,7 @@ declare module "next-auth" {
       email?: string | null;
       orgId: string;
       role: string;
+      isSuperAdmin: boolean;
     };
   }
   interface User {
@@ -85,6 +87,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.orgId = token.orgId;
         session.user.role = token.role;
       }
+      session.user.isSuperAdmin = isSuperAdmin(session.user.email);
       return session;
     },
   },
