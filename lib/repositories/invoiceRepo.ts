@@ -9,6 +9,7 @@ import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { computeEstimateBilling } from "@/lib/invoices/compute";
 import { isOverbill } from "@/lib/invoices/createInvoiceForm";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
+import { logError } from "@/lib/logger";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { searchableInt } from "@/lib/repositories/search";
@@ -212,6 +213,44 @@ export function nextInvoiceStatus(args: {
   }
   if (args.paid + 0.005 >= args.amount) return "paid";
   return "partial";
+}
+
+export interface StripeChargeClassification {
+  nextStatus: string;
+  paidAfter: number;
+  orphaned: boolean;
+  overpaid: boolean;
+}
+
+/**
+ * Decide how an incoming Stripe charge maps onto the invoice ledger — pure, no
+ * IO. A captured charge is real money, so the recorder must NEVER silently drop
+ * it; instead we surface the anomalies so the contractor can refund:
+ *   - `orphaned`: the invoice was voided after the Checkout session opened, so
+ *     the card was charged against a cancelled invoice.
+ *   - `overpaid`: the total recorded now exceeds the invoice amount (e.g. a
+ *     manual payment already covered the balance, then a stale session paid).
+ * `nextStatus` delegates to nextInvoiceStatus, which keeps `void` terminal — a
+ * charge never resurrects a voided invoice.
+ */
+export function classifyStripeCharge(args: {
+  status: string;
+  amount: number;
+  priorPaid: number;
+  chargeAmount: number;
+}): StripeChargeClassification {
+  const paidAfter = round2(args.priorPaid + args.chargeAmount);
+  const nextStatus = nextInvoiceStatus({
+    current: args.status,
+    amount: args.amount,
+    paid: paidAfter,
+  });
+  return {
+    nextStatus,
+    paidAfter,
+    orphaned: args.status === "void",
+    overpaid: paidAfter > args.amount + 0.005,
+  };
 }
 
 export interface UpdateInvoiceInput {
@@ -493,9 +532,14 @@ export interface RecordStripePaymentInput {
 /**
  * Idempotent Stripe payment recorder. Returns `{ recorded: true }` on the
  * first successful write, `{ recorded: false }` if the chargeId is already
- * present (soft idempotency check) or if the invoice is missing / void. A
- * racing double-insert that slips past the soft check is caught via the
- * `@unique` constraint on `Payment.stripeChargeId` (P2002 → `recorded: false`).
+ * present (soft idempotency check) or if the invoice is missing. A racing
+ * double-insert that slips past the soft check is caught via the `@unique`
+ * constraint on `Payment.stripeChargeId` (P2002 → `recorded: false`).
+ *
+ * A charge on a voided or already-covered invoice is still recorded (the money
+ * is real) but flagged via `classifyStripeCharge` — an `InvoiceEvent` with
+ * `refundNeeded` and a `logError` — rather than silently dropped. A charge
+ * never resurrects a voided invoice.
  */
 export async function recordStripePayment(
   input: RecordStripePaymentInput
@@ -514,7 +558,22 @@ export async function recordStripePayment(
         include: { payments: { select: { amount: true } } },
       });
       if (!inv) return { recorded: false };
-      if (inv.status === "void") return { recorded: false };
+
+      // A captured charge is real money. Record it even when the invoice was
+      // voided or already covered — dropping it would leave an untracked charge
+      // with no ledger row and no signal to refund. Surface the anomaly instead.
+      const priorPaid = inv.payments.reduce((s, p) => s + p.amount, 0);
+      const cls = classifyStripeCharge({
+        status: inv.status,
+        amount: inv.amount,
+        priorPaid,
+        chargeAmount: input.amount,
+      });
+      const refundReason = cls.orphaned
+        ? "invoice_void"
+        : cls.overpaid
+          ? "overpayment"
+          : null;
 
       await tx.payment.create({
         data: {
@@ -528,18 +587,11 @@ export async function recordStripePayment(
         },
       });
 
-      const paid =
-        inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
-      const status = nextInvoiceStatus({
-        current: inv.status,
-        amount: inv.amount,
-        paid,
-      });
       await tx.invoice.update({
         where: { id: input.invoiceId },
         data: {
-          status,
-          paidAt: status === "paid" ? new Date() : null,
+          status: cls.nextStatus,
+          paidAt: cls.nextStatus === "paid" ? new Date() : null,
           stripePaymentIntentId: input.paymentIntentId,
         },
       });
@@ -554,9 +606,17 @@ export async function recordStripePayment(
             method: "stripe",
             fee: input.feeAmount,
             net: input.netAmount,
+            ...(refundReason ? { refundNeeded: true, refundReason } : {}),
           },
         },
       });
+      if (refundReason) {
+        logError({
+          path: "lib/repositories/invoiceRepo#recordStripePayment",
+          orgId: input.orgId,
+          errorMessage: `Stripe charge ${input.chargeId} needs refund (${refundReason}): invoice ${input.invoiceId} now paid ${cls.paidAfter} of ${inv.amount}`,
+        });
+      }
       return { recorded: true };
     });
   } catch (err) {

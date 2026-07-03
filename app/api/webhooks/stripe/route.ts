@@ -1,7 +1,9 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { recordStripePayment } from "@/lib/repositories/invoiceRepo";
+import { getOrgIdByConnectAccount } from "@/lib/repositories/orgRepo";
 import { getStripe } from "@/lib/stripe/client";
 import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
 
@@ -27,6 +29,16 @@ export async function POST(req: Request) {
       markProcessed: async (id, type) => {
         await prisma.processedStripeEvent.create({ data: { id, type } });
       },
+      orgIdForAccount: async (accountId) => {
+        const orgId = await getOrgIdByConnectAccount(accountId);
+        if (!orgId) {
+          logError({
+            path: "api/webhooks/stripe",
+            errorMessage: `No org owns connected account ${accountId}; event skipped`,
+          });
+        }
+        return orgId;
+      },
       record: (input) => recordStripePayment(input),
       retrieveCharge: async (accountId, paymentIntentId) => {
         const stripe = getStripe();
@@ -41,7 +53,9 @@ export async function POST(req: Request) {
         } | null;
         const bt = charge?.balance_transaction ?? null;
         return {
-          id: charge?.id ?? `pi_${paymentIntentId}`,
+          // No synthetic fallback: a missing charge id makes the handler throw
+          // so Stripe redelivers once the charge is attached (see webhook.ts).
+          id: charge?.id ?? null,
           balanceFee: bt ? bt.fee / 100 : null,
           balanceNet: bt ? bt.net / 100 : null,
         };

@@ -209,11 +209,22 @@ Stripe as fees+losses collector). Payment is recorded into the `Payment` ledger
 by a **signature-verified webhook** (`POST /api/webhooks/stripe`) AND an
 **idempotent reconcile-on-return** endpoint (`POST
 /api/invoice-review/[token]/confirm`), both via the idempotent
-`recordStripePayment` (keyed on `Payment.stripeChargeId @unique`). `Payment`
-carries `stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the
-charge's balance transaction on the connected account). Manual payment recording
-(cash, check, card, ACH) also remains via the builder's Record-payment dialog.
-Each payment recomputes the invoice status from the ledger. A `void` invoice is terminal and excluded from
+`recordStripePayment` (keyed on `Payment.stripeChargeId @unique`). Three
+load-bearing invariants live here: (1) the webhook resolves the owning org from
+the **signed `event.account`** (`getOrgIdByConnectAccount`), never from
+attacker-controllable `metadata.orgId`, so one connected account can't mark
+another org's invoice paid; (2) both paths key idempotency on the **real charge
+id (`ch_…`)** and *defer* (webhook throws to retry, confirm returns `pending`)
+when it isn't attached yet, rather than synthesizing a divergent `pi_…` id that
+would double-record; (3) a captured charge is **never silently dropped** —
+`classifyStripeCharge` (single source of truth, `lib/repositories/invoiceRepo.ts`)
+records it even when the invoice was voided after checkout (`orphaned`) or already
+covered (`overpaid`), flagging the anomaly with a `refundNeeded` `InvoiceEvent`
++ `logError`; a charge never resurrects a `void` invoice. `Payment` carries
+`stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the charge's balance
+transaction on the connected account). Manual payment recording (cash, check,
+card, ACH) also remains via the builder's Record-payment dialog. Each payment
+recomputes the invoice status from the ledger. A `void` invoice is terminal and excluded from
 all billing math; editing a sent invoice or paying a void one throws
 `INVOICE_LOCKED`. Its public link dies with it: the review page `notFound()`s a
 `void` invoice (and `PublicInvoiceView` never renders a pay CTA for one) so a

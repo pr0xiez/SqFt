@@ -5,6 +5,7 @@ import {
   StripeNotConnectedError,
 } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
+import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { round2 } from "@/lib/money";
 import { getInvoiceByToken } from "@/lib/repositories/invoiceRepo";
 import { getOrgStripe, setOrgConnectStatus } from "@/lib/repositories/orgRepo";
@@ -14,14 +15,8 @@ import {
 } from "@/lib/stripe/checkout";
 import { type ConnectStatus, readAccountStatus } from "@/lib/stripe/connect";
 
-function baseUrl(req: Request): string {
-  return (
-    process.env.STRIPE_PUBLIC_BASE_URL ?? new URL(req.url).origin
-  ).replace(/\/$/, "");
-}
-
 export const POST = publicRoute<undefined, { token: string }>(
-  async ({ req, params }) => {
+  async ({ params }) => {
     const invoice = await getInvoiceByToken(params.token);
     if (!invoice || invoice.status === "void") throw new NotFoundError();
     if (invoice.status === "paid") throw new InvoiceAlreadyPaidError();
@@ -41,8 +36,7 @@ export const POST = publicRoute<undefined, { token: string }>(
     if (balanceDue <= 0) throw new InvoiceAlreadyPaidError();
     const balanceDueCents = Math.round(balanceDue * 100);
 
-    const base = baseUrl(req);
-    const ret = `${base}/invoice-review/${params.token}`;
+    const ret = `${getPublicBaseUrl()}/invoice-review/${params.token}`;
     const checkoutParams = buildCheckoutParams({
       invoiceNumber: invoice.invoiceNumber,
       balanceDueCents,
@@ -54,11 +48,24 @@ export const POST = publicRoute<undefined, { token: string }>(
 
     // Idempotency keyed on invoice + current balance: identical re-clicks reuse
     // the same session; a changed balance mints a new one.
-    const { url } = await createInvoiceCheckoutSession(
-      org.stripeConnectAccountId,
-      checkoutParams,
-      `inv-${invoice.id}-bal-${balanceDueCents}`
-    );
-    return { url };
+    try {
+      const { url } = await createInvoiceCheckoutSession(
+        org.stripeConnectAccountId,
+        checkoutParams,
+        `inv-${invoice.id}-bal-${balanceDueCents}`
+      );
+      return { url };
+    } catch (err) {
+      // The cached status was "active", so we skipped the live re-check — but a
+      // create failure may mean Stripe has since restricted the account. Verify
+      // live: if it's no longer active, downgrade the cache and return the
+      // documented STRIPE_ACCOUNT_RESTRICTED instead of a generic 500.
+      const live = await readAccountStatus(org.stripeConnectAccountId);
+      if (live !== "active") {
+        await setOrgConnectStatus(invoice.orgId, live);
+        throw new StripeAccountRestrictedError();
+      }
+      throw err;
+    }
   }
 );

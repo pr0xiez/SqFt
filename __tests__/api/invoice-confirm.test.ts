@@ -269,9 +269,12 @@ describe("POST /api/invoice-review/[token]/confirm", () => {
     );
   });
 
-  // ── Edge: missing latest_charge ─────────────────────────────────────────────
+  // ── Edge: missing latest_charge → defer to the webhook ──────────────────────
 
-  it("falls back to pi_-prefixed chargeId when latest_charge is null", async () => {
+  it("returns pending and does NOT record when latest_charge is not yet attached", async () => {
+    // Recording under a synthetic pi_-id here would diverge from the real ch_-id
+    // the webhook later records → two Payment rows for one charge. Instead, defer:
+    // report pending and let the signature-verified webhook be the source of truth.
     mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice());
     mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
     const stripeMock = makeStripeMock({
@@ -280,10 +283,11 @@ describe("POST /api/invoice-review/[token]/confirm", () => {
     // biome-ignore lint/suspicious/noExplicitAny: mock duck-type
     mockGetStripe.mockReturnValueOnce(stripeMock as any);
 
-    await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
 
-    expect(mockRecordStripePayment).toHaveBeenCalledWith(
-      expect.objectContaining({ chargeId: `pi_${PI_ID}` })
-    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe("pending");
+    expect(mockRecordStripePayment).not.toHaveBeenCalled();
   });
 });

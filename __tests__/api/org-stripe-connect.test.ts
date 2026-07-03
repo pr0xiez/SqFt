@@ -2,7 +2,7 @@
  * Tests for GET/POST /api/org/stripe/connect.
  * Session-mocking pattern mirrors __tests__/api/org.test.ts.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
@@ -64,10 +64,18 @@ function asCrew() {
   );
 }
 
+// Onboarding URLs now resolve via getPublicBaseUrl() (shared with the send
+// pipeline), which honors PUBLIC_BASE_URL — pin it so the assertions are stable.
+const prevPublicBaseUrl = process.env.PUBLIC_BASE_URL;
 beforeEach(() => {
   vi.clearAllMocks();
   mockSetOrgConnectAccount.mockResolvedValue(undefined);
   mockSetOrgConnectStatus.mockResolvedValue(undefined);
+  process.env.PUBLIC_BASE_URL = "https://app.test";
+});
+afterEach(() => {
+  if (prevPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+  else process.env.PUBLIC_BASE_URL = prevPublicBaseUrl;
 });
 
 describe("POST /api/org/stripe/connect", () => {
@@ -118,8 +126,8 @@ describe("POST /api/org/stripe/connect", () => {
     );
     expect(mockCreateOnboardingLink).toHaveBeenCalledWith(
       "acct_123",
-      "http://localhost/settings/payments?onboarding=return",
-      "http://localhost/settings/payments?onboarding=refresh"
+      "https://app.test/settings/payments?onboarding=return",
+      "https://app.test/settings/payments?onboarding=refresh"
     );
   });
 
@@ -148,8 +156,8 @@ describe("POST /api/org/stripe/connect", () => {
     expect(mockSetOrgConnectAccount).not.toHaveBeenCalled();
     expect(mockCreateOnboardingLink).toHaveBeenCalledWith(
       "acct_existing",
-      "http://localhost/settings/payments?onboarding=return",
-      "http://localhost/settings/payments?onboarding=refresh"
+      "https://app.test/settings/payments?onboarding=return",
+      "https://app.test/settings/payments?onboarding=refresh"
     );
   });
 });

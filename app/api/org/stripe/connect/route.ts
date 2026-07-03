@@ -1,4 +1,5 @@
 import { apiRoute } from "@/lib/api/route";
+import { getPublicBaseUrl } from "@/lib/baseUrl";
 import {
   getOrgStripe,
   setOrgConnectAccount,
@@ -10,12 +11,6 @@ import {
   createOnboardingLink,
   readAccountStatus,
 } from "@/lib/stripe/connect";
-
-function baseUrl(req: Request): string {
-  return (
-    process.env.STRIPE_PUBLIC_BASE_URL ?? new URL(req.url).origin
-  ).replace(/\/$/, "");
-}
 
 // GET — current connect status for the settings page.
 export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
@@ -38,7 +33,7 @@ export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
 });
 
 // POST — create the account if needed, then return a fresh onboarding link.
-export const POST = apiRoute({ minRole: "admin" }, async ({ orgId, req }) => {
+export const POST = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
   const org = await getOrgStripe(orgId);
   let accountId = org.stripeConnectAccountId;
   if (!accountId) {
@@ -49,7 +44,7 @@ export const POST = apiRoute({ minRole: "admin" }, async ({ orgId, req }) => {
     });
     await setOrgConnectAccount(orgId, accountId, "pending");
   }
-  const base = baseUrl(req);
+  const base = getPublicBaseUrl();
   const url = await createOnboardingLink(
     accountId,
     `${base}/settings/payments?onboarding=return`,

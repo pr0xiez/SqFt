@@ -132,14 +132,10 @@ export function PublicInvoiceView({ invoice }: { invoice: PublicInvoice }) {
         </tfoot>
       </table>
 
-      {invoice.payResult === "success" ? (
-        invoice.sessionId ? (
-          <PaymentConfirm token={invoice.token} sessionId={invoice.sessionId} />
-        ) : (
-          <div className="my-6 rounded-md bg-green-50 border border-green-200 px-5 py-4 text-[14px] font-[600] text-green-800">
-            Payment received — thank you!
-          </div>
-        )
+      {invoice.payResult === "success" && invoice.sessionId ? (
+        // Only a verified session (via PaymentConfirm) may show a confirmation.
+        // `?pay=success` alone is unverified and must not render a banner.
+        <PaymentConfirm token={invoice.token} sessionId={invoice.sessionId} />
       ) : invoice.payResult === "cancelled" ? (
         <div className="my-6 rounded-md bg-[var(--surface)] border border-[var(--line)] px-5 py-4 text-[14px] text-[var(--muted)]">
           Payment cancelled.

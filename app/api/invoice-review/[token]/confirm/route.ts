@@ -42,10 +42,14 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
       } | null;
     };
     const charge = pi.latest_charge ?? null;
-    const bt = charge?.balance_transaction ?? null;
+    // Require a real charge id. Without it, this reconcile path and the webhook
+    // would key idempotency on different strings (a synthetic pi_-id here vs the
+    // real ch_-id there) and record the same charge twice. Defer to the webhook.
+    if (!charge?.id) return { status: "pending" };
+    const bt = charge.balance_transaction ?? null;
     await recordStripePayment({
       paymentIntentId: pi.id,
-      chargeId: charge?.id ?? `pi_${pi.id}`,
+      chargeId: charge.id,
       orgId: invoice.orgId,
       invoiceId: invoice.id,
       amount: round2((session.amount_total ?? 0) / 100),

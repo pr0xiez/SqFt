@@ -265,6 +265,73 @@ describe("POST /api/invoice-review/[token]/checkout", () => {
     expect(mockCreateInvoiceCheckoutSession).toHaveBeenCalled();
   });
 
+  // ── Finding #5: a once-active account later restricted by Stripe ────────────
+
+  it("translates a create failure on a stale-active account to STRIPE_ACCOUNT_RESTRICTED", async () => {
+    // Cached status is "active", so the fast path skips the live re-check — but
+    // Stripe has since restricted the account and rejects the session create.
+    // The customer must see the documented 409, not a generic 500, and the
+    // cached status must be downgraded.
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice({ amount: 200 }));
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    mockCreateInvoiceCheckoutSession.mockRejectedValueOnce(
+      new Error("account charges disabled")
+    );
+    mockReadAccountStatus.mockResolvedValueOnce("restricted");
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("STRIPE_ACCOUNT_RESTRICTED");
+    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(ORG_ID, "restricted");
+  });
+
+  it("rethrows the original error (500) when the account is still active but create fails for another reason", async () => {
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice({ amount: 200 }));
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    mockCreateInvoiceCheckoutSession.mockRejectedValueOnce(
+      new Error("stripe network blip")
+    );
+    mockReadAccountStatus.mockResolvedValueOnce("active");
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("INTERNAL");
+  });
+
+  // ── Finding #4: empty-string base URL must not produce relative Stripe URLs ─
+
+  it("builds absolute success/cancel URLs even when STRIPE_PUBLIC_BASE_URL is empty", async () => {
+    // `.env.example` ships STRIPE_PUBLIC_BASE_URL= (empty). `"" ?? origin` keeps
+    // the empty string, which yielded relative URLs Stripe rejects. The resolver
+    // must ignore it and produce an absolute URL.
+    const prev = process.env.STRIPE_PUBLIC_BASE_URL;
+    process.env.STRIPE_PUBLIC_BASE_URL = "";
+    try {
+      mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice({ amount: 200 }));
+      mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+
+      await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+      const arg = mockBuildCheckoutParams.mock.calls[0]?.[0] as {
+        successUrl: string;
+        cancelUrl: string;
+      };
+      expect(arg.successUrl).toMatch(
+        /^https?:\/\/.+\/invoice-review\/.+pay=success/
+      );
+      expect(arg.cancelUrl).toMatch(
+        /^https?:\/\/.+\/invoice-review\/.+pay=cancelled/
+      );
+    } finally {
+      if (prev === undefined) delete process.env.STRIPE_PUBLIC_BASE_URL;
+      else process.env.STRIPE_PUBLIC_BASE_URL = prev;
+    }
+  });
+
   it("uses the full invoice amount as balanceDueCents when there are no payments", async () => {
     const amount = 1250; // $1250.00 → 125000 cents
     mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice({ amount }));

@@ -94,9 +94,12 @@ describe("PublicInvoiceView", () => {
     expect(screen.getByRole("button", { name: /pay now/i })).toBeDefined();
   });
 
-  it("shows the success banner when payResult is 'success'", () => {
-    renderInvoice({ payResult: "success" });
-    expect(screen.getByText("Payment received — thank you!")).toBeDefined();
+  it("does NOT show a confirmed banner from ?pay=success alone (no verified session)", () => {
+    // `?pay=success` is attacker-controllable on this unauthenticated page.
+    // Without a session id to verify against Stripe, no "Payment received"
+    // banner may render — otherwise anyone could screenshot a fake confirmation.
+    renderInvoice({ payResult: "success", sessionId: null });
+    expect(screen.queryByText("Payment received — thank you!")).toBeNull();
   });
 
   it("shows the cancelled note when payResult is 'cancelled'", () => {

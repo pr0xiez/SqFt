@@ -81,4 +81,74 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("recordStripePayment", () => {
     expect(inv?.status).toBe("paid");
     expect(inv?.payments[0]?.stripeFeeAmount).toBe(1.43);
   });
+
+  it("records a charge on a voided invoice, keeps it void, and flags it for refund", async () => {
+    const { orgId, invoiceId, amount } = await seedSentInvoice();
+    seededOrgIds.push(orgId);
+    // Customer opened Checkout; contractor voids before they pay; the card is
+    // still charged. The money must be recorded — but the invoice stays void.
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "void", voidedAt: new Date() },
+    });
+
+    const ts = `${Date.now()}-${Math.round(performance.now())}`;
+    const result = await recordStripePayment({
+      paymentIntentId: `pi_${ts}`,
+      chargeId: `ch_${ts}`,
+      orgId,
+      invoiceId,
+      amount,
+      feeAmount: 1.43,
+      netAmount: amount - 1.43,
+    });
+
+    expect(result.recorded).toBe(true);
+    const inv = await getInvoice(invoiceId, orgId);
+    expect(inv?.payments).toHaveLength(1); // money is not dropped
+    expect(inv?.status).toBe("void"); // never resurrected
+    const events = await prisma.invoiceEvent.findMany({ where: { invoiceId } });
+    const flagged = events.find(
+      (e) => (e.metadata as { refundNeeded?: boolean })?.refundNeeded
+    );
+    expect(flagged).toBeDefined();
+    expect((flagged?.metadata as { refundReason?: string })?.refundReason).toBe(
+      "invoice_void"
+    );
+  });
+
+  it("records an overpayment charge and flags it for refund", async () => {
+    const { orgId, invoiceId, amount } = await seedSentInvoice();
+    seededOrgIds.push(orgId);
+    // A manual payment already covered the balance and marked it paid.
+    await prisma.payment.create({
+      data: { invoiceId, amount, method: "check", recordedByName: "Office" },
+    });
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: { status: "paid", paidAt: new Date() },
+    });
+
+    const ts = `${Date.now()}-${Math.round(performance.now())}`;
+    const result = await recordStripePayment({
+      paymentIntentId: `pi_${ts}`,
+      chargeId: `ch_${ts}`,
+      orgId,
+      invoiceId,
+      amount, // a second full payment → overpaid
+      feeAmount: 1.43,
+      netAmount: amount - 1.43,
+    });
+
+    expect(result.recorded).toBe(true);
+    const inv = await getInvoice(invoiceId, orgId);
+    expect(inv?.payments).toHaveLength(2);
+    const events = await prisma.invoiceEvent.findMany({ where: { invoiceId } });
+    const flagged = events.find(
+      (e) =>
+        (e.metadata as { refundReason?: string })?.refundReason ===
+        "overpayment"
+    );
+    expect(flagged).toBeDefined();
+  });
 });
