@@ -68,18 +68,45 @@ test.describe
       await ctx.close();
     });
 
-    test("shows ?pay=success banner on the public page", async ({
+    test("shows the success banner only after the session is verified as paid", async ({
       browser,
     }) => {
       const anonCtx = await browser.newContext();
       const page = await anonCtx.newPage();
-      await page.goto(`/invoice-review/${token}?pay=success`);
-      await expect(page).toHaveURL(
-        new RegExp(`/invoice-review/${token}\\?pay=success`)
+      // The banner renders only after the confirm endpoint verifies the session
+      // (no real Stripe in E2E, so stub it to report paid — mirrors the checkout
+      // stub in the Pay-now test below).
+      await page.route(`**/api/invoice-review/${token}/confirm`, (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ status: "paid" }),
+        })
+      );
+      await page.goto(
+        `/invoice-review/${token}?pay=success&session_id=cs_test_stub`
       );
       await expect(
         page.getByText("Payment received", { exact: false })
       ).toBeVisible();
+      await anonCtx.close();
+    });
+
+    test("does NOT show a success banner from ?pay=success without a verified session", async ({
+      browser,
+    }) => {
+      // `?pay=success` is attacker-controllable on this unauthenticated page.
+      // With no session id to verify, no "Payment received" confirmation may
+      // render — otherwise anyone could screenshot a fake receipt.
+      const anonCtx = await browser.newContext();
+      const page = await anonCtx.newPage();
+      await page.goto(`/invoice-review/${token}?pay=success`);
+      // The invoice page rendered (anchor on stable content)…
+      await expect(page.getByText("Balance due")).toBeVisible();
+      // …but no confirmation banner.
+      await expect(
+        page.getByText("Payment received", { exact: false })
+      ).toHaveCount(0);
       await anonCtx.close();
     });
 
