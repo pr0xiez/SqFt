@@ -144,11 +144,6 @@ test.describe
         })
       );
 
-      // Capture the navigation triggered by window.location.assign.
-      const navPromise = page.waitForRequest((req) => req.url() === STUB_URL, {
-        timeout: 5000,
-      });
-
       await page.goto(`/invoice-review/${token}`);
 
       const payBtn = page.getByRole("button", { name: /pay now/i });
@@ -166,6 +161,13 @@ test.describe
         );
       }
 
+      // Set up the navigation wait only now that we know we'll click. Creating
+      // it before the skip check above left a pending waitForRequest that
+      // rejected with "Target page has been closed" when the skip path closed
+      // the context — which failed this test whenever the org lacked Stripe.
+      const navPromise = page.waitForRequest((req) => req.url() === STUB_URL, {
+        timeout: 5000,
+      });
       await payBtn.click();
       await navPromise;
 
