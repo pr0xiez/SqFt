@@ -35,8 +35,11 @@ test.describe("admin org member management", () => {
     await form.getByLabel(/temporary password/i).fill(`pw-${suffix}-A1`);
     await form.getByRole("button", { name: /^add user$/i }).click();
 
-    // Credential reveal shows the new email; then it appears in the member list.
-    await expect(page.getByText(newEmail)).toBeVisible();
+    // Credential reveal shows the new email (scope to the reveal block, since
+    // the new member row also renders the email at the same time).
+    const reveal = page.getByText(/hand these off out-of-band/i).locator("..");
+    await expect(reveal.getByText(newEmail)).toBeVisible();
+    // After dismissing the reveal, the email remains in the member list.
     await page.getByRole("button", { name: /done/i }).click();
     await expect(page.getByText(newEmail)).toBeVisible();
 
