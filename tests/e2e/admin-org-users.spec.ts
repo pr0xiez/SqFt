@@ -69,4 +69,39 @@ test.describe("admin org member management", () => {
     await expect(page.getByRole("link", { name: /^Admin$/ })).toHaveCount(0);
     await ctx.close();
   });
+
+  test("non-super-admin is blocked from admin pages via direct URL", async ({
+    browser,
+  }) => {
+    // Hiding the nav link isn't access control: a normal org admin who types the
+    // URL directly must hit the layout's ForbiddenPanel, and the page body must
+    // render no operator/cross-org data.
+    const org = await createOrg(browser, "guard");
+    const ctx = await browser.newContext();
+    const page = await loginViaForm(ctx, org.adminEmail, org.adminPassword);
+
+    // Dashboard: forbidden, and its own "Admin" <h1> / org+user stats never render.
+    await page.goto("/admin");
+    await expect(
+      page.getByRole("heading", { name: /super-admin only/i })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Admin", exact: true })
+    ).toHaveCount(0);
+    await expect(page.getByText("Organizations", { exact: true })).toHaveCount(
+      0
+    );
+
+    // Org detail: forbidden, and the target org's member list never renders
+    // (the org-name heading is the tell — it's only emitted by the detail view).
+    await page.goto(`/admin/orgs/${org.orgId}`);
+    await expect(
+      page.getByRole("heading", { name: /super-admin only/i })
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: org.orgName })).toHaveCount(
+      0
+    );
+
+    await ctx.close();
+  });
 });
