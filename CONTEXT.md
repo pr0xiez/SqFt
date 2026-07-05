@@ -29,8 +29,11 @@ sourced from active users. `User.archived` **deactivates** a person: they can't
 log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
 Events link assigned users via the `Event.assignees` relation
 (`eventRepo` `assigneeIds: string[]`). People are managed on the admin
-**Members** page (`/settings/members`) — the single people-management surface
-(role, title, archive/restore); there is no separate crew roster.
+**Members** page (`/settings/members`) — role, title, archive/restore — for
+the caller's **own** org; there is no separate crew roster. A **super-admin**
+manages **any** org's members the same way from `/admin/orgs/[orgId]`, via the
+same `userRepo` functions with the target org taken from the URL instead of
+the caller's session.
 
 The editable **Schedule Manager** grid (`/schedule`, **lead+ only** — crew is
 redirected to `/my-schedule`) and the read-only, mobile-first **My Schedule**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ADMIN_ITEM,
   BOTTOM_BAR_SHORTCUTS,
   isItemActive,
   isMoreActive,
@@ -88,5 +89,13 @@ describe("isMoreActive", () => {
     expect(isMoreActive("/site-measures")).toBe(true);
     expect(isMoreActive("/schedule")).toBe(true);
     expect(isMoreActive("/settings")).toBe(true);
+  });
+});
+
+describe("ADMIN_ITEM", () => {
+  it("points at /admin with the admin icon", () => {
+    expect(ADMIN_ITEM.href).toBe("/admin");
+    expect(ADMIN_ITEM.label).toBe("Admin");
+    expect(ADMIN_ITEM.icon).toBe("admin");
   });
 });

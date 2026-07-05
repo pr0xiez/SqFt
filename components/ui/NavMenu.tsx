@@ -4,6 +4,7 @@ import Link from "next/link";
 import { NavIcon } from "@/components/ui/nav-icons";
 import { cn } from "@/lib/cn";
 import {
+  ADMIN_ITEM,
   canSeeSettings,
   isItemActive,
   type NavItem,
@@ -15,10 +16,12 @@ export function NavMenu({
   role,
   pathname,
   onNavigate,
+  isSuperAdmin = false,
 }: {
   role: string;
   pathname: string;
   onNavigate?: () => void;
+  isSuperAdmin?: boolean;
 }) {
   const groups = navGroupsFor(role);
 
@@ -55,9 +58,10 @@ export function NavMenu({
           ))}
         </div>
       ))}
-      {canSeeSettings(role) && (
+      {(canSeeSettings(role) || isSuperAdmin) && (
         <div className="mt-2 pt-2 border-t border-[var(--line)]">
-          <Row item={SETTINGS_ITEM} />
+          {canSeeSettings(role) && <Row item={SETTINGS_ITEM} />}
+          {isSuperAdmin && <Row item={ADMIN_ITEM} />}
         </div>
       )}
     </nav>

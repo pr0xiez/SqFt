@@ -44,4 +44,19 @@ describe("NavMenu", () => {
     fireEvent.click(screen.getByRole("link", { name: /Customers/ }));
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
+
+  it("hides Admin from a non-super-admin", () => {
+    // biome-ignore lint/a11y/useValidAriaRole: role is a custom prop on NavMenu, not an HTML aria role
+    render(<NavMenu role="admin" pathname="/" />);
+    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+  });
+
+  it("shows Admin to a super-admin", () => {
+    // biome-ignore lint/a11y/useValidAriaRole: role is a custom prop on NavMenu, not an HTML aria role
+    render(<NavMenu role="admin" pathname="/" isSuperAdmin />);
+    expect(screen.getByRole("link", { name: /Admin/ })).toHaveAttribute(
+      "href",
+      "/admin"
+    );
+  });
 });
