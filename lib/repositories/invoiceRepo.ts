@@ -519,6 +519,45 @@ export async function recordPayment(
   });
 }
 
+/**
+ * Audit-trail a failed async (bank-debit) Stripe payment. No ledger row is
+ * written — no money moved, and the unpaid-gated webhook never recorded the
+ * session — so this only leaves a `payment_failed` event on the invoice.
+ * Org-scoped: a forged invoiceId outside the account's org is a no-op.
+ */
+export async function recordStripePaymentFailure(input: {
+  orgId: string;
+  invoiceId: number;
+  amount: number;
+  paymentIntentId: string | null;
+}): Promise<void> {
+  const inv = await prisma.invoice.findFirst({
+    where: { id: input.invoiceId, orgId: input.orgId },
+    select: { id: true },
+  });
+  if (!inv) return;
+  await prisma.invoiceEvent.create({
+    data: {
+      invoiceId: input.invoiceId,
+      type: "payment_failed",
+      source: "customer",
+      actorName: "Stripe",
+      metadata: {
+        amount: input.amount,
+        method: "stripe",
+        ...(input.paymentIntentId
+          ? { paymentIntentId: input.paymentIntentId }
+          : {}),
+      },
+    },
+  });
+  logError({
+    path: "lib/repositories/invoiceRepo#recordStripePaymentFailure",
+    orgId: input.orgId,
+    errorMessage: `Stripe bank payment failed on invoice ${input.invoiceId} (${input.amount})`,
+  });
+}
+
 export interface RecordStripePaymentInput {
   paymentIntentId: string;
   chargeId: string;

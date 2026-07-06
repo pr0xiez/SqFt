@@ -216,7 +216,19 @@ attacker-controllable `metadata.orgId`, so one connected account can't mark
 another org's invoice paid; (2) both paths key idempotency on the **real charge
 id (`ch_…`)** and *defer* (webhook throws to retry, confirm returns `pending`)
 when it isn't attached yet, rather than synthesizing a divergent `pi_…` id that
-would double-record; (3) a captured charge is **never silently dropped** —
+would double-record; (2b) **money is only recorded when it exists**: card
+payments settle synchronously, but ACH bank debits (capability requested at
+account creation alongside cards) complete Checkout *before* settling, so the
+webhook records `checkout.session.completed` only when `payment_status ===
+"paid"` — an unpaid completion is skipped and settlement lands days later via
+`checkout.session.async_payment_succeeded` / `payment_intent.succeeded`
+(register all three, plus `checkout.session.async_payment_failed`, on a
+**Connected-accounts-scoped** webhook endpoint). A bounced debit fires
+`async_payment_failed` → `recordStripePaymentFailure` (org-scoped) leaves a
+`payment_failed` `InvoiceEvent` + `logError`, no ledger row. Meanwhile the
+confirm endpoint returns `processing` for a complete-but-unpaid session and
+`PaymentConfirm` shows bank-processing copy, never a false confirmation;
+(3) a captured charge is **never silently dropped** —
 `classifyStripeCharge` (single source of truth, `lib/repositories/invoiceRepo.ts`)
 records it even when the invoice was voided after checkout (`orphaned`) or already
 covered (`overpaid`), flagging the anomaly with a `refundNeeded` `InvoiceEvent`

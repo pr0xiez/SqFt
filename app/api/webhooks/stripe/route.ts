@@ -2,7 +2,10 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { recordStripePayment } from "@/lib/repositories/invoiceRepo";
+import {
+  recordStripePayment,
+  recordStripePaymentFailure,
+} from "@/lib/repositories/invoiceRepo";
 import { getOrgIdByConnectAccount } from "@/lib/repositories/orgRepo";
 import { getStripe } from "@/lib/stripe/client";
 import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
@@ -40,6 +43,7 @@ export async function POST(req: Request) {
         return orgId;
       },
       record: (input) => recordStripePayment(input),
+      recordFailure: (input) => recordStripePaymentFailure(input),
       retrieveCharge: async (accountId, paymentIntentId) => {
         const stripe = getStripe();
         const pi = await stripe.paymentIntents.retrieve(

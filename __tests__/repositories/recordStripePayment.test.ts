@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getInvoice,
   recordStripePayment,
+  recordStripePaymentFailure,
 } from "@/lib/repositories/invoiceRepo";
 
 // Seeds a minimal org→customer→location→siteMeasure→estimate→sent-invoice chain.
@@ -152,3 +153,45 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("recordStripePayment", () => {
     expect(flagged).toBeDefined();
   });
 });
+
+describe.skipIf(!process.env.VITEST_DB_AVAILABLE)(
+  "recordStripePaymentFailure",
+  () => {
+    // Own cleanup: the first describe's afterAll runs before this suite does.
+    const localOrgIds: string[] = [];
+    afterAll(async () => {
+      for (const id of localOrgIds) {
+        await prisma.organization.delete({ where: { id } }).catch(() => {});
+      }
+    });
+
+    it("writes a payment_failed event, no Payment row, and never resolves cross-org ids", async () => {
+      const { orgId, invoiceId, amount } = await seedSentInvoice();
+      localOrgIds.push(orgId);
+
+      const ts = `${Date.now()}-${Math.round(performance.now())}`;
+      await recordStripePaymentFailure({
+        orgId,
+        invoiceId,
+        amount,
+        paymentIntentId: `pi_${ts}`,
+      });
+      // Cross-org guard: a forged invoiceId under a different org is a no-op.
+      await recordStripePaymentFailure({
+        orgId: "some-other-org",
+        invoiceId,
+        amount,
+        paymentIntentId: `pi_${ts}-forged`,
+      });
+
+      const inv = await getInvoice(invoiceId, orgId);
+      expect(inv?.payments).toHaveLength(0); // no money moved, no ledger row
+      expect(inv?.status).toBe("sent"); // unchanged
+      const events = await prisma.invoiceEvent.findMany({
+        where: { invoiceId, type: "payment_failed" },
+      });
+      expect(events).toHaveLength(1); // the forged call wrote nothing
+      expect((events[0]?.metadata as { amount?: number })?.amount).toBe(amount);
+    });
+  }
+);

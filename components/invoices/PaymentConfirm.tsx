@@ -7,7 +7,7 @@ interface Props {
   sessionId: string;
 }
 
-type ConfirmState = "checking" | "paid" | "pending";
+type ConfirmState = "checking" | "paid" | "processing" | "pending";
 
 /**
  * Belt-and-suspenders reconcile: fires once on mount, POSTing the Checkout
@@ -35,7 +35,13 @@ export function PaymentConfirm({ token, sessionId }: Props) {
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { status?: string } | null) => {
-        setState(data?.status === "paid" ? "paid" : "pending");
+        setState(
+          data?.status === "paid"
+            ? "paid"
+            : data?.status === "processing"
+              ? "processing"
+              : "pending"
+        );
       })
       .catch(() => setState("pending"));
   }, [token, sessionId]);
@@ -44,6 +50,17 @@ export function PaymentConfirm({ token, sessionId }: Props) {
     return (
       <div className="my-6 rounded-md bg-green-50 border border-green-200 px-5 py-4 text-[14px] font-[600] text-green-800">
         Payment received — thank you!
+      </div>
+    );
+  }
+
+  if (state === "processing") {
+    // Async bank debit in flight — server-verified the session is complete but
+    // unsettled. Honest copy: not a confirmation, not an error.
+    return (
+      <div className="my-6 rounded-md bg-blue-50 border border-blue-200 px-5 py-4 text-[14px] text-blue-800">
+        Your bank payment is processing — this can take a few business days. The
+        invoice will show as paid once it clears.
       </div>
     );
   }

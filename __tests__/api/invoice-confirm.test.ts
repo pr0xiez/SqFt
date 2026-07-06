@@ -84,6 +84,7 @@ const activeOrg = {
 /** Build a mock Stripe client with a controllable checkout session retrieve. */
 function makeStripeMock(
   sessionOverrides: Partial<{
+    status: string;
     payment_status: string;
     amount_total: number;
     payment_intent: unknown;
@@ -212,6 +213,28 @@ describe("POST /api/invoice-review/[token]/confirm", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { status: string };
     expect(body.status).toBe("pending");
+    expect(mockRecordStripePayment).not.toHaveBeenCalled();
+  });
+
+  // ── Processing: async bank debit in flight ──────────────────────────────────
+
+  it("returns { status: 'processing' } for a complete-but-unpaid session (ACH in flight)", async () => {
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice());
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    // Customer finished Checkout with a bank debit: session complete, funds not
+    // settled. Must NOT record — settlement lands later via the webhook.
+    const processingMock = makeStripeMock({
+      status: "complete",
+      payment_status: "unpaid",
+    });
+    // biome-ignore lint/suspicious/noExplicitAny: mock duck-type
+    mockGetStripe.mockReturnValueOnce(processingMock as any);
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe("processing");
     expect(mockRecordStripePayment).not.toHaveBeenCalled();
   });
 

@@ -22,6 +22,13 @@ export interface WebhookDeps {
     feeAmount: number | null;
     netAmount: number | null;
   }): Promise<{ recorded: boolean }>;
+  /** Log a failed async (bank-debit) payment on the invoice's event trail. */
+  recordFailure(input: {
+    orgId: string;
+    invoiceId: number;
+    amount: number;
+    paymentIntentId: string | null;
+  }): Promise<void>;
   /** Fetch the charge + balance-transaction fee/net for a payment intent (on the connected account). */
   retrieveCharge(
     accountId: string,
@@ -47,6 +54,15 @@ export function constructStripeEvent(
   }
 }
 
+/** Session events that can carry money. completed fires for every finished
+ * Checkout — including async bank debits whose funds haven't settled — so it
+ * must be gated on payment_status. async_payment_succeeded is the settlement
+ * signal for those (payment_intent.succeeded also covers it as a backstop). */
+const PAYING_SESSION_EVENTS = new Set<string>([
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded",
+]);
+
 export async function handleStripeEvent(
   event: Stripe.Event,
   deps: WebhookDeps
@@ -54,8 +70,9 @@ export async function handleStripeEvent(
   if (await deps.isProcessed(event.id)) return;
 
   if (
-    event.type === "checkout.session.completed" ||
-    event.type === "payment_intent.succeeded"
+    PAYING_SESSION_EVENTS.has(event.type) ||
+    event.type === "payment_intent.succeeded" ||
+    event.type === "checkout.session.async_payment_failed"
   ) {
     const accountId = (event as { account?: string }).account ?? "";
     const obj = event.data.object as unknown as Record<string, unknown>;
@@ -78,7 +95,37 @@ export async function handleStripeEvent(
           ? (obj.amount as number)
           : 0;
 
-    if (paymentIntentId && invoiceId && orgId && amountTotal > 0) {
+    if (event.type === "checkout.session.async_payment_failed") {
+      // A bank debit bounced. No money moved and nothing was recorded (the
+      // completed event was unpaid-gated below), so there is no ledger row to
+      // touch — just leave an audit trail on the invoice.
+      if (invoiceId && orgId) {
+        await deps.recordFailure({
+          orgId,
+          invoiceId,
+          amount: round2(amountTotal / 100),
+          paymentIntentId: paymentIntentId || null,
+        });
+      }
+      await deps.markProcessed(event.id, event.type);
+      return;
+    }
+
+    // A completed session is only money in hand when payment_status is "paid".
+    // Async methods (ACH debit) complete "unpaid" and settle days later via
+    // async_payment_succeeded / payment_intent.succeeded — recording them here
+    // would mark the invoice paid before the funds exist.
+    const sessionPaid =
+      event.type === "payment_intent.succeeded" ||
+      obj.payment_status === "paid";
+
+    if (
+      sessionPaid &&
+      paymentIntentId &&
+      invoiceId &&
+      orgId &&
+      amountTotal > 0
+    ) {
       const charge = await deps.retrieveCharge(accountId, paymentIntentId);
       // Require a real charge id. Both the webhook and the reconcile-on-return
       // path key idempotency on it; a synthetic fallback would let the two paths

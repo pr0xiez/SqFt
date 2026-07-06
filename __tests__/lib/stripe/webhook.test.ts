@@ -3,10 +3,12 @@ import { handleStripeEvent } from "@/lib/stripe/webhook";
 
 function deps() {
   const record = vi.fn().mockResolvedValue({ recorded: true });
+  const recordFailure = vi.fn().mockResolvedValue(undefined);
   const seen = new Set<string>();
   const markProcessed = vi.fn(async (id: string) => void seen.add(id));
   return {
     record,
+    recordFailure,
     markProcessed,
     isProcessed: async (id: string) => seen.has(id),
     // Authoritative org resolved from the signed event.account.
@@ -25,6 +27,7 @@ function recordableEvent(overrides: Record<string, unknown> = {}) {
     data: {
       object: {
         payment_intent: "pi_1",
+        payment_status: "paid",
         metadata: { invoiceId: "77", orgId: "org_1" },
         amount_total: 45000,
       },
@@ -79,6 +82,7 @@ describe("handleStripeEvent", () => {
         data: {
           object: {
             payment_intent: "pi_x",
+            payment_status: "paid",
             metadata: { invoiceId: "77", orgId: "victim_org" },
             amount_total: 45000,
           },
@@ -98,6 +102,102 @@ describe("handleStripeEvent", () => {
     await handleStripeEvent(recordableEvent({ account: "acct_unknown" }), d);
     expect(d.record).not.toHaveBeenCalled();
     // Still terminal — a phantom account will never resolve, so don't retry-loop.
+    expect(d.markProcessed).toHaveBeenCalled();
+  });
+
+  // ── Async (bank-debit) payment lifecycle ────────────────────────────────────
+
+  it("does NOT record an unpaid completed session (async debit in flight)", async () => {
+    // ACH: checkout.session.completed fires with payment_status "unpaid" days
+    // before funds settle. Recording it would mark the invoice paid on money
+    // that doesn't exist yet (and might bounce).
+    const d = deps();
+    await handleStripeEvent(
+      recordableEvent({
+        data: {
+          object: {
+            payment_intent: "pi_1",
+            payment_status: "unpaid",
+            metadata: { invoiceId: "77", orgId: "org_1" },
+            amount_total: 45000,
+          },
+        },
+      }),
+      d
+    );
+    expect(d.record).not.toHaveBeenCalled();
+    // Terminal for THIS event — settlement arrives as a different event id.
+    expect(d.markProcessed).toHaveBeenCalled();
+  });
+
+  it("records settlement via checkout.session.async_payment_succeeded", async () => {
+    const d = deps();
+    await handleStripeEvent(
+      recordableEvent({ type: "checkout.session.async_payment_succeeded" }),
+      d
+    );
+    expect(d.record).toHaveBeenCalledWith(
+      expect.objectContaining({ invoiceId: 77, orgId: "org_1", amount: 450 })
+    );
+  });
+
+  it("records a payment_intent.succeeded (no payment_status field on a PI)", async () => {
+    const d = deps();
+    await handleStripeEvent(
+      recordableEvent({
+        type: "payment_intent.succeeded",
+        data: {
+          object: {
+            id: "pi_1",
+            metadata: { invoiceId: "77" },
+            amount: 45000,
+          },
+        },
+      }),
+      d
+    );
+    expect(d.record).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentIntentId: "pi_1", amount: 450 })
+    );
+  });
+
+  it("audit-trails async_payment_failed without touching the ledger", async () => {
+    const d = deps();
+    await handleStripeEvent(
+      recordableEvent({
+        type: "checkout.session.async_payment_failed",
+        data: {
+          object: {
+            payment_intent: "pi_1",
+            payment_status: "unpaid",
+            metadata: { invoiceId: "77", orgId: "org_1" },
+            amount_total: 45000,
+          },
+        },
+      }),
+      d
+    );
+    expect(d.record).not.toHaveBeenCalled();
+    expect(d.recordFailure).toHaveBeenCalledWith({
+      orgId: "org_1",
+      invoiceId: 77,
+      amount: 450,
+      paymentIntentId: "pi_1",
+    });
+    expect(d.markProcessed).toHaveBeenCalled();
+  });
+
+  it("skips async_payment_failed when event.account resolves to no org", async () => {
+    const d = deps();
+    d.orgIdForAccount = vi.fn().mockResolvedValue(null);
+    await handleStripeEvent(
+      recordableEvent({
+        type: "checkout.session.async_payment_failed",
+        account: "acct_unknown",
+      }),
+      d
+    );
+    expect(d.recordFailure).not.toHaveBeenCalled();
     expect(d.markProcessed).toHaveBeenCalled();
   });
 

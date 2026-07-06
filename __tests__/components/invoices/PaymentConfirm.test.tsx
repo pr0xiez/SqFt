@@ -44,6 +44,22 @@ describe("PaymentConfirm", () => {
     expect(screen.queryByText(CONFIRMED)).toBeNull();
   });
 
+  it("shows bank-processing copy — not the confirmed banner — for a processing payment", async () => {
+    // Async bank debit: session complete, funds unsettled. The customer gets
+    // honest "processing" copy; "paid" waits for settlement via the webhook.
+    stubFetch(async () => ({
+      ok: true,
+      json: async () => ({ status: "processing" }),
+    }));
+
+    render(<PaymentConfirm token="tok123" sessionId="cs_1" />);
+
+    expect(
+      await screen.findByText(/bank payment is processing/i)
+    ).toBeDefined();
+    expect(screen.queryByText(CONFIRMED)).toBeNull();
+  });
+
   it("does not confirm when the session can't be verified (spoofed session id)", async () => {
     // The confirm endpoint returns 404 for a bogus/mismatched session. A failed
     // verification must never render the confirmed banner.

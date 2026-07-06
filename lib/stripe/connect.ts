@@ -11,8 +11,10 @@ export function mapCapabilityStatus(raw: string | undefined): ConnectStatus {
 
 /**
  * Create an Accounts-v2 connected account for direct charges:
- * full dashboard, merchant card_payments capability, Stripe as fees + losses
- * collector. Returns the new account id (acct_…).
+ * full dashboard, merchant card_payments + ach_debit_payments capabilities,
+ * Stripe as fees + losses collector. Returns the new account id (acct_…).
+ * ACH settles asynchronously — the webhook only records checkout sessions
+ * whose payment_status is "paid" (see lib/stripe/webhook.ts).
  */
 export async function createConnectedAccount(input: {
   orgId: string;
@@ -35,7 +37,10 @@ export async function createConnectedAccount(input: {
     },
     configuration: {
       merchant: {
-        capabilities: { card_payments: { requested: true } },
+        capabilities: {
+          card_payments: { requested: true },
+          ach_debit_payments: { requested: true },
+        },
       },
     },
     metadata: { sqftOrgId: input.orgId },

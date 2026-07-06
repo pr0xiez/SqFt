@@ -32,7 +32,15 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
     if (session.metadata?.invoiceId !== String(invoice.id)) {
       throw new NotFoundError();
     }
-    if (session.payment_status !== "paid") return { status: "pending" };
+    if (session.payment_status !== "paid") {
+      // A complete-but-unpaid session is an async bank debit in flight: the
+      // customer finished Checkout but settlement takes days. Distinguish it
+      // so the UI can show honest "processing" copy; the invoice is recorded
+      // later by the async_payment_succeeded / payment_intent.succeeded webhook.
+      return {
+        status: session.status === "complete" ? "processing" : "pending",
+      };
+    }
 
     const pi = session.payment_intent as {
       id: string;
