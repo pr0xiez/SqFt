@@ -23,6 +23,9 @@ export async function createConnectedAccount(input: {
   const account = await stripe.v2.core.accounts.create({
     display_name: input.name,
     contact_email: input.email ?? undefined,
+    // Stripe requires identity.country before configuration.merchant can be
+    // set; SqFt orgs are US contractors (Checkout is usd-only).
+    identity: { country: "us" },
     dashboard: "full",
     defaults: {
       responsibilities: {
