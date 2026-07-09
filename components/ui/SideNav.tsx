@@ -11,6 +11,7 @@ import { hasMinRole } from "@/lib/auth/permissions";
 import { cn } from "@/lib/cn";
 import { useSidebarCollapsed } from "@/lib/hooks/useSidebarCollapsed";
 import {
+  ADMIN_ITEM,
   canSeeSettings,
   isItemActive,
   navGroupsFor,
@@ -22,6 +23,7 @@ export function SideNav() {
   const { data: session } = useSession();
   const { collapsed, toggle } = useSidebarCollapsed(session?.user?.id);
   const role = session?.user?.role ?? "crew";
+  const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
   const canQuickCreate = hasMinRole(role, "lead");
 
   return (
@@ -67,9 +69,17 @@ export function SideNav() {
 
       <div className="flex-1 overflow-y-auto px-2">
         {collapsed ? (
-          <IconRail role={role} pathname={pathname} />
+          <IconRail
+            role={role}
+            pathname={pathname}
+            isSuperAdmin={isSuperAdmin}
+          />
         ) : (
-          <NavMenu role={role} pathname={pathname} />
+          <NavMenu
+            role={role}
+            pathname={pathname}
+            isSuperAdmin={isSuperAdmin}
+          />
         )}
       </div>
 
@@ -82,9 +92,18 @@ export function SideNav() {
   );
 }
 
-function IconRail({ role, pathname }: { role: string; pathname: string }) {
+function IconRail({
+  role,
+  pathname,
+  isSuperAdmin,
+}: {
+  role: string;
+  pathname: string;
+  isSuperAdmin: boolean;
+}) {
   const items = navGroupsFor(role).flatMap((g) => g.items);
   if (canSeeSettings(role)) items.push(SETTINGS_ITEM);
+  if (isSuperAdmin) items.push(ADMIN_ITEM);
   return (
     <nav
       aria-label="Main navigation"

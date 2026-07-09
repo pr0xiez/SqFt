@@ -15,7 +15,13 @@ function renderDrawer(onClose: () => void = () => {}) {
   return render(
     <QuickCreateProvider>
       {/* biome-ignore lint/a11y/useValidAriaRole: role is a custom prop on NavDrawer, not an HTML aria role */}
-      <NavDrawer open onClose={onClose} role="lead" pathname="/estimates" />
+      <NavDrawer
+        open
+        onClose={onClose}
+        role="lead"
+        pathname="/estimates"
+        isSuperAdmin={false}
+      />
     </QuickCreateProvider>
   );
 }

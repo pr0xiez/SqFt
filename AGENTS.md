@@ -30,11 +30,18 @@ with the file that owns it.
   The org-wide **Invoices** list (`app/(app)/invoices`,
   `components/invoices/InvoiceList`) defaults to the "All" filter, with an
   "Open" pill (sent + viewed + partial) second, and is lead+ only.
-  Auth is `app/(auth)/login`, admin is `app/(admin)/admin`. Public
-  customer-facing pages are `app/estimate-review/[token]` and
-  `app/invoice-review/[token]`. **People are Users** (no crew roster): managed
-  on the admin **Members** page (`/settings/members`) — role, job title,
-  archive/restore — and assigned to schedule Events via `Event.assignees`.
+  Auth is `app/(auth)/login`. Public customer-facing pages are
+  `app/estimate-review/[token]` and `app/invoice-review/[token]`. **People are
+  Users** (no crew roster): managed on the admin **Members** page
+  (`/settings/members`) — role, job title, archive/restore — and assigned to
+  schedule Events via `Event.assignees`.
+- `app/(admin)/admin` — the **super-admin console** (gated by
+  `SUPER_ADMIN_EMAILS`, see `lib/auth/superAdmin.ts`): a minimal `/admin`
+  dashboard (org/user counts + a link), an `/admin/orgs` list (+create-org
+  form), and an `/admin/orgs/[orgId]` detail page with **full member
+  management** — add user, change role, archive/restore — via
+  `/api/admin/orgs/[orgId]/users[/[userId]]`, all gated by
+  `apiRoute({ superAdmin: true })`.
 - **Navigation** is defined once in `lib/nav/items.ts` (grouped destinations,
   role-gating via `navGroupsFor`, the mobile bottom-bar shortcuts, and the
   `isItemActive`/`isMoreActive` helpers) and rendered by
@@ -44,7 +51,9 @@ with the file that owns it.
   `SideNav` and `NavDrawer` share `NavMenu` + `AccountBlock`; icons live in
   `nav-icons.tsx` keyed by `IconId`. (The old `MobileSessionSheet` is gone.)
   Both also host the lead+ **"+ New" quick-create launcher** (`NewMenu`); see
-  *Quick Create* in `CONTEXT.md`.
+  *Quick Create* in `CONTEXT.md`. The super-admin-only **`ADMIN_ITEM`** link to
+  `/admin` is rendered by `NavMenu`/`SideNav`/`NavDrawer` when
+  `session.user.isSuperAdmin` is true.
 - `app/api/` — route handlers, one folder per resource. They wrap `apiRoute`
   (`lib/api/route.ts`) and return the `{ error: { code, … } }` envelope defined
   in `lib/api/errors.ts` (`ApiError`, `readApiError`).
@@ -132,6 +141,9 @@ with the file that owns it.
   This invariant holds by construction via the dev/prod DB split — test keys
   in dev, live keys in production. An org onboarded in production must
   re-onboard in any test environment (or seed a fresh test-mode account).
+- **Super-admin routes (`/api/admin/orgs/[orgId]/...`) take the target org
+  from the URL param, not the caller's session org** — the `orgId` on the
+  gated session belongs to the operator, not the org being managed.
 
 ## Keeping these docs current
 

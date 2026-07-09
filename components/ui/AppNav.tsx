@@ -14,6 +14,7 @@ export function AppNav() {
   const { data: session } = useSession();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const role = session?.user?.role ?? "crew";
+  const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
   const isCrew = role === "crew";
 
   return (
@@ -59,6 +60,7 @@ export function AppNav() {
         onClose={() => setDrawerOpen(false)}
         role={role}
         pathname={pathname}
+        isSuperAdmin={isSuperAdmin}
       />
     </>
   );

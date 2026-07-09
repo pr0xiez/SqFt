@@ -12,11 +12,13 @@ export function NavDrawer({
   onClose,
   role,
   pathname,
+  isSuperAdmin,
 }: {
   open: boolean;
   onClose: () => void;
   role: string;
   pathname: string;
+  isSuperAdmin: boolean;
 }) {
   const { open: openQuickCreate } = useQuickCreate();
   const canQuickCreate = hasMinRole(role, "lead");
@@ -93,7 +95,12 @@ export function NavDrawer({
               </div>
             </div>
           )}
-          <NavMenu role={role} pathname={pathname} onNavigate={onClose} />
+          <NavMenu
+            role={role}
+            pathname={pathname}
+            onNavigate={onClose}
+            isSuperAdmin={isSuperAdmin}
+          />
         </div>
         <div
           className="shrink-0 p-4 border-t border-[var(--line)]"

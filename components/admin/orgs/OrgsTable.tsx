@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { AdminOrgRow, SubscriptionStatus } from "./types";
 
 const STATUS_STYLES: Record<SubscriptionStatus, string> = {
@@ -45,7 +46,12 @@ export function OrgsTable({ rows }: { rows: AdminOrgRow[] }) {
             className="grid grid-cols-[1.5fr_120px_160px_140px_80px] gap-3 px-4 py-3 text-[13px] items-center border-b border-[var(--line)] last:border-b-0"
           >
             <div>
-              <div className="font-[500]">{row.name}</div>
+              <Link
+                href={`/admin/orgs/${row.id}`}
+                className="font-[500] text-[var(--ink)] hover:text-[var(--accent)] underline-offset-2 hover:underline"
+              >
+                {row.name}
+              </Link>
               <div className="text-[11px] text-[var(--muted)] font-[var(--font-mono)]">
                 {row.slug}
               </div>
