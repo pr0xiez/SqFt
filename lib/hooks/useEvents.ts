@@ -1,6 +1,18 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { SCHEDULABLE_ESTIMATES_KEY } from "@/lib/hooks/useSchedulableEstimates";
+
+/** Event mutations also move estimates in/out of the unscheduled backlog. */
+function invalidateEventQueries(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: ["events"] });
+  qc.invalidateQueries({ queryKey: SCHEDULABLE_ESTIMATES_KEY });
+}
 
 export interface AssigneeSummary {
   id: string;
@@ -33,7 +45,8 @@ export interface CreateEventInput {
   customerId?: number;
   estimateId?: number;
   date: string;
-  endDate?: string;
+  /** null (updates only) clears a multi-day event back to single-day. */
+  endDate?: string | null;
   startTime: string;
   endTime: string;
   assigneeIds?: string[];
@@ -65,7 +78,7 @@ export function useCreateEvent() {
       if (!res.ok) throw new Error("Failed to create event");
       return res.json() as Promise<CalEvent>;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+    onSuccess: () => invalidateEventQueries(qc),
   });
 }
 
@@ -80,7 +93,7 @@ export function useUpdateEvent(id: number) {
       });
       if (!res.ok) throw new Error("Failed to update event");
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+    onSuccess: () => invalidateEventQueries(qc),
   });
 }
 
@@ -90,6 +103,6 @@ export function useDeleteEvent() {
     mutationFn: async (id: number) => {
       await fetch(`/api/events/${id}`, { method: "DELETE" });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
+    onSuccess: () => invalidateEventQueries(qc),
   });
 }

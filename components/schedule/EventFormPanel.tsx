@@ -7,8 +7,9 @@ import { SlidePanel } from "@/components/ui/SlidePanel";
 import { cn } from "@/lib/cn";
 import { useAssignableUsers } from "@/lib/hooks/useAssignableUsers";
 import type { CalEvent, CreateEventInput } from "@/lib/hooks/useEvents";
+import { timeToMinutes } from "@/lib/utils";
 
-interface EstimateOption {
+export interface EstimateOption {
   id: number;
   estimateNumber: number;
   siteMeasure: {
@@ -16,10 +17,21 @@ interface EstimateOption {
   };
 }
 
+/** Seed values for a new event (backlog scheduling, click-on-a-time-slot). */
+export interface EventFormDefaults {
+  type?: "job" | "visit" | "other";
+  title?: string;
+  customerId?: number;
+  estimateId?: number;
+  startTime?: string;
+  endTime?: string;
+}
+
 interface EventFormPanelProps {
   open: boolean;
   onClose: () => void;
   defaultDate: string;
+  defaults?: EventFormDefaults | null;
   editingEvent: CalEvent | null;
   customers: { id: number; name: string }[];
   estimates: EstimateOption[];
@@ -36,6 +48,7 @@ export function EventFormPanel({
   open,
   onClose,
   defaultDate,
+  defaults,
   editingEvent,
   customers,
   estimates,
@@ -81,28 +94,39 @@ export function EventFormPanel({
       setCrewMemberIds(new Set((ev.assignees ?? []).map((m) => m.id)));
       setNotes(ev.notes ?? "");
     } else {
-      setType("visit");
-      setTitle("");
+      setType(defaults?.type ?? "visit");
+      setTitle(defaults?.title ?? "");
       setDate(defaultDate);
       setEndDate(defaultDate);
-      setStartTime("08:00");
-      setEndTime("09:00");
-      setCustomerId(undefined);
-      setEstimateId(undefined);
+      setStartTime(defaults?.startTime ?? "08:00");
+      setEndTime(defaults?.endTime ?? "09:00");
+      setCustomerId(defaults?.customerId);
+      setEstimateId(defaults?.estimateId);
       setCrewMemberIds(new Set());
       setNotes("");
     }
-  }, [open, ev, defaultDate]);
+  }, [open, ev, defaultDate, defaults]);
+
+  // Same-day events must end after they start; multi-day events may wrap past
+  // midnight. Mirrors the zod refine in lib/events/schema.ts.
+  const timeInvalid =
+    endDate <= date && timeToMinutes(endTime) <= timeToMinutes(startTime);
+  // The server rejects a job without an estimate (eventRepo); block it here
+  // instead of round-tripping a 400.
+  const missingEstimate = type === "job" && !estimateId;
+  const canSave = title.trim().length > 0 && !timeInvalid && !missingEstimate;
 
   async function handleSave() {
-    if (!title.trim()) return;
+    if (!canSave) return;
     setSaving(true);
     try {
       await onSave({
         type,
         title,
         date,
-        ...(endDate > date ? { endDate } : {}),
+        // On update, an omitted endDate would leave a stale multi-day span in
+        // place — send null to clear it back to single-day.
+        ...(endDate > date ? { endDate } : ev ? { endDate: null } : {}),
         startTime,
         endTime,
         customerId,
@@ -134,7 +158,7 @@ export function EventFormPanel({
           <Button
             variant="accent"
             onClick={handleSave}
-            disabled={!title.trim() || saving}
+            disabled={!canSave || saving}
             className="flex-1 justify-center"
           >
             {saving ? "Saving…" : ev ? "Update" : "Save"}
@@ -236,6 +260,11 @@ export function EventFormPanel({
                 </>
               )}
             </select>
+            {missingEstimate && customerId && customerEstimates.length > 0 && (
+              <div className="text-[11px] text-[var(--muted)] mt-1">
+                Select the estimate this job is for.
+              </div>
+            )}
           </div>
         )}
 
@@ -285,6 +314,11 @@ export function EventFormPanel({
               className={inputClass}
             />
           </div>
+          {timeInvalid && (
+            <div className="col-span-2 text-[11px] text-[var(--accent)]">
+              End time must be after start time.
+            </div>
+          )}
         </div>
 
         {/* Crew */}

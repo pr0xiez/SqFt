@@ -26,7 +26,11 @@ with the file that owns it.
   (`app/(app)/my-schedule`, `components/schedule/MyScheduleView` +
   `EventCard`/`JobCard`/`DayAgenda`, pure logic in `lib/schedule/agenda.ts`)
   lives alongside the editable **Schedule Manager** grid (`/schedule`, lead+
-  only; crew is redirected here); both read `useEvents`.
+  only; crew is redirected here); both read `useEvents`. The grid's geometry
+  (overlap lanes, 7a–7p clamping, click-to-time snap, now-line) is pure logic
+  in `lib/schedule/grid.ts`, and its **unscheduled-jobs backlog** (approved
+  estimates with no job event; `components/schedule/BacklogStrip`) projects
+  via `lib/schedule/backlog.ts` from `GET /api/estimates/schedulable`.
   The org-wide **Invoices** list (`app/(app)/invoices`,
   `components/invoices/InvoiceList`) defaults to the "All" filter, with an
   "Open" pill (sent + viewed + partial) second, and is lead+ only.
