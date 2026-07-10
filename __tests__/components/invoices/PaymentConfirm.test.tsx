@@ -60,6 +60,33 @@ describe("PaymentConfirm", () => {
     expect(screen.queryByText(CONFIRMED)).toBeNull();
   });
 
+  it("shows an overpaid/refund notice — not the confirmed banner — for an overpayment", async () => {
+    // A stale session completed after the balance was already covered: the money
+    // is recorded and flagged for refund, so the customer sees a refund notice.
+    stubFetch(async () => ({
+      ok: true,
+      json: async () => ({ status: "overpaid" }),
+    }));
+
+    render(<PaymentConfirm token="tok123" sessionId="cs_1" />);
+
+    expect(await screen.findByText(/refund the difference/i)).toBeDefined();
+    expect(screen.queryByText(CONFIRMED)).toBeNull();
+  });
+
+  it("shows a failure notice — not processing — when the bank payment bounced", async () => {
+    stubFetch(async () => ({
+      ok: true,
+      json: async () => ({ status: "failed" }),
+    }));
+
+    render(<PaymentConfirm token="tok123" sessionId="cs_1" />);
+
+    expect(await screen.findByText(/didn.t go through/i)).toBeDefined();
+    expect(screen.queryByText(CONFIRMED)).toBeNull();
+    expect(screen.queryByText(/processing/i)).toBeNull();
+  });
+
   it("does not confirm when the session can't be verified (spoofed session id)", async () => {
     // The confirm endpoint returns 404 for a bogus/mismatched session. A failed
     // verification must never render the confirmed banner.

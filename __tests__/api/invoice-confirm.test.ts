@@ -115,7 +115,10 @@ function makeStripeMock(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockRecordStripePayment.mockResolvedValue({ recorded: true });
+  mockRecordStripePayment.mockResolvedValue({
+    recorded: true,
+    overpaid: false,
+  });
 });
 
 describe("POST /api/invoice-review/[token]/confirm", () => {
@@ -236,6 +239,51 @@ describe("POST /api/invoice-review/[token]/confirm", () => {
     const body = (await res.json()) as { status: string };
     expect(body.status).toBe("processing");
     expect(mockRecordStripePayment).not.toHaveBeenCalled();
+  });
+
+  // ── Failed: bounced async debit (ACH) ───────────────────────────────────────
+
+  it("returns { status: 'failed' } when the PaymentIntent bounced (requires_payment_method)", async () => {
+    // A failed ACH debit leaves the session complete/unpaid forever; only the PI
+    // records the bounce. Without this the UI shows "processing" indefinitely.
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice());
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    const failedMock = makeStripeMock({
+      status: "complete",
+      payment_status: "unpaid",
+      payment_intent: { id: PI_ID, status: "requires_payment_method" },
+    });
+    // biome-ignore lint/suspicious/noExplicitAny: mock duck-type
+    mockGetStripe.mockReturnValueOnce(failedMock as any);
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe("failed");
+    expect(mockRecordStripePayment).not.toHaveBeenCalled();
+  });
+
+  // ── Overpaid: stale session completed after the balance was covered ─────────
+
+  it("returns { status: 'overpaid' } when recordStripePayment reports an overpayment", async () => {
+    // The recorder captured the money (never dropped) but flagged it for refund;
+    // the customer must not see a plain "Payment received".
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice());
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    const stripeMock = makeStripeMock();
+    // biome-ignore lint/suspicious/noExplicitAny: mock duck-type
+    mockGetStripe.mockReturnValueOnce(stripeMock as any);
+    mockRecordStripePayment.mockResolvedValueOnce({
+      recorded: true,
+      overpaid: true,
+    });
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe("overpaid");
   });
 
   // ── Happy path ──────────────────────────────────────────────────────────────

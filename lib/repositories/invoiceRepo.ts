@@ -582,7 +582,7 @@ export interface RecordStripePaymentInput {
  */
 export async function recordStripePayment(
   input: RecordStripePaymentInput
-): Promise<{ recorded: boolean }> {
+): Promise<{ recorded: boolean; overpaid: boolean }> {
   try {
     return await prisma.$transaction(async (tx) => {
       // Soft idempotency check: a payment with this chargeId already exists.
@@ -590,13 +590,13 @@ export async function recordStripePayment(
         where: { stripeChargeId: input.chargeId },
         select: { id: true },
       });
-      if (existing) return { recorded: false };
+      if (existing) return { recorded: false, overpaid: false };
 
       const inv = await tx.invoice.findFirst({
         where: { id: input.invoiceId, orgId: input.orgId },
         include: { payments: { select: { amount: true } } },
       });
-      if (!inv) return { recorded: false };
+      if (!inv) return { recorded: false, overpaid: false };
 
       // A captured charge is real money. Record it even when the invoice was
       // voided or already covered — dropping it would leave an untracked charge
@@ -656,7 +656,7 @@ export async function recordStripePayment(
           errorMessage: `Stripe charge ${input.chargeId} needs refund (${refundReason}): invoice ${input.invoiceId} now paid ${cls.paidAfter} of ${inv.amount}`,
         });
       }
-      return { recorded: true };
+      return { recorded: true, overpaid: cls.overpaid };
     });
   } catch (err) {
     // Hard idempotency backstop: two deliveries raced past the findUnique check
@@ -666,10 +666,48 @@ export async function recordStripePayment(
       err !== null &&
       (err as { code?: string }).code === "P2002"
     ) {
-      return { recorded: false };
+      return { recorded: false, overpaid: false };
     }
     throw err;
   }
+}
+
+export type StripeAnomalyReason =
+  | "unknown_account"
+  | "missing_invoice_metadata";
+
+/**
+ * Record captured-but-unattributable Stripe money so a human can reconcile it.
+ * The webhook reaches here when a paid event carries an unknown `event.account`
+ * or missing/invalid `invoiceId` metadata: real money moved but there is no
+ * invoice to book it against. Redelivery can't fix bad metadata, so the webhook
+ * still 200s — but CONTEXT.md invariant 3 forbids dropping it silently, so we
+ * persist a queryable row (keyed on the Stripe event id for idempotency) and log.
+ */
+export async function recordStripeAnomaly(input: {
+  eventId: string;
+  eventType: string;
+  accountId: string | null;
+  paymentIntentId: string | null;
+  amount: number;
+  reason: StripeAnomalyReason;
+}): Promise<void> {
+  await prisma.stripeAnomaly.upsert({
+    where: { eventId: input.eventId },
+    create: {
+      eventId: input.eventId,
+      eventType: input.eventType,
+      accountId: input.accountId,
+      paymentIntentId: input.paymentIntentId,
+      amount: input.amount,
+      reason: input.reason,
+    },
+    update: {},
+  });
+  logError({
+    path: "lib/repositories/invoiceRepo#recordStripeAnomaly",
+    errorMessage: `Unattributable Stripe payment (${input.reason}): event ${input.eventId}, account ${input.accountId ?? "?"}, pi ${input.paymentIntentId ?? "?"}, amount ${input.amount}`,
+  });
 }
 
 /** Public token lookup (no org scope — the token authorizes). */

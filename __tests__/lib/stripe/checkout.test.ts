@@ -9,6 +9,7 @@ describe("buildCheckoutParams", () => {
     invoiceId: 77,
     successUrl: "https://app/inv/tok?session_id={CHECKOUT_SESSION_ID}",
     cancelUrl: "https://app/inv/tok",
+    expiresAt: 1_800_000_000,
   };
 
   it("creates a single line item for the exact balance, no platform fee", () => {
@@ -21,6 +22,14 @@ describe("buildCheckoutParams", () => {
     expect(p.payment_intent_data?.application_fee_amount).toBeUndefined();
     // never set payment_method_types (best-practice rule)
     expect("payment_method_types" in p).toBe(false);
+  });
+
+  it("caps the stale-session window with the caller's expires_at", () => {
+    // Without expires_at a session stays completable for 24h, so a stale tab can
+    // double-collect after the balance changes. The route passes a bucket-aligned
+    // timestamp; buildCheckoutParams must forward it verbatim.
+    const p = buildCheckoutParams(base);
+    expect(p.expires_at).toBe(1_800_000_000);
   });
 
   it("carries invoice/org ids in metadata for the webhook", () => {

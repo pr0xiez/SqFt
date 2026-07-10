@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
+  recordStripeAnomaly,
   recordStripePayment,
   recordStripePaymentFailure,
 } from "@/lib/repositories/invoiceRepo";
@@ -44,6 +45,7 @@ export async function POST(req: Request) {
       },
       record: (input) => recordStripePayment(input),
       recordFailure: (input) => recordStripePaymentFailure(input),
+      recordAnomaly: (input) => recordStripeAnomaly(input),
       retrieveCharge: async (accountId, paymentIntentId) => {
         const stripe = getStripe();
         const pi = await stripe.paymentIntents.retrieve(

@@ -36,6 +36,17 @@ export const POST = publicRoute<undefined, { token: string }>(
     if (balanceDue <= 0) throw new InvoiceAlreadyPaidError();
     const balanceDueCents = Math.round(balanceDue * 100);
 
+    // 30-minute buckets tie the idempotency key and the session's expires_at
+    // together. Within a bucket, re-clicks produce byte-identical create params
+    // so Stripe replays the same session (no idempotency_error, no stale null-url
+    // replay); a new bucket — or a changed balance — mints a fresh session and
+    // lets any token-rotation param conflict age out. expires_at sits 3 buckets
+    // ahead: constant per bucket, always 60–90 min out (above Stripe's 30-min
+    // minimum, well under the 24h max) even after request latency.
+    const BUCKET_SEC = 30 * 60;
+    const bucket = Math.floor(Date.now() / 1000 / BUCKET_SEC);
+    const expiresAt = (bucket + 3) * BUCKET_SEC;
+
     const ret = `${getPublicBaseUrl()}/invoice-review/${params.token}`;
     const checkoutParams = buildCheckoutParams({
       invoiceNumber: invoice.invoiceNumber,
@@ -44,15 +55,14 @@ export const POST = publicRoute<undefined, { token: string }>(
       invoiceId: invoice.id,
       successUrl: `${ret}?pay=success&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${ret}?pay=cancelled`,
+      expiresAt,
     });
 
-    // Idempotency keyed on invoice + current balance: identical re-clicks reuse
-    // the same session; a changed balance mints a new one.
     try {
       const { url } = await createInvoiceCheckoutSession(
         org.stripeConnectAccountId,
         checkoutParams,
-        `inv-${invoice.id}-bal-${balanceDueCents}`
+        `inv-${invoice.id}-bal-${balanceDueCents}-${bucket}`
       );
       return { url };
     } catch (err) {

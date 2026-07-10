@@ -226,21 +226,32 @@ describe("POST /api/invoice-review/[token]/checkout", () => {
     const body = (await res.json()) as { url: string };
     expect(body.url).toBe("https://checkout.stripe.com/pay/cs_test_123");
 
-    // Verify buildCheckoutParams received the correct cents value.
+    // Verify buildCheckoutParams received the correct cents value and a
+    // future-dated expires_at (caps the stale-session window).
     expect(mockBuildCheckoutParams).toHaveBeenCalledWith(
       expect.objectContaining({
         balanceDueCents: expectedCents,
         invoiceId: INVOICE_ID,
         invoiceNumber: INVOICE_NUMBER,
         orgId: ORG_ID,
+        expiresAt: expect.any(Number),
       })
     );
+    const expiresAt =
+      mockBuildCheckoutParams.mock.calls[0]?.[0]?.expiresAt ?? 0;
+    // 60–90 min ahead: above Stripe's 30-min minimum, well under the 24h max.
+    const aheadSec = expiresAt - Math.floor(Date.now() / 1000);
+    expect(aheadSec).toBeGreaterThan(30 * 60);
+    expect(aheadSec).toBeLessThanOrEqual(90 * 60);
 
-    // Verify idempotency key encodes invoice id + balance cents.
+    // Verify idempotency key encodes invoice id + balance cents + a 30-min bucket
+    // (the bucket ties the key to the session's expires_at so re-clicks replay).
     expect(mockCreateInvoiceCheckoutSession).toHaveBeenCalledWith(
       CONNECT_ACCOUNT_ID,
       expect.anything(),
-      `inv-${INVOICE_ID}-bal-${expectedCents}`
+      expect.stringMatching(
+        new RegExp(`^inv-${INVOICE_ID}-bal-${expectedCents}-\\d+$`)
+      )
     );
 
     // Active account: no live refresh needed.

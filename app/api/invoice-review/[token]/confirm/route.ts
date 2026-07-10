@@ -32,7 +32,26 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
     if (session.metadata?.invoiceId !== String(invoice.id)) {
       throw new NotFoundError();
     }
+    const pi = session.payment_intent as {
+      id: string;
+      status?: string;
+      latest_charge?: {
+        id: string;
+        balance_transaction?: { fee: number; net: number } | null;
+      } | null;
+    } | null;
+
     if (session.payment_status !== "paid") {
+      // A failed async debit (ACH bounce) leaves the session "complete"/"unpaid"
+      // indefinitely — the bounce lives only on the PaymentIntent, which flips to
+      // requires_payment_method / canceled. Surface it as "failed" so the UI stops
+      // telling the homeowner their bank payment is still "processing" forever.
+      if (
+        pi?.status === "requires_payment_method" ||
+        pi?.status === "canceled"
+      ) {
+        return { status: "failed" };
+      }
       // A complete-but-unpaid session is an async bank debit in flight: the
       // customer finished Checkout but settlement takes days. Distinguish it
       // so the UI can show honest "processing" copy; the invoice is recorded
@@ -42,20 +61,14 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
       };
     }
 
-    const pi = session.payment_intent as {
-      id: string;
-      latest_charge?: {
-        id: string;
-        balance_transaction?: { fee: number; net: number } | null;
-      } | null;
-    };
-    const charge = pi.latest_charge ?? null;
-    // Require a real charge id. Without it, this reconcile path and the webhook
-    // would key idempotency on different strings (a synthetic pi_-id here vs the
-    // real ch_-id there) and record the same charge twice. Defer to the webhook.
-    if (!charge?.id) return { status: "pending" };
+    const charge = pi?.latest_charge ?? null;
+    // Require a real charge id (and its parent PI). Without it, this reconcile
+    // path and the webhook would key idempotency on different strings (a synthetic
+    // pi_-id here vs the real ch_-id there) and record the same charge twice.
+    // Defer to the webhook.
+    if (!pi?.id || !charge?.id) return { status: "pending" };
     const bt = charge.balance_transaction ?? null;
-    await recordStripePayment({
+    const { overpaid } = await recordStripePayment({
       paymentIntentId: pi.id,
       chargeId: charge.id,
       orgId: invoice.orgId,
@@ -64,6 +77,9 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
       feeAmount: bt ? bt.fee / 100 : null,
       netAmount: bt ? bt.net / 100 : null,
     });
-    return { status: "paid" };
+    // A stale session completed after the balance was already covered: the money
+    // is recorded and flagged for refund, but the customer must not see a plain
+    // "Payment received" — tell them the difference will be refunded.
+    return { status: overpaid ? "overpaid" : "paid" };
   }
 );

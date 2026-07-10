@@ -10,6 +10,24 @@ export function mapCapabilityStatus(raw: string | undefined): ConnectStatus {
 }
 
 /**
+ * Best-of two capability statuses. Checkout offers dynamic payment methods, so
+ * an account is usable — and the Pay button should show — as soon as EITHER the
+ * card or the ACH capability is active (Stripe only surfaces the methods that
+ * are actually active, so a restricted one is never offered at Checkout). The
+ * single persisted `stripeConnectStatus` is therefore the more permissive of
+ * the two: gating on `card_payments` alone would hide the button from an
+ * ACH-active / card-pending account that can already take payment.
+ */
+export function aggregateConnectStatus(
+  card: ConnectStatus,
+  ach: ConnectStatus
+): ConnectStatus {
+  if (card === "active" || ach === "active") return "active";
+  if (card === "restricted" || ach === "restricted") return "restricted";
+  return "pending";
+}
+
+/**
  * Create an Accounts-v2 connected account for direct charges:
  * full dashboard, merchant card_payments + ach_debit_payments capabilities,
  * Stripe as fees + losses collector. Returns the new account id (acct_…).
@@ -73,7 +91,12 @@ export async function createOnboardingLink(
   return link.url;
 }
 
-/** Read the merchant card_payments capability and map to our status. */
+/**
+ * Read the merchant capabilities and collapse them to our status. Both
+ * card_payments and ach_debit_payments are requested and underwritten
+ * independently, so the aggregate reflects either being active (see
+ * aggregateConnectStatus).
+ */
 export async function readAccountStatus(
   accountId: string
 ): Promise<ConnectStatus> {
@@ -81,7 +104,9 @@ export async function readAccountStatus(
   const account = await stripe.v2.core.accounts.retrieve(accountId, {
     include: ["configuration.merchant"],
   });
-  const raw =
-    account.configuration?.merchant?.capabilities?.card_payments?.status;
-  return mapCapabilityStatus(raw);
+  const caps = account.configuration?.merchant?.capabilities;
+  return aggregateConnectStatus(
+    mapCapabilityStatus(caps?.card_payments?.status),
+    mapCapabilityStatus(caps?.ach_debit_payments?.status)
+  );
 }

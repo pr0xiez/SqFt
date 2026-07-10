@@ -7,7 +7,13 @@ interface Props {
   sessionId: string;
 }
 
-type ConfirmState = "checking" | "paid" | "processing" | "pending";
+type ConfirmState =
+  | "checking"
+  | "paid"
+  | "overpaid"
+  | "processing"
+  | "failed"
+  | "pending";
 
 /**
  * Belt-and-suspenders reconcile: fires once on mount, POSTing the Checkout
@@ -35,12 +41,17 @@ export function PaymentConfirm({ token, sessionId }: Props) {
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { status?: string } | null) => {
+        const s = data?.status;
         setState(
-          data?.status === "paid"
+          s === "paid"
             ? "paid"
-            : data?.status === "processing"
-              ? "processing"
-              : "pending"
+            : s === "overpaid"
+              ? "overpaid"
+              : s === "processing"
+                ? "processing"
+                : s === "failed"
+                  ? "failed"
+                  : "pending"
         );
       })
       .catch(() => setState("pending"));
@@ -50,6 +61,29 @@ export function PaymentConfirm({ token, sessionId }: Props) {
     return (
       <div className="my-6 rounded-md bg-green-50 border border-green-200 px-5 py-4 text-[14px] font-[600] text-green-800">
         Payment received — thank you!
+      </div>
+    );
+  }
+
+  if (state === "overpaid") {
+    // Money was captured but the invoice balance had already been covered (e.g.
+    // a manual payment landed while this session sat open). Don't claim a clean
+    // "Payment received" — the contractor will refund the difference.
+    return (
+      <div className="my-6 rounded-md bg-amber-50 border border-amber-200 px-5 py-4 text-[14px] text-amber-800">
+        Your payment was received, but the invoice balance had already changed —
+        the contractor will refund the difference.
+      </div>
+    );
+  }
+
+  if (state === "failed") {
+    // A bank debit bounced: the invoice still owes its balance. Honest failure
+    // copy so the homeowner knows to try again rather than waiting on a payment
+    // that will never clear.
+    return (
+      <div className="my-6 rounded-md bg-red-50 border border-red-200 px-5 py-4 text-[14px] text-red-800">
+        Your bank payment didn&apos;t go through — please try again.
       </div>
     );
   }

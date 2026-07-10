@@ -75,6 +75,7 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("recordStripePayment", () => {
     const second = await recordStripePayment(args); // duplicate delivery
 
     expect(first.recorded).toBe(true);
+    expect(first.overpaid).toBe(false); // exact balance → not overpaid
     expect(second.recorded).toBe(false);
 
     const inv = await getInvoice(invoiceId, orgId);
@@ -142,6 +143,7 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("recordStripePayment", () => {
     });
 
     expect(result.recorded).toBe(true);
+    expect(result.overpaid).toBe(true); // surfaced so the confirm route can warn
     const inv = await getInvoice(invoiceId, orgId);
     expect(inv?.payments).toHaveLength(2);
     const events = await prisma.invoiceEvent.findMany({ where: { invoiceId } });

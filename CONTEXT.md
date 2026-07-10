@@ -230,12 +230,24 @@ webhook records `checkout.session.completed` only when `payment_status ===
 `async_payment_failed` → `recordStripePaymentFailure` (org-scoped) leaves a
 `payment_failed` `InvoiceEvent` + `logError`, no ledger row. Meanwhile the
 confirm endpoint returns `processing` for a complete-but-unpaid session and
-`PaymentConfirm` shows bank-processing copy, never a false confirmation;
+`PaymentConfirm` shows bank-processing copy, never a false confirmation — but a
+bounced debit leaves the session `complete`/`unpaid` forever, so confirm reads
+the PaymentIntent status (`requires_payment_method` / `canceled`) and returns
+`failed` (`PaymentConfirm` shows retry copy) instead of "processing" indefinitely;
 (3) a captured charge is **never silently dropped** —
 `classifyStripeCharge` (single source of truth, `lib/repositories/invoiceRepo.ts`)
 records it even when the invoice was voided after checkout (`orphaned`) or already
 covered (`overpaid`), flagging the anomaly with a `refundNeeded` `InvoiceEvent`
-+ `logError`; a charge never resurrects a `void` invoice. `Payment` carries
++ `logError`; a charge never resurrects a `void` invoice. `recordStripePayment`
+returns `{ overpaid }` so the confirm endpoint can return `overpaid` (refund
+notice) rather than a plain "Payment received". Paid money that can't be
+attributed at all — unknown `event.account`, or missing/non-numeric `invoiceId`
+metadata — is parked in the queryable **`StripeAnomaly`** table (`recordAnomaly`,
+keyed on the Stripe event id) + `logError` before the event is marked processed,
+so it's reconcilable, never lost. The stale-session double-collection window is
+capped by a 30-min-bucketed Checkout `expires_at`; the idempotency key carries
+the same bucket (`inv-{id}-bal-{cents}-{bucket}`) so re-clicks replay one session
+while a new bucket or changed balance mints a fresh one. `Payment` carries
 `stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the charge's balance
 transaction on the connected account). Manual payment recording (cash, check,
 card, ACH) also remains via the builder's Record-payment dialog. Each payment

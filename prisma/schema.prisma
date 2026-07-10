@@ -355,6 +355,23 @@ model ProcessedStripeEvent {
   createdAt DateTime @default(now())
 }
 
+/**
+ * Captured Stripe money that could not be attributed to an invoice — an unknown
+ * connected account, or missing/invalid invoiceId metadata on a paid event. The
+ * money is real, so it's parked here (queryable, one row per Stripe event id)
+ * for a human to reconcile rather than silently dropped (CONTEXT.md invariant 3).
+ */
+model StripeAnomaly {
+  id              Int      @id @default(autoincrement())
+  eventId         String   @unique // Stripe event id (evt_…)
+  eventType       String
+  accountId       String? // connected account (acct_…), null if unresolved
+  paymentIntentId String?
+  amount          Float // dollars
+  reason          String // unknown_account | missing_invoice_metadata
+  createdAt       DateTime @default(now())
+}
+
 // Calendar events: job installations, measurement visits, etc.
 model Event {
   id          Int          @id @default(autoincrement())

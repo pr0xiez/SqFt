@@ -29,6 +29,20 @@ export interface WebhookDeps {
     amount: number;
     paymentIntentId: string | null;
   }): Promise<void>;
+  /**
+   * Persist captured money we can't attribute to an invoice (unknown account or
+   * missing/invalid invoiceId metadata). Redelivery can't fix bad metadata, so
+   * the handler still 200s — but the money is real and must never be dropped
+   * silently (CONTEXT.md invariant 3), so a human can find it later.
+   */
+  recordAnomaly(input: {
+    eventId: string;
+    eventType: string;
+    accountId: string | null;
+    paymentIntentId: string | null;
+    amount: number;
+    reason: "unknown_account" | "missing_invoice_metadata";
+  }): Promise<void>;
   /** Fetch the charge + balance-transaction fee/net for a payment intent (on the connected account). */
   retrieveCharge(
     accountId: string,
@@ -142,6 +156,20 @@ export async function handleStripeEvent(
         amount: round2(amountTotal / 100),
         feeAmount: charge.balanceFee,
         netAmount: charge.balanceNet,
+      });
+    } else if (sessionPaid && paymentIntentId && amountTotal > 0) {
+      // Money moved but we can't book it: either no org owns event.account, or
+      // the invoiceId metadata is missing/non-numeric. Throwing wouldn't help —
+      // redelivery re-sends the same bad metadata — so record a queryable anomaly
+      // and let the event be marked processed. CONTEXT.md invariant 3: a captured
+      // charge is never silently dropped.
+      await deps.recordAnomaly({
+        eventId: event.id,
+        eventType: event.type,
+        accountId: accountId || null,
+        paymentIntentId,
+        amount: round2(amountTotal / 100),
+        reason: orgId ? "missing_invoice_metadata" : "unknown_account",
       });
     }
   }

@@ -8,6 +8,8 @@ export function buildCheckoutParams(input: {
   invoiceId: number;
   successUrl: string;
   cancelUrl: string;
+  /** Unix seconds. Caps the stale-session window (see the route). */
+  expiresAt: number;
 }): Stripe.Checkout.SessionCreateParams {
   const metadata = {
     invoiceId: String(input.invoiceId),
@@ -27,6 +29,12 @@ export function buildCheckoutParams(input: {
         },
       },
     ],
+    // Cap the stale-session window. The invoice balance can change (a manual
+    // payment, a void) while a Checkout session sits open, and a completed
+    // stale session records its full amount_total — double-collecting. Stripe's
+    // default expiry is 24h; the route derives a bucket-aligned value so it
+    // stays constant across identical re-clicks (idempotency replay).
+    expires_at: input.expiresAt,
     // No application_fee_amount: the platform takes nothing. The connected
     // account bears Stripe's processing fee (fees_collector: stripe), deducted
     // from its payout.

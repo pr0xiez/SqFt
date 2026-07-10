@@ -2,13 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { handleStripeEvent } from "@/lib/stripe/webhook";
 
 function deps() {
-  const record = vi.fn().mockResolvedValue({ recorded: true });
+  const record = vi.fn().mockResolvedValue({ recorded: true, overpaid: false });
   const recordFailure = vi.fn().mockResolvedValue(undefined);
+  const recordAnomaly = vi.fn().mockResolvedValue(undefined);
   const seen = new Set<string>();
   const markProcessed = vi.fn(async (id: string) => void seen.add(id));
   return {
     record,
     recordFailure,
+    recordAnomaly,
     markProcessed,
     isProcessed: async (id: string) => seen.has(id),
     // Authoritative org resolved from the signed event.account.
@@ -96,12 +98,71 @@ describe("handleStripeEvent", () => {
     );
   });
 
-  it("does not record when event.account resolves to no org", async () => {
+  it("records an anomaly (not a Payment) when event.account resolves to no org", async () => {
     const d = deps();
     d.orgIdForAccount = vi.fn().mockResolvedValue(null);
     await handleStripeEvent(recordableEvent({ account: "acct_unknown" }), d);
     expect(d.record).not.toHaveBeenCalled();
+    // Money moved but is unattributable → parked as a queryable anomaly, never
+    // silently dropped (CONTEXT.md invariant 3).
+    expect(d.recordAnomaly).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventId: "evt_1",
+        accountId: "acct_unknown",
+        paymentIntentId: "pi_1",
+        amount: 450,
+        reason: "unknown_account",
+      })
+    );
     // Still terminal — a phantom account will never resolve, so don't retry-loop.
+    expect(d.markProcessed).toHaveBeenCalled();
+  });
+
+  // ── Finding: paid money with bad invoiceId metadata must not vanish ──────────
+
+  it("records an anomaly when a paid session's invoiceId metadata is missing/non-numeric", async () => {
+    const d = deps();
+    await handleStripeEvent(
+      recordableEvent({
+        data: {
+          object: {
+            payment_intent: "pi_9",
+            payment_status: "paid",
+            metadata: { orgId: "org_1" }, // no invoiceId → Number(undefined) = NaN
+            amount_total: 45000,
+          },
+        },
+      }),
+      d
+    );
+    expect(d.record).not.toHaveBeenCalled();
+    expect(d.recordAnomaly).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentIntentId: "pi_9",
+        amount: 450,
+        reason: "missing_invoice_metadata",
+      })
+    );
+    expect(d.markProcessed).toHaveBeenCalled();
+  });
+
+  it("does NOT record an anomaly for an unpaid session with missing metadata (no money moved)", async () => {
+    const d = deps();
+    await handleStripeEvent(
+      recordableEvent({
+        data: {
+          object: {
+            payment_intent: "pi_10",
+            payment_status: "unpaid",
+            metadata: {},
+            amount_total: 45000,
+          },
+        },
+      }),
+      d
+    );
+    expect(d.record).not.toHaveBeenCalled();
+    expect(d.recordAnomaly).not.toHaveBeenCalled();
     expect(d.markProcessed).toHaveBeenCalled();
   });
 
