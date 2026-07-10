@@ -4,6 +4,7 @@ import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
+import type { RoomSegment } from "@/lib/utils";
 
 const SITE_MEASURE_LIST_INCLUDE = {
   location: {
@@ -44,8 +45,28 @@ type SiteMeasureItemInput = Omit<
   "id" | "siteMeasureId" | "segments"
 > & {
   id?: number;
-  segments?: { w?: number | null; l?: number | null }[] | null;
+  segments?: RoomSegment[] | null;
 };
+
+/** Canonicalize a room's dimensions at the write boundary so the DB never
+ *  holds two competing sources of truth: a single box is stored as the legacy
+ *  scalar w/l (segments NULL — old readers and rollbacks keep working), and
+ *  only a genuine multi-box room stores `segments` (scalars NULL). */
+export function canonicalizeRoomDims(
+  item: Omit<SiteMeasureItemInput, "id">
+): Omit<SiteMeasureItemInput, "id"> {
+  if (item.type !== "room" || item.segments == null) return item;
+  if (item.segments.length <= 1) {
+    const box = item.segments[0];
+    return {
+      ...item,
+      w: box?.w ?? null,
+      l: box?.l ?? null,
+      segments: null,
+    };
+  }
+  return { ...item, w: null, l: null };
+}
 
 export type SiteMeasurePatch = {
   locationId?: number;
@@ -235,13 +256,17 @@ export async function saveSiteMeasure(
       await tx.siteMeasureItem.deleteMany({ where: { siteMeasureId: id } });
       if (items.length > 0) {
         await tx.siteMeasureItem.createMany({
-          data: items.map(({ id: _id, segments, ...item }) => ({
-            ...item,
-            siteMeasureId: id,
-            ...(segments != null
-              ? { segments: segments as Prisma.InputJsonValue }
-              : {}),
-          })),
+          data: items.map(({ id: _id, ...item }) => {
+            const { segments, ...rest } = canonicalizeRoomDims(item);
+            return {
+              ...rest,
+              siteMeasureId: id,
+              segments:
+                segments == null
+                  ? undefined
+                  : (segments as unknown as Prisma.InputJsonValue),
+            };
+          }),
         });
       }
     }

@@ -78,6 +78,37 @@ describe("snapshotEstimate", () => {
     expect(snap.customer?.address).toBe("1247 Elm St");
   });
 
+  it("preserves a multi-box room's segments in the snapshot's items array", () => {
+    const withSegments: EstimateInput = {
+      ...input,
+      items: [
+        {
+          id: 1,
+          type: "room",
+          name: "Living + Dining",
+          w: null,
+          l: null,
+          segments: [
+            { w: 10, l: 12 },
+            { w: 4, l: 3 },
+          ],
+          shape: "rect",
+          note: null,
+          text: null,
+        },
+      ],
+    };
+    const snap = snapshotEstimate(withSegments, meta);
+    // Multi-box rooms have null scalar w/l, so dropping segments here would
+    // freeze the approved artifact with no room dimensions at all.
+    expect(snap.items[0]).toMatchObject({
+      segments: [
+        { w: 10, l: 12 },
+        { w: 4, l: 3 },
+      ],
+    });
+  });
+
   it("preserves note items in the snapshot's items array", () => {
     const withNote: EstimateInput = {
       ...input,

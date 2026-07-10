@@ -5,7 +5,7 @@ import {
   PublicEstimateView,
 } from "@/components/estimates/PublicEstimateView";
 import { getEstimateByToken, markEstimateViewed } from "@/lib/repositories";
-import { parseQtyMode } from "@/lib/utils";
+import { parseQtyMode, parseRoomSegments } from "@/lib/utils";
 
 export const metadata = {
   title: "Estimate — SqFt",
@@ -54,12 +54,10 @@ export default async function PublicEstimatePage({ params }: Props) {
     items: estimate.siteMeasure.items.map((i) => ({
       id: i.id,
       type: i.type === "room" ? "room" : "note",
-      shape: i.shape === "rect" || i.shape === "tri" ? i.shape : null,
+      shape: i.shape === "rect" ? "rect" : null,
       w: i.w,
       l: i.l,
-      segments:
-        (i.segments as { w?: number | null; l?: number | null }[] | null) ??
-        undefined,
+      segments: parseRoomSegments(i.segments),
       name: i.name,
       note: i.note,
       text: i.text,

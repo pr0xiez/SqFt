@@ -20,7 +20,7 @@ export function RoomsList({ rooms }: Props) {
             boxes.length > 1
               ? `${boxes.length} areas`
               : first?.w && first?.l
-                ? `${first.l}×${first.w}`
+                ? `${first.w}×${first.l}`
                 : "";
           return (
             <span

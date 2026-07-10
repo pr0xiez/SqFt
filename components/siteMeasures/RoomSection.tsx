@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { DecimalInput } from "@/components/ui/DecimalInput";
 import type { SiteMeasure } from "@/lib/hooks/useSiteMeasures";
 import type { RoomItem, RoomSegment } from "@/lib/utils";
-import { roomSegments, roomSqft } from "@/lib/utils";
+import { roomSegments, roomSqft, segmentSqft } from "@/lib/utils";
 
 interface Props {
   siteMeasure: SiteMeasure;
@@ -15,35 +16,55 @@ function tempId() {
   return ++_nextId;
 }
 
+/** Editor-only segment: carries a stable `key` so React rows (and DecimalInput
+ *  drafts) stay attached to the right box when one is removed. Stripped before
+ *  save — the persisted shape is plain { w, l }. */
+type EditorSegment = RoomSegment & { key: number };
+
+type EditorItem = Omit<RoomItem, "segments"> & {
+  segments?: EditorSegment[] | null;
+};
+
+const dimInputClass =
+  "w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)]";
+
 /** Normalize a persisted room to the segments representation the editor uses:
- *  legacy w/l become a single box, and the scalar w/l are cleared. */
-function toSegmentRoom(item: RoomItem): RoomItem {
-  if (item.type !== "room") return item;
-  return { ...item, segments: roomSegments(item), w: null, l: null };
+ *  legacy w/l become a single box, and the scalar w/l are cleared. (The repo
+ *  re-canonicalizes on write, so a single box round-trips back to w/l.) */
+function toEditorItem(item: RoomItem): EditorItem {
+  if (item.type !== "room") return item as EditorItem;
+  return {
+    ...item,
+    segments: roomSegments(item).map((s) => ({ ...s, key: tempId() })),
+    w: null,
+    l: null,
+  };
 }
 
-function segmentSqft(seg: RoomSegment): number {
-  const w = typeof seg.w === "number" ? seg.w : Number(seg.w);
-  const l = typeof seg.l === "number" ? seg.l : Number(seg.l);
-  if (!Number.isFinite(w) || !Number.isFinite(l)) return 0;
-  return w * l;
+/** Strip editor-only segment keys back off before handing items to onSave. */
+function toSaveItems(items: EditorItem[]): RoomItem[] {
+  return items.map((item) =>
+    item.segments
+      ? { ...item, segments: item.segments.map(({ w, l }) => ({ w, l })) }
+      : (item as RoomItem)
+  );
 }
 
 export function RoomSection({ siteMeasure, onSave }: Props) {
-  const [items, setItems] = useState<RoomItem[]>(() =>
-    (siteMeasure.items ?? []).map(toSegmentRoom)
+  const [items, setItems] = useState<EditorItem[]>(() =>
+    (siteMeasure.items ?? []).map(toEditorItem)
   );
   // Id of a just-added room whose name input should grab focus once.
   const [focusId, setFocusId] = useState<number | null>(null);
 
   const save = useCallback(
-    async (newItems: RoomItem[]) => {
-      await onSave(newItems);
+    async (newItems: EditorItem[]) => {
+      await onSave(toSaveItems(newItems));
     },
     [onSave]
   );
 
-  function commit(newItems: RoomItem[]) {
+  function commit(newItems: EditorItem[]) {
     setItems(newItems);
     save(newItems);
   }
@@ -59,7 +80,7 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
         shape: "rect",
         w: null,
         l: null,
-        segments: [{ w: null, l: null }],
+        segments: [{ w: null, l: null, key: tempId() }],
         note: "",
       },
     ]);
@@ -70,34 +91,33 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
     commit(items.filter((i) => i.id !== id));
   }
 
-  function updateRoom(id: number, patch: Partial<RoomItem>) {
+  function updateRoom(id: number, patch: Partial<EditorItem>) {
     commit(
       items.map((item) => (item.id === id ? { ...item, ...patch } : item))
     );
   }
 
   function updateSegment(
-    room: RoomItem,
-    idx: number,
+    room: EditorItem,
+    key: number,
     patch: Partial<RoomSegment>
   ) {
-    const segments = roomSegments(room).map((s, i) =>
-      i === idx ? { ...s, ...patch } : s
+    const segments = (room.segments ?? []).map((s) =>
+      s.key === key ? { ...s, ...patch } : s
     );
-    updateRoom(room.id, { segments, w: null, l: null });
+    updateRoom(room.id, { segments });
   }
 
-  function addSegment(room: RoomItem) {
+  function addSegment(room: EditorItem) {
     updateRoom(room.id, {
-      segments: [...roomSegments(room), { w: null, l: null }],
-      w: null,
-      l: null,
+      segments: [...(room.segments ?? []), { w: null, l: null, key: tempId() }],
     });
   }
 
-  function removeSegment(room: RoomItem, idx: number) {
-    const segments = roomSegments(room).filter((_, i) => i !== idx);
-    updateRoom(room.id, { segments, w: null, l: null });
+  function removeSegment(room: EditorItem, key: number) {
+    updateRoom(room.id, {
+      segments: (room.segments ?? []).filter((s) => s.key !== key),
+    });
   }
 
   const rooms = items.filter((i) => i.type === "room");
@@ -111,8 +131,35 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
         </div>
       )}
 
-      {items.map((item) =>
-        item.type === "room" ? (
+      {items.map((item) => {
+        if (item.type !== "room") {
+          return (
+            <div
+              key={item.id}
+              className="flex items-start gap-2 px-4 py-2 bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--gold)] rounded-lg"
+            >
+              <textarea
+                rows={2}
+                value={item.text ?? ""}
+                onChange={(e) => updateRoom(item.id, { text: e.target.value })}
+                placeholder="Field note…"
+                className="flex-1 font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-transparent focus:outline-none resize-none italic"
+              />
+              <button
+                type="button"
+                onClick={() => removeItem(item.id)}
+                className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none mt-0.5 shrink-0"
+                aria-label="Remove note"
+              >
+                ✕
+              </button>
+            </div>
+          );
+        }
+
+        const boxes = item.segments ?? [];
+        const roomTotal = roomSqft(item);
+        return (
           <div
             key={item.id}
             className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-[18px_20px] transition-colors duration-150"
@@ -122,12 +169,17 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               <input
                 type="text"
                 value={item.name ?? ""}
+                // Focus a just-added room's name once; the matching onFocus
+                // clears focusId so later renders can't steal focus back (and
+                // no setState runs during render).
                 ref={(el) => {
                   if (el && focusId === item.id) {
                     el.focus();
                     el.select();
-                    setFocusId(null);
                   }
+                }}
+                onFocus={() => {
+                  if (focusId === item.id) setFocusId(null);
                 }}
                 onChange={(e) => updateRoom(item.id, { name: e.target.value })}
                 placeholder="Room name"
@@ -144,36 +196,27 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
 
             {/* Dimensions — one row per box; areas sum to the room total */}
             <div className="space-y-2 mb-3">
-              {roomSegments(item).map((seg, idx) => {
-                const boxes = roomSegments(item);
+              {boxes.map((seg, idx) => {
                 const sqft = segmentSqft(seg);
                 return (
-                  <div key={idx} className="flex items-center gap-2.5">
+                  <div key={seg.key} className="flex items-center gap-2.5">
                     <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] min-w-[80px] tracking-[.04em]">
                       {idx === 0 ? "Dimensions" : ""}
                     </span>
-                    <input
-                      type="number"
-                      value={seg.l ?? ""}
-                      onChange={(e) =>
-                        updateSegment(item, idx, {
-                          l: parseFloat(e.target.value) || undefined,
-                        })
-                      }
+                    <DecimalInput
+                      value={seg.l ?? null}
+                      allowEmpty
+                      onCommit={(n) => updateSegment(item, seg.key, { l: n })}
                       placeholder="L"
-                      className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className={dimInputClass}
                     />
                     <span className="text-[14px] text-[var(--muted)]">×</span>
-                    <input
-                      type="number"
-                      value={seg.w ?? ""}
-                      onChange={(e) =>
-                        updateSegment(item, idx, {
-                          w: parseFloat(e.target.value) || undefined,
-                        })
-                      }
+                    <DecimalInput
+                      value={seg.w ?? null}
+                      allowEmpty
+                      onCommit={(n) => updateSegment(item, seg.key, { w: n })}
                       placeholder="W"
-                      className="w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className={dimInputClass}
                     />
                     <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
                       ft
@@ -190,7 +233,7 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                     {boxes.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeSegment(item, idx)}
+                        onClick={() => removeSegment(item, seg.key)}
                         aria-label="Remove dimension"
                         className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none shrink-0"
                       >
@@ -209,15 +252,13 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                 >
                   + dimension
                 </button>
-                {roomSegments(item).length > 1 && (
+                {boxes.length > 1 && (
                   <div className="ml-auto flex items-center gap-2">
                     <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em]">
                       Room total
                     </span>
                     <span className="text-[18px] font-[700] tracking-[-0.02em]">
-                      {roomSqft(item) > 0
-                        ? `${Math.round(roomSqft(item))} sqft`
-                        : "—"}
+                      {roomTotal > 0 ? `${Math.round(roomTotal)} sqft` : "—"}
                     </span>
                   </div>
                 )}
@@ -233,29 +274,8 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               className="w-full text-[13px] text-[var(--ink-2)] bg-[var(--surface)] border border-[var(--line)] rounded-[5px] px-2.5 py-2 italic focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 placeholder:text-[var(--muted)]"
             />
           </div>
-        ) : (
-          <div
-            key={item.id}
-            className="flex items-start gap-2 px-4 py-2 bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--gold)] rounded-lg"
-          >
-            <textarea
-              rows={2}
-              value={item.text ?? ""}
-              onChange={(e) => updateRoom(item.id, { text: e.target.value })}
-              placeholder="Field note…"
-              className="flex-1 font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-transparent focus:outline-none resize-none italic"
-            />
-            <button
-              type="button"
-              onClick={() => removeItem(item.id)}
-              className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none mt-0.5 shrink-0"
-              aria-label="Remove note"
-            >
-              ✕
-            </button>
-          </div>
-        )
-      )}
+        );
+      })}
 
       {/* Add buttons */}
       <div className="flex gap-2 mt-3.5">

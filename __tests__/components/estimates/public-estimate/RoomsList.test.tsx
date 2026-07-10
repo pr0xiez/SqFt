@@ -17,7 +17,7 @@ describe("RoomsList", () => {
       />
     );
     expect(screen.getByText("Den")).not.toBeNull();
-    expect(screen.getByText(/12×10 · 120 sqft/)).not.toBeNull();
+    expect(screen.getByText(/10×12 · 120 sqft/)).not.toBeNull();
   });
 
   it("shows the box count and summed sqft for a multi-box room", () => {

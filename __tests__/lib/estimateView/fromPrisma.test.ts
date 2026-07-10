@@ -46,4 +46,46 @@ describe("fromPrismaEstimate — room segments", () => {
     expect(view.lines[0].effectiveQty).toBe(132);
     expect(view.total).toBe(264); // 132 sqft × $2 — was 0 before the fix
   });
+
+  it("survives a malformed segments JSON value by falling back to legacy w/l", () => {
+    const view = computeEstimateView(
+      fromPrismaEstimate({
+        markupPct: 0,
+        depositPct: 0,
+        lineItems: [
+          {
+            id: 1,
+            name: "Flooring",
+            description: null,
+            rate: 2,
+            qtyMode: "linked_area",
+            qty: null,
+            wastePct: 0,
+            unitLabel: "ft²",
+            linkedRoomIds: [10],
+            sortOrder: 0,
+          },
+        ],
+        siteMeasure: {
+          items: [
+            {
+              id: 10,
+              type: "room",
+              name: "Den",
+              shape: "rect",
+              w: 10,
+              l: 12,
+              // A non-array with a .length property: the worst case for the
+              // old bare cast, which let it reach roomSqft's reduce and throw.
+              segments: "10x12",
+              note: null,
+              text: null,
+            },
+          ],
+        },
+      })
+    );
+
+    expect(view.lines[0].effectiveQty).toBe(120);
+  });
 });

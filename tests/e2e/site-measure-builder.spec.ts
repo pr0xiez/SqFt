@@ -240,9 +240,10 @@ test.describe
 
     test("3.2.4 editing dimensions saves and updates sqft display", async () => {
       await page.goto(`/site-measures/${siteMeasureId}`);
-      // RoomSection saves on every onChange, so filling L then W fires a PATCH
-      // each. The sqft display updates from local React state; expect.poll below
-      // retries until the server converges.
+      // Dimension fields are DecimalInputs: each commits (and PATCHes) on
+      // blur — focusing W blurs L, then the explicit blur commits W. The sqft
+      // display updates from local React state; expect.poll below retries
+      // until the server converges.
       await page.getByPlaceholder("L").fill("12");
       await page.getByPlaceholder("W").fill("10");
       await page.getByPlaceholder("W").blur();

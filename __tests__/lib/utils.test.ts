@@ -9,10 +9,12 @@ import {
   fmtDollar,
   getWeekStart,
   parsef,
+  parseRoomSegments,
   type RoomItem,
   roomPerimeter,
   roomSegments,
   roomSqft,
+  segmentSqft,
   sourceName,
   timeToMinutes,
 } from "@/lib/utils";
@@ -246,8 +248,10 @@ describe("roomSqft with segments", () => {
   it("falls back to legacy w/l when segments is absent", () => {
     expect(roomSqft({ id: 1, type: "room", w: 10, l: 12 })).toBe(120);
   });
-  it("treats a legacy tri room as a full rectangle (triangles dropped)", () => {
-    expect(roomSqft({ id: 1, type: "room", shape: "tri", w: 10, l: 12 })).toBe(
+  it("treats a room with an unknown legacy shape as a full rectangle (triangles dropped)", () => {
+    // A DB row could still say shape "tri"; readers narrow it to null and the
+    // math treats every box as a rectangle.
+    expect(roomSqft({ id: 1, type: "room", shape: null, w: 10, l: 12 })).toBe(
       120
     );
   });
@@ -277,6 +281,61 @@ describe("roomSegments", () => {
   it("returns a single legacy box when segments is absent", () => {
     expect(roomSegments({ id: 1, type: "room", w: 10, l: 12 })).toEqual([
       { w: 10, l: 12 },
+    ]);
+  });
+  it("falls back to the legacy box when segments is not an array (malformed JSON)", () => {
+    const room = {
+      id: 1,
+      type: "room",
+      w: 10,
+      l: 12,
+      segments: "10x12" as unknown as RoomItem["segments"],
+    } satisfies RoomItem;
+    expect(roomSegments(room)).toEqual([{ w: 10, l: 12 }]);
+    expect(roomSqft(room)).toBe(120);
+  });
+});
+
+describe("segmentSqft", () => {
+  it("multiplies w×l", () => {
+    expect(segmentSqft({ w: 10, l: 12 })).toBe(120);
+  });
+  it("returns 0 when either dimension is missing", () => {
+    expect(segmentSqft({ w: 10, l: null })).toBe(0);
+    expect(segmentSqft({ w: null, l: 12 })).toBe(0);
+    expect(segmentSqft({})).toBe(0);
+  });
+});
+
+describe("parseRoomSegments", () => {
+  it("passes a well-formed array through", () => {
+    expect(
+      parseRoomSegments([
+        { w: 10, l: 12 },
+        { w: 4, l: 3 },
+      ])
+    ).toEqual([
+      { w: 10, l: 12 },
+      { w: 4, l: 3 },
+    ]);
+  });
+  it("returns undefined for non-arrays and empty arrays", () => {
+    expect(parseRoomSegments(null)).toBeUndefined();
+    expect(parseRoomSegments(undefined)).toBeUndefined();
+    expect(parseRoomSegments("10x12")).toBeUndefined();
+    expect(parseRoomSegments({ length: 1 })).toBeUndefined();
+    expect(parseRoomSegments([])).toBeUndefined();
+  });
+  it("coerces malformed elements and non-numeric dims to null boxes", () => {
+    expect(parseRoomSegments(["bad", { w: "10", l: 12 }, { w: 5 }])).toEqual([
+      { w: null, l: null },
+      { w: null, l: 12 },
+      { w: 5, l: null },
+    ]);
+  });
+  it("rejects non-finite numbers", () => {
+    expect(parseRoomSegments([{ w: Infinity, l: Number.NaN }])).toEqual([
+      { w: null, l: null },
     ]);
   });
 });

@@ -35,4 +35,11 @@ describe("estimateUpdateSchema — room segments", () => {
     });
     expect(parsed.items?.[0]?.segments).toBeUndefined();
   });
+
+  it("rejects the retired tri shape (triangle math was dropped)", () => {
+    const result = estimateUpdateSchema.safeParse({
+      items: [{ id: 1, type: "room", shape: "tri", w: 10, l: 12 }],
+    });
+    expect(result.success).toBe(false);
+  });
 });

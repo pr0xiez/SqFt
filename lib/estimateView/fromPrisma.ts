@@ -1,4 +1,9 @@
-import { type LineItemCalc, parseQtyMode, type RoomItem } from "@/lib/utils";
+import {
+  type LineItemCalc,
+  parseQtyMode,
+  parseRoomSegments,
+  type RoomItem,
+} from "@/lib/utils";
 import type { EstimateInput } from "./types";
 
 /** Minimal shape of a Prisma `LineItem` row — just the columns the view needs. */
@@ -70,12 +75,10 @@ function toRoomItem(row: PrismaEstimateItemRow): RoomItem {
   return {
     id: row.id,
     type: row.type === "note" ? "note" : "room",
-    shape: row.shape === "tri" ? "tri" : row.shape === "rect" ? "rect" : null,
+    shape: row.shape === "rect" ? "rect" : null,
     w: row.w ?? null,
     l: row.l ?? null,
-    segments:
-      (row.segments as { w?: number | null; l?: number | null }[] | null) ??
-      undefined,
+    segments: parseRoomSegments(row.segments),
     name: row.name ?? null,
     note: row.note ?? null,
     text: row.text ?? null,

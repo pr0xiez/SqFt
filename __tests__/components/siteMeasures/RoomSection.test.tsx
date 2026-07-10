@@ -87,21 +87,37 @@ describe("RoomSection", () => {
     expect(saved[0]).toMatchObject({ type: "room", name: "New Room" });
   });
 
-  it("edits width/length: derived sqft and gross-area total update", () => {
+  it("edits width/length: derived sqft and gross-area total update on commit", () => {
     renderSection([room({ w: null, l: null })]);
     // The room exists (so the summary bar renders) but has no dimensions yet,
     // so the gross-area total reads "—" rather than a sqft figure.
     expect(grossArea()).toContain("—");
 
-    fireEvent.change(screen.getByPlaceholderText("L"), {
-      target: { value: "12" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("W"), {
-      target: { value: "10" },
-    });
+    // Dimension fields are DecimalInputs: they hold a draft while typing and
+    // commit on blur.
+    const l = screen.getByPlaceholderText("L");
+    fireEvent.change(l, { target: { value: "12" } });
+    fireEvent.blur(l);
+    const w = screen.getByPlaceholderText("W");
+    fireEvent.change(w, { target: { value: "10" } });
+    fireEvent.blur(w);
 
     // 12 × 10 = 120
     expect(grossArea()).toContain("120 sqft");
+  });
+
+  it("accepts a leading zero in a dimension (regression: 0 was swallowed)", () => {
+    const { onSave } = renderSection([room({ w: null, l: null })]);
+    const l = screen.getByPlaceholderText("L") as HTMLInputElement;
+    // Typing "0" then continuing to "0.5" must keep the draft text intact.
+    fireEvent.change(l, { target: { value: "0" } });
+    expect(l.value).toBe("0");
+    fireEvent.change(l, { target: { value: "0.5" } });
+    expect(l.value).toBe("0.5");
+    fireEvent.blur(l);
+
+    const lastRoom = onSave.mock.calls.at(-1)?.[0]?.[0];
+    expect(lastRoom?.segments?.[0]?.l).toBe(0.5);
   });
 
   it("edits the room name and persists it via onSave", () => {
@@ -168,9 +184,22 @@ describe("RoomSection", () => {
     const ls = screen.getAllByPlaceholderText("L");
     const ws = screen.getAllByPlaceholderText("W");
     fireEvent.change(ls[1], { target: { value: "4" } });
+    fireEvent.blur(ls[1]);
     fireEvent.change(ws[1], { target: { value: "3" } });
+    fireEvent.blur(ws[1]);
     // 120 + 12 = 132 gross.
     expect(grossArea()).toContain("132 sqft");
+  });
+
+  it("strips editor-only segment keys from what onSave receives", () => {
+    const { onSave } = renderSection([room({ id: 1, w: 10, l: 12 })]);
+    fireEvent.click(screen.getByText("+ dimension"));
+
+    const saved = onSave.mock.calls.at(-1)?.[0]?.[0];
+    expect(saved?.segments).toEqual([
+      { w: 10, l: 12 },
+      { w: null, l: null },
+    ]);
   });
 
   it("removes a dimension box and recomputes the total", () => {
