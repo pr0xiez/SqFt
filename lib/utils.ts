@@ -31,37 +31,75 @@ export function deepCopy<T>(x: T): T {
 
 // ── Room area calculations ────────────────────────────────────────────────
 
+export interface RoomSegment {
+  w?: number | null;
+  l?: number | null;
+}
+
 export interface RoomItem {
   id: number;
   type: "room" | "note";
-  shape?: "rect" | "tri" | null;
+  shape?: "rect" | null;
   w?: string | number | null;
   l?: string | number | null;
+  /** Box decomposition of a (possibly non-rectangular) room; sqft = Σ w*l.
+   *  Absent/empty means a single legacy box described by the scalar w/l. */
+  segments?: RoomSegment[] | null;
   name?: string | null;
   note?: string | null;
   text?: string | null;
 }
 
-/** Calculate net square footage for a single room item */
-export function roomSqft(room: RoomItem): number {
-  if (room.type !== "room") return 0;
-  const w = parsef(room.w);
-  const l = parsef(room.l);
-  if (w === null || l === null) return 0;
-  if ((room.shape || "rect") === "tri") return (w * l) / 2;
-  return w * l;
+/** Validate a raw JSON value (e.g. a Prisma Json column) as a room's box
+ *  decomposition. Returns undefined for anything that isn't a non-empty array,
+ *  and coerces each element's non-numeric w/l to null — malformed data falls
+ *  back to the legacy scalar w/l instead of crashing area math. Use at every
+ *  DB/JSON → RoomItem boundary. */
+export function parseRoomSegments(json: unknown): RoomSegment[] | undefined {
+  if (!Array.isArray(json) || json.length === 0) return undefined;
+  return json.map((s) => {
+    const seg = typeof s === "object" && s !== null ? (s as RoomSegment) : {};
+    return {
+      w: typeof seg.w === "number" && Number.isFinite(seg.w) ? seg.w : null,
+      l: typeof seg.l === "number" && Number.isFinite(seg.l) ? seg.l : null,
+    };
+  });
 }
 
-/** Calculate the perimeter (linear feet) of a room. For rectangles 2(w+l);
- *  for right-triangle rooms w + l + hypotenuse(w,l). Used to drive linear
- *  measurements like shoe mold, quarter-round, or transition strips. */
+/** The boxes making up a room: its segments if present, else the single legacy
+ *  box from w/l. Use for display and box-count; roomSqft/roomPerimeter remain
+ *  the authoritative area/length. */
+export function roomSegments(room: RoomItem): RoomSegment[] {
+  if (Array.isArray(room.segments) && room.segments.length > 0)
+    return room.segments;
+  return [{ w: parsef(room.w), l: parsef(room.l) }];
+}
+
+/** Area (sqft) of one box: w×l, or 0 if either dimension is missing. */
+export function segmentSqft(seg: RoomSegment): number {
+  const w = parsef(seg.w);
+  const l = parsef(seg.l);
+  return w === null || l === null ? 0 : w * l;
+}
+
+/** Net square footage for a single room: the sum of its box areas (a legacy
+ *  room without segments is treated as one box from w/l). */
+export function roomSqft(room: RoomItem): number {
+  if (room.type !== "room") return 0;
+  return roomSegments(room).reduce((sum, s) => sum + segmentSqft(s), 0);
+}
+
+/** Perimeter (linear feet) of a room: the sum of each box's 2(w+l). Multi-box
+ *  rooms over-count shared interior edges (positions aren't stored), which errs
+ *  toward ordering enough trim. Drives linear measures like shoe mold,
+ *  quarter-round, transition strips. */
 export function roomPerimeter(room: RoomItem): number {
   if (room.type !== "room") return 0;
-  const w = parsef(room.w);
-  const l = parsef(room.l);
-  if (w === null || l === null) return 0;
-  if ((room.shape || "rect") === "tri") return w + l + Math.hypot(w, l);
-  return 2 * (w + l);
+  return roomSegments(room).reduce((sum, s) => {
+    const w = parsef(s.w);
+    const l = parsef(s.l);
+    return w === null || l === null ? sum : sum + 2 * (w + l);
+  }, 0);
 }
 
 /** Sum square footage of all room items in an siteMeasure */

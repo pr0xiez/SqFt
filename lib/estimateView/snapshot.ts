@@ -70,6 +70,9 @@ export function snapshotEstimate(
       shape: i.shape ?? null,
       w: i.w ?? null,
       l: i.l ?? null,
+      // Multi-box rooms carry their geometry in segments (w/l are null), so
+      // the approved artifact must keep them or those rooms lose all dims.
+      segments: i.segments ?? null,
       note: i.note ?? null,
       text: i.text ?? null,
     })),

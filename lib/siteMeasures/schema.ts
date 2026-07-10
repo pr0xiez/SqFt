@@ -5,9 +5,14 @@ const itemSchema = z.object({
   type: z.enum(["room", "note"]),
   sortOrder: z.number().int().default(0),
   name: z.string().nullish(),
-  shape: z.enum(["rect", "tri"]).nullish(),
+  // "tri" was dropped along with the triangle room math: the UI never offered
+  // it and production data has none, so new writes may only claim "rect".
+  shape: z.enum(["rect"]).nullish(),
   w: z.number().nullish(),
   l: z.number().nullish(),
+  segments: z
+    .array(z.object({ w: z.number().nullish(), l: z.number().nullish() }))
+    .nullish(),
   note: z.string().nullish(),
   text: z.string().nullish(),
 });

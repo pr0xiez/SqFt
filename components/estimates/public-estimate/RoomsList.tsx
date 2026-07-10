@@ -1,4 +1,4 @@
-import { type RoomItem, roomSqft } from "@/lib/utils";
+import { type RoomItem, roomSegments, roomSqft } from "@/lib/utils";
 
 interface Props {
   rooms: RoomItem[];
@@ -14,10 +14,14 @@ export function RoomsList({ rooms }: Props) {
       <div className="flex flex-wrap gap-1.5 mb-9">
         {rooms.map((r) => {
           const sqft = Math.round(roomSqft(r));
+          const boxes = roomSegments(r);
+          const first = boxes[0];
           const dim =
-            r.shape === "rect" && r.w && r.l
-              ? `${r.w}×${r.l}`
-              : (r.shape ?? "");
+            boxes.length > 1
+              ? `${boxes.length} areas`
+              : first?.w && first?.l
+                ? `${first.w}×${first.l}`
+                : "";
           return (
             <span
               key={r.id}

@@ -9,9 +9,12 @@ import {
   fmtDollar,
   getWeekStart,
   parsef,
+  parseRoomSegments,
   type RoomItem,
   roomPerimeter,
+  roomSegments,
   roomSqft,
+  segmentSqft,
   sourceName,
   timeToMinutes,
 } from "@/lib/utils";
@@ -70,18 +73,9 @@ describe("roomSqft", () => {
     w: "10",
     l: "12",
   };
-  const triRoom: RoomItem = {
-    id: 2,
-    type: "room",
-    shape: "tri",
-    w: "10",
-    l: "8",
-  };
   const noteItem: RoomItem = { id: 4, type: "note", text: "See spec" };
 
   it("calculates rectangular area", () => expect(roomSqft(rectRoom)).toBe(120));
-  it("calculates triangular area as half of w*l", () =>
-    expect(roomSqft(triRoom)).toBe(40));
   it("returns 0 for note items", () => expect(roomSqft(noteItem)).toBe(0));
   it("returns 0 when dimensions are missing", () => {
     const empty: RoomItem = { id: 5, type: "room", shape: "rect" };
@@ -111,17 +105,6 @@ describe("roomPerimeter", () => {
       l: "15",
     };
     expect(roomPerimeter(rect)).toBe(50);
-  });
-
-  it("calculates triangle perimeter as w + l + hypotenuse", () => {
-    const tri: RoomItem = {
-      id: 2,
-      type: "room",
-      shape: "tri",
-      w: "3",
-      l: "4",
-    };
-    expect(roomPerimeter(tri)).toBe(12); // 3 + 4 + 5
   });
 
   it("returns 0 for note items", () => {
@@ -159,22 +142,6 @@ describe("estTotalArea", () => {
   });
 
   it("returns 0 for empty array", () => expect(estTotalArea([])).toBe(0));
-
-  it("counts triangle rooms as half of w*l", () => {
-    const items: RoomItem[] = [
-      { id: 1, type: "room", shape: "tri", w: "10", l: "8" },
-    ];
-    expect(estTotalArea(items)).toBe(40); // 10*8/2
-  });
-
-  it("sums mixed rect and triangle rooms", () => {
-    const items: RoomItem[] = [
-      { id: 1, type: "room", shape: "rect", w: "10", l: "10" }, // 100
-      { id: 2, type: "room", shape: "tri", w: "10", l: "8" }, // 40
-      { id: 3, type: "note", text: "note" }, // ignored
-    ];
-    expect(estTotalArea(items)).toBe(140); // 100 + 40
-  });
 });
 
 // ── getWeekStart ──────────────────────────────────────────────────────────────
@@ -248,5 +215,127 @@ describe("fmtDayHead", () => {
     const result = fmtDayHead(mon);
     expect(result).toMatch(/Mon/);
     expect(result).toMatch(/8/);
+  });
+});
+
+// ── segments ────────────────────────────────────────────────────────────────
+
+describe("roomSqft with segments", () => {
+  it("sums the area of every box", () => {
+    expect(
+      roomSqft({
+        id: 1,
+        type: "room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 4, l: 3 },
+        ],
+      })
+    ).toBe(132);
+  });
+  it("ignores a box missing a dimension", () => {
+    expect(
+      roomSqft({
+        id: 1,
+        type: "room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 5, l: null },
+        ],
+      })
+    ).toBe(120);
+  });
+  it("falls back to legacy w/l when segments is absent", () => {
+    expect(roomSqft({ id: 1, type: "room", w: 10, l: 12 })).toBe(120);
+  });
+  it("treats a room with an unknown legacy shape as a full rectangle (triangles dropped)", () => {
+    // A DB row could still say shape "tri"; readers narrow it to null and the
+    // math treats every box as a rectangle.
+    expect(roomSqft({ id: 1, type: "room", shape: null, w: 10, l: 12 })).toBe(
+      120
+    );
+  });
+});
+
+describe("roomPerimeter with segments", () => {
+  it("sums each box's perimeter", () => {
+    // 2(10+12) + 2(4+3) = 44 + 14
+    expect(
+      roomPerimeter({
+        id: 1,
+        type: "room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 4, l: 3 },
+        ],
+      })
+    ).toBe(58);
+  });
+});
+
+describe("roomSegments", () => {
+  it("returns the room's segments when present", () => {
+    const segs = [{ w: 1, l: 2 }];
+    expect(roomSegments({ id: 1, type: "room", segments: segs })).toBe(segs);
+  });
+  it("returns a single legacy box when segments is absent", () => {
+    expect(roomSegments({ id: 1, type: "room", w: 10, l: 12 })).toEqual([
+      { w: 10, l: 12 },
+    ]);
+  });
+  it("falls back to the legacy box when segments is not an array (malformed JSON)", () => {
+    const room = {
+      id: 1,
+      type: "room",
+      w: 10,
+      l: 12,
+      segments: "10x12" as unknown as RoomItem["segments"],
+    } satisfies RoomItem;
+    expect(roomSegments(room)).toEqual([{ w: 10, l: 12 }]);
+    expect(roomSqft(room)).toBe(120);
+  });
+});
+
+describe("segmentSqft", () => {
+  it("multiplies w×l", () => {
+    expect(segmentSqft({ w: 10, l: 12 })).toBe(120);
+  });
+  it("returns 0 when either dimension is missing", () => {
+    expect(segmentSqft({ w: 10, l: null })).toBe(0);
+    expect(segmentSqft({ w: null, l: 12 })).toBe(0);
+    expect(segmentSqft({})).toBe(0);
+  });
+});
+
+describe("parseRoomSegments", () => {
+  it("passes a well-formed array through", () => {
+    expect(
+      parseRoomSegments([
+        { w: 10, l: 12 },
+        { w: 4, l: 3 },
+      ])
+    ).toEqual([
+      { w: 10, l: 12 },
+      { w: 4, l: 3 },
+    ]);
+  });
+  it("returns undefined for non-arrays and empty arrays", () => {
+    expect(parseRoomSegments(null)).toBeUndefined();
+    expect(parseRoomSegments(undefined)).toBeUndefined();
+    expect(parseRoomSegments("10x12")).toBeUndefined();
+    expect(parseRoomSegments({ length: 1 })).toBeUndefined();
+    expect(parseRoomSegments([])).toBeUndefined();
+  });
+  it("coerces malformed elements and non-numeric dims to null boxes", () => {
+    expect(parseRoomSegments(["bad", { w: "10", l: 12 }, { w: 5 }])).toEqual([
+      { w: null, l: null },
+      { w: null, l: 12 },
+      { w: 5, l: null },
+    ]);
+  });
+  it("rejects non-finite numbers", () => {
+    expect(parseRoomSegments([{ w: Infinity, l: Number.NaN }])).toEqual([
+      { w: null, l: null },
+    ]);
   });
 });

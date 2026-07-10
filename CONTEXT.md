@@ -69,10 +69,21 @@ distinct. Org-scoped like everything else. Repo: `lib/repositories/locationRepo.
 ## Site Measure
 
 The measurement record for a location: a set of room measurements
-(`SiteMeasureItem` rows — rect rooms with width/length, or text notes) plus a
-`siteMeasureNumber`. It carries no pricing. The measurement UI lives in
-`components/siteMeasures/` and `app/(app)/site-measures/`; the repo is
-`lib/repositories/siteMeasureRepo.ts`.
+(`SiteMeasureItem` rows) plus a `siteMeasureNumber`; it carries no pricing. A
+room is a set of L×W **boxes** (`segments` JSON — a non-rectangular room is
+entered as several boxes whose areas sum), or a legacy single box from the
+scalar `w`/`l`. `saveSiteMeasure` canonicalizes on write so the DB never holds
+both: a single box persists as scalar `w`/`l` (`segments` NULL), only a
+multi-box room persists `segments` (scalars NULL). Reads narrow the JSON
+column through `parseRoomSegments` (`lib/utils.ts`) — never a bare cast.
+Rooms are rectangles-only: the `shape` column is a legacy no-op (the old
+triangle-area special-case was removed, and writes only accept `"rect"`).
+Square footage and perimeter are the single source of truth in `roomSqft` /
+`roomPerimeter` (`lib/utils.ts`), which sum the boxes via `segmentSqft`
+(perimeter sums each box, over-ordering trim rather than modeling shared
+walls); linked line quantities read those.
+The measurement UI lives in `components/siteMeasures/` and
+`app/(app)/site-measures/`; the repo is `lib/repositories/siteMeasureRepo.ts`.
 
 ## Estimate View
 

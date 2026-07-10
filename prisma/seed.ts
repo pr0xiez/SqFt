@@ -390,12 +390,18 @@ async function main() {
       items: {
         create: [
           {
+            // Multi-box room: an L-shape decomposed into two rectangles.
+            // Canonical form per saveSiteMeasure: segments set, scalars null.
             type: "room",
             name: "Living + Dining",
             shape: "rect",
-            w: 14,
-            l: 22,
-            note: "open concept",
+            w: null,
+            l: null,
+            segments: [
+              { w: 14, l: 22 },
+              { w: 8, l: 10 },
+            ],
+            note: "open concept, L-shape",
             sortOrder: 0,
           },
         ],

@@ -87,21 +87,37 @@ describe("RoomSection", () => {
     expect(saved[0]).toMatchObject({ type: "room", name: "New Room" });
   });
 
-  it("edits width/length: derived sqft and gross-area total update", () => {
+  it("edits width/length: derived sqft and gross-area total update on commit", () => {
     renderSection([room({ w: null, l: null })]);
     // The room exists (so the summary bar renders) but has no dimensions yet,
     // so the gross-area total reads "—" rather than a sqft figure.
     expect(grossArea()).toContain("—");
 
-    fireEvent.change(screen.getByPlaceholderText("L"), {
-      target: { value: "12" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("W"), {
-      target: { value: "10" },
-    });
+    // Dimension fields are DecimalInputs: they hold a draft while typing and
+    // commit on blur.
+    const l = screen.getByPlaceholderText("L");
+    fireEvent.change(l, { target: { value: "12" } });
+    fireEvent.blur(l);
+    const w = screen.getByPlaceholderText("W");
+    fireEvent.change(w, { target: { value: "10" } });
+    fireEvent.blur(w);
 
     // 12 × 10 = 120
     expect(grossArea()).toContain("120 sqft");
+  });
+
+  it("accepts a leading zero in a dimension (regression: 0 was swallowed)", () => {
+    const { onSave } = renderSection([room({ w: null, l: null })]);
+    const l = screen.getByPlaceholderText("L") as HTMLInputElement;
+    // Typing "0" then continuing to "0.5" must keep the draft text intact.
+    fireEvent.change(l, { target: { value: "0" } });
+    expect(l.value).toBe("0");
+    fireEvent.change(l, { target: { value: "0.5" } });
+    expect(l.value).toBe("0.5");
+    fireEvent.blur(l);
+
+    const lastRoom = onSave.mock.calls.at(-1)?.[0]?.[0];
+    expect(lastRoom?.segments?.[0]?.l).toBe(0.5);
   });
 
   it("edits the room name and persists it via onSave", () => {
@@ -149,5 +165,66 @@ describe("RoomSection", () => {
     const lastCall = onSave.mock.calls.at(-1)?.[0];
     expect(lastCall).toHaveLength(1);
     expect(lastCall?.[0]).toMatchObject({ name: "Kitchen" });
+  });
+
+  it("focuses the name input when a room is added", () => {
+    renderSection([]);
+    fireEvent.click(screen.getByText("+ Add Room"));
+    const nameInput = screen.getByPlaceholderText(
+      "Room name"
+    ) as HTMLInputElement;
+    expect(document.activeElement).toBe(nameInput);
+  });
+
+  it("adds a dimension box and sums it into the room total", () => {
+    renderSection([room({ id: 1, name: "Great Room", w: 10, l: 12 })]); // 120
+    // Add a second box.
+    fireEvent.click(screen.getByText("+ dimension"));
+    // Now two L inputs and two W inputs; fill the second box 4 × 3 = 12.
+    const ls = screen.getAllByPlaceholderText("L");
+    const ws = screen.getAllByPlaceholderText("W");
+    fireEvent.change(ls[1], { target: { value: "4" } });
+    fireEvent.blur(ls[1]);
+    fireEvent.change(ws[1], { target: { value: "3" } });
+    fireEvent.blur(ws[1]);
+    // 120 + 12 = 132 gross.
+    expect(grossArea()).toContain("132 sqft");
+  });
+
+  it("strips editor-only segment keys from what onSave receives", () => {
+    const { onSave } = renderSection([room({ id: 1, w: 10, l: 12 })]);
+    fireEvent.click(screen.getByText("+ dimension"));
+
+    const saved = onSave.mock.calls.at(-1)?.[0]?.[0];
+    expect(saved?.segments).toEqual([
+      { w: 10, l: 12 },
+      { w: null, l: null },
+    ]);
+  });
+
+  it("removes a dimension box and recomputes the total", () => {
+    renderSection([
+      room({
+        id: 1,
+        name: "Great Room",
+        segments: [
+          { w: 10, l: 12 },
+          { w: 4, l: 3 },
+        ],
+        w: null,
+        l: null,
+      }),
+    ]);
+    expect(grossArea()).toContain("132 sqft");
+    // Two boxes → each has a remove control; remove the second.
+    const removes = screen.getAllByLabelText("Remove dimension");
+    expect(removes).toHaveLength(2);
+    fireEvent.click(removes[1]);
+    expect(grossArea()).toContain("120 sqft");
+  });
+
+  it("does not show a per-box remove control when a room has one box", () => {
+    renderSection([room({ id: 1, w: 10, l: 12 })]);
+    expect(screen.queryByLabelText("Remove dimension")).toBeNull();
   });
 });
