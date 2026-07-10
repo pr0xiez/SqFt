@@ -9,6 +9,7 @@ import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { computeEstimateBilling } from "@/lib/invoices/compute";
 import { isOverbill } from "@/lib/invoices/createInvoiceForm";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
+import { logError } from "@/lib/logger";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { searchableInt } from "@/lib/repositories/search";
@@ -212,6 +213,44 @@ export function nextInvoiceStatus(args: {
   }
   if (args.paid + 0.005 >= args.amount) return "paid";
   return "partial";
+}
+
+export interface StripeChargeClassification {
+  nextStatus: string;
+  paidAfter: number;
+  orphaned: boolean;
+  overpaid: boolean;
+}
+
+/**
+ * Decide how an incoming Stripe charge maps onto the invoice ledger — pure, no
+ * IO. A captured charge is real money, so the recorder must NEVER silently drop
+ * it; instead we surface the anomalies so the contractor can refund:
+ *   - `orphaned`: the invoice was voided after the Checkout session opened, so
+ *     the card was charged against a cancelled invoice.
+ *   - `overpaid`: the total recorded now exceeds the invoice amount (e.g. a
+ *     manual payment already covered the balance, then a stale session paid).
+ * `nextStatus` delegates to nextInvoiceStatus, which keeps `void` terminal — a
+ * charge never resurrects a voided invoice.
+ */
+export function classifyStripeCharge(args: {
+  status: string;
+  amount: number;
+  priorPaid: number;
+  chargeAmount: number;
+}): StripeChargeClassification {
+  const paidAfter = round2(args.priorPaid + args.chargeAmount);
+  const nextStatus = nextInvoiceStatus({
+    current: args.status,
+    amount: args.amount,
+    paid: paidAfter,
+  });
+  return {
+    nextStatus,
+    paidAfter,
+    orphaned: args.status === "void",
+    overpaid: paidAfter > args.amount + 0.005,
+  };
 }
 
 export interface UpdateInvoiceInput {
@@ -477,6 +516,197 @@ export async function recordPayment(
       where: { id: invoiceId },
       include: INVOICE_INCLUDE,
     });
+  });
+}
+
+/**
+ * Audit-trail a failed async (bank-debit) Stripe payment. No ledger row is
+ * written — no money moved, and the unpaid-gated webhook never recorded the
+ * session — so this only leaves a `payment_failed` event on the invoice.
+ * Org-scoped: a forged invoiceId outside the account's org is a no-op.
+ */
+export async function recordStripePaymentFailure(input: {
+  orgId: string;
+  invoiceId: number;
+  amount: number;
+  paymentIntentId: string | null;
+}): Promise<void> {
+  const inv = await prisma.invoice.findFirst({
+    where: { id: input.invoiceId, orgId: input.orgId },
+    select: { id: true },
+  });
+  if (!inv) return;
+  await prisma.invoiceEvent.create({
+    data: {
+      invoiceId: input.invoiceId,
+      type: "payment_failed",
+      source: "customer",
+      actorName: "Stripe",
+      metadata: {
+        amount: input.amount,
+        method: "stripe",
+        ...(input.paymentIntentId
+          ? { paymentIntentId: input.paymentIntentId }
+          : {}),
+      },
+    },
+  });
+  logError({
+    path: "lib/repositories/invoiceRepo#recordStripePaymentFailure",
+    orgId: input.orgId,
+    errorMessage: `Stripe bank payment failed on invoice ${input.invoiceId} (${input.amount})`,
+  });
+}
+
+export interface RecordStripePaymentInput {
+  paymentIntentId: string;
+  chargeId: string;
+  orgId: string;
+  invoiceId: number;
+  amount: number;
+  feeAmount: number | null;
+  netAmount: number | null;
+}
+
+/**
+ * Idempotent Stripe payment recorder. Returns `{ recorded: true }` on the
+ * first successful write, `{ recorded: false }` if the chargeId is already
+ * present (soft idempotency check) or if the invoice is missing. A racing
+ * double-insert that slips past the soft check is caught via the `@unique`
+ * constraint on `Payment.stripeChargeId` (P2002 → `recorded: false`).
+ *
+ * A charge on a voided or already-covered invoice is still recorded (the money
+ * is real) but flagged via `classifyStripeCharge` — an `InvoiceEvent` with
+ * `refundNeeded` and a `logError` — rather than silently dropped. A charge
+ * never resurrects a voided invoice.
+ */
+export async function recordStripePayment(
+  input: RecordStripePaymentInput
+): Promise<{ recorded: boolean; overpaid: boolean }> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Soft idempotency check: a payment with this chargeId already exists.
+      const existing = await tx.payment.findUnique({
+        where: { stripeChargeId: input.chargeId },
+        select: { id: true },
+      });
+      if (existing) return { recorded: false, overpaid: false };
+
+      const inv = await tx.invoice.findFirst({
+        where: { id: input.invoiceId, orgId: input.orgId },
+        include: { payments: { select: { amount: true } } },
+      });
+      if (!inv) return { recorded: false, overpaid: false };
+
+      // A captured charge is real money. Record it even when the invoice was
+      // voided or already covered — dropping it would leave an untracked charge
+      // with no ledger row and no signal to refund. Surface the anomaly instead.
+      const priorPaid = inv.payments.reduce((s, p) => s + p.amount, 0);
+      const cls = classifyStripeCharge({
+        status: inv.status,
+        amount: inv.amount,
+        priorPaid,
+        chargeAmount: input.amount,
+      });
+      const refundReason = cls.orphaned
+        ? "invoice_void"
+        : cls.overpaid
+          ? "overpayment"
+          : null;
+
+      await tx.payment.create({
+        data: {
+          invoiceId: input.invoiceId,
+          amount: input.amount,
+          method: "stripe",
+          stripeChargeId: input.chargeId,
+          stripeFeeAmount: input.feeAmount,
+          stripeNetAmount: input.netAmount,
+          recordedByName: "Stripe",
+        },
+      });
+
+      await tx.invoice.update({
+        where: { id: input.invoiceId },
+        data: {
+          status: cls.nextStatus,
+          paidAt: cls.nextStatus === "paid" ? new Date() : null,
+          stripePaymentIntentId: input.paymentIntentId,
+        },
+      });
+      await tx.invoiceEvent.create({
+        data: {
+          invoiceId: input.invoiceId,
+          type: "payment_recorded",
+          source: "customer",
+          actorName: "Stripe",
+          metadata: {
+            amount: input.amount,
+            method: "stripe",
+            fee: input.feeAmount,
+            net: input.netAmount,
+            ...(refundReason ? { refundNeeded: true, refundReason } : {}),
+          },
+        },
+      });
+      if (refundReason) {
+        logError({
+          path: "lib/repositories/invoiceRepo#recordStripePayment",
+          orgId: input.orgId,
+          errorMessage: `Stripe charge ${input.chargeId} needs refund (${refundReason}): invoice ${input.invoiceId} now paid ${cls.paidAfter} of ${inv.amount}`,
+        });
+      }
+      return { recorded: true, overpaid: cls.overpaid };
+    });
+  } catch (err) {
+    // Hard idempotency backstop: two deliveries raced past the findUnique check
+    // and the second lost the @unique constraint on stripeChargeId → P2002.
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      (err as { code?: string }).code === "P2002"
+    ) {
+      return { recorded: false, overpaid: false };
+    }
+    throw err;
+  }
+}
+
+export type StripeAnomalyReason =
+  | "unknown_account"
+  | "missing_invoice_metadata";
+
+/**
+ * Record captured-but-unattributable Stripe money so a human can reconcile it.
+ * The webhook reaches here when a paid event carries an unknown `event.account`
+ * or missing/invalid `invoiceId` metadata: real money moved but there is no
+ * invoice to book it against. Redelivery can't fix bad metadata, so the webhook
+ * still 200s — but CONTEXT.md invariant 3 forbids dropping it silently, so we
+ * persist a queryable row (keyed on the Stripe event id for idempotency) and log.
+ */
+export async function recordStripeAnomaly(input: {
+  eventId: string;
+  eventType: string;
+  accountId: string | null;
+  paymentIntentId: string | null;
+  amount: number;
+  reason: StripeAnomalyReason;
+}): Promise<void> {
+  await prisma.stripeAnomaly.upsert({
+    where: { eventId: input.eventId },
+    create: {
+      eventId: input.eventId,
+      eventType: input.eventType,
+      accountId: input.accountId,
+      paymentIntentId: input.paymentIntentId,
+      amount: input.amount,
+      reason: input.reason,
+    },
+    update: {},
+  });
+  logError({
+    path: "lib/repositories/invoiceRepo#recordStripeAnomaly",
+    errorMessage: `Unattributable Stripe payment (${input.reason}): event ${input.eventId}, account ${input.accountId ?? "?"}, pi ${input.paymentIntentId ?? "?"}, amount ${input.amount}`,
   });
 }
 

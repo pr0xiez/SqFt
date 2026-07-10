@@ -73,6 +73,8 @@ async function main() {
   // ── Primary demo org ─────────────────────────────────────────────────────
   // Create through the shared onboarding service so seed + production paths
   // stay aligned. seed: "minimal" plants the 6 default line-item templates.
+  // Stripe Connect intentionally left unconfigured in seed data:
+  // stripeConnectAccountId/Status null → orgs show the "set up payments" CTA.
   const orgResult = await createOrganization({
     org: { name: "Johnson Flooring Co.", slug: "johnson-flooring-demo" },
     admin: {

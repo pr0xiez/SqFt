@@ -144,6 +144,40 @@ export class LastAdminError extends ApiError {
   }
 }
 
+export class StripeNotConnectedError extends ConflictError {
+  constructor() {
+    super(
+      "This business hasn't finished setting up payments.",
+      "STRIPE_NOT_CONNECTED"
+    );
+  }
+}
+
+export class StripeAccountRestrictedError extends ConflictError {
+  constructor() {
+    super(
+      "Online payments aren't active for this business yet.",
+      "STRIPE_ACCOUNT_RESTRICTED"
+    );
+  }
+}
+
+export class InvoiceAlreadyPaidError extends ConflictError {
+  constructor() {
+    super("This invoice is already paid.", "INVOICE_ALREADY_PAID");
+  }
+}
+
+export class StripeWebhookInvalidError extends ApiError {
+  constructor() {
+    super({
+      code: "STRIPE_WEBHOOK_INVALID",
+      status: 400,
+      message: "Invalid webhook signature.",
+    });
+  }
+}
+
 /**
  * Wire shape of the standard error envelope, as serialized by apiRoute / publicRoute.
  * Mirrors `ApiError` but on the response side — use this when reading non-OK fetch

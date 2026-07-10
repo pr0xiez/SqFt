@@ -20,6 +20,12 @@ function settingsLinksFor(role: string): SettingsLink[] {
       title: "Members",
       description: "Add teammates and set what they can see and do.",
     });
+    links.push({
+      href: "/settings/payments",
+      title: "Payments",
+      description:
+        "Connect Stripe to accept card payments from customers on invoices.",
+    });
   }
   links.push({
     href: "/settings/line-item-templates",

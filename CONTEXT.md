@@ -214,9 +214,55 @@ the exception**: both the public page and the builder's `InvoiceDetail`
 compute it live from the payments ledger (`amount − Σ payments`) — a
 partially-paid invoice must never show the full amount as still owed.
 
-Payments are recorded manually into a `Payment` ledger (the schema is
-Stripe-ready but Stripe execution is out of scope). Each payment recomputes the
-invoice status from the ledger. A `void` invoice is terminal and excluded from
+Homeowners pay the exact invoice balance via a Stripe-hosted **Checkout
+Session** created on the org's Stripe Connect account (direct charge; the
+contractor bears the processing fee — no surcharge to the homeowner). The
+session is created from the public `/invoice-review/[token]` page and
+resolves on the contractor's connected account (Accounts v2, full dashboard,
+Stripe as fees+losses collector). Payment is recorded into the `Payment` ledger
+by a **signature-verified webhook** (`POST /api/webhooks/stripe`) AND an
+**idempotent reconcile-on-return** endpoint (`POST
+/api/invoice-review/[token]/confirm`), both via the idempotent
+`recordStripePayment` (keyed on `Payment.stripeChargeId @unique`). Three
+load-bearing invariants live here: (1) the webhook resolves the owning org from
+the **signed `event.account`** (`getOrgIdByConnectAccount`), never from
+attacker-controllable `metadata.orgId`, so one connected account can't mark
+another org's invoice paid; (2) both paths key idempotency on the **real charge
+id (`ch_…`)** and *defer* (webhook throws to retry, confirm returns `pending`)
+when it isn't attached yet, rather than synthesizing a divergent `pi_…` id that
+would double-record; (2b) **money is only recorded when it exists**: card
+payments settle synchronously, but ACH bank debits (capability requested at
+account creation alongside cards) complete Checkout *before* settling, so the
+webhook records `checkout.session.completed` only when `payment_status ===
+"paid"` — an unpaid completion is skipped and settlement lands days later via
+`checkout.session.async_payment_succeeded` / `payment_intent.succeeded`
+(register all three, plus `checkout.session.async_payment_failed`, on a
+**Connected-accounts-scoped** webhook endpoint). A bounced debit fires
+`async_payment_failed` → `recordStripePaymentFailure` (org-scoped) leaves a
+`payment_failed` `InvoiceEvent` + `logError`, no ledger row. Meanwhile the
+confirm endpoint returns `processing` for a complete-but-unpaid session and
+`PaymentConfirm` shows bank-processing copy, never a false confirmation — but a
+bounced debit leaves the session `complete`/`unpaid` forever, so confirm reads
+the PaymentIntent status (`requires_payment_method` / `canceled`) and returns
+`failed` (`PaymentConfirm` shows retry copy) instead of "processing" indefinitely;
+(3) a captured charge is **never silently dropped** —
+`classifyStripeCharge` (single source of truth, `lib/repositories/invoiceRepo.ts`)
+records it even when the invoice was voided after checkout (`orphaned`) or already
+covered (`overpaid`), flagging the anomaly with a `refundNeeded` `InvoiceEvent`
++ `logError`; a charge never resurrects a `void` invoice. `recordStripePayment`
+returns `{ overpaid }` so the confirm endpoint can return `overpaid` (refund
+notice) rather than a plain "Payment received". Paid money that can't be
+attributed at all — unknown `event.account`, or missing/non-numeric `invoiceId`
+metadata — is parked in the queryable **`StripeAnomaly`** table (`recordAnomaly`,
+keyed on the Stripe event id) + `logError` before the event is marked processed,
+so it's reconcilable, never lost. The stale-session double-collection window is
+capped by a 30-min-bucketed Checkout `expires_at`; the idempotency key carries
+the same bucket (`inv-{id}-bal-{cents}-{bucket}`) so re-clicks replay one session
+while a new bucket or changed balance mints a fresh one. `Payment` carries
+`stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the charge's balance
+transaction on the connected account). Manual payment recording (cash, check,
+card, ACH) also remains via the builder's Record-payment dialog. Each payment
+recomputes the invoice status from the ledger. A `void` invoice is terminal and excluded from
 all billing math; editing a sent invoice or paying a void one throws
 `INVOICE_LOCKED`. Its public link dies with it: the review page `notFound()`s a
 `void` invoice (and `PublicInvoiceView` never renders a pay CTA for one) so a
@@ -349,6 +395,18 @@ Domain codes:
   invoice, not unlocking this one.
 - `INVOICE_OVERBILL` (409) — caller tried to invoice more than the estimate's
   unbilled balance (estimate total − Σ non-void invoice amounts).
+- `STRIPE_NOT_CONNECTED` (409) — the org has no Stripe Connect account
+  configured; homeowner cannot pay via Stripe. Thrown by the checkout-session
+  route (`app/api/invoice-review/[token]/checkout`).
+- `STRIPE_ACCOUNT_RESTRICTED` (409) — the org's Stripe Connect account exists
+  but is not yet enabled for charges (onboarding incomplete). Same route as
+  above.
+- `INVOICE_ALREADY_PAID` (409) — the invoice is already fully paid (or has no
+  remaining balance) when a Stripe checkout session is requested. Thrown by the
+  checkout-session route (`app/api/invoice-review/[token]/checkout`).
+- `STRIPE_WEBHOOK_INVALID` (400) — the `stripe-signature` header failed
+  verification; the webhook payload was rejected. Thrown by
+  `app/api/webhooks/stripe/route.ts`.
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.

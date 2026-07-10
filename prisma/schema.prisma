@@ -45,6 +45,8 @@ model Organization {
   nextInvoiceNumber          Int      @default(1)
   defaultPaymentInstructions String   @default("")
   stripeConnectAccountId     String?
+  stripeConnectStatus        String?   // pending | active | restricted
+  stripeConnectOnboardedAt   DateTime?
 
   users             User[]
   invoices          Invoice[]
@@ -327,6 +329,8 @@ model Payment {
   recordedByEmail String?
   recordedByName  String?
   stripeChargeId  String?  @unique
+  stripeFeeAmount Float?   // Stripe processing fee (dollars), from the balance transaction
+  stripeNetAmount Float?   // amount the contractor nets (dollars)
   createdAt       DateTime @default(now())
 
   @@index([invoiceId])
@@ -336,7 +340,7 @@ model InvoiceEvent {
   id         Int      @id @default(autoincrement())
   invoiceId  Int
   invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  type       String   // sent | viewed | resent | link_rotated | payment_recorded | voided
+  type       String   // sent | viewed | resent | link_rotated | payment_recorded | payment_failed | voided
   actorEmail String?
   actorName  String?
   ip         String?
@@ -346,6 +350,30 @@ model InvoiceEvent {
   createdAt  DateTime @default(now())
 
   @@index([invoiceId, createdAt])
+}
+
+/** Webhook idempotency + audit: one row per processed Stripe event id. */
+model ProcessedStripeEvent {
+  id        String   @id // Stripe event id (evt_…)
+  type      String
+  createdAt DateTime @default(now())
+}
+
+/**
+ * Captured Stripe money that could not be attributed to an invoice — an unknown
+ * connected account, or missing/invalid invoiceId metadata on a paid event. The
+ * money is real, so it's parked here (queryable, one row per Stripe event id)
+ * for a human to reconcile rather than silently dropped (CONTEXT.md invariant 3).
+ */
+model StripeAnomaly {
+  id              Int      @id @default(autoincrement())
+  eventId         String   @unique // Stripe event id (evt_…)
+  eventType       String
+  accountId       String? // connected account (acct_…), null if unresolved
+  paymentIntentId String?
+  amount          Float // dollars
+  reason          String // unknown_account | missing_invoice_metadata
+  createdAt       DateTime @default(now())
 }
 
 // Calendar events: job installations, measurement visits, etc.

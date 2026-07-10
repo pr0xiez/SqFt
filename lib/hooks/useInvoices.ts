@@ -19,6 +19,8 @@ export interface InvoicePayment {
   reference: string | null;
   note: string | null;
   recordedByName: string | null;
+  stripeFeeAmount: number | null;
+  stripeNetAmount: number | null;
 }
 
 export interface InvoiceEvent {

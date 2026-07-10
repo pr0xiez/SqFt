@@ -9,10 +9,11 @@ const PUBLIC_REVIEW_PREFIXES = [
   // their own token auth inside the handler.
   "/estimate-review/",
   "/api/estimate-review/",
-  // Public invoice page (linked from every invoice email). It is a server
-  // component reading by token directly — no public invoice API exists yet,
-  // so /api/invoice-review/ is intentionally NOT allowlisted.
+  // Public invoice page + its pay/confirm/webhook APIs. Each enforces its own
+  // token (or Stripe signature) auth inside the handler.
   "/invoice-review/",
+  "/api/invoice-review/",
+  "/api/webhooks/stripe",
 ];
 
 export function isPublicReviewPath(pathname: string): boolean {
