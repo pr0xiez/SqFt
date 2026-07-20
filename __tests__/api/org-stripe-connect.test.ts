@@ -17,7 +17,7 @@ vi.mock("@/lib/repositories/orgRepo", () => ({
 vi.mock("@/lib/stripe/connect", () => ({
   createConnectedAccount: vi.fn(),
   createOnboardingLink: vi.fn(),
-  readAccountStatus: vi.fn(),
+  readAccountStatusDetail: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -36,7 +36,7 @@ import {
 import {
   createConnectedAccount,
   createOnboardingLink,
-  readAccountStatus,
+  readAccountStatusDetail,
 } from "@/lib/stripe/connect";
 import { makeRequest, noParams } from "./_helpers";
 
@@ -48,7 +48,7 @@ const mockSetOrgConnectAccount = vi.mocked(setOrgConnectAccount);
 const mockSetOrgConnectStatus = vi.mocked(setOrgConnectStatus);
 const mockCreateConnectedAccount = vi.mocked(createConnectedAccount);
 const mockCreateOnboardingLink = vi.mocked(createOnboardingLink);
-const mockReadAccountStatus = vi.mocked(readAccountStatus);
+const mockReadAccountStatusDetail = vi.mocked(readAccountStatusDetail);
 
 function asAdmin() {
   mockAuth.mockResolvedValue(
@@ -184,8 +184,12 @@ describe("GET /api/org/stripe/connect", () => {
       connected: boolean;
       status: string | null;
     };
-    expect(body).toEqual({ connected: false, status: null });
-    expect(mockReadAccountStatus).not.toHaveBeenCalled();
+    expect(body).toEqual({
+      connected: false,
+      status: null,
+      requirements: null,
+    });
+    expect(mockReadAccountStatusDetail).not.toHaveBeenCalled();
   });
 
   it("refreshes status from Stripe when account exists and status is not active", async () => {
@@ -195,18 +199,61 @@ describe("GET /api/org/stripe/connect", () => {
       stripeConnectAccountId: "acct_123",
       stripeConnectStatus: "pending",
     });
-    mockReadAccountStatus.mockResolvedValueOnce("active");
+    mockReadAccountStatusDetail.mockResolvedValueOnce({
+      status: "active",
+      requirements: { actionDue: false, inReview: false, errorReason: null },
+    });
 
     const res = await GET(makeRequest("GET"), noParams);
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { connected: boolean; status: string };
-    expect(body).toEqual({ connected: true, status: "active" });
-    expect(mockReadAccountStatus).toHaveBeenCalledWith("acct_123");
+    expect(body).toEqual({
+      connected: true,
+      status: "active",
+      requirements: { actionDue: false, inReview: false, errorReason: null },
+    });
+    expect(mockReadAccountStatusDetail).toHaveBeenCalledWith("acct_123");
     expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
       "org1",
       "active",
       expect.any(Date)
+    );
+  });
+
+  it("surfaces the requirements summary while onboarding is incomplete", async () => {
+    asAdmin();
+    mockGetOrgStripe.mockResolvedValueOnce({
+      name: "Acme Floors",
+      stripeConnectAccountId: "acct_123",
+      stripeConnectStatus: "pending",
+    });
+    mockReadAccountStatusDetail.mockResolvedValueOnce({
+      status: "pending",
+      requirements: {
+        actionDue: true,
+        inReview: false,
+        errorReason: "The person's keyed-in identity could not be verified.",
+      },
+    });
+
+    const res = await GET(makeRequest("GET"), noParams);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { requirements: unknown };
+    expect(body).toEqual({
+      connected: true,
+      status: "pending",
+      requirements: {
+        actionDue: true,
+        inReview: false,
+        errorReason: "The person's keyed-in identity could not be verified.",
+      },
+    });
+    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
+      "org1",
+      "pending",
+      undefined
     );
   });
 
@@ -222,8 +269,12 @@ describe("GET /api/org/stripe/connect", () => {
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { connected: boolean; status: string };
-    expect(body).toEqual({ connected: true, status: "active" });
-    expect(mockReadAccountStatus).not.toHaveBeenCalled();
+    expect(body).toEqual({
+      connected: true,
+      status: "active",
+      requirements: null,
+    });
+    expect(mockReadAccountStatusDetail).not.toHaveBeenCalled();
     expect(mockSetOrgConnectStatus).not.toHaveBeenCalled();
   });
 });

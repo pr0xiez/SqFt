@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateConnectStatus,
   mapCapabilityStatus,
+  summarizeRequirements,
 } from "@/lib/stripe/connect";
 
 describe("mapCapabilityStatus", () => {
@@ -37,5 +38,73 @@ describe("aggregateConnectStatus", () => {
   });
   it("is pending only when neither capability is usable", () => {
     expect(aggregateConnectStatus("pending", "pending")).toBe("pending");
+  });
+});
+
+describe("summarizeRequirements", () => {
+  it("reports nothing outstanding for no entries", () => {
+    expect(summarizeRequirements(undefined)).toEqual({
+      actionDue: false,
+      inReview: false,
+      errorReason: null,
+    });
+    expect(summarizeRequirements([])).toEqual({
+      actionDue: false,
+      inReview: false,
+      errorReason: null,
+    });
+  });
+
+  it("flags actionDue when any entry awaits the user", () => {
+    // Mirrors the real post-onboarding state where keyed identity failed and
+    // Stripe now needs a document from the account holder.
+    const summary = summarizeRequirements([
+      { awaiting_action_from: "stripe", errors: [] },
+      {
+        awaiting_action_from: "user",
+        errors: [{ description: "Identity could not be verified." }],
+      },
+    ]);
+    expect(summary.actionDue).toBe(true);
+    expect(summary.inReview).toBe(false);
+    expect(summary.errorReason).toBe("Identity could not be verified.");
+  });
+
+  it("flags inReview when every entry awaits Stripe", () => {
+    // Mirrors the pending_verification window right after submitting the SSN.
+    expect(
+      summarizeRequirements([
+        { awaiting_action_from: "stripe", errors: [] },
+        { awaiting_action_from: "stripe", errors: [] },
+      ])
+    ).toEqual({ actionDue: false, inReview: true, errorReason: null });
+  });
+
+  it("prefers the error on a user-actionable entry over a Stripe-side one", () => {
+    const summary = summarizeRequirements([
+      {
+        awaiting_action_from: "stripe",
+        errors: [{ description: "Stripe-side detail." }],
+      },
+      {
+        awaiting_action_from: "user",
+        errors: [{ description: "Fix this field." }],
+      },
+    ]);
+    expect(summary.errorReason).toBe("Fix this field.");
+  });
+
+  it("falls back to a Stripe-side error when the user has nothing to fix", () => {
+    const summary = summarizeRequirements([
+      {
+        awaiting_action_from: "stripe",
+        errors: [{ description: "Verification hiccup." }],
+      },
+    ]);
+    expect(summary).toEqual({
+      actionDue: false,
+      inReview: true,
+      errorReason: "Verification hiccup.",
+    });
   });
 });

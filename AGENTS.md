@@ -77,14 +77,20 @@ with the file that owns it.
   `GET /api/estimates/invoiceable`. See *Quick Create* in `CONTEXT.md`.
 - `lib/stripe/` — **Stripe Connect integration**: `client.ts` (Stripe SDK
   singleton, API version pin), `connect.ts` (account create/retrieve,
-  `ConnectStatus` union, onboarding-link generation), `checkout.ts`
-  (`buildCheckoutParams`, `createInvoiceCheckoutSession` — creates the
-  Checkout Session on the connected account), `webhook.ts`
+  `ConnectStatus` union, onboarding-link generation, plus
+  `summarizeRequirements`/`readAccountStatusDetail` — collapses v2 requirement
+  entries into `{actionDue, inReview, errorReason}` so the settings page can
+  say whether the user or Stripe is the one holding up onboarding),
+  `checkout.ts` (`buildCheckoutParams`, `createInvoiceCheckoutSession` —
+  creates the Checkout Session on the connected account), `webhook.ts`
   (`constructStripeEvent`, `handleStripeEvent` — signature-verified
   event handler). The admin Stripe onboarding surface is `/settings/payments`
   (`app/(app)/settings/payments`, admin-gated inline — `(app)` is the authed
-  builder route group, not `(admin)`). The raw-body webhook receiver is
-  `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
+  builder route group, not `(admin)`); after returning from Stripe onboarding
+  it polls the connect status briefly (bounded window, see
+  `PaymentsSettingsView`) instead of going silent. The raw-body webhook
+  receiver is `app/api/webhooks/stripe/route.ts` (allowlisted in
+  `lib/publicRoutes.ts`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,

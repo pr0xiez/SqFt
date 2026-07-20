@@ -2,6 +2,48 @@ import { getStripe } from "./client";
 
 export type ConnectStatus = "pending" | "active" | "restricted";
 
+/**
+ * What the account holder still owes Stripe, collapsed for the settings page.
+ * `actionDue` — Stripe is waiting on the user (a requirement to fill or fix);
+ * `inReview` — every outstanding requirement is on Stripe's side (async
+ * verification in progress, nothing for the user to do);
+ * `errorReason` — Stripe's human-readable description of why a submitted
+ * requirement failed verification (e.g. keyed identity mismatch), if any.
+ */
+export interface ConnectRequirements {
+  actionDue: boolean;
+  inReview: boolean;
+  errorReason: string | null;
+}
+
+export interface ConnectStatusDetail {
+  status: ConnectStatus;
+  requirements: ConnectRequirements;
+}
+
+interface RequirementEntry {
+  awaiting_action_from: "stripe" | "user";
+  errors: Array<{ description: string }>;
+}
+
+/** Collapse v2 requirement entries into the settings-page summary. */
+export function summarizeRequirements(
+  entries: RequirementEntry[] | undefined
+): ConnectRequirements {
+  const list = entries ?? [];
+  const actionDue = list.some((e) => e.awaiting_action_from === "user");
+  // An error on a user-actionable requirement explains what the user must fix;
+  // fall back to any error so a Stripe-side failure still surfaces a reason.
+  const withError =
+    list.find((e) => e.awaiting_action_from === "user" && e.errors.length) ??
+    list.find((e) => e.errors.length);
+  return {
+    actionDue,
+    inReview: !actionDue && list.length > 0,
+    errorReason: withError?.errors[0]?.description ?? null,
+  };
+}
+
 /** Collapse Stripe's capability status strings into our three states. */
 export function mapCapabilityStatus(raw: string | undefined): ConnectStatus {
   if (raw === "active") return "active";
@@ -97,16 +139,25 @@ export async function createOnboardingLink(
  * independently, so the aggregate reflects either being active (see
  * aggregateConnectStatus).
  */
+export async function readAccountStatusDetail(
+  accountId: string
+): Promise<ConnectStatusDetail> {
+  const stripe = getStripe();
+  const account = await stripe.v2.core.accounts.retrieve(accountId, {
+    include: ["configuration.merchant", "requirements"],
+  });
+  const caps = account.configuration?.merchant?.capabilities;
+  return {
+    status: aggregateConnectStatus(
+      mapCapabilityStatus(caps?.card_payments?.status),
+      mapCapabilityStatus(caps?.ach_debit_payments?.status)
+    ),
+    requirements: summarizeRequirements(account.requirements?.entries),
+  };
+}
+
 export async function readAccountStatus(
   accountId: string
 ): Promise<ConnectStatus> {
-  const stripe = getStripe();
-  const account = await stripe.v2.core.accounts.retrieve(accountId, {
-    include: ["configuration.merchant"],
-  });
-  const caps = account.configuration?.merchant?.capabilities;
-  return aggregateConnectStatus(
-    mapCapabilityStatus(caps?.card_payments?.status),
-    mapCapabilityStatus(caps?.ach_debit_payments?.status)
-  );
+  return (await readAccountStatusDetail(accountId)).status;
 }

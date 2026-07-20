@@ -6,20 +6,27 @@ import {
   setOrgConnectStatus,
 } from "@/lib/repositories/orgRepo";
 import {
+  type ConnectRequirements,
   type ConnectStatus,
   createConnectedAccount,
   createOnboardingLink,
-  readAccountStatus,
+  readAccountStatusDetail,
 } from "@/lib/stripe/connect";
 
-// GET — current connect status for the settings page.
+// GET — current connect status for the settings page. While the account isn't
+// active this refreshes from Stripe on every call (the settings page polls it
+// briefly after onboarding returns), so the response also carries the
+// requirements summary that tells the user what is actually happening.
 export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
   const org = await getOrgStripe(orgId);
   let status: ConnectStatus | null =
     org.stripeConnectStatus as ConnectStatus | null;
+  let requirements: ConnectRequirements | null = null;
   // Refresh from Stripe when we have an account but it isn't active yet.
   if (org.stripeConnectAccountId && status !== "active") {
-    status = await readAccountStatus(org.stripeConnectAccountId);
+    const detail = await readAccountStatusDetail(org.stripeConnectAccountId);
+    status = detail.status;
+    requirements = detail.requirements;
     await setOrgConnectStatus(
       orgId,
       status,
@@ -29,6 +36,7 @@ export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
   return {
     connected: Boolean(org.stripeConnectAccountId),
     status: status ?? null,
+    requirements,
   };
 });
 
