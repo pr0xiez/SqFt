@@ -69,7 +69,7 @@ Ranked by evidence strength × unlock, cross-referenced against what's already s
 | # | Ship | Evidence | Why |
 |---|---|---|---|
 | **P0** | **Sales tax on estimates & invoices** | table stakes | Schema has no tax handling at all. Un-sellable in the US without it; prerequisite for QBO mapping. FloorZap's worst review is "lots of tax issues." Smallest item; blocks P1. |
-| **P1** | **QuickBooks Online sync — included & reliable** | strong | Most-demanded integration, most-broken at every competitor. One-way push first (customers, invoices, payments, tax), per-record sync status. Differentiate on reliability + included in base price. |
+| **P1** | **QuickBooks Online sync — included & reliable** | strong | Most-demanded integration, most-broken at every competitor. One-way push first (customers, invoices, payments, tax), per-record sync status. Differentiate on reliability + included in base price. Plan: `specs/2026-07-23-qbo-sync-plan.md`. |
 | **P2** | **Self-serve signup, trial, transparent flat pricing** | strong | Provisioning is out-of-band; `subscriptionStatus` is "manual" — SqFt cannot capture the gap it fits. Public pricing ~$79–129/mo flat per org (per-user = the hated growth penalty), no setup fee, cancel in-app as a headline feature. |
 | **P3** | **Photos on site measures & jobs** | moderate | Field wish-list (before/after, paperless work orders); kills the CompanyCam bolt-on; natural fit on SiteMeasure + My Schedule. |
 | **P4** | **Job costing lite — unit cost + margin per estimate** | moderate | Cost-per-unit on line items/templates; margin $/% on builder + dashboard. Replaces the Excel margin sheet; FloorZap markets it; Jobber gates it at $199/mo. SqFt has the price side (`markupPct`); this adds cost. |
