@@ -1,6 +1,7 @@
 # QuickBooks Online Sync — Implementation Plan
 
-**Date:** 2026-07-23 · **Status:** proposed (no code yet)
+**Date:** 2026-07-23 · **Revised:** 2026-07-24 (full test architecture, §10)
+· **Status:** proposed (no code yet)
 **Serves:** Ship priority **P1** in `2026-07-23-competitive-market-research.md` —
 "QuickBooks Online sync, included & reliable." The market evidence: QBO
 integration is the #1 demanded integration in flooring communities and the
@@ -103,6 +104,14 @@ lib/qbo/
                 ensurePaymentSynced / ensureInvoiceVoided (idempotent
                 "ensure" ops, §7) + task runner with backoff
 ```
+
+Testability is a structural requirement, not an afterthought: `sync.ts` and
+`connect.ts` take their I/O as injected ports (a `QboPort` for the API, a
+`SyncStore` for links/tasks/tokens) exactly like `handleStripeEvent(event,
+deps)` — the engine never imports Prisma or fetch directly. §10 builds the
+whole fast-test pyramid on that seam. A test-only mock realm
+(`app/api/qbo-mock/`, mounted only when `QBO_ENVIRONMENT=mock`) stands in
+for Intuit in Playwright runs against the Vercel preview.
 
 Routes (all under `apiRoute`, admin-gated except where noted):
 
@@ -293,9 +302,11 @@ garbage, connection bricked. Guards:
   `QBO_TOKEN_ENC_KEY`); never logged (scrub from `logError` context).
 
 Env: `QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`, `QBO_ENVIRONMENT`
-(`sandbox | production` — selects base URL + matches key mode, same
-dev/prod-split invariant as Stripe), `QBO_TOKEN_ENC_KEY`, `CRON_SECRET`.
-Like Stripe, the integration is invisible when env is absent.
+(`sandbox | production | mock` — selects the OAuth + API base URLs and must
+match key mode, same dev/prod-split invariant as Stripe), `QBO_TOKEN_ENC_KEY`,
+`CRON_SECRET`. Like Stripe, the integration is invisible when env is absent.
+`mock` points both base URLs at the app's own test-only mock realm
+(§10 Tier E) and is refused at boot when `VERCEL_ENV=production`.
 
 ## 9. API error codes (CONTEXT.md additions)
 
@@ -307,32 +318,123 @@ Like Stripe, the integration is invisible when env is absent.
 Background sync failures are **not** API errors — they land in
 `QboSyncTask.lastError` and the sync-health UI.
 
-## 10. Testing
+## 10. Test architecture — quality enforced by CI, not vigilance
 
-- **Pure layers get the deep tests:** `mapping.ts` builders
-  (snapshot→Invoice incl. tax override, folded lines, DocNumber fallback)
-  and the ensure-op state machine against an in-memory fake QBO port — same
-  pattern as the send-pipeline tests (no network, no DB at the seam). The
-  fake simulates: duplicate DisplayName, stale SyncToken, 401 mid-batch,
-  timeout-after-create (invariant 2), rotation race (§8).
-- **Repo tests:** enqueue-in-transaction (invariant 3), task upsert dedupe,
-  claim/backoff arithmetic.
-- **Sandbox smoke script** (`scripts/qboSandboxSmoke.ts`): connect a sandbox
-  realm, push a seeded customer→invoice→payment→void chain, assert via QBO
-  reads. Run manually before each release touching `lib/qbo/` — Intuit
-  sandboxes are free and instant.
-- E2E: settings page connect-button render + status states only (OAuth
-  itself can't run headless against Intuit).
+The design rule that makes all of this cheap: **no module in `lib/qbo/`
+touches the network or Prisma directly except through an injected port** —
+the same dependency-injection shape as `handleStripeEvent(event, deps)` and
+the send pipeline. `sync.ts` receives a `QboPort` (the API surface) and a
+`SyncStore` (links + tasks); `connect.ts` receives a token store. Everything
+below Tier D runs with fakes, fast, on every PR, in the existing CI jobs —
+no new workflow is needed.
+
+Tiers map onto the repo's existing test layout:
+
+| Tier | Where | Runs | Infra |
+|---|---|---|---|
+| A — pure unit | `__tests__/lib/qbo/` | every PR (`npm test`, DB-less CI job) | none |
+| B — engine vs fake QBO | `__tests__/lib/qbo/sync.test.ts` | every PR | `FakeQbo` in-memory |
+| C — routes | `__tests__/api/qbo-*.test.ts` | every PR | `_helpers.ts` makeRequest |
+| D — repo integration | `__tests__/repositories/qbo*.test.ts` | locally + preview DB (`describe.skipIf(!VITEST_DB_AVAILABLE)`) | real Postgres |
+| E — UI end-to-end | `tests/e2e/qbo-*.spec.ts` | every PR (Playwright vs Vercel preview) | in-app mock realm |
+| F — live contract | `scripts/qboSandboxSmoke.ts` | manual, release-gating | Intuit sandbox |
+
+**Tier A — pure units.** `mapping.test.ts`: snapshot→QBO Invoice body
+(folded lines, no markup row, tax override block, DocNumber fallback,
+address mapping), payment and customer builders — table-driven over snapshot
+fixtures. `client.test.ts`: Fault-envelope → typed `QboApiError`
+(duplicate-name, stale-token, auth, throttle classifications), minorversion
+pin present on every URL. `crypto.test.ts`: encrypt/decrypt round-trip,
+tamper detection. `backoff.test.ts`: `2^attempts` capped at 6h, failed after
+10. `connect.test.ts`: status mapping, authorize-URL state signing.
+
+**Tier B — the reliability invariants, each pinned to a named test.**
+`FakeQbo` (`__tests__/lib/qbo/fakeQbo.ts`) is a stateful in-memory realm:
+entities get ids + SyncTokens, queries work, and failures inject per-call
+(`failNext("timeout" | "duplicate_name" | "stale_token" | "401" | "429")`).
+The traceability matrix — CI fails if an invariant regresses:
+
+| §7 invariant | Test |
+|---|---|
+| 1 ensure-ops converge in any order | `payment task before invoice task → both synced, no dangling refs` |
+| 2 query-before-create | `timeout after create POST → retry adopts, realm has exactly one invoice` |
+| 3 enqueue-in-transaction | Tier D (`qboEnqueue.test.ts`) — DB rollback leaves no task; commit always leaves one |
+| 4 sync never blocks the action | Tier C — send route succeeds while `FakeQbo` is hard-down |
+| 5 sweeper converges | `N failing-then-healthy tasks → all done; attempts/backoff recorded` |
+| 6 auth death pauses, never drops | `invalid_grant → tasks paused_auth; reconnect same realm → re-armed and synced` |
+| 7 stale SyncToken retry | `sparse update with stale token → one re-read, then success` |
+| §8 rotation single-flight | Tier D — two concurrent refreshes → one token call, connection still valid |
+
+**Tier C — routes.** Through the `apiRoute` wrapper via
+`__tests__/api/_helpers.ts`: role gates (admin for connect/disconnect/status,
+lead+ for sync-now), `QBO_NOT_CONNECTED` / `QBO_AUTH_EXPIRED` envelopes,
+callback state-signature rejection, cron route rejects a missing/wrong
+`CRON_SECRET` bearer.
+
+**Tier D — repo integration** (real DB, skip-gated like
+`recordStripePayment.test.ts`): enqueue-in-transaction atomicity, task upsert
+dedupe (`@@unique([orgId, kind, entityId])`), due-task claim query,
+single-flight refresh under real row locking, link wipe on connecting a
+different realm.
+
+**Tier E — UI tests.** Two layers, matching the repo's split:
+
+- *Component (jsdom/testing-library)* — `__tests__/components/settings/`
+  `QuickBooksCard.test.tsx`: hidden without env, connect button
+  (Intuit-branded asset), connected state with company name + health counts,
+  reconnect banner on `disconnected`, disconnect confirm. `SyncHealthPanel.
+  test.tsx`: failed rows show `lastError` + working Retry. And in
+  `__tests__/components/invoices/InvoiceDetail.test.tsx`: badge states
+  (none / pending / synced / failed+Retry) driven by the invoice payload.
+- *End-to-end (Playwright vs the Vercel preview)* — CI's E2E job runs
+  against the deployed preview, so the mock must live **inside the app**: a
+  test-only route group `app/api/qbo-mock/` implementing the handful of
+  OAuth + entity endpoints against the preview's own DB (a `QboMockEntity`
+  table is unnecessary — an in-memory map per instance is too flaky on
+  serverless, so the mock persists to a JSON blob keyed by realm in
+  Postgres). It mounts **only when `QBO_ENVIRONMENT=mock`** (the preview's
+  env setting) and refuses in production (§8). Specs:
+  `qbo-connect.spec.ts` — full OAuth loop against the mock authorize page,
+  lands connected with company name shown; `qbo-invoice-sync.spec.ts` —
+  send an invoice, badge reaches "Synced", and the mock realm's stored
+  invoice body carries the snapshot's folded totals + tax override;
+  `qbo-failure-retry.spec.ts` — mock armed to fail once → badge "failed"
+  with error text → Retry → "Synced"; role checks (crew sees no
+  integrations page). These are the tests that catch UI/wiring regressions
+  a refactor of hooks or routes would introduce.
+
+**Tier F — live contract (the only tier that talks to Intuit).**
+`scripts/qboSandboxSmoke.ts` connects a sandbox realm and pushes a seeded
+customer→invoice→payment→void chain, asserting via QBO reads. Manual and
+release-gating for changes under `lib/qbo/`, plus a monthly calendar run to
+catch Intuit-side drift. It is deliberately **not** a scheduled CI job:
+refresh tokens rotate every ~24h, so credentials stored in CI secrets
+self-invalidate between runs; a secret-write-back hack exists but is a
+flakiness generator, and drift Intuit ships is announced years out
+(minorversion sunset) — a monthly manual run is the honest cost/benefit.
+Sandbox responses captured during smoke runs are checked in as fixtures
+(`__tests__/lib/qbo/fixtures/*.json`) and replayed by Tier A's Fault-parsing
+tests, so the fake stays anchored to real wire shapes.
+
+**CI wiring.** Tiers A–C run in the existing DB-less `Tests` job; Tier D
+runs locally and anywhere `DATABASE_URL` is live; Tier E rides the existing
+Playwright-vs-preview job — the only infra change is setting
+`QBO_ENVIRONMENT=mock` + mock-safe `QBO_*` values in the Vercel
+preview environment. No new workflows, no new services.
 
 ## 11. Milestones
 
-| # | Deliverable | Contents |
-|---|---|---|
-| **M0** | Sales tax (separate P0 project) | Blocks M2's invoice mapping only — M1 can proceed in parallel. Contract in §2. |
-| **M1** | Connect | Prisma models + migration, OAuth connect/callback/disconnect/refresh (single-flight, encryption), `/settings/integrations` page, sandbox app + keys. |
-| **M2** | Invoices flow | `mapping.ts` + ensure-ops for customer/invoice, enqueue-on-send, `after()` attempt, `InvoiceDetail` badge + manual Sync now, AST-override sandbox spike. |
-| **M3** | Money + reliability | Payment + void ops, cron sweeper + backoff, sync-health panel, `paused_auth`/reconnect flow, sandbox smoke script. |
-| **M4** | Production | Intuit app assessment (start early — review lead time), prod keys, optional mappings (income/deposit account, item name), bulk "sync existing sent invoices" action, docs/marketing ("QuickBooks sync included"). |
+Tests ship **inside** each milestone — a milestone without its tier rows
+below is not done. (The fake port lands first, in M1, so every later
+milestone develops against it.)
+
+| # | Deliverable | Contents | Tests landing with it |
+|---|---|---|---|
+| **M0** | Sales tax (separate P0 project) | Blocks M2's invoice mapping only — M1 can proceed in parallel. Contract in §2. | (owned by the tax project; must freeze §2's fields into snapshot fixtures) |
+| **M1** | Connect | Prisma models + migration, OAuth connect/callback/disconnect/refresh (single-flight, encryption), `/settings/integrations` page, sandbox app + keys. | Tier A crypto/connect/client + `FakeQbo` itself; Tier C connect/callback/disconnect/status; Tier D refresh single-flight + realm-switch link wipe; `QuickBooksCard` component states; `qbo-connect.spec.ts` + the in-app mock realm it needs. |
+| **M2** | Invoices flow | `mapping.ts` + ensure-ops for customer/invoice, enqueue-on-send, `after()` attempt, `InvoiceDetail` badge + manual Sync now, AST-override sandbox spike. | Tier A mapping tables; Tier B invariants 1, 2, 4; Tier C sync-now + error codes; Tier D enqueue-in-transaction; `InvoiceDetail` badge component states; `qbo-invoice-sync.spec.ts`. |
+| **M3** | Money + reliability | Payment + void ops, cron sweeper + backoff, sync-health panel, `paused_auth`/reconnect flow, sandbox smoke script. | Tier A backoff; Tier B invariants 5, 6, 7 + payment/void ops; Tier C cron auth; Tier D claim/dedupe; `SyncHealthPanel` component; `qbo-failure-retry.spec.ts`; Tier F smoke script + first captured fixtures. |
+| **M4** | Production | Intuit app assessment (start early — review lead time), prod keys, optional mappings (income/deposit account, item name), bulk "sync existing sent invoices" action, docs/marketing ("QuickBooks sync included"). | Mapping-options component + Tier C coverage; bulk-sync Tier B test (N invoices, one converged realm); monthly Tier F cadence starts. |
 
 Each milestone updates `CONTEXT.md`/`AGENTS.md` in the same change (new
 module, error codes, gotchas: token rotation single-flight, links-per-realm).
