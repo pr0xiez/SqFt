@@ -107,6 +107,11 @@ export interface InvoiceDetail {
   snapshot: { lines?: InvoiceLine[] } | null;
   payments: InvoicePayment[];
   invoiceEvents: InvoiceEvent[];
+  /** QBO sync badge state; null hides the badge (no connection / draft). */
+  qboSync: {
+    state: "synced" | "pending" | "failed";
+    lastError: string | null;
+  } | null;
 }
 
 async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {

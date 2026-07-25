@@ -20,6 +20,9 @@ const invoiceEventCreate = vi.fn();
 const orgFindUniqueOrThrow = vi.fn();
 const orgUpdate = vi.fn();
 
+const qboConnectionFindUnique = vi.fn().mockResolvedValue(null);
+const qboSyncTaskUpsert = vi.fn();
+
 const tx = {
   estimate: { findFirst: estimateFindFirst },
   invoice: {
@@ -35,6 +38,9 @@ const tx = {
     findUniqueOrThrow: orgFindUniqueOrThrow,
     update: orgUpdate,
   },
+  // QBO enqueue-in-transaction (enqueueQboTaskTx): no connection → no-op.
+  qboConnection: { findUnique: qboConnectionFindUnique },
+  qboSyncTask: { upsert: qboSyncTaskUpsert },
 };
 
 // NOTE: this mock runs the callback inline and does NOT model rollback — calls

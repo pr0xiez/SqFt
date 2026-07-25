@@ -2,6 +2,7 @@ import { Prisma } from "@/app/generated/prisma/client";
 import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { enqueueQboTaskTx, hasCustomerLink } from "@/lib/repositories/qboRepo";
 import type { SortDirection } from "@/lib/sort";
 
 const LIST_ESTIMATE_SELECT = {
@@ -278,11 +279,20 @@ export async function updateCustomer(
   orgId: string,
   data: Prisma.CustomerUncheckedUpdateInput
 ) {
-  const result = await prisma.customer.updateMany({
-    where: { id, orgId },
-    data,
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.customer.updateMany({
+      where: { id, orgId },
+      data,
+    });
+    if (result.count === 0) return false;
+    // Mirror edits into QBO only for customers that already exist there —
+    // unsynced customers are pushed lazily by their first invoice.
+    if (await hasCustomerLink(orgId, id)) {
+      await enqueueQboTaskTx(tx, orgId, "sync_customer", id);
+    }
+    return true;
   });
-  if (result.count === 0) return null;
+  if (!updated) return null;
   return prisma.customer.findFirst({ where: { id, orgId } });
 }
 

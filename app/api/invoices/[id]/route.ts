@@ -2,12 +2,15 @@ import { NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { invoiceIdParams, invoiceUpdateSchema } from "@/lib/invoices/schema";
 import { getInvoice, updateInvoice } from "@/lib/repositories";
+import { getInvoiceQboState } from "@/lib/repositories/qboRepo";
 
 export const GET = apiRoute({ minRole: "lead" }, async ({ orgId, params }) => {
   const { id } = invoiceIdParams.parse(params);
   const invoice = await getInvoice(id, orgId);
   if (!invoice) throw new NotFoundError();
-  return invoice;
+  // null when the org has no QBO connection (the badge stays hidden).
+  const qboSync = await getInvoiceQboState(orgId, id);
+  return { ...invoice, qboSync };
 });
 
 export const PATCH = apiRoute(

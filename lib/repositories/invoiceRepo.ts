@@ -12,6 +12,7 @@ import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { enqueueQboTaskTx } from "@/lib/repositories/qboRepo";
 import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
@@ -327,14 +328,19 @@ export async function updateInvoice(
 }
 
 export async function voidInvoice(id: number, orgId: string) {
-  const res = await prisma.invoice.updateMany({
-    where: { id, orgId, status: { not: "void" } },
-    data: { status: "void", voidedAt: new Date() },
+  const voided = await prisma.$transaction(async (tx) => {
+    const res = await tx.invoice.updateMany({
+      where: { id, orgId, status: { not: "void" } },
+      data: { status: "void", voidedAt: new Date() },
+    });
+    if (res.count === 0) return false;
+    await tx.invoiceEvent.create({
+      data: { invoiceId: id, type: "voided", source: "builder" },
+    });
+    await enqueueQboTaskTx(tx, orgId, "void_invoice", id);
+    return true;
   });
-  if (res.count === 0) return null;
-  await prisma.invoiceEvent.create({
-    data: { invoiceId: id, type: "voided", source: "builder" },
-  });
+  if (!voided) return null;
   return getInvoice(id, orgId);
 }
 
@@ -416,6 +422,7 @@ export async function markInvoiceSent(
         metadata: { to: input.to, subject: input.subject },
       },
     });
+    await enqueueQboTaskTx(tx, orgId, "sync_invoice", id);
     return true;
   });
 }
@@ -478,7 +485,7 @@ export async function recordPayment(
     if (!inv) return null;
     if (inv.status === "void") throw new InvoiceLockedError();
 
-    await tx.payment.create({
+    const payment = await tx.payment.create({
       data: {
         invoiceId,
         amount: input.amount,
@@ -490,6 +497,7 @@ export async function recordPayment(
         recordedByName: input.recordedByName,
       },
     });
+    await enqueueQboTaskTx(tx, orgId, "sync_payment", payment.id);
 
     const paid = inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
     const status = nextInvoiceStatus({
@@ -614,7 +622,7 @@ export async function recordStripePayment(
           ? "overpayment"
           : null;
 
-      await tx.payment.create({
+      const payment = await tx.payment.create({
         data: {
           invoiceId: input.invoiceId,
           amount: input.amount,
@@ -625,6 +633,9 @@ export async function recordStripePayment(
           recordedByName: "Stripe",
         },
       });
+      // Mirror the money into QBO too (the engine skips void invoices, so
+      // the orphaned/refund-needed anomaly path stays SqFt-only).
+      await enqueueQboTaskTx(tx, input.orgId, "sync_payment", payment.id);
 
       await tx.invoice.update({
         where: { id: input.invoiceId },

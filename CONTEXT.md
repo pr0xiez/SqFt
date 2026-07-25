@@ -355,6 +355,62 @@ always submits a flat `amount`, never `pct`. (The backend's `pct` means "% of
 estimate *total*", not "% of the remaining balance", so "% of balance" is
 resolved client-side rather than sent as `pct`.)
 
+## QuickBooks Sync
+
+**One-way push: SqFt is the source of truth, QBO is the bookkeeping mirror.**
+Customers, **sent** invoices (built from the frozen snapshot — never
+recomputed), payments (manual + Stripe, gross), and voids are pushed into the
+org's connected QBO company. Nothing is ever pulled back, and no user action
+ever blocks on QBO being reachable. Plan/spec:
+`specs/2026-07-23-qbo-sync-plan.md`.
+
+The engine (`lib/qbo/sync.ts`) is **port-based** — `QboPort` (API),
+`SyncStore`/`TaskStore` (Prisma impls in `lib/repositories/qboRepo.ts`) — and
+its reliability invariants are pinned one-to-one by tests in
+`__tests__/lib/qbo/` (FakeQbo realm):
+
+1. Tasks are idempotent **ensure-ops** (`ensureInvoiceSynced` ensures its
+   customer + item first) — any execution order converges.
+2. **Query-before-create** by natural key (Customer `DisplayName`, Invoice
+   `DocNumber` — plain number first, `SQFT-{n}` fallback past foreign
+   occupants, adopt only on customer+total match — Payment `PaymentRefNum`
+   `SQFT-P{id}`): a lost create response is adopted on retry, never
+   duplicated.
+3. **Enqueue-in-transaction**: `enqueueQboTaskTx` runs INSIDE the domain
+   write (markInvoiceSent / recordPayment / recordStripePayment /
+   voidInvoice / updateCustomer-with-link) so a connected org can never have
+   a domain write with no sync intent. No-op when the org has no active
+   connection.
+4. Sync executes via `after()` attempts (latency) + the cron sweeper
+   `GET /api/qbo/sync/run` (guarantee; `CRON_SECRET` bearer, daily in
+   `vercel.json`) + opportunistic sweeps on the status endpoint. Tasks are
+   **lease-claimed** (`claimDue` advances `nextAttemptAt` atomically) so
+   racing runners can't double-run one task; serial per org; backoff
+   `2^attempts` min capped at 6h; terminal `failed` after 10 attempts.
+5. **Auth death pauses, never drops**: `invalid_grant` marks the connection
+   `disconnected` and flips pending tasks to `paused_auth`; reconnecting the
+   SAME realm re-arms them. Connecting a DIFFERENT realm wipes the org's
+   `QboLink`s (foreign ids must never be written to).
+6. **Token rotation is single-flight**: Intuit rotates refresh tokens
+   (~24h); `getFreshAccessContext` refreshes under `SELECT … FOR UPDATE` on
+   `QboConnection` and persists the pair atomically. Never call the token
+   endpoint outside it. Tokens are AES-256-GCM encrypted at rest
+   (`lib/qbo/crypto.ts`, key `QBO_TOKEN_ENC_KEY`).
+
+Surfaces: admin **Settings → Integrations** (`/settings/integrations`,
+`QuickBooksCard` + `SyncHealthPanel` — connect/disconnect/reconnect, health
+counts, failed rows with `lastError`); per-invoice badge (`QboSyncBadge`,
+fed by `qboSync` on the invoice detail payload — synced / pending (polls) /
+failed with Retry → `POST /api/invoices/[id]/qbo-sync`).
+
+Environments: `QBO_ENVIRONMENT` = `sandbox | production | mock`; integration
+is invisible when env is absent. `mock` serves the app's own test-only realm
+(`app/api/qbo-mock`, state in `QboMockRealm`) used by the `qbo-*.spec.ts`
+Playwright suites — refused in production, and specs skip when the target
+deployment doesn't serve it. Tax: the invoice mapping emits QBO's
+`TxnTaxDetail` override only when the (future, P0) tax contract fields are
+present in the snapshot (`totals.taxAmount` et al).
+
 ## Send Pipeline
 
 Emailing a customer-facing document (estimate, invoice) is one spine, owned
@@ -461,6 +517,11 @@ Domain codes:
 - `STRIPE_WEBHOOK_INVALID` (400) — the `stripe-signature` header failed
   verification; the webhook payload was rejected. Thrown by
   `app/api/webhooks/stripe/route.ts`.
+- `QBO_NOT_CONNECTED` (409) — a manual QBO sync was requested but the org has
+  no QuickBooks connection. Thrown by `/api/invoices/[id]/qbo-sync`.
+- `QBO_AUTH_EXPIRED` (409) — the org's QBO connection exists but its
+  authorization is dead; the remedy is reconnecting in
+  Settings → Integrations (distinct from `QBO_NOT_CONNECTED`). Same route.
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.

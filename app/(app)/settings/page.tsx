@@ -26,6 +26,12 @@ function settingsLinksFor(role: string): SettingsLink[] {
       description:
         "Connect Stripe to accept card payments from customers on invoices.",
     });
+    links.push({
+      href: "/settings/integrations",
+      title: "Integrations",
+      description:
+        "Connect QuickBooks Online to push customers, invoices, and payments into your books.",
+    });
   }
   links.push({
     href: "/settings/line-item-templates",

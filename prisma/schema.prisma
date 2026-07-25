@@ -56,6 +56,9 @@ model Organization {
   locations         Location[]
   events            Event[]
   lineItemTemplates LineItemTemplate[]
+  qboConnection     QboConnection?
+  qboLinks          QboLink[]
+  qboSyncTasks      QboSyncTask[]
 }
 
 model User {
@@ -374,6 +377,79 @@ model StripeAnomaly {
   amount          Float // dollars
   reason          String // unknown_account | missing_invoice_metadata
   createdAt       DateTime @default(now())
+}
+
+// ── QUICKBOOKS ONLINE SYNC ──────────────────────────────────────────────────
+// One-way push: SqFt is the source of truth, QBO is the bookkeeping mirror.
+// See specs/2026-07-23-qbo-sync-plan.md and the QuickBooks Sync section of
+// CONTEXT.md.
+
+/// One connected QBO company (realm) per org. Tokens are AES-256-GCM
+/// encrypted at rest (lib/qbo/crypto.ts) — never store or log them raw.
+/// Refresh tokens ROTATE (~24h): both tokens are persisted atomically under
+/// a row lock (single-flight, lib/qbo/connect.ts refreshConnection).
+model QboConnection {
+  id                    String       @id @default(cuid())
+  orgId                 String       @unique
+  org                   Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  realmId               String       @unique
+  accessTokenEnc        String
+  refreshTokenEnc       String
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  status                String       @default("active") // active | disconnected
+  companyName           String?
+  qboItemId             String? // the single Service item invoice lines bill against
+  qboItemName           String       @default("Flooring services")
+  connectedAt           DateTime     @default(now())
+  lastSyncedAt          DateTime?
+}
+
+/// SqFt record ↔ QBO entity link; one row per synced record. Links survive
+/// disconnect/reconnect to the SAME realm; connecting a DIFFERENT realm
+/// deletes the org's links (ids from another company's books).
+model QboLink {
+  id         Int          @id @default(autoincrement())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  entityType String // customer | invoice | payment
+  entityId   Int // SqFt id
+  qboId      String // QBO entity id
+  syncToken  String // QBO optimistic-concurrency token, updated on every write
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([orgId, entityType, entityId])
+  @@index([orgId])
+}
+
+/// Durable outbox: one row per pending sync intent. Enqueued INSIDE the
+/// domain-write transaction (send/payment/void) so no intent is ever lost;
+/// executed by after()-attempts and the cron sweeper (lib/qbo/sync.ts).
+model QboSyncTask {
+  id            Int          @id @default(autoincrement())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  kind          String // sync_customer | sync_invoice | sync_payment | void_invoice
+  entityId      Int
+  status        String       @default("pending") // pending | done | failed | paused_auth
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now())
+  lastError     String? // human-readable, surfaced in sync health
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([orgId, kind, entityId]) // enqueue is an upsert — no duplicate work
+  @@index([status, nextAttemptAt])
+}
+
+/// Test-only storage backing the in-app mock QBO realm (app/api/qbo-mock,
+/// mounted only when QBO_ENVIRONMENT=mock). Never written in sandbox or
+/// production modes.
+model QboMockRealm {
+  id        String   @id
+  data      Json
+  updatedAt DateTime @updatedAt
 }
 
 // Calendar events: job installations, measurement visits, etc.

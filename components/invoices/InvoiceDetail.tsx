@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { QboSyncBadge } from "@/components/invoices/QboSyncBadge";
 import { RecordPaymentDialog } from "@/components/invoices/RecordPaymentDialog";
 import { SendInvoiceDialog } from "@/components/invoices/SendInvoiceDialog";
 import { VoidInvoiceDialog } from "@/components/invoices/VoidInvoiceDialog";
@@ -78,6 +79,7 @@ export function InvoiceDetail({
         <span className="self-center text-[10px] uppercase tracking-[.05em] px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--ink-2)]">
           {inv.status}
         </span>
+        <QboSyncBadge invoiceId={inv.id} qboSync={inv.qboSync} />
         <div className="ml-auto text-right">
           <div className="text-[24px] font-[700]">{fmtDollar(inv.amount)}</div>
           {inv.dueDate ? (
