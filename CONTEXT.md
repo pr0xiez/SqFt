@@ -269,6 +269,28 @@ all billing math; editing a sent invoice or paying a void one throws
 stale email link can't view or pay a cancelled document. Every lifecycle action
 appends an `InvoiceEvent`.
 
+**Connect onboarding status.** `Organization.stripeConnectStatus` is
+`pending | active | restricted | unsupported` (`ConnectStatus`,
+`lib/stripe/connect.ts`), derived from the merchant `card_payments` /
+`ach_debit_payments` capabilities by `aggregateConnectStatus` — **best-of**,
+since Checkout offers whichever method is live. `unsupported` is terminal
+(Stripe will never enable the capability for this business / country / entity
+type) and is deliberately *not* folded into `pending`, which the settings page
+presents as a retryable "Continue setup". The column is a **write-through cache
+for the public pay path only** — `/invoice-review/[token]` gates its Pay button
+on it — so both the admin settings route and the checkout route re-read Stripe
+live: a cached `active` that is never re-checked hides a later restriction from
+the contractor until a customer's payment fails. There is **no `account.updated`
+webhook** (Accounts-v2 status changes arrive as v2 core events, which SqFt does
+not subscribe to), so `/settings/payments` polls for a bounded window after
+onboarding returns. `connectPhase` (`lib/stripe/connectPhase.ts`) is the one
+selector both the page's card and the poller's stop condition read, so the copy
+and the polling cannot disagree. `summarizeRequirements` collapses Stripe's
+requirement entries to `{ actionDue, inReview, issues }`: `actionDue` keys on
+`minimum_deadline` (an `eventually_due` requirement is future work and blocks
+nothing), and `issues` carries *every* failure for the side that is actually
+holding things up — never a Stripe-side error attributed to the user.
+
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
 **Org-wide list.** `GET /api/invoices` (lead+) lists all org invoices —

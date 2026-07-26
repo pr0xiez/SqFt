@@ -70,11 +70,24 @@ export const POST = publicRoute<undefined, { token: string }>(
       // create failure may mean Stripe has since restricted the account. Verify
       // live: if it's no longer active, downgrade the cache and return the
       // documented STRIPE_ACCOUNT_RESTRICTED instead of a generic 500.
-      const live = await readAccountStatus(org.stripeConnectAccountId);
-      if (live !== "active") {
-        await setOrgConnectStatus(invoice.orgId, live);
-        throw new StripeAccountRestrictedError();
+      //
+      // This whole block exists to degrade gracefully, so it must not become a
+      // new way to fail: anything the diagnostic read itself throws (Stripe
+      // down, key revoked, account deauthorized) is swallowed in favour of the
+      // original error, which is the one that actually describes the failure.
+      let restricted = false;
+      try {
+        const live = await readAccountStatus(org.stripeConnectAccountId);
+        if (live !== "active") {
+          restricted = true;
+          await setOrgConnectStatus(invoice.orgId, live);
+        }
+      } catch {
+        // Diagnostic read (or its cache write) failed. Fall through: if we got
+        // far enough to know the account isn't active, still return the typed
+        // error below — a stale cache is not worth a 500 to the customer.
       }
+      if (restricted) throw new StripeAccountRestrictedError();
       throw err;
     }
   }

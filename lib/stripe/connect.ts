@@ -1,19 +1,39 @@
 import { getStripe } from "./client";
 
-export type ConnectStatus = "pending" | "active" | "restricted";
+/**
+ * `unsupported` is terminal: the capability is unavailable for this account's
+ * business, country or entity type, so re-running onboarding can never fix it.
+ * It is deliberately NOT folded into `pending` — the page presents pending as
+ * "continue setup", which would loop the user forever.
+ */
+export type ConnectStatus = "pending" | "active" | "restricted" | "unsupported";
+
+/** One thing Stripe says is missing from — or wrong with — a requirement. */
+export interface ConnectRequirementIssue {
+  /**
+   * Stripe's machine-readable requirement id (e.g. `individual.id_number`), so
+   * the page can say which field a message is about. Null when Stripe didn't
+   * name one.
+   */
+  requirement: string | null;
+  /** Stripe's human-readable description of the problem. */
+  message: string;
+}
 
 /**
- * What the account holder still owes Stripe, collapsed for the settings page.
- * `actionDue` — Stripe is waiting on the user (a requirement to fill or fix);
- * `inReview` — every outstanding requirement is on Stripe's side (async
- * verification in progress, nothing for the user to do);
- * `errorReason` — Stripe's human-readable description of why a submitted
- * requirement failed verification (e.g. keyed identity mismatch), if any.
+ * What the account still owes Stripe, collapsed for the settings page.
+ * `actionDue` — the user has a requirement that is currently or already past
+ * due (an `eventually_due` one is future work that doesn't hold up activation);
+ * `inReview` — nothing is due from the user and Stripe is still working on at
+ * least one requirement (async verification: nothing to do but wait);
+ * `issues` — every failure Stripe reported for whichever side is currently
+ * holding things up, so the page never shows one reason out of three and never
+ * blames the user for a Stripe-side failure.
  */
 export interface ConnectRequirements {
   actionDue: boolean;
   inReview: boolean;
-  errorReason: string | null;
+  issues: ConnectRequirementIssue[];
 }
 
 export interface ConnectStatusDetail {
@@ -21,9 +41,61 @@ export interface ConnectStatusDetail {
   requirements: ConnectRequirements;
 }
 
+/**
+ * Structural subset of Stripe's v2 `Requirements.Entry`. `description` and
+ * `minimum_deadline` are non-optional on the SDK type, so real entries always
+ * satisfy this — they are optional here only so tests (and any future API
+ * version that stops sending one) don't have to fabricate them.
+ */
 interface RequirementEntry {
   awaiting_action_from: "stripe" | "user";
+  description?: string;
   errors: Array<{ description: string }>;
+  minimum_deadline?: {
+    status: "currently_due" | "eventually_due" | "past_due";
+  };
+}
+
+/** Structural subset of the v2 merchant configuration's capability statuses. */
+interface MerchantCapabilities {
+  card_payments?: { status?: string };
+  ach_debit_payments?: { status?: string };
+}
+
+/**
+ * A user-owned requirement only blocks activation once Stripe says it is due.
+ * `minimum_deadline.status` is Stripe's aggregate of "the soonest point when
+ * the account will be impacted", so it already folds in the per-entry
+ * `impact.restricts_capabilities` deadlines — an `eventually_due` entry
+ * restricts nothing yet, and treating it as due both mislabels the page and
+ * stops the post-onboarding poll on its first tick. A missing deadline counts
+ * as due: better to over-prompt than to sit silently on a blocking requirement.
+ */
+function isDueFromUser(entry: RequirementEntry): boolean {
+  if (entry.awaiting_action_from !== "user") return false;
+  return entry.minimum_deadline?.status !== "eventually_due";
+}
+
+/** Flatten every error on the given entries, de-duplicated and order-stable. */
+function toIssues(entries: RequirementEntry[]): ConnectRequirementIssue[] {
+  const seen = new Set<string>();
+  const issues: ConnectRequirementIssue[] = [];
+  for (const entry of entries) {
+    for (const error of entry.errors) {
+      const requirement = entry.description ?? null;
+      const key = JSON.stringify([requirement, error.description]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      issues.push({ requirement, message: error.description });
+    }
+  }
+  // Stripe doesn't document entry ordering, so sort: two polls five seconds
+  // apart must not reshuffle the list under someone who is mid-read.
+  return issues.sort(
+    (a, b) =>
+      a.message.localeCompare(b.message) ||
+      (a.requirement ?? "").localeCompare(b.requirement ?? "")
+  );
 }
 
 /** Collapse v2 requirement entries into the settings-page summary. */
@@ -31,23 +103,23 @@ export function summarizeRequirements(
   entries: RequirementEntry[] | undefined
 ): ConnectRequirements {
   const list = entries ?? [];
-  const actionDue = list.some((e) => e.awaiting_action_from === "user");
-  // An error on a user-actionable requirement explains what the user must fix;
-  // fall back to any error so a Stripe-side failure still surfaces a reason.
-  const withError =
-    list.find((e) => e.awaiting_action_from === "user" && e.errors.length) ??
-    list.find((e) => e.errors.length);
-  return {
-    actionDue,
-    inReview: !actionDue && list.length > 0,
-    errorReason: withError?.errors[0]?.description ?? null,
-  };
+  const dueFromUser = list.filter(isDueFromUser);
+  const awaitingStripe = list.filter(
+    (e) => e.awaiting_action_from === "stripe"
+  );
+  const actionDue = dueFromUser.length > 0;
+  const inReview = !actionDue && awaitingStripe.length > 0;
+  // Report errors only for the side that is actually holding things up. An
+  // ungated fallback tells the user to go fix an SSN that Stripe, not they, own.
+  const source = actionDue ? dueFromUser : inReview ? awaitingStripe : [];
+  return { actionDue, inReview, issues: toIssues(source) };
 }
 
-/** Collapse Stripe's capability status strings into our three states. */
+/** Collapse Stripe's capability status strings into our four states. */
 export function mapCapabilityStatus(raw: string | undefined): ConnectStatus {
   if (raw === "active") return "active";
-  if (raw === "restricted" || raw === "disabled") return "restricted";
+  if (raw === "restricted") return "restricted";
+  if (raw === "unsupported") return "unsupported";
   return "pending";
 }
 
@@ -59,6 +131,10 @@ export function mapCapabilityStatus(raw: string | undefined): ConnectStatus {
  * single persisted `stripeConnectStatus` is therefore the more permissive of
  * the two: gating on `card_payments` alone would hide the button from an
  * ACH-active / card-pending account that can already take payment.
+ *
+ * `unsupported` ranks last because it is terminal: it wins only when BOTH
+ * capabilities are unsupported, since one unsupported capability alongside a
+ * pending one can still end up active.
  */
 export function aggregateConnectStatus(
   card: ConnectStatus,
@@ -66,7 +142,17 @@ export function aggregateConnectStatus(
 ): ConnectStatus {
   if (card === "active" || ach === "active") return "active";
   if (card === "restricted" || ach === "restricted") return "restricted";
-  return "pending";
+  if (card === "pending" || ach === "pending") return "pending";
+  return "unsupported";
+}
+
+function statusFromCapabilities(
+  caps: MerchantCapabilities | undefined
+): ConnectStatus {
+  return aggregateConnectStatus(
+    mapCapabilityStatus(caps?.card_payments?.status),
+    mapCapabilityStatus(caps?.ach_debit_payments?.status)
+  );
 }
 
 /**
@@ -134,10 +220,13 @@ export async function createOnboardingLink(
 }
 
 /**
- * Read the merchant capabilities and collapse them to our status. Both
+ * Read the merchant capabilities and the outstanding requirements. Both
  * card_payments and ach_debit_payments are requested and underwritten
  * independently, so the aggregate reflects either being active (see
  * aggregateConnectStatus).
+ *
+ * Only the admin settings page needs the requirements half — the customer
+ * checkout path calls `readAccountStatus` instead.
  */
 export async function readAccountStatusDetail(
   accountId: string
@@ -146,18 +235,26 @@ export async function readAccountStatusDetail(
   const account = await stripe.v2.core.accounts.retrieve(accountId, {
     include: ["configuration.merchant", "requirements"],
   });
-  const caps = account.configuration?.merchant?.capabilities;
   return {
-    status: aggregateConnectStatus(
-      mapCapabilityStatus(caps?.card_payments?.status),
-      mapCapabilityStatus(caps?.ach_debit_payments?.status)
+    status: statusFromCapabilities(
+      account.configuration?.merchant?.capabilities
     ),
     requirements: summarizeRequirements(account.requirements?.entries),
   };
 }
 
+/**
+ * Capability status only. This runs on the customer-facing checkout path (twice
+ * per failed payment attempt), which has no use for the requirements payload —
+ * asking for it there would widen a money-path call, and parsing it would add a
+ * way for the graceful-degradation catch block to throw.
+ */
 export async function readAccountStatus(
   accountId: string
 ): Promise<ConnectStatus> {
-  return (await readAccountStatusDetail(accountId)).status;
+  const stripe = getStripe();
+  const account = await stripe.v2.core.accounts.retrieve(accountId, {
+    include: ["configuration.merchant"],
+  });
+  return statusFromCapabilities(account.configuration?.merchant?.capabilities);
 }

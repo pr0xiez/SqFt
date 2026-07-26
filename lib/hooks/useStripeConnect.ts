@@ -2,24 +2,16 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { readApiError } from "@/lib/api/errors";
+import {
+  connectPhase,
+  connectPollInterval,
+  type StripeConnectStatus,
+} from "@/lib/stripe/connectPhase";
 
-export interface StripeConnectStatus {
-  connected: boolean;
-  status: "pending" | "active" | "restricted" | null;
-  requirements: {
-    actionDue: boolean;
-    inReview: boolean;
-    errorReason: string | null;
-  } | null;
-}
+export { STRIPE_CONNECT_POLL_MS } from "@/lib/stripe/connectPhase";
+export type { StripeConnectStatus };
 
-/**
- * Poll cadence while waiting for Stripe's async verification. Each poll is one
- * Stripe account read server-side, so keep this comfortably under Stripe's
- * rate limits (test mode allows 25 reads/s); the settings page also caps how
- * long it polls (see PaymentsSettingsView).
- */
-export const STRIPE_CONNECT_POLL_MS = 5000;
+export const STRIPE_CONNECT_QUERY_KEY = ["stripe-connect"];
 
 async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
   if (!res.ok) {
@@ -31,25 +23,27 @@ async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
 
 export function useStripeConnect(opts?: { pollWhileVerifying?: boolean }) {
   return useQuery({
-    queryKey: ["stripe-connect"],
+    queryKey: STRIPE_CONNECT_QUERY_KEY,
     queryFn: async () =>
       jsonOrThrow<StripeConnectStatus>(
         await fetch("/api/org/stripe/connect"),
         "Failed to load Stripe connection status"
       ),
-    // Keep refetching only while Stripe is the one we're waiting on: stop as
-    // soon as the account is active, or the user has something to do.
     refetchInterval: opts?.pollWhileVerifying
       ? (query) => {
-          const d = query.state.data;
-          if (!d) return STRIPE_CONNECT_POLL_MS; // first load in flight
-          if (!d.connected || d.status === "active") return false;
-          if (d.requirements?.actionDue) return false;
-          if (d.status === "restricted" && !d.requirements?.inReview)
-            return false;
-          return STRIPE_CONNECT_POLL_MS;
+          const data = query.state.data;
+          return connectPollInterval(
+            connectPhase({ data, isError: query.state.status === "error" }),
+            data
+          );
         }
       : false,
+    // The post-onboarding poll window is wall-clock (see PaymentsSettingsView),
+    // but React Query suppresses interval refetches on a hidden tab by default.
+    // Without this, someone who reads "this page updates automatically" and
+    // switches to their inbox — the exact thing that copy invites — comes back
+    // to a window that expired having run zero polls.
+    refetchIntervalInBackground: true,
   });
 }
 

@@ -201,7 +201,7 @@ describe("GET /api/org/stripe/connect", () => {
     });
     mockReadAccountStatusDetail.mockResolvedValueOnce({
       status: "active",
-      requirements: { actionDue: false, inReview: false, errorReason: null },
+      requirements: { actionDue: false, inReview: false, issues: [] },
     });
 
     const res = await GET(makeRequest("GET"), noParams);
@@ -211,7 +211,7 @@ describe("GET /api/org/stripe/connect", () => {
     expect(body).toEqual({
       connected: true,
       status: "active",
-      requirements: { actionDue: false, inReview: false, errorReason: null },
+      requirements: { actionDue: false, inReview: false, issues: [] },
     });
     expect(mockReadAccountStatusDetail).toHaveBeenCalledWith("acct_123");
     expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
@@ -228,13 +228,15 @@ describe("GET /api/org/stripe/connect", () => {
       stripeConnectAccountId: "acct_123",
       stripeConnectStatus: "pending",
     });
+    const issues = [
+      {
+        requirement: "individual.id_number",
+        message: "The person's keyed-in identity could not be verified.",
+      },
+    ];
     mockReadAccountStatusDetail.mockResolvedValueOnce({
       status: "pending",
-      requirements: {
-        actionDue: true,
-        inReview: false,
-        errorReason: "The person's keyed-in identity could not be verified.",
-      },
+      requirements: { actionDue: true, inReview: false, issues },
     });
 
     const res = await GET(makeRequest("GET"), noParams);
@@ -244,11 +246,7 @@ describe("GET /api/org/stripe/connect", () => {
     expect(body).toEqual({
       connected: true,
       status: "pending",
-      requirements: {
-        actionDue: true,
-        inReview: false,
-        errorReason: "The person's keyed-in identity could not be verified.",
-      },
+      requirements: { actionDue: true, inReview: false, issues },
     });
     expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
       "org1",
@@ -257,12 +255,20 @@ describe("GET /api/org/stripe/connect", () => {
     );
   });
 
-  it("skips Stripe refresh when account is already active", async () => {
+  it("still refreshes from Stripe when the cached status is active, so a later restriction surfaces", async () => {
+    // Skipping the read once the cache said "active" latched the settings page
+    // to "payments are active" permanently. A Stripe restriction after that
+    // point stayed invisible here while the public "Pay now" button — gated on
+    // the same cached value — kept sending customers to a failing checkout.
     asAdmin();
     mockGetOrgStripe.mockResolvedValueOnce({
       name: "Acme Floors",
       stripeConnectAccountId: "acct_123",
       stripeConnectStatus: "active",
+    });
+    mockReadAccountStatusDetail.mockResolvedValueOnce({
+      status: "restricted",
+      requirements: { actionDue: false, inReview: true, issues: [] },
     });
 
     const res = await GET(makeRequest("GET"), noParams);
@@ -271,10 +277,36 @@ describe("GET /api/org/stripe/connect", () => {
     const body = (await res.json()) as { connected: boolean; status: string };
     expect(body).toEqual({
       connected: true,
-      status: "active",
-      requirements: null,
+      status: "restricted",
+      requirements: { actionDue: false, inReview: true, issues: [] },
     });
-    expect(mockReadAccountStatusDetail).not.toHaveBeenCalled();
-    expect(mockSetOrgConnectStatus).not.toHaveBeenCalled();
+    expect(mockReadAccountStatusDetail).toHaveBeenCalledWith("acct_123");
+    // …and the cached copy the public pay path reads is downgraded with it.
+    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
+      "org1",
+      "restricted",
+      undefined
+    );
+  });
+
+  it("carries the requirements summary on the poll that flips an account active", async () => {
+    asAdmin();
+    mockGetOrgStripe.mockResolvedValueOnce({
+      name: "Acme Floors",
+      stripeConnectAccountId: "acct_123",
+      stripeConnectStatus: "pending",
+    });
+    mockReadAccountStatusDetail.mockResolvedValueOnce({
+      status: "active",
+      requirements: { actionDue: false, inReview: false, issues: [] },
+    });
+
+    const res = await GET(makeRequest("GET"), noParams);
+    const body = (await res.json()) as { requirements: unknown };
+    expect(body.requirements).toEqual({
+      actionDue: false,
+      inReview: false,
+      issues: [],
+    });
   });
 });
