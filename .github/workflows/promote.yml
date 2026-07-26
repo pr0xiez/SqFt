@@ -1,0 +1,42 @@
+name: Promote to Production
+
+# Manually promote what's on staging (main) to production (app.sqft.dev):
+# Actions tab → "Promote to Production" → Run workflow.
+#
+# Fast-forward only: if production ever has commits that main doesn't (it
+# never should), the run fails instead of silently creating a merge commit —
+# reconcile by hand in that case.
+#
+# The push lands on the `production` branch, which Vercel deploys to the
+# production environment (app.sqft.dev) with production env vars; the build
+# runs `prisma migrate deploy` against the production DB (vercel.json).
+#
+# To require a sign-off click before promotion runs, add a required-reviewers
+# protection rule to the `production` GitHub Environment
+# (Repo → Settings → Environments → production).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    name: Fast-forward production to main
+    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: production
+          fetch-depth: 0
+      - name: Fast-forward production to main
+        run: |
+          git fetch origin main
+          git merge --ff-only origin/main
+          git push origin HEAD:production
