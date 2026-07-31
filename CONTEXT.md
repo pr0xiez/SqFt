@@ -289,8 +289,9 @@ each invoice opens its own page at `/invoices/[id]`
 Create / Send / Record-payment / Void are modals
 (`components/invoices/*Dialog.tsx`) built on the shared `components/ui/Modal.tsx`,
 all wired through react-query hooks in `lib/hooks/useInvoices.ts`. Invoices are
-**read-only** — there is no edit UI (the `PATCH` route is intentionally unused);
-to change billed lines, fix the estimate or create another invoice. The
+**read-only** — there is no edit UI and no update endpoint (`app/api/invoices/[id]/route.ts`
+exports only `GET`); to change billed lines, fix the estimate or create another
+invoice. The
 record-payment form defaults to the full outstanding balance but accepts
 partials, and its method dropdown excludes `stripe` (reserved for the future
 integration). The create dialog's three sizing modes (remaining / % of balance
@@ -388,8 +389,8 @@ Domain codes:
 - `EMAIL_FAILED` (502) — upstream email provider rejected the send. Minted by
   the send pipeline (`lib/send/pipeline.ts`) when the email port reports a
   non-OK result.
-- `INVOICE_LOCKED` (409) — caller tried to edit an invoice that has been sent
-  (status is no longer `draft`), or record a payment on a `void` invoice.
+- `INVOICE_LOCKED` (409) — caller tried to record a payment on a `void`
+  invoice.
 - `INVOICE_VOID` (409) — caller tried to send a `void` invoice. Distinct from
   `INVOICE_LOCKED`: void is terminal, and the remedy is creating a new
   invoice, not unlocking this one.
