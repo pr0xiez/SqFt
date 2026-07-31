@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
+import {
+  InvoiceLockedError,
+  InvoiceOverbillError,
+  InvoiceOverpayError,
+} from "@/lib/api/errors";
 
 // --- Prisma mock ----------------------------------------------------------
 // createInvoice / updateInvoice / recordPayment / markInvoiceSent /
@@ -438,10 +442,31 @@ describe("recordPayment", () => {
     expect(call.data.paidAt).toBeInstanceOf(Date);
   });
 
-  it("allows over-payment and still reaches paid (no overbill guard, by design)", async () => {
-    // CONTEXT.md: the payment ledger is free-form — recordPayment has no
-    // overbill guard (unlike create/updateInvoice). A payment exceeding the
-    // invoice amount must be accepted and the invoice settles to "paid".
+  it("throws InvoiceOverpayError when the payment exceeds the outstanding balance, without creating a Payment row", async () => {
+    // total 100, already paid 20 → outstanding 80. A 150 payment overshoots.
+    invoiceFindFirst.mockResolvedValueOnce({
+      id: 1,
+      status: "sent",
+      amount: 100,
+      payments: [{ amount: 20 }],
+    });
+
+    const err = await recordPayment(1, "org1", {
+      ...paymentInput,
+      amount: 150,
+    }).catch((e) => e);
+
+    expect(err).toBeInstanceOf(InvoiceOverpayError);
+    expect((err as InstanceType<typeof InvoiceOverpayError>).outstanding).toBe(
+      80
+    );
+    expect(paymentCreate).not.toHaveBeenCalled();
+    expect(invoiceUpdate).not.toHaveBeenCalled();
+  });
+
+  it("accepts a payment that lands within epsilon of paid-in-full", async () => {
+    // outstanding is 100; a payment of 100.005 is within OVERBILL_EPSILON
+    // (0.005) of fully paid, mirroring nextInvoiceStatus's own +0.005 tolerance.
     invoiceFindFirst
       .mockResolvedValueOnce({
         id: 1,
@@ -455,17 +480,14 @@ describe("recordPayment", () => {
     invoiceEventCreate.mockResolvedValue({});
 
     await expect(
-      recordPayment(1, "org1", { ...paymentInput, amount: 150 })
+      recordPayment(1, "org1", { ...paymentInput, amount: 100.005 })
     ).resolves.not.toThrow();
 
     expect(paymentCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ invoiceId: 1, amount: 150 }),
+        data: expect.objectContaining({ invoiceId: 1, amount: 100.005 }),
       })
     );
-    const call = invoiceUpdate.mock.calls[0][0];
-    expect(call.data.status).toBe("paid");
-    expect(call.data.paidAt).toBeInstanceOf(Date);
   });
 
   it("logs a payment_recorded event with the actor and metadata", async () => {

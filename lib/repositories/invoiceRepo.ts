@@ -4,10 +4,14 @@ import {
   type InvoiceStatusFilter,
   OPEN_INVOICE_STATUSES,
 } from "@/components/invoices/filterInvoices";
-import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
+import {
+  InvoiceLockedError,
+  InvoiceOverbillError,
+  InvoiceOverpayError,
+} from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { computeEstimateBilling } from "@/lib/invoices/compute";
-import { isOverbill } from "@/lib/invoices/createInvoiceForm";
+import { isOverbill, OVERBILL_EPSILON } from "@/lib/invoices/createInvoiceForm";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
 import type { Paginated } from "@/lib/pagination/types";
@@ -477,6 +481,12 @@ export async function recordPayment(
     });
     if (!inv) return null;
     if (inv.status === "void") throw new InvoiceLockedError();
+
+    const priorPaid = inv.payments.reduce((s, p) => s + p.amount, 0);
+    const outstanding = round2(inv.amount - priorPaid);
+    if (input.amount > outstanding + OVERBILL_EPSILON) {
+      throw new InvoiceOverpayError(outstanding);
+    }
 
     await tx.payment.create({
       data: {
