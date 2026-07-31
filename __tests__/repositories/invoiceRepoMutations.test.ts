@@ -6,7 +6,7 @@ import {
 } from "@/lib/api/errors";
 
 // --- Prisma mock ----------------------------------------------------------
-// createInvoice / updateInvoice / recordPayment / markInvoiceSent /
+// createInvoice / recordPayment / markInvoiceSent /
 // markInvoiceViewed run inside prisma.$transaction(async (tx) => ...).
 // We make $transaction invoke its callback with a `tx` object whose model
 // delegates are the same vi.fn()s used for the non-transactional calls, so a
@@ -55,7 +55,6 @@ vi.mock("@/lib/prisma", () => ({
 
 const {
   createInvoice,
-  updateInvoice,
   voidInvoice,
   recordPayment,
   markInvoiceSent,
@@ -210,98 +209,6 @@ describe("createInvoice", () => {
       createInvoice("org1", { estimateId: 1, amount: 200 })
     ).rejects.toBeInstanceOf(InvoiceOverbillError);
     expect(invoiceCreate).not.toHaveBeenCalled();
-  });
-});
-
-describe("updateInvoice", () => {
-  it("returns null when the invoice is not found in the org", async () => {
-    invoiceFindFirst.mockResolvedValue(null);
-    expect(await updateInvoice(99, "org1", { memo: "x" })).toBeNull();
-    expect(invoiceUpdate).not.toHaveBeenCalled();
-  });
-
-  it("throws InvoiceLockedError when the invoice is not a draft", async () => {
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "sent",
-      estimate: estimateFixture({ total: 1000 }),
-    });
-    await expect(
-      updateInvoice(1, "org1", { memo: "x" })
-    ).rejects.toBeInstanceOf(InvoiceLockedError);
-    expect(invoiceUpdate).not.toHaveBeenCalled();
-  });
-
-  it("only writes the metadata fields that are present in the patch", async () => {
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "draft",
-      estimate: estimateFixture({ total: 1000 }),
-    });
-    invoiceUpdate.mockResolvedValue({ id: 1 });
-
-    await updateInvoice(1, "org1", { memo: "hello", coverNote: "note" });
-
-    const call = invoiceUpdate.mock.calls[0][0];
-    expect(call.where).toEqual({ id: 1 });
-    expect(call.data).toEqual({ memo: "hello", coverNote: "note" });
-    // amount/pct untouched when not in the patch.
-    expect(call.data.amount).toBeUndefined();
-    expect(call.data.pct).toBeUndefined();
-  });
-
-  it("recomputes amount/pct and writes them when amount is patched", async () => {
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "draft",
-      estimate: estimateFixture({ total: 1000 }),
-    });
-    invoiceUpdate.mockResolvedValue({ id: 1 });
-
-    await updateInvoice(1, "org1", { pct: 0.5 });
-
-    const call = invoiceUpdate.mock.calls[0][0];
-    expect(call.data.amount).toBe(500);
-    expect(call.data.pct).toBe(0.5);
-  });
-
-  it("excludes the invoice's own amount from the overbill check", async () => {
-    // total 1000, this invoice already counts for 600 plus a sibling at 0.
-    // Patching it back up to 1000 must be allowed (its old amount is excluded).
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "draft",
-      estimate: estimateFixture({
-        total: 1000,
-        invoices: [
-          { id: 1, amount: 600, status: "draft", payments: [] },
-          { id: 2, amount: 0, status: "draft", payments: [] },
-        ],
-      }),
-    });
-    invoiceUpdate.mockResolvedValue({ id: 1 });
-
-    await updateInvoice(1, "org1", { amount: 1000 });
-    expect(invoiceUpdate).toHaveBeenCalled();
-  });
-
-  it("throws InvoiceOverbillError when the new amount exceeds unbilled", async () => {
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "draft",
-      estimate: estimateFixture({
-        total: 1000,
-        invoices: [
-          { id: 1, amount: 100, status: "draft", payments: [] },
-          { id: 2, amount: 900, status: "sent", payments: [] },
-        ],
-      }),
-    });
-
-    await expect(
-      updateInvoice(1, "org1", { amount: 500 })
-    ).rejects.toBeInstanceOf(InvoiceOverbillError);
-    expect(invoiceUpdate).not.toHaveBeenCalled();
   });
 });
 

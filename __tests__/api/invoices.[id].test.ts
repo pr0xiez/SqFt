@@ -10,7 +10,6 @@ vi.mock("@/lib/tenant", () => ({
 }));
 vi.mock("@/lib/repositories", () => ({
   getInvoice: vi.fn(async () => ({ id: 9, status: "draft" })),
-  updateInvoice: vi.fn(async () => ({ id: 9, status: "draft" })),
   voidInvoice: vi.fn(async () => ({ id: 9, status: "void" })),
   recordPayment: vi.fn(async () => ({ id: 9, status: "partial" })),
 }));
@@ -20,7 +19,7 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 import { POST as PAY } from "@/app/api/invoices/[id]/payments/route";
-import { GET, PATCH } from "@/app/api/invoices/[id]/route";
+import { GET } from "@/app/api/invoices/[id]/route";
 import { POST as VOID } from "@/app/api/invoices/[id]/void/route";
 import { recordPayment } from "@/lib/repositories";
 
@@ -34,16 +33,6 @@ describe("invoice detail routes", () => {
   it("GET returns the invoice", async () => {
     expect(
       (await GET(makeRequest("GET", "http://t/api/invoices/9"), ctx)).status
-    ).toBe(200);
-  });
-  it("PATCH updates a draft", async () => {
-    expect(
-      (
-        await PATCH(
-          makeRequest("PATCH", "http://t/api/invoices/9", { memo: "Deposit" }),
-          ctx
-        )
-      ).status
     ).toBe(200);
   });
   it("void marks the invoice void", async () => {
