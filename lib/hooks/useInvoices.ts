@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
 import { readApiError } from "@/lib/api/errors";
+import type { InvoiceSnapshot } from "@/lib/invoices/types";
 import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
 import type { SortDirection } from "@/lib/sort";
 
@@ -30,12 +31,6 @@ export interface InvoiceEvent {
   actorName: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
-}
-
-export interface InvoiceLine {
-  name: string;
-  description: string | null;
-  amount: number;
 }
 
 export interface InvoiceListItem {
@@ -104,7 +99,7 @@ export interface InvoiceDetail {
   viewedAt: string | null;
   paidAt: string | null;
   voidedAt: string | null;
-  snapshot: { lines?: InvoiceLine[] } | null;
+  snapshot: InvoiceSnapshot | null;
   payments: InvoicePayment[];
   invoiceEvents: InvoiceEvent[];
 }
