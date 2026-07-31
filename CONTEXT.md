@@ -395,6 +395,12 @@ Domain codes:
   invoice, not unlocking this one.
 - `INVOICE_OVERBILL` (409) — caller tried to invoice more than the estimate's
   unbilled balance (estimate total − Σ non-void invoice amounts).
+- `INVOICE_OVERPAY` (409) — caller tried to record a manual payment
+  (`recordPayment`) exceeding the invoice's outstanding balance (amount − Σ
+  prior payments), using the shared `OVERBILL_EPSILON` tolerance. Scoped to the
+  manual-payment path only — `classifyStripeCharge` (Stripe webhook charges)
+  keeps its own `overpaid` flag instead, since a captured real-money charge
+  must never be silently dropped.
 - `STRIPE_NOT_CONNECTED` (409) — the org has no Stripe Connect account
   configured; homeowner cannot pay via Stripe. Thrown by the checkout-session
   route (`app/api/invoice-review/[token]/checkout`).

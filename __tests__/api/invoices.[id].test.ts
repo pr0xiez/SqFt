@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { InvoiceOverpayError } from "@/lib/api/errors";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/tenant", () => ({
@@ -69,5 +70,19 @@ describe("invoice detail routes", () => {
         recordedByName: "Amy",
       })
     );
+  });
+  it("payments returns 409 INVOICE_OVERPAY when the amount exceeds the outstanding balance", async () => {
+    vi.mocked(recordPayment).mockRejectedValueOnce(new InvoiceOverpayError(50));
+
+    const res = await PAY(
+      makeRequest("POST", "http://t/api/invoices/9/payments", {
+        amount: 100,
+        method: "check",
+      }),
+      ctx
+    );
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVOICE_OVERPAY");
   });
 });
