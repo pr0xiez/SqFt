@@ -562,15 +562,18 @@ describe("markInvoiceSent", () => {
 
 describe("markInvoiceViewed", () => {
   it("flips a sent invoice to viewed and always logs the open", async () => {
-    invoiceFindUnique.mockResolvedValue({ status: "sent" });
+    invoiceFindFirst.mockResolvedValue({ status: "sent" });
     invoiceUpdateMany.mockResolvedValue({ count: 1 });
     invoiceEventCreate.mockResolvedValue({});
 
-    await markInvoiceViewed(1, { ip: "1.2.3.4", userAgent: "UA" });
+    await markInvoiceViewed(1, "org1", { ip: "1.2.3.4", userAgent: "UA" });
 
+    expect(invoiceFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 1, orgId: "org1" } })
+    );
     expect(invoiceUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 1, status: "sent" },
+        where: { id: 1, orgId: "org1", status: "sent" },
         data: expect.objectContaining({ status: "viewed" }),
       })
     );
@@ -582,10 +585,10 @@ describe("markInvoiceViewed", () => {
   });
 
   it("does not re-status a non-sent invoice but still logs the open", async () => {
-    invoiceFindUnique.mockResolvedValue({ status: "paid" });
+    invoiceFindFirst.mockResolvedValue({ status: "paid" });
     invoiceEventCreate.mockResolvedValue({});
 
-    await markInvoiceViewed(1, { ip: null, userAgent: null });
+    await markInvoiceViewed(1, "org1", { ip: null, userAgent: null });
 
     expect(invoiceUpdateMany).not.toHaveBeenCalled();
     expect(invoiceEventCreate).toHaveBeenCalledWith(
@@ -596,10 +599,24 @@ describe("markInvoiceViewed", () => {
   });
 
   it("does nothing when the invoice does not exist", async () => {
-    invoiceFindUnique.mockResolvedValue(null);
+    invoiceFindFirst.mockResolvedValue(null);
 
-    await markInvoiceViewed(99, { ip: null, userAgent: null });
+    await markInvoiceViewed(99, "org1", { ip: null, userAgent: null });
 
+    expect(invoiceUpdateMany).not.toHaveBeenCalled();
+    expect(invoiceEventCreate).not.toHaveBeenCalled();
+  });
+
+  it("is org-scoped: a wrong orgId finds nothing and mutates nothing (issue #258)", async () => {
+    // The invoice exists (id 1) but belongs to a different org than the
+    // caller supplies — findFirst's {id, orgId} where clause must miss it.
+    invoiceFindFirst.mockResolvedValue(null);
+
+    await markInvoiceViewed(1, "wrong-org", { ip: null, userAgent: null });
+
+    expect(invoiceFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 1, orgId: "wrong-org" } })
+    );
     expect(invoiceUpdateMany).not.toHaveBeenCalled();
     expect(invoiceEventCreate).not.toHaveBeenCalled();
   });
