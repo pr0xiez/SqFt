@@ -51,32 +51,40 @@ function clampChip(startMin: number, endMin: number) {
 }
 
 /**
- * Place one day's events into side-by-side lanes wherever they overlap, and
- * clamp each chip into the visible window (an event outside 7a–7p is pinned
- * to the grid edge at minimum size instead of rendering off-grid).
+ * Clamp one day's events into the visible window (an event outside 7a–7p is
+ * pinned to the grid edge at minimum size instead of rendering off-grid), then
+ * place them into side-by-side lanes wherever the *clamped* chips overlap — so
+ * no chip can ever be drawn on top of another.
  */
 export function layoutDayEvents<T extends GridEventTimes>(
   dayEvents: T[]
 ): PlacedEvent<T>[] {
+  // Clamp FIRST, then lane events by their *drawn* rect. Clamping collapses
+  // everything outside 7a–7p onto the same edge geometry, so laning by the raw
+  // times would leave two out-of-range events (e.g. 05:00–05:30 and
+  // 06:00–06:30, which don't overlap in clock time) sharing one full-width
+  // lane at top 0 — the upper chip invisible and unclickable.
   const mapped = dayEvents
-    .map((ev) => ({
-      ev,
-      startMin: timeToMinutes(ev.startTime) - START_HOUR * 60,
-      endMin: timeToMinutes(ev.endTime) - START_HOUR * 60,
-    }))
-    .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+    .map((ev) => {
+      const chip = clampChip(
+        timeToMinutes(ev.startTime) - START_HOUR * 60,
+        timeToMinutes(ev.endTime) - START_HOUR * 60
+      );
+      return { ev, ...chip, bottom: chip.top + chip.height };
+    })
+    .sort((a, b) => a.top - b.top || a.bottom - b.bottom);
 
-  // Group into clusters of transitively-overlapping events.
+  // Group into clusters of transitively-overlapping chips.
   const clusters: { items: typeof mapped }[] = [];
   let cur: (typeof clusters)[0] | null = null;
-  let curEndMax = Number.NEGATIVE_INFINITY;
+  let curBottomMax = Number.NEGATIVE_INFINITY;
   for (const e of mapped) {
-    if (cur && e.startMin < curEndMax) {
+    if (cur && e.top < curBottomMax) {
       cur.items.push(e);
-      curEndMax = Math.max(curEndMax, e.endMin);
+      curBottomMax = Math.max(curBottomMax, e.bottom);
     } else {
       cur = { items: [e] };
-      curEndMax = e.endMin;
+      curBottomMax = e.bottom;
       clusters.push(cur);
     }
   }
@@ -86,21 +94,24 @@ export function layoutDayEvents<T extends GridEventTimes>(
     const lanes: number[] = [];
     const assigned: { item: (typeof mapped)[0]; lane: number }[] = [];
     for (const item of cl.items) {
-      let lane = lanes.findIndex((end) => end <= item.startMin);
+      let lane = lanes.findIndex((bottom) => bottom <= item.top);
       if (lane === -1) {
         lane = lanes.length;
-        lanes.push(item.endMin);
+        lanes.push(item.bottom);
       } else {
-        lanes[lane] = item.endMin;
+        lanes[lane] = item.bottom;
       }
       assigned.push({ item, lane });
     }
     for (const { item, lane } of assigned) {
       placed.push({
         ev: item.ev,
+        top: item.top,
+        height: item.height,
         lane,
         totalLanes: lanes.length,
-        ...clampChip(item.startMin, item.endMin),
+        clippedStart: item.clippedStart,
+        clippedEnd: item.clippedEnd,
       });
     }
   }

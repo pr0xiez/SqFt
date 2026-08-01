@@ -62,6 +62,9 @@ describe("eventUpdateSchema time ordering (best-effort on partials)", () => {
     expect(res.success).toBe(false);
   });
 
+  // The schema can't see the stored endDate, so it defers rather than
+  // rejecting a legitimate multi-day wrap; `eventRepo.updateEvent` re-checks
+  // the merged state (see the updateEvent time-ordering tests).
   it("passes inverted times through when endDate is unknown (may be multi-day)", () => {
     const res = eventUpdateSchema.safeParse({
       startTime: "10:00",

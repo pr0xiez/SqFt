@@ -78,6 +78,69 @@ describe("layoutDayEvents", () => {
     const [p] = layoutDayEvents([ev("09:00", "09:00")]);
     expect(p.height).toBe(MIN_CHIP_PX);
   });
+
+  // Lanes are assigned on the *clamped* rects, not the clock times: two events
+  // that don't overlap in clock time can still land on identical geometry once
+  // both are pinned to the same grid edge, and stacking them would make the
+  // upper chip invisible and unclickable.
+  it("lanes two non-overlapping events that both clamp to the top edge", () => {
+    const placed = layoutDayEvents([
+      ev("05:00", "05:30"),
+      ev("06:00", "06:30"),
+    ]);
+    expect(placed.map((p) => p.lane).sort()).toEqual([0, 1]);
+    for (const p of placed) {
+      expect(p.totalLanes).toBe(2);
+      expect(p.top).toBe(0);
+      expect(p.clippedStart).toBe(true);
+    }
+  });
+
+  it("lanes two non-overlapping events that both clamp to the bottom edge", () => {
+    const placed = layoutDayEvents([
+      ev("19:30", "20:00"),
+      ev("20:30", "21:00"),
+    ]);
+    expect(placed.map((p) => p.lane).sort()).toEqual([0, 1]);
+    for (const p of placed) {
+      expect(p.totalLanes).toBe(2);
+      expect(p.top).toBe(BODY_HEIGHT - MIN_CHIP_PX);
+      expect(p.clippedEnd).toBe(true);
+    }
+  });
+
+  it("never draws two chips at the same top in the same lane", () => {
+    const placed = layoutDayEvents([
+      ev("04:00", "05:00"),
+      ev("05:30", "06:00"),
+      ev("06:15", "06:45"),
+      ev("09:00", "10:00"),
+    ]);
+    const slots = placed.map((p) => `${p.lane}@${p.top}`);
+    expect(new Set(slots).size).toBe(placed.length);
+  });
+
+  it("leaves an out-of-range event alone when nothing shares its edge", () => {
+    const placed = layoutDayEvents([
+      ev("05:00", "06:00"),
+      ev("09:00", "10:00"),
+    ]);
+    for (const p of placed) {
+      expect(p.lane).toBe(0);
+      expect(p.totalLanes).toBe(1);
+    }
+  });
+
+  it("keeps back-to-back in-window events in one full-width lane", () => {
+    const placed = layoutDayEvents([
+      ev("09:00", "10:00"),
+      ev("10:00", "11:00"),
+    ]);
+    for (const p of placed) {
+      expect(p.lane).toBe(0);
+      expect(p.totalLanes).toBe(1);
+    }
+  });
 });
 
 describe("slotFromOffsetY", () => {

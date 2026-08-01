@@ -48,9 +48,11 @@ export const eventUpdateSchema = z
     notes: z.string().max(2000).optional(),
   })
   .superRefine((d, ctx) => {
-    // Best-effort: a partial PATCH is only checkable when the payload itself
-    // proves the event is single-day (endDate cleared, or both dates present
-    // and equal). Payloads that leave endDate unknown pass through.
+    // Best-effort: a partial PATCH is only checkable here when the payload
+    // itself proves the event is single-day (endDate cleared, or both dates
+    // present and equal). Payloads that leave endDate — or either time —
+    // unknown pass through to `eventRepo.updateEvent`, which re-checks the
+    // merged stored ∪ incoming state against the row it already reads.
     if (!d.startTime || !d.endTime) return;
     const singleDay =
       d.endDate === null ||
