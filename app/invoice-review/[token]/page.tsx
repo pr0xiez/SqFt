@@ -55,7 +55,7 @@ export default async function PublicInvoicePage({
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = h.get("user-agent") ?? null;
-    void markInvoiceViewed(invoice.id, { ip, userAgent });
+    void markInvoiceViewed(invoice.id, invoice.orgId, { ip, userAgent });
   }
 
   const snap = invoice.snapshot as unknown as SnapshotShape;
