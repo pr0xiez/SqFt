@@ -50,34 +50,112 @@ describe("listCustomers", () => {
     pipeline: "any" as const,
   };
 
-  it("hydrates the page ids returned by the raw query, preserving order", async () => {
-    queryRaw
-      .mockResolvedValueOnce([{ id: 3 }, { id: 1 }]) // page ids (sorted)
-      .mockResolvedValueOnce([{ count: BigInt(2) }]) // total
-      .mockResolvedValueOnce([
-        { key: "phone", count: BigInt(1) },
-        { key: "online", count: BigInt(1) },
-      ]) // source facets
-      .mockResolvedValueOnce([
-        { key: "any", count: BigInt(2) },
-        { key: "open", count: BigInt(1) },
-        { key: "accepted", count: BigInt(0) },
-        { key: "cold", count: BigInt(1) },
-      ]) // pipeline facets
-      .mockResolvedValueOnce([
-        { open: BigInt(4), won: BigInt(1), with_open: BigInt(2) },
-      ]); // summary
+  // Three customers covering every source/pipeline bucket used below:
+  //   Alice — phone,  1 open estimate,     0 accepted, 1 estimate total
+  //   Bob   — online, 0 open,              1 accepted, 1 estimate total (won)
+  //   Carol — phone,  0 open,              0 accepted, 0 estimates      (cold)
+  const aggRows = [
+    {
+      id: 1,
+      name: "Alice",
+      source: "phone",
+      createdAt: new Date("2026-01-01"),
+      site_measure_count: 2,
+      open_count: 1,
+      accepted_count: 0,
+      estimate_count: 1,
+    },
+    {
+      id: 2,
+      name: "Bob",
+      source: "online",
+      createdAt: new Date("2026-01-02"),
+      site_measure_count: 1,
+      open_count: 0,
+      accepted_count: 1,
+      estimate_count: 1,
+    },
+    {
+      id: 3,
+      name: "Carol",
+      source: "phone",
+      createdAt: new Date("2026-01-03"),
+      site_measure_count: 0,
+      open_count: 0,
+      accepted_count: 0,
+      estimate_count: 0,
+    },
+  ];
+
+  it("runs the aggregation exactly once and hydrates page ids in sorted order", async () => {
+    queryRaw.mockResolvedValueOnce(aggRows);
     findMany.mockResolvedValue([
-      { id: 1, name: "B" },
-      { id: 3, name: "A" },
+      { id: 3, name: "Carol" },
+      { id: 1, name: "Alice" },
+      { id: 2, name: "Bob" },
     ]);
+
     const res = await listCustomers("org1", base);
-    expect(res.items.map((c) => c.id)).toEqual([3, 1]); // raw id order, not findMany order
-    expect(res.total).toBe(2);
-    expect(res.facets["source:phone"]).toBe(1);
-    expect(res.facets["source:all"]).toBe(2);
+
+    // Single round-trip for the aggregate — no more per-view re-runs of the
+    // 4-table join (#283).
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+
+    expect(res.items.map((c) => c.id)).toEqual([1, 2, 3]); // name asc
+    expect(res.total).toBe(3);
+    expect(res.facets["source:phone"]).toBe(2);
+    expect(res.facets["source:online"]).toBe(1);
+    expect(res.facets["source:all"]).toBe(3);
+    expect(res.facets["pipeline:any"]).toBe(3);
     expect(res.facets["pipeline:open"]).toBe(1);
-    expect(res.summary).toEqual({ openEstimates: 4, won: 1, withOpen: 2 });
+    expect(res.facets["pipeline:accepted"]).toBe(1);
+    expect(res.facets["pipeline:cold"]).toBe(1);
+    expect(res.summary).toEqual({ openEstimates: 1, won: 1, withOpen: 1 });
+  });
+
+  it("paginates and sorts the already-aggregated rows in JS", async () => {
+    queryRaw.mockResolvedValueOnce(aggRows);
+    findMany.mockResolvedValue([{ id: 2, name: "Bob" }]);
+
+    const res = await listCustomers("org1", {
+      ...base,
+      perPage: 1,
+      page: 2,
+      sort: { key: "name", direction: "asc" },
+    });
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: [2] } } })
+    );
+    expect(res.items.map((c) => c.id)).toEqual([2]);
+    expect(res.total).toBe(3); // total ignores pagination
+  });
+
+  // Regression for #283: the summary rollup used to be a hand-inlined join
+  // scoped only to orgId, ignoring the `q`/`source` filters the page rows,
+  // total, and facets all respected — so it could silently disagree with the
+  // filtered list on the same page. It must now derive from the same
+  // filtered rows as `total`.
+  it("summary respects the active source filter, matching the filtered total", async () => {
+    queryRaw.mockResolvedValueOnce(aggRows);
+    findMany.mockResolvedValue([{ id: 1, name: "Alice" }]);
+
+    const res = await listCustomers("org1", { ...base, source: "phone" });
+
+    // Only Alice + Carol are "phone"; Bob (the only accepted/won customer)
+    // must be excluded from both the total and the summary.
+    expect(res.total).toBe(2);
+    expect(res.summary).toEqual({ openEstimates: 1, won: 0, withOpen: 1 });
+  });
+
+  it("summary respects the active pipeline filter, matching the filtered total", async () => {
+    queryRaw.mockResolvedValueOnce(aggRows);
+    findMany.mockResolvedValue([{ id: 1, name: "Alice" }]);
+
+    const res = await listCustomers("org1", { ...base, pipeline: "open" });
+
+    expect(res.total).toBe(1);
+    expect(res.summary).toEqual({ openEstimates: 1, won: 0, withOpen: 1 });
   });
 });
 

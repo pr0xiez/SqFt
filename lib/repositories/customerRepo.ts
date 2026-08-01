@@ -89,13 +89,6 @@ export type CustomerListResult = Paginated<CustomerWithCount> & {
 };
 
 const OPEN_STATUSES = Prisma.sql`('sent','viewed')`;
-const SORT_COLUMN: Record<CustomerSortKey, Prisma.Sql> = {
-  name: Prisma.sql`c."name"`,
-  source: Prisma.sql`c."source"`,
-  siteMeasures: Prisma.sql`site_measure_count`,
-  open: Prisma.sql`open_count`,
-  createdAt: Prisma.sql`c."createdAt"`,
-};
 
 function searchSql(q: string): Prisma.Sql {
   const cleaned = q.trim();
@@ -104,40 +97,93 @@ function searchSql(q: string): Prisma.Sql {
   return Prisma.sql`(c."name" ILIKE ${like} OR c."phone" ILIKE ${like} OR c."email" ILIKE ${like})`;
 }
 
-function sourceSql(source: string): Prisma.Sql {
-  return source === "all"
-    ? Prisma.sql`TRUE`
-    : Prisma.sql`c."source" = ${source}`;
-}
+type CustomerAggRow = {
+  id: number;
+  name: string;
+  source: string;
+  createdAt: Date;
+  site_measure_count: number;
+  open_count: number;
+  accepted_count: number;
+  estimate_count: number;
+};
 
-function pipelineHaving(p: CustomerPipelineFilter): Prisma.Sql {
-  switch (p) {
-    case "open":
-      return Prisma.sql`COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) > 0`;
-    case "accepted":
-      return Prisma.sql`COUNT(e.id) FILTER (WHERE e."status" = 'approved') > 0`;
-    case "cold":
-      return Prisma.sql`COUNT(e.id) = 0`;
-    default:
-      return Prisma.sql`TRUE`;
-  }
-}
-
-function aggregateBase(
-  orgId: string,
-  q: string,
-  source: string,
-  pipeline: CustomerPipelineFilter
-): Prisma.Sql {
+/**
+ * The one expensive multi-table aggregation this module needs: per-customer
+ * counts across Customer ⋈ Location ⋈ SiteMeasure ⋈ Estimate, scoped to the
+ * org and the free-text search (`q`) only. `source` and `pipeline` are
+ * deliberately *not* applied here in SQL — every downstream view (page rows,
+ * total, both facet sets, and the summary rollup) filters/derives from this
+ * single result set in JS (see `listCustomers`), so the join + GROUP BY runs
+ * exactly once per request no matter how many of those views are needed, and
+ * none of them can drift from what the others compute since they all read
+ * the same rows.
+ */
+function aggregateBase(orgId: string, q: string): Prisma.Sql {
   return Prisma.sql`
+    SELECT
+      c.id,
+      c."name",
+      c."source",
+      c."createdAt",
+      COUNT(DISTINCT sm.id)::int AS site_measure_count,
+      COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES})::int AS open_count,
+      COUNT(e.id) FILTER (WHERE e."status" = 'approved')::int AS accepted_count,
+      COUNT(e.id)::int AS estimate_count
     FROM "Customer" c
     LEFT JOIN "Location" loc ON loc."customerId" = c.id
     LEFT JOIN "SiteMeasure" sm ON sm."locationId" = loc.id
     LEFT JOIN "Estimate" e ON e."siteMeasureId" = sm.id
-    WHERE c."orgId" = ${orgId} AND ${searchSql(q)} AND ${sourceSql(source)}
+    WHERE c."orgId" = ${orgId} AND ${searchSql(q)}
     GROUP BY c.id
-    HAVING ${pipelineHaving(pipeline)}
   `;
+}
+
+function matchesSource(row: CustomerAggRow, source: string): boolean {
+  return source === "all" || row.source === source;
+}
+
+function matchesPipeline(
+  row: CustomerAggRow,
+  pipeline: CustomerPipelineFilter
+): boolean {
+  switch (pipeline) {
+    case "open":
+      return row.open_count > 0;
+    case "accepted":
+      return row.accepted_count > 0;
+    case "cold":
+      return row.estimate_count === 0;
+    default:
+      return true;
+  }
+}
+
+const SORT_ACCESSOR: Record<
+  CustomerSortKey,
+  (r: CustomerAggRow) => number | string
+> = {
+  name: (r) => r.name,
+  source: (r) => r.source,
+  siteMeasures: (r) => r.site_measure_count,
+  open: (r) => r.open_count,
+  createdAt: (r) => r.createdAt.getTime(),
+};
+
+function compareRows(
+  a: CustomerAggRow,
+  b: CustomerAggRow,
+  key: CustomerSortKey,
+  direction: SortDirection
+): number {
+  const av = SORT_ACCESSOR[key](a);
+  const bv = SORT_ACCESSOR[key](b);
+  const primary =
+    typeof av === "string" && typeof bv === "string"
+      ? av.localeCompare(bv)
+      : (av as number) - (bv as number);
+  if (primary !== 0) return direction === "asc" ? primary : -primary;
+  return a.id - b.id; // stable tie-break, independent of sort direction
 }
 
 export async function listCustomers(
@@ -145,56 +191,63 @@ export async function listCustomers(
   params: ListCustomersParams
 ): Promise<CustomerListResult> {
   const { page, perPage, sort, q, source, pipeline } = params;
-  const orderCol = SORT_COLUMN[sort.key];
-  const orderDir =
-    sort.direction === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
   const offset = (page - 1) * perPage;
 
-  const pageRows = await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`
-    SELECT c.id, COUNT(DISTINCT sm.id) AS site_measure_count, COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) AS open_count
-    ${aggregateBase(orgId, q, source, pipeline)}
-    ORDER BY ${orderCol} ${orderDir}, c.id ASC
-    LIMIT ${perPage} OFFSET ${offset}
-  `);
-  const ids = pageRows.map((r) => r.id);
+  // The single, shared aggregation. Everything below derives from `agg`.
+  const agg = await prisma.$queryRaw<CustomerAggRow[]>(aggregateBase(orgId, q));
 
-  const totalRows = await prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
-    SELECT COUNT(*)::bigint AS count FROM ( SELECT c.id ${aggregateBase(orgId, q, source, pipeline)} ) sub
-  `);
-  const total = Number(totalRows[0]?.count ?? 0);
+  // Page rows / total / summary all respect every active filter, matching
+  // what the customer previously saw applied via SQL WHERE + HAVING.
+  const filtered = agg.filter(
+    (r) => matchesSource(r, source) && matchesPipeline(r, pipeline)
+  );
+  // Facets relax exactly one filter at a time so each pill reports the count
+  // it would produce if selected while the other filter stays applied.
+  const sourceFacetCandidates = agg.filter((r) => matchesPipeline(r, pipeline));
+  const pipelineFacetCandidates = agg.filter((r) => matchesSource(r, source));
 
-  const sourceFacetRows = await prisma.$queryRaw<
-    { key: string; count: bigint }[]
-  >(Prisma.sql`
-    SELECT key, COUNT(*)::bigint AS count FROM ( SELECT c."source" AS key ${aggregateBase(orgId, q, "all", pipeline)} ) sub GROUP BY key
-  `);
+  const sorted = [...filtered].sort((a, b) =>
+    compareRows(a, b, sort.key, sort.direction)
+  );
+  const total = sorted.length;
+  const ids = sorted.slice(offset, offset + perPage).map((r) => r.id);
 
-  const pipelineFacetRows = await prisma.$queryRaw<
-    { key: string; count: bigint }[]
-  >(Prisma.sql`
-    SELECT key, COUNT(*)::bigint AS count FROM (
-      SELECT c.id,
-        CASE WHEN COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) > 0 THEN 'open' END AS open_k,
-        CASE WHEN COUNT(e.id) FILTER (WHERE e."status" = 'approved') > 0 THEN 'accepted' END AS acc_k,
-        CASE WHEN COUNT(e.id) = 0 THEN 'cold' END AS cold_k
-      ${aggregateBase(orgId, q, source, "any")}
-    ) sub, LATERAL (VALUES ('any'), (open_k), (acc_k), (cold_k)) AS v(key)
-    WHERE v.key IS NOT NULL GROUP BY v.key
-  `);
+  const facets: Record<string, number> = {};
+  const sourceCounts = new Map<string, number>();
+  for (const r of sourceFacetCandidates) {
+    sourceCounts.set(r.source, (sourceCounts.get(r.source) ?? 0) + 1);
+  }
+  let sourceAll = 0;
+  for (const [key, count] of sourceCounts) {
+    facets[`source:${key}`] = count;
+    sourceAll += count;
+  }
+  facets["source:all"] = sourceAll;
 
-  const summaryRows = await prisma.$queryRaw<
-    { open: bigint; won: bigint; with_open: bigint }[]
-  >(Prisma.sql`
-    SELECT COALESCE(SUM(open_count), 0)::bigint AS open, COALESCE(SUM(accepted_count), 0)::bigint AS won, COUNT(*) FILTER (WHERE open_count > 0)::bigint AS with_open
-    FROM (
-      SELECT c.id, COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) AS open_count, COUNT(e.id) FILTER (WHERE e."status" = 'approved') AS accepted_count
-      FROM "Customer" c
-      LEFT JOIN "Location" loc ON loc."customerId" = c.id
-      LEFT JOIN "SiteMeasure" sm ON sm."locationId" = loc.id
-      LEFT JOIN "Estimate" e ON e."siteMeasureId" = sm.id
-      WHERE c."orgId" = ${orgId} GROUP BY c.id
-    ) sub
-  `);
+  const pipelineCounts: Record<string, number> = {
+    any: pipelineFacetCandidates.length,
+    open: pipelineFacetCandidates.filter((r) => r.open_count > 0).length,
+    accepted: pipelineFacetCandidates.filter((r) => r.accepted_count > 0)
+      .length,
+    cold: pipelineFacetCandidates.filter((r) => r.estimate_count === 0).length,
+  };
+  for (const [key, count] of Object.entries(pipelineCounts)) {
+    if (count > 0) facets[`pipeline:${key}`] = count;
+  }
+
+  // Fixes the drifted 5th copy: the summary now respects the same `q` and
+  // `source` filters as the page rows / total / facets above (it's read
+  // straight from `filtered`), instead of a hand-inlined join scoped only
+  // to orgId.
+  const summary = filtered.reduce(
+    (acc, r) => {
+      acc.openEstimates += r.open_count;
+      acc.won += r.accepted_count;
+      if (r.open_count > 0) acc.withOpen += 1;
+      return acc;
+    },
+    { openEstimates: 0, won: 0, withOpen: 0 }
+  );
 
   const hydrated = ids.length
     ? await prisma.customer.findMany({
@@ -216,28 +269,7 @@ export async function listCustomers(
     .map((id) => byId.get(id))
     .filter(Boolean) as CustomerWithCount[];
 
-  const facets: Record<string, number> = {};
-  let sourceAll = 0;
-  for (const r of sourceFacetRows) {
-    const n = Number(r.count);
-    facets[`source:${r.key}`] = n;
-    sourceAll += n;
-  }
-  facets["source:all"] = sourceAll;
-  for (const r of pipelineFacetRows) {
-    facets[`pipeline:${r.key}`] = Number(r.count);
-  }
-
-  return {
-    items,
-    total,
-    facets,
-    summary: {
-      openEstimates: Number(summaryRows[0]?.open ?? 0),
-      won: Number(summaryRows[0]?.won ?? 0),
-      withOpen: Number(summaryRows[0]?.with_open ?? 0),
-    },
-  };
+  return { items, total, facets, summary };
 }
 
 export async function getCustomer(
