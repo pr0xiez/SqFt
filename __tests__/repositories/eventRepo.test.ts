@@ -8,6 +8,7 @@ const eventUpdate = vi.fn();
 const eventDeleteMany = vi.fn();
 const customerFindFirst = vi.fn();
 const estimateFindFirst = vi.fn();
+const validateUserIds = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -23,15 +24,22 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
+// eventRepo enforces assignee org-membership itself (see assertAssigneesInOrg)
+// via userRepo's validateUserIds — mocked here the same way customer/estimate
+// FK lookups are, so createEvent/updateEvent's org check is exercised without
+// a real DB.
+vi.mock("@/lib/repositories/userRepo", () => ({ validateUserIds }));
+
 const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
   "@/lib/repositories/eventRepo"
 );
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // In-org FKs resolve by default; org-validation tests override with null.
+  // In-org FKs resolve by default; org-validation tests override with null/false.
   customerFindFirst.mockResolvedValue({ id: 1 });
   estimateFindFirst.mockResolvedValue({ id: 1 });
+  validateUserIds.mockResolvedValue(true);
 });
 
 describe("listEvents", () => {
@@ -157,6 +165,34 @@ describe("createEvent", () => {
     expect(customerFindFirst).not.toHaveBeenCalled();
     expect(estimateFindFirst).not.toHaveBeenCalled();
   });
+
+  it("rejects an assignee that isn't in the caller's org, even called directly (bypassing the route)", async () => {
+    validateUserIds.mockResolvedValueOnce(false);
+    await expect(
+      createEvent("org1", {
+        type: "visit",
+        title: "Measure",
+        date: new Date(),
+        startTime: "10:00",
+        endTime: "11:00",
+        assigneeIds: ["other-org-user"],
+      })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(validateUserIds).toHaveBeenCalledWith("org1", ["other-org-user"]);
+    expect(eventCreate).not.toHaveBeenCalled();
+  });
+
+  it("does not look up assignees when none are supplied", async () => {
+    eventCreate.mockResolvedValue({ id: 1 });
+    await createEvent("org1", {
+      type: "visit",
+      title: "Measure",
+      date: new Date(),
+      startTime: "10:00",
+      endTime: "11:00",
+    });
+    expect(validateUserIds).not.toHaveBeenCalled();
+  });
 });
 
 describe("updateEvent", () => {
@@ -224,6 +260,16 @@ describe("updateEvent", () => {
         }),
       })
     );
+  });
+
+  it("rejects an assignee that isn't in the caller's org, even called directly (bypassing the route)", async () => {
+    eventFindFirst.mockResolvedValueOnce({ type: "visit", estimateId: null });
+    validateUserIds.mockResolvedValueOnce(false);
+    await expect(
+      updateEvent(1, "org1", { assigneeIds: ["other-org-user"] })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(validateUserIds).toHaveBeenCalledWith("org1", ["other-org-user"]);
+    expect(eventUpdate).not.toHaveBeenCalled();
   });
 });
 
