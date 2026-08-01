@@ -59,7 +59,10 @@ with the file that owns it.
   in `lib/api/errors.ts` (`ApiError`, `readApiError`).
 - `lib/estimateView/` — **estimate math, single source of truth**:
   `compute.ts` (`computeEstimateView`), `fromPrisma.ts` (Prisma→input adapter),
-  `markup.ts` (`foldMarkupIntoLines`), `snapshot.ts`.
+  `markup.ts` (`foldMarkupIntoLines`), `snapshot.ts` (write side of the
+  approval snapshot), `parseSnapshot.ts` (read side: zod-validates the stored
+  JSON and rebuilds the frozen view the public page renders for approved
+  estimates).
 - `lib/estimateDraft/` — **pure edit reducer** (`reduceEstimateDraft`); the
   save policy lives here, not in the React layer.
 - `lib/invoices/` — **billing math** (`computeEstimateBilling`,

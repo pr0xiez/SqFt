@@ -180,7 +180,15 @@ The approve transaction flips the estimate's status to `approved`, stamps
 `snapshot` (the Estimate View + identifying metadata such as `estimateNumber`,
 `date`, `customer`, and the location `address`). The snapshot is a plain JSON
 record of what the customer saw — there is **no** `snapshotHash` and no
-tamper-evidence hashing. Approving an estimate also supersedes any other open
+tamper-evidence hashing. **The public page renders an `approved` estimate from
+this snapshot, never from the live rows**: `parseEstimateSnapshot` /
+`estimateViewFromSnapshot` (`lib/estimateView/parseSnapshot.ts`) validate the
+stored JSON and rebuild the frozen `EstimateView` (per-line qty/subtotal +
+signed totals), which the page passes to `PublicEstimateView` as `frozenView`
+so no money is recomputed. A snapshot that fails validation logs and falls
+back to the live render. Pre-approval (`sent`/`viewed`) estimates still render
+live — they are editable, and the page is the authoritative thing the customer
+approves. Approving an estimate also supersedes any other open
 estimates under the same site measure (they're marked `declined` with a
 "Superseded" reason and a `system_supersede` event).
 

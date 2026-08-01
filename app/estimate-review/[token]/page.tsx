@@ -4,6 +4,13 @@ import {
   type PublicEstimate,
   PublicEstimateView,
 } from "@/components/estimates/PublicEstimateView";
+import {
+  estimateViewFromSnapshot,
+  parseEstimateSnapshot,
+  snapshotLineItemCalcs,
+  snapshotRoomItems,
+} from "@/lib/estimateView/parseSnapshot";
+import { logError } from "@/lib/logger";
 import { getEstimateByToken, markEstimateViewed } from "@/lib/repositories";
 import { parseQtyMode, parseRoomSegments } from "@/lib/utils";
 
@@ -33,7 +40,24 @@ export default async function PublicEstimatePage({ params }: Props) {
     void markEstimateViewed(estimate.id, { ip, userAgent });
   }
 
-  const view: PublicEstimate = {
+  // An approved estimate renders from the approval snapshot — the frozen
+  // record of what the customer signed — not from the live rows, whose
+  // computed view can still drift (the underlying site measure stays
+  // editable after approval, and the area/markup math can change between
+  // releases). A snapshot that fails validation falls back to the live
+  // render rather than crashing the customer-facing page.
+  const snap =
+    estimate.status === "approved" && estimate.approval
+      ? parseEstimateSnapshot(estimate.approval.snapshot)
+      : null;
+  if (estimate.status === "approved" && estimate.approval && snap === null) {
+    logError({
+      path: "/estimate-review",
+      errorMessage: `approval snapshot for estimate ${estimate.id} failed validation; rendering live data`,
+    });
+  }
+
+  const live: PublicEstimate = {
     id: estimate.id,
     estimateNumber: estimate.estimateNumber,
     status: estimate.status as PublicEstimate["status"],
@@ -88,5 +112,41 @@ export default async function PublicEstimatePage({ params }: Props) {
     declineReason: estimate.declineReason,
   };
 
-  return <PublicEstimateView estimate={view} token={token} />;
+  // The snapshot overrides everything the customer signed; lifecycle
+  // timestamps and the org contact email (shown for follow-up questions)
+  // stay live.
+  const view: PublicEstimate = snap
+    ? {
+        ...live,
+        estimateNumber: snap.estimateNumber,
+        date: snap.date,
+        markupPct: snap.markupPct,
+        depositPct: snap.depositPct,
+        customer: snap.customer
+          ? {
+              name: snap.customer.name ?? "",
+              address: snap.customer.address ?? null,
+              email: snap.customer.email ?? null,
+            }
+          : null,
+        items: snapshotRoomItems(snap),
+        lineItems: snapshotLineItemCalcs(snap),
+        org: {
+          ...live.org,
+          name: snap.org.name,
+          phone: snap.org.phone ?? null,
+          address: snap.org.address ?? null,
+          licenseNumber: snap.org.licenseNumber ?? null,
+          logo: snap.org.logo ?? null,
+        },
+      }
+    : live;
+
+  return (
+    <PublicEstimateView
+      estimate={view}
+      token={token}
+      frozenView={snap ? estimateViewFromSnapshot(snap) : undefined}
+    />
+  );
 }
