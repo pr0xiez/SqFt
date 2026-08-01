@@ -1,7 +1,7 @@
-import { NotFoundError, ValidationError } from "@/lib/api/errors";
+import { NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { eventIdParams, eventUpdateSchema } from "@/lib/events/schema";
-import { deleteEvent, updateEvent, validateUserIds } from "@/lib/repositories";
+import { deleteEvent, updateEvent } from "@/lib/repositories";
 
 export const PATCH = apiRoute(
   { minRole: "lead", input: eventUpdateSchema },
@@ -9,11 +9,8 @@ export const PATCH = apiRoute(
     const { id } = eventIdParams.parse(params);
     const { date, endDate, assigneeIds, ...rest } = input;
 
-    if (assigneeIds && assigneeIds.length > 0) {
-      const ok = await validateUserIds(orgId, assigneeIds);
-      if (!ok) throw new ValidationError("Invalid assignee");
-    }
-
+    // updateEvent org-validates assigneeIds itself (see eventRepo's
+    // assertAssigneesInOrg) — no need to duplicate the check here.
     const data = {
       ...rest,
       ...(date ? { date: new Date(date) } : {}),

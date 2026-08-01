@@ -7,7 +7,6 @@ vi.mock("@/lib/repositories", () => ({
   createEvent: vi.fn(),
   updateEvent: vi.fn(),
   deleteEvent: vi.fn(),
-  validateUserIds: vi.fn().mockResolvedValue(true),
 }));
 
 const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
@@ -131,6 +130,24 @@ describe("POST /api/events", () => {
     const body = await res.json();
     expect(body.error.code).toBe("VALIDATION_FAILED");
     expect(body.error.message).toBe("Job events require a estimateId");
+  });
+
+  it("maps an out-of-org assignee rejection from createEvent to a 400 VALIDATION_FAILED", async () => {
+    // createEvent now org-validates assigneeIds itself (eventRepo's
+    // assertAssigneesInOrg) — this proves the route still surfaces that
+    // rejection as VALIDATION_FAILED even without its own check.
+    mockCreate.mockRejectedValue(new ValidationError("Invalid assignee"));
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", {
+        ...validPayload,
+        assigneeIds: ["other-org-user"],
+      }),
+      params({})
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("VALIDATION_FAILED");
+    expect(body.error.message).toBe("Invalid assignee");
   });
 });
 
