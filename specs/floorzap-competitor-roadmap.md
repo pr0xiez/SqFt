@@ -1,5 +1,9 @@
 # SqFt → FloorZap Competitor Roadmap
 
+> **Superseded (2026-07-23):** market framing and priorities refreshed in
+> [`2026-07-23-competitive-market-research.md`](./2026-07-23-competitive-market-research.md)
+> — Priority 1 below (revenue loop) and most of Priority 2 have since shipped.
+
 **Goal:** Close the gap with FloorZap — a $399/mo flooring-specific SaaS — by building the
 quote-to-cash workflow, customer-facing features, integrations, and mobile experience that
 separate a tool contractors pay for from a tool they abandon.
