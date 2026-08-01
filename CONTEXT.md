@@ -42,7 +42,31 @@ same events list. `eventRepo.listEvents` enriches that payload with a derived
 `address` (estimate's site-measure location → customer's first location;
 resolver in `lib/events/serialize.ts`) and `customer.phone`, so the agenda
 card and job-card detail sheet need no extra fetch. Agenda sectioning
-(My/Team × Day/Week) is pure logic in `lib/schedule/agenda.ts`.
+(My/Team × Day/Week) is pure logic in `lib/schedule/agenda.ts`; the grid's
+geometry (7a–7p window, overlap lanes, out-of-range clamping with ↑/↓ chip
+markers, click-to-time snapping, now-line) is pure logic in
+`lib/schedule/grid.ts`. The header row and the day columns are cells of **one
+CSS grid**, so they share column tracks and the day dividers can't drift out of
+alignment; the grid is a fixed height that always fits, so it deliberately has
+no scroll container of its own (the page scrolls). Chips are laned by their
+**clamped** rects, not their clock times — otherwise two events pinned to the
+same grid edge would be drawn on top of each other. Same-day events must end
+after they start (multi-day events may wrap past midnight): the form blocks it,
+zod refines what a payload can prove in `lib/events/schema.ts`, and
+`eventRepo.createEvent` / `updateEvent` are the backstop that checks the merged
+stored ∪ incoming state — a partial PATCH can otherwise invert times the refine
+never sees. A `job` event requires an estimate (server rule in `eventRepo`,
+mirrored client-side).
+
+The schedule page also shows the **unscheduled-jobs backlog**: approved
+estimates with **no linked `job` event**, oldest approval first. The rule is
+the pure projection `toSchedulableCandidates` in `lib/schedule/backlog.ts`
+(mirroring quick-invoice candidates), queried by
+`estimateRepo.listSchedulableEstimates` and served by
+`GET /api/estimates/schedulable` (lead+). The `BacklogStrip` renders the
+candidates above the grid; clicking one opens the event form pre-filled
+(type=job, customer, estimate), and event mutations invalidate the backlog
+query so scheduling removes the card immediately.
 
 ## Document Numbers
 

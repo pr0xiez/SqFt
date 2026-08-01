@@ -14,6 +14,10 @@ import {
   toInvoiceableCandidates,
 } from "@/lib/quickCreate/candidates";
 import { searchableInt } from "@/lib/repositories/search";
+import {
+  type SchedulableCandidate,
+  toSchedulableCandidates,
+} from "@/lib/schedule/backlog";
 import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
@@ -304,6 +308,42 @@ export async function listInvoiceableEstimates(
     items: toInvoiceableCandidates(rows).slice(0, limit),
     defaultDepositPct,
   };
+}
+
+/**
+ * Unscheduled-jobs backlog for the Schedule Manager: approved estimates with
+ * no linked `job` event, oldest approval first (longest-waiting on top). The
+ * where clause narrows in SQL; {@link toSchedulableCandidates} re-applies the
+ * rule in pure code.
+ */
+export async function listSchedulableEstimates(
+  orgId: string,
+  limit = 50
+): Promise<SchedulableCandidate[]> {
+  const rows = await prisma.estimate.findMany({
+    where: { orgId, status: "approved", events: { none: { type: "job" } } },
+    orderBy: { approvedAt: "asc" },
+    take: limit,
+    select: {
+      id: true,
+      estimateNumber: true,
+      status: true,
+      total: true,
+      approvedAt: true,
+      siteMeasure: {
+        select: {
+          location: {
+            select: {
+              address: true,
+              customer: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      events: { where: { type: "job" }, select: { id: true }, take: 1 },
+    },
+  });
+  return toSchedulableCandidates(rows);
 }
 
 export async function listEstimatesForSiteMeasure(
