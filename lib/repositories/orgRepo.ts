@@ -60,18 +60,37 @@ export async function setOrgConnectAccount(
   });
 }
 
+/**
+ * Write-through cache of the account's capability status.
+ *
+ * Guarded so an unchanged status writes nothing: the settings page refreshes
+ * this on every poll (up to ~24 in a post-onboarding window), and all but the
+ * one poll that actually moves the status would otherwise spend a round trip
+ * and a row lock rewriting an identical string on the response's critical path.
+ * `updateMany` is deliberate — it no-ops instead of throwing when the WHERE
+ * doesn't match, which is exactly the "nothing changed" case.
+ */
 export async function setOrgConnectStatus(
   orgId: string,
   status: ConnectStatus,
   onboardedAt?: Date
 ) {
-  await prisma.organization.update({
-    where: { id: orgId },
+  const stampOnboardedAt = status === "active" && onboardedAt !== undefined;
+  await prisma.organization.updateMany({
+    where: {
+      id: orgId,
+      OR: [
+        // `not` is spelled out against null so the filter's NULL handling
+        // doesn't depend on the Prisma version.
+        { stripeConnectStatus: null },
+        { stripeConnectStatus: { not: status } },
+        // Already active but never stamped: still needs the timestamp.
+        ...(stampOnboardedAt ? [{ stripeConnectOnboardedAt: null }] : []),
+      ],
+    },
     data: {
       stripeConnectStatus: status,
-      ...(status === "active" && onboardedAt
-        ? { stripeConnectOnboardedAt: onboardedAt }
-        : {}),
+      ...(stampOnboardedAt ? { stripeConnectOnboardedAt: onboardedAt } : {}),
     },
   });
 }

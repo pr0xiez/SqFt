@@ -84,15 +84,28 @@ with the file that owns it.
   `GET /api/estimates/invoiceable`. See *Quick Create* in `CONTEXT.md`.
 - `lib/stripe/` — **Stripe Connect integration**: `client.ts` (Stripe SDK
   singleton, API version pin), `connect.ts` (account create/retrieve,
-  `ConnectStatus` union, onboarding-link generation), `checkout.ts`
-  (`buildCheckoutParams`, `createInvoiceCheckoutSession` — creates the
-  Checkout Session on the connected account), `webhook.ts`
-  (`constructStripeEvent`, `handleStripeEvent` — signature-verified
-  event handler). The admin Stripe onboarding surface is `/settings/payments`
-  (`app/(app)/settings/payments`, admin-gated inline — `(app)` is the authed
-  builder route group, not `(admin)`). The raw-body webhook receiver is
+  `ConnectStatus` union, onboarding-link generation, plus
+  `summarizeRequirements`/`readAccountStatusDetail` — collapses v2 requirement
+  entries into `{actionDue, inReview, issues}` so the settings page can say
+  whether the user or Stripe is the one holding up onboarding, and *which*
+  requirements failed; `readAccountStatus` is the status-only read used on the
+  customer checkout path), `connectPhase.ts` (**client-safe, no SDK import** —
+  the `connectPhase`/`connectPollInterval` selector shared by
+  `PaymentsSettingsView` and `useStripeConnect`, plus the
+  `StripeConnectStatus` wire type), `checkout.ts` (`buildCheckoutParams`,
+  `createInvoiceCheckoutSession` — creates the Checkout Session on the
+  connected account), `webhook.ts` (`constructStripeEvent`,
+  `handleStripeEvent` — signature-verified event handler). The admin Stripe
+  onboarding surface is `/settings/payments` (`app/(app)/settings/payments`,
+  admin-gated inline — `(app)` is the authed builder route group, not
+  `(admin)`); after returning from Stripe onboarding it polls the connect
+  status briefly (bounded window, see `PaymentsSettingsView`) instead of going
+  silent. The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
+- `lib/queryCache.ts` — persisted react-query cache policy (localStorage key,
+  buster, the never-persist key list, and the sign-out clear). Consumed by
+  `components/ui/Providers.tsx` and `AccountBlock`.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
   `validateUserIds`).
@@ -148,6 +161,12 @@ with the file that owns it.
   This invariant holds by construction via the dev/prod DB split — test keys
   in dev, live keys in production. An org onboarded in production must
   re-onboard in any test environment (or seed a fresh test-mode account).
+- **Every successful react-query response is persisted to `localStorage` for
+  24 hours** by `PersistQueryClientProvider` and survives sign-out unless
+  cleared. A query whose data must not outlive the session (anything
+  identity-, verification- or payment-sensitive) has to be added to the
+  never-persist list in `lib/queryCache.ts` — the default policy is "persist
+  everything".
 - **Super-admin routes (`/api/admin/orgs/[orgId]/...`) take the target org
   from the URL param, not the caller's session org** — the `orgId` on the
   gated session belongs to the operator, not the org being managed.

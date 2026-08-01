@@ -119,9 +119,22 @@ New **`/settings/payments`** page (admin only, alongside `workspace` /
 - If `stripeConnectAccountId` is null → "Set up payments" →
   `POST /api/org/stripe/connect` creates the v2 account + an **account link** →
   redirect to Stripe-hosted onboarding → return URL.
-- Status (pending / active / restricted) is read from capability status,
-  cached on the org (`stripeConnectStatus`), and refreshed by the
-  `account.updated` Connect webhook.
+- Status (pending / active / restricted / unsupported) is read from capability
+  status and cached on the org (`stripeConnectStatus`) as a write-through copy
+  for the public pay path. It is refreshed **live on every read** — the admin
+  `GET /api/org/stripe/connect` and the checkout route both re-retrieve the
+  account rather than trusting the cache.
+  **Not** by a webhook: an earlier draft of this doc claimed an
+  `account.updated` Connect webhook kept it fresh, but Accounts-v2 status
+  changes arrive as v2 core events
+  (`v2.core.account[configuration.merchant].capability_status_updated`), which
+  are delivered through an **event destination** SqFt has never configured —
+  `handleStripeEvent` only handles `checkout.session.*` /
+  `payment_intent.succeeded`. In its place `/settings/payments` polls for a
+  bounded window after onboarding returns. That covers test-mode verification
+  (seconds) but not live-mode identity checks (hours to days), where the user
+  falls back to the manual "Check status" button. Subscribing to the v2 event
+  destination would remove the polling entirely and is the right long-term fix.
 - Until `card_payments` is `active`, the public **"Pay now"** button is hidden
   and the contractor sees an onboarding prompt.
 

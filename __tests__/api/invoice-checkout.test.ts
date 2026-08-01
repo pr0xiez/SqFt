@@ -313,6 +313,42 @@ describe("POST /api/invoice-review/[token]/checkout", () => {
     expect(body.error.code).toBe("INTERNAL");
   });
 
+  // ── The graceful-degradation catch must not become a way to fail ────────────
+
+  it("still returns STRIPE_ACCOUNT_RESTRICTED when the cache downgrade fails", async () => {
+    // The catch block exists to turn a create failure into the documented
+    // restricted error instead of a generic 500. Anything it throws on the way
+    // there — here, the DB write — undoes that.
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice({ amount: 200 }));
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    mockCreateInvoiceCheckoutSession.mockRejectedValueOnce(
+      new Error("account cannot create sessions")
+    );
+    mockReadAccountStatus.mockResolvedValueOnce("restricted");
+    mockSetOrgConnectStatus.mockRejectedValueOnce(new Error("db down"));
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("STRIPE_ACCOUNT_RESTRICTED");
+  });
+
+  it("surfaces the original error when the diagnostic re-read itself throws", async () => {
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice({ amount: 200 }));
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    mockCreateInvoiceCheckoutSession.mockRejectedValueOnce(
+      new Error("stripe network blip")
+    );
+    mockReadAccountStatus.mockRejectedValueOnce(new Error("stripe is down"));
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("INTERNAL");
+  });
+
   // ── Finding #4: empty-string base URL must not produce relative Stripe URLs ─
 
   it("builds absolute success/cancel URLs even when STRIPE_PUBLIC_BASE_URL is empty", async () => {

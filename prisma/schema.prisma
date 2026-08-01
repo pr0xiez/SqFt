@@ -45,7 +45,7 @@ model Organization {
   nextInvoiceNumber          Int      @default(1)
   defaultPaymentInstructions String   @default("")
   stripeConnectAccountId     String?
-  stripeConnectStatus        String?   // pending | active | restricted
+  stripeConnectStatus        String?   // pending | active | restricted | unsupported
   stripeConnectOnboardedAt   DateTime?
 
   users             User[]

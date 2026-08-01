@@ -1,9 +1,11 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/cn";
 import { getInitials } from "@/lib/nav/initials";
+import { clearPersistedQueryCache } from "@/lib/queryCache";
 
 export function AccountBlock({
   variant = "inline",
@@ -11,8 +13,18 @@ export function AccountBlock({
   variant?: "inline" | "compact";
 }) {
   const { data: session } = useSession();
+  const qc = useQueryClient();
   const user = session?.user;
   const initials = getInitials(user?.name, user?.email);
+
+  function handleSignOut() {
+    // Drop every cached response — in memory AND the persisted copy — before
+    // the session ends. Without this the next person to sign in on this
+    // machine rehydrates the previous org's data out of localStorage.
+    qc.clear();
+    clearPersistedQueryCache();
+    signOut({ callbackUrl: "/login" });
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -49,7 +61,7 @@ export function AccountBlock({
 
       <button
         type="button"
-        onClick={() => signOut({ callbackUrl: "/login" })}
+        onClick={handleSignOut}
         className={cn(
           "w-full flex items-center justify-center gap-2",
           "px-3 py-2.5 rounded-[var(--r)]",
