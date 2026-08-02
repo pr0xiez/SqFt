@@ -20,6 +20,8 @@ const paymentCreate = vi.fn();
 const invoiceEventCreate = vi.fn();
 const orgFindUniqueOrThrow = vi.fn();
 const orgUpdate = vi.fn();
+// recordPayment's row lock (issue #206) — tagged-template $queryRaw.
+const queryRaw = vi.fn();
 
 const tx = {
   estimate: { findFirst: estimateFindFirst },
@@ -36,6 +38,7 @@ const tx = {
     findUniqueOrThrow: orgFindUniqueOrThrow,
     update: orgUpdate,
   },
+  $queryRaw: queryRaw,
 };
 
 // NOTE: this mock runs the callback inline and does NOT model rollback — calls
@@ -59,7 +62,12 @@ const {
   markInvoiceViewed,
 } = await import("@/lib/repositories/invoiceRepo");
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: the row-lock query finds the invoice. Tests for the "not
+  // found" path override this per-case.
+  queryRaw.mockResolvedValue([{ id: 1 }]);
+});
 
 /** A hydrated estimate whose computed view total is `total`. */
 function estimateFixture(opts: {
@@ -370,6 +378,51 @@ describe("recordPayment", () => {
       await recordPayment(99, "org1", { ...paymentInput, amount: 10 })
     ).toBeNull();
     expect(paymentCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns null when the row lock finds no matching invoice, without reading payments", async () => {
+    // Issue #206: an empty FOR UPDATE result (wrong org, or missing row) is
+    // treated the same as "not found" — and short-circuits before the
+    // payments read, not just before the write.
+    queryRaw.mockResolvedValue([]);
+    expect(
+      await recordPayment(1, "wrong-org", { ...paymentInput, amount: 10 })
+    ).toBeNull();
+    expect(invoiceFindFirst).not.toHaveBeenCalled();
+    expect(paymentCreate).not.toHaveBeenCalled();
+  });
+
+  it("row-locks the invoice via FOR UPDATE before reading its payments (issue #206)", async () => {
+    // Pins the fix for the lost-update race: two concurrent recordPayment
+    // calls must serialize on this lock instead of both reading the same
+    // stale `payments` sum. We can't spin up two real Postgres transactions
+    // in this mocked-Prisma unit test, so we assert the mechanism instead —
+    // the lock statement is issued, targets the right invoice/org, uses
+    // FOR UPDATE, and runs strictly before the payments-bearing findFirst.
+    const callOrder: string[] = [];
+    queryRaw.mockImplementation(async () => {
+      callOrder.push("lock");
+      return [{ id: 1 }];
+    });
+    invoiceFindFirst.mockImplementationOnce(async () => {
+      callOrder.push("read");
+      return { id: 1, status: "sent", amount: 100, payments: [] };
+    });
+    // Final re-read after the write; irrelevant to lock ordering.
+    invoiceFindFirst.mockResolvedValueOnce({ id: 1, status: "sent" });
+    paymentCreate.mockResolvedValue({});
+    invoiceUpdate.mockResolvedValue({});
+    invoiceEventCreate.mockResolvedValue({});
+
+    await recordPayment(1, "org1", { ...paymentInput, amount: 25 });
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    const [strings, ...values] = queryRaw.mock.calls[0];
+    expect(strings.join("")).toContain("FOR UPDATE");
+    expect(strings.join("")).toContain('"Invoice"');
+    expect(strings.join("")).toContain('"orgId"');
+    expect(values).toEqual([1, "org1"]);
+    expect(callOrder).toEqual(["lock", "read"]);
   });
 
   it("throws InvoiceLockedError when the invoice is void", async () => {
