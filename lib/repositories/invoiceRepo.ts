@@ -471,6 +471,17 @@ export async function recordPayment(
   input: RecordPaymentInput
 ) {
   return prisma.$transaction(async (tx) => {
+    // Row-lock the invoice before reading its payments so a concurrent
+    // recordPayment on the same invoice blocks here instead of both
+    // transactions computing a status from the same stale `payments` sum
+    // (lost update — issue #206). Postgres' default READ COMMITTED
+    // isolation doesn't protect this on its own; an explicit
+    // SELECT ... FOR UPDATE does.
+    const locked = await tx.$queryRaw<
+      { id: number }[]
+    >`SELECT id FROM "Invoice" WHERE id = ${invoiceId} AND "orgId" = ${orgId} FOR UPDATE`;
+    if (locked.length === 0) return null;
+
     const inv = await tx.invoice.findFirst({
       where: { id: invoiceId, orgId },
       include: { payments: { select: { amount: true } } },
