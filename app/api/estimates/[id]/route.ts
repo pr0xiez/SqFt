@@ -24,7 +24,8 @@ export const DELETE = apiRoute(
   { minRole: "lead" },
   async ({ orgId, params }) => {
     const { id } = estimateIdParams.parse(params);
-    await deleteEstimate(id, orgId);
+    const deleted = await deleteEstimate(id, orgId);
+    if (!deleted) throw new NotFoundError();
     return null;
   }
 );
