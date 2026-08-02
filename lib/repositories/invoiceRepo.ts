@@ -327,14 +327,18 @@ export async function updateInvoice(
 }
 
 export async function voidInvoice(id: number, orgId: string) {
-  const res = await prisma.invoice.updateMany({
-    where: { id, orgId, status: { not: "void" } },
-    data: { status: "void", voidedAt: new Date() },
+  const res = await prisma.$transaction(async (tx) => {
+    const updated = await tx.invoice.updateMany({
+      where: { id, orgId, status: { not: "void" } },
+      data: { status: "void", voidedAt: new Date() },
+    });
+    if (updated.count === 0) return updated;
+    await tx.invoiceEvent.create({
+      data: { invoiceId: id, type: "voided", source: "builder" },
+    });
+    return updated;
   });
   if (res.count === 0) return null;
-  await prisma.invoiceEvent.create({
-    data: { invoiceId: id, type: "voided", source: "builder" },
-  });
   return getInvoice(id, orgId);
 }
 

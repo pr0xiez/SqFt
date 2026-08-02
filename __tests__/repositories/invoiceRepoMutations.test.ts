@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
 
 // --- Prisma mock ----------------------------------------------------------
-// createInvoice / updateInvoice / recordPayment / markInvoiceSent /
-// markInvoiceViewed run inside prisma.$transaction(async (tx) => ...).
-// We make $transaction invoke its callback with a `tx` object whose model
-// delegates are the same vi.fn()s used for the non-transactional calls, so a
-// single set of mocks covers both styles. voidInvoice / getInvoice call the
-// top-level prisma client directly.
+// createInvoice / updateInvoice / voidInvoice / recordPayment /
+// markInvoiceSent / markInvoiceViewed run inside
+// prisma.$transaction(async (tx) => ...). We make $transaction invoke its
+// callback with a `tx` object whose model delegates are the same vi.fn()s
+// used for the non-transactional calls, so a single set of mocks covers both
+// styles. getInvoice (voidInvoice's post-commit re-read) calls the top-level
+// prisma client directly.
 
 const estimateFindFirst = vi.fn();
 const invoiceFindFirst = vi.fn();
@@ -302,7 +303,7 @@ describe("updateInvoice", () => {
 });
 
 describe("voidInvoice", () => {
-  it("voids a non-void invoice, logs the event, and re-reads it", async () => {
+  it("voids a non-void invoice, logs the event atomically, and re-reads it", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 1 });
     invoiceEventCreate.mockResolvedValue({});
     invoiceFindFirst.mockResolvedValue({
@@ -317,6 +318,9 @@ describe("voidInvoice", () => {
 
     const result = await voidInvoice(1, "org1");
 
+    // Both writes happen inside the same $transaction (issue #160), not as
+    // two separate top-level prisma calls.
+    expect($transaction).toHaveBeenCalledTimes(1);
     expect(invoiceUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 1, orgId: "org1", status: { not: "void" } },
@@ -325,9 +329,16 @@ describe("voidInvoice", () => {
     );
     expect(invoiceEventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ type: "voided" }),
+        data: expect.objectContaining({ type: "voided", source: "builder" }),
       })
     );
+    // The event write must happen after the status update within the
+    // transaction (mock invokes calls synchronously in call order).
+    const updateOrder = invoiceUpdateMany.mock.invocationCallOrder[0];
+    const eventOrder = invoiceEventCreate.mock.invocationCallOrder[0];
+    expect(updateOrder).toBeLessThan(eventOrder);
+    // The post-commit re-read happens outside the transaction, after both
+    // writes landed.
     expect(result).toEqual({
       id: 1,
       status: "void",
@@ -335,10 +346,11 @@ describe("voidInvoice", () => {
     });
   });
 
-  it("returns null and does not log when the invoice was already void", async () => {
+  it("returns null and writes no event when the invoice was already void (no-op transaction)", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 0 });
 
     expect(await voidInvoice(1, "org1")).toBeNull();
+    expect($transaction).toHaveBeenCalledTimes(1);
     expect(invoiceEventCreate).not.toHaveBeenCalled();
     expect(invoiceFindFirst).not.toHaveBeenCalled();
   });
