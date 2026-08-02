@@ -170,4 +170,15 @@ describe("DELETE /api/events/[id]", () => {
     expect(res.status).toBe(204);
     expect(mockDelete).toHaveBeenCalledWith(1, "org1");
   });
+
+  it("returns NOT_FOUND when deleteEvent returns false", async () => {
+    mockDelete.mockResolvedValue(false);
+    const res = await DELETE(
+      makeRequest("DELETE", "http://x/api/events/99"),
+      params({ id: "99" })
+    );
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
 });

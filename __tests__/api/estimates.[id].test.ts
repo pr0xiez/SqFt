@@ -134,6 +134,17 @@ describe("DELETE /api/estimates/[id]", () => {
     expect(body.error.code).toBe("ESTIMATE_HAS_EVENTS");
     expect(body.error.message).toContain("2");
   });
+
+  it("returns NOT_FOUND when deleteEstimate returns false", async () => {
+    mockDeleteEstimate.mockResolvedValue(false);
+    const res = await DELETE(
+      makeRequest("DELETE", "http://x/api/estimates/99"),
+      params({ id: "99" })
+    );
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
 });
 
 describe("POST /api/estimates/[id]/approval-token", () => {
