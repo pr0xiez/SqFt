@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
+import {
+  EstimateHasEventsError,
+  HasInvoicesError,
+  ValidationError,
+} from "@/lib/api/errors";
 
 const estimateFindMany = vi.fn();
 const estimateFindFirst = vi.fn();
@@ -389,6 +393,26 @@ describe("saveEstimate", () => {
     expect(lineItemCreateMany).toHaveBeenCalledWith({
       data: [expect.objectContaining({ estimateId: 1, name: "Tile" })],
     });
+  });
+
+  // Issue #288: approval/decline must go exclusively through
+  // approveEstimateByToken / declineEstimateByToken, which write the
+  // EstimateApproval consent row and run the supersede-siblings logic — a
+  // plain status flip through saveEstimate would skip both. This guards the
+  // repo layer (the trust boundary) even though EstimatePatch's TS type
+  // already excludes these values, in case a caller bypasses the type.
+  it.each([
+    "approved",
+    "declined",
+  ] as const)("rejects a direct status=%s patch with ValidationError and does not touch the DB", async (status) => {
+    // Simulate a caller that bypasses EstimatePatch's TS type (e.g. an
+    // untyped JSON body) — the repo must still refuse this at runtime.
+    const patch = { status } as unknown as Parameters<typeof saveEstimate>[2];
+    await expect(saveEstimate(1, "org1", patch)).rejects.toBeInstanceOf(
+      ValidationError
+    );
+    expect($transaction).not.toHaveBeenCalled();
+    expect(estimateUpdateMany).not.toHaveBeenCalled();
   });
 });
 
