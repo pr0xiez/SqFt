@@ -5,6 +5,7 @@ import {
   EstimateHasEventsError,
   EstimateLockedError,
   HasInvoicesError,
+  ValidationError,
 } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
@@ -162,8 +163,12 @@ type LineItemInput = Omit<
   "id" | "estimateId"
 > & { id?: number };
 
+// "approved"/"declined" are not settable via EstimatePatch/saveEstimate — see
+// the guard at the top of saveEstimate. Those transitions only happen through
+// approveEstimateByToken / declineEstimateByToken, which write the
+// EstimateApproval consent record and run the supersede-siblings logic.
 export type EstimatePatch = {
-  status?: "draft" | "sent" | "approved" | "declined";
+  status?: "draft" | "sent";
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemInput[];
@@ -433,6 +438,24 @@ export async function saveEstimate(
   orgId: string,
   patch: EstimatePatch
 ): Promise<EstimateWithDetails | null> {
+  // Defense in depth: EstimatePatch's type already excludes "approved" /
+  // "declined", but this repo function is the trust boundary, so it must not
+  // rely solely on the caller's TS types (a route could be re-wired, or the
+  // zod schema loosened, without touching this file). Approval/decline must
+  // go exclusively through approveEstimateByToken / declineEstimateByToken —
+  // those write the EstimateApproval consent row (ip/userAgent/snapshot) and
+  // run the supersede-siblings logic that a plain status flip would skip.
+  const requestedStatus = patch.status as string | undefined;
+  if (
+    requestedStatus !== undefined &&
+    requestedStatus !== "draft" &&
+    requestedStatus !== "sent"
+  ) {
+    throw new ValidationError(
+      `Cannot set estimate status to "${requestedStatus}" directly. Approval and decline must go through the customer-facing token flow.`
+    );
+  }
+
   const { lineItems, ...topLevel } = patch;
 
   return prisma.$transaction(async (tx) => {

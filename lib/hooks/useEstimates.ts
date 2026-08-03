@@ -81,8 +81,10 @@ export interface EstimateDetail {
   revisedBy?: { id: number; estimateNumber: number }[];
 }
 
+// "approved"/"declined" are not settable here — see CONTEXT.md "Estimate
+// Approval" and the guard in lib/repositories/estimateRepo.ts saveEstimate.
 export interface UpdateEstimateInput {
-  status?: "draft" | "sent" | "approved" | "declined";
+  status?: "draft" | "sent";
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemCalc[];
