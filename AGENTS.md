@@ -76,6 +76,14 @@ with the file that owns it.
   adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin
   callers; ordering/error invariants live here (see *Send Pipeline* in
   `CONTEXT.md`).
+- `lib/dashboard/approvedRevenue.ts` — shared **approved-revenue query**
+  (`getApprovedEstimateRevenueRows`, `getMtdApprovedEstimates`): the one place
+  that queries approved estimates in a date range and reduces them via
+  `computeEstimateView`. Both `getDashboardKpis` (`lib/dashboard/kpis.ts`,
+  `bookedRevenueMtd`) and `getDashboardRevenue` (`lib/dashboard/revenue.ts`,
+  `mtdTotal` + weekly buckets) call it instead of each defining its own
+  "what counts as MTD approved revenue" — add any future MTD-revenue logic
+  here, not by re-deriving it in either dashboard function.
 - `lib/quickCreate/` — **pure quick-create logic** (`toInvoiceableCandidates`):
   projects estimates to billable candidates (`unbilled > 0`) for the
   quick-invoice search. The global **"+ New" launcher** UI lives in
