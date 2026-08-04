@@ -1,5 +1,5 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { LastAdminError } from "@/lib/api/errors";
+import { EmailTakenError, LastAdminError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
 
 export const USER_SELECT = {
@@ -39,16 +39,32 @@ export async function createUser(
   orgId: string,
   data: { name: string; email: string; role: string; password: string }
 ): Promise<UserRow> {
-  return prisma.user.create({
-    data: {
-      orgId,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      password: data.password,
-    },
-    select: USER_SELECT,
-  });
+  try {
+    return await prisma.user.create({
+      data: {
+        orgId,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        password: data.password,
+      },
+      select: USER_SELECT,
+    });
+  } catch (err) {
+    // Callers pre-flight-check email uniqueness via findByEmail, but that's
+    // a TOCTOU window under concurrency: two requests can both pass the
+    // check and race to insert, and the loser hits the User.email unique
+    // index. Catch that here and surface the same typed error instead of
+    // letting a raw P2002 bubble up as a 500.
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      (err as { code?: string }).code === "P2002"
+    ) {
+      throw new EmailTakenError();
+    }
+    throw err;
+  }
 }
 
 export function findByEmail(email: string) {
