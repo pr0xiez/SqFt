@@ -125,6 +125,8 @@ export async function validateUserIds(
   ids: string[]
 ): Promise<boolean> {
   if (ids.length === 0) return true;
-  const count = await prisma.user.count({ where: { id: { in: ids }, orgId } });
+  const count = await prisma.user.count({
+    where: { id: { in: ids }, orgId, archived: false },
+  });
   return count === ids.length;
 }

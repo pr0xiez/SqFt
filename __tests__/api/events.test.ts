@@ -23,9 +23,8 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
-  "@/lib/repositories"
-);
+const { listEvents, createEvent, updateEvent, deleteEvent, validateUserIds } =
+  await import("@/lib/repositories");
 const { GET: listGET, POST } = await import("@/app/api/events/route");
 const { PATCH, DELETE } = await import("@/app/api/events/[id]/route");
 
@@ -33,6 +32,7 @@ const mockList = vi.mocked(listEvents);
 const mockCreate = vi.mocked(createEvent);
 const mockUpdate = vi.mocked(updateEvent);
 const mockDelete = vi.mocked(deleteEvent);
+const mockValidateUserIds = vi.mocked(validateUserIds);
 
 const validPayload = {
   type: "job",
@@ -89,6 +89,20 @@ describe("POST /api/events", () => {
       "org1",
       expect.objectContaining({ assigneeIds: ["u10", "u11"] })
     );
+  });
+
+  it("returns VALIDATION_FAILED when an assignee fails validation (e.g. archived)", async () => {
+    mockValidateUserIds.mockResolvedValueOnce(false);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", {
+        ...validPayload,
+        assigneeIds: ["archived-user"],
+      }),
+      params({})
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("creates a job with a estimateId", async () => {
@@ -148,6 +162,19 @@ describe("PATCH /api/events/[id]", () => {
       "org1",
       expect.objectContaining({ title: "Rescheduled" })
     );
+  });
+
+  it("returns VALIDATION_FAILED when an assignee fails validation (e.g. archived)", async () => {
+    mockValidateUserIds.mockResolvedValueOnce(false);
+    const res = await PATCH(
+      makeRequest("PATCH", "http://x/api/events/1", {
+        assigneeIds: ["archived-user"],
+      }),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("returns NOT_FOUND when updateEvent returns null", async () => {
