@@ -17,6 +17,7 @@ import { ZodError, type ZodType } from "zod";
 import {
   ApiError,
   ForbiddenError,
+  toErrorEnvelope,
   UnauthorizedError,
   ValidationError,
 } from "@/lib/api/errors";
@@ -246,16 +247,7 @@ function errorToResponse(
     );
   }
   if (err instanceof ApiError) {
-    return NextResponse.json(
-      {
-        error: {
-          code: err.code,
-          message: err.message,
-          ...(err.details !== undefined ? { details: err.details } : {}),
-        },
-      },
-      { status: err.status }
-    );
+    return NextResponse.json(toErrorEnvelope(err), { status: err.status });
   }
 
   logError({

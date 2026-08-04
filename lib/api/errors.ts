@@ -192,6 +192,23 @@ export type ApiErrorEnvelope = {
 };
 
 /**
+ * Serialize an `ApiError` into the wire envelope. Shared by `apiRoute` /
+ * `publicRoute` (lib/api/route.ts) and `proxy.ts` — the middleware's 401
+ * short-circuit happens before a route handler ever runs, but it still needs
+ * to emit the same shape, so it builds an `UnauthorizedError` and serializes
+ * it through this helper rather than hand-rolling a parallel literal.
+ */
+export function toErrorEnvelope(err: ApiError): ApiErrorEnvelope {
+  return {
+    error: {
+      code: err.code,
+      message: err.message,
+      ...(err.details !== undefined ? { details: err.details } : {}),
+    },
+  };
+}
+
+/**
  * Read the standard error envelope from a non-OK fetch Response. Returns the
  * provided fallback message if the body isn't JSON or doesn't match the envelope.
  *
