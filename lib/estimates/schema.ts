@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { QTY_MODE_VALUES, QtyMode } from "@/lib/utils";
 
-const lineItemSchema = z.object({
+export const lineItemSchema = z.object({
   id: z.number().int().optional(),
-  name: z.string(),
-  description: z.string().nullish(),
-  rate: z.number(),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(2000).nullish(),
+  rate: z.number().finite().min(0),
   qtyMode: z.enum(QTY_MODE_VALUES).default(QtyMode.Manual),
-  qty: z.number().nullish(),
-  wastePct: z.number().default(0),
-  unitLabel: z.string().default("ft²"),
+  qty: z.number().finite().min(0).nullish(),
+  wastePct: z.number().finite().min(0).max(100).default(0),
+  unitLabel: z.string().trim().min(1).max(20).default("ft²"),
   linkedRoomIds: z.array(z.number().int()).default([]),
   sortOrder: z.number().int().default(0),
 });
