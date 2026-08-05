@@ -113,6 +113,8 @@ export async function approveEstimateByToken(
   });
 }
 
-export function getEstimateApproval(estimateId: number) {
-  return prisma.estimateApproval.findUnique({ where: { estimateId } });
+export function getEstimateApproval(estimateId: number, orgId: string) {
+  return prisma.estimateApproval.findFirst({
+    where: { estimateId, estimate: { orgId } },
+  });
 }
