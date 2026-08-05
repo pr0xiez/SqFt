@@ -57,8 +57,7 @@ describe("GET /api/estimates", () => {
           id: 1,
           total: 123,
           _count: { lineItems: 2 },
-          lineItems: [],
-          siteMeasure: { items: [], id: 9 },
+          siteMeasure: { id: 9 },
           // biome-ignore lint/suspicious/noExplicitAny: test stub row
         } as any,
       ],

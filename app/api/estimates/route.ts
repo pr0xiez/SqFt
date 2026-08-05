@@ -46,20 +46,7 @@ export const GET = apiRoute({ minRole: "lead" }, async ({ req, orgId }) => {
     status,
   });
 
-  return {
-    items: items.map((estimate) => {
-      const {
-        lineItems: _lineItems,
-        siteMeasure,
-        total: rowTotal,
-        ...rest
-      } = estimate;
-      const { items: _items, ...siteMeasureRest } = siteMeasure;
-      return { ...rest, siteMeasure: siteMeasureRest, total: rowTotal };
-    }),
-    total,
-    facets,
-  };
+  return { items, total, facets };
 });
 
 export const POST = apiRoute(

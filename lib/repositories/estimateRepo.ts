@@ -118,10 +118,8 @@ const ESTIMATE_LIST_INCLUDE = {
           customer: { select: { id: true, name: true } },
         },
       },
-      items: { orderBy: { sortOrder: "asc" } },
     },
   },
-  lineItems: { orderBy: { sortOrder: "asc" } },
   _count: { select: { lineItems: true } },
 } satisfies Prisma.EstimateInclude;
 
