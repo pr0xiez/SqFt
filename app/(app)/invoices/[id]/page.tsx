@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { InvoiceDetail } from "@/components/invoices/InvoiceDetail";
 import { getInvoice } from "@/lib/repositories";
+import { parseRouteId } from "@/lib/routeParams";
 import { getOrgId } from "@/lib/tenant";
 
 interface Props {
@@ -9,8 +10,7 @@ interface Props {
 
 export default async function InvoicePage({ params }: Props) {
   const { id } = await params;
-  const invoiceId = Number(id);
-  if (!Number.isInteger(invoiceId) || invoiceId <= 0) notFound();
+  const invoiceId = parseRouteId(id);
 
   const orgId = await getOrgId();
   const invoice = await getInvoice(invoiceId, orgId);

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { SiteMeasureBuilderView } from "@/components/siteMeasures/SiteMeasureBuilder";
 import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
+import { parseRouteId } from "@/lib/routeParams";
 import { requireSession } from "@/lib/tenant";
 
 export const metadata = { title: "Site Measure Builder — SqFt" };
@@ -14,5 +15,5 @@ export default async function SiteMeasureBuilderPage({ params }: Props) {
   if (!hasMinRole(session.user.role, "lead"))
     redirect(homePathFor(session.user.role));
   const { id } = await params;
-  return <SiteMeasureBuilderView siteMeasureId={parseInt(id, 10)} />;
+  return <SiteMeasureBuilderView siteMeasureId={parseRouteId(id)} />;
 }
