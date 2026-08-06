@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export interface Location {
   id: number;
@@ -32,16 +33,15 @@ export interface CreateLocationInput {
   notes?: string;
 }
 
-async function fetchLocations(customerId: number): Promise<Location[]> {
-  const res = await fetch(`/api/locations?customerId=${customerId}`);
-  if (!res.ok) throw new Error("Failed to fetch locations");
-  return res.json();
-}
-
 export function useLocations(customerId: number) {
   return useQuery({
     queryKey: ["locations", customerId],
-    queryFn: () => fetchLocations(customerId),
+    queryFn: () =>
+      apiFetch<Location[]>(
+        `/api/locations?customerId=${customerId}`,
+        undefined,
+        "Failed to fetch locations"
+      ),
     enabled: !!customerId,
   });
 }
@@ -49,15 +49,16 @@ export function useLocations(customerId: number) {
 export function useCreateLocation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateLocationInput) => {
-      const res = await fetch("/api/locations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error("Failed to create location");
-      return res.json() as Promise<Location>;
-    },
+    mutationFn: (input: CreateLocationInput) =>
+      apiFetch<Location>(
+        "/api/locations",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        "Failed to create location"
+      ),
     onSuccess: (loc) => {
       qc.invalidateQueries({ queryKey: ["locations", loc.customerId] });
       qc.invalidateQueries({ queryKey: ["customers", loc.customerId] });

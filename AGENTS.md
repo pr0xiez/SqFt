@@ -109,7 +109,12 @@ with the file that owns it.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
   `validateUserIds`).
-- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
+- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …), all
+  built on the shared `apiFetch<T>(url, init?, fallbackMessage?)`
+  (`lib/hooks/apiFetch.ts`) — fetch + `res.ok` check + `readApiError` +
+  `res.json()` (204 → `undefined`) in one place, so every query/mutation
+  surfaces the server's real `{code, message}` instead of a fixed generic
+  string. New hooks should call it rather than hand-rolling the fetch dance.
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
