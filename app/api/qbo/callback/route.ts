@@ -48,6 +48,12 @@ export const GET = apiRoute({ minRole: "admin" }, async ({ req, orgId }) => {
       orgId,
       errorMessage: err instanceof Error ? err.message : String(err),
     });
+    // The global unique on realmId: this QBO company is already connected to
+    // a different SqFt org. "Try again" would loop forever — say what's
+    // wrong. (Prisma error shape varies between versions; duck-type P2002.)
+    if ((err as { code?: string }).code === "P2002") {
+      return fail("realm_in_use");
+    }
     return fail("exchange_failed");
   }
   return NextResponse.redirect(`${settingsUrl}?qbo=connected`);

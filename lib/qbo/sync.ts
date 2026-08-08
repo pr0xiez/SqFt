@@ -228,16 +228,31 @@ export function invoiceMatches(
  * Skips (returns null) drafts-without-snapshot and voided invoices — the
  * void task owns those. Tries DocNumber candidates in order, adopting a
  * plausible match and skipping past foreign occupants (invariant 2).
+ * `onDocNumberFallback` fires when the invoice lands under `SQFT-{n}` so the
+ * runner can record why the QBO number differs from the SqFt one.
  */
 export async function ensureInvoiceSynced(
   deps: SyncDeps,
-  invoiceId: number
+  invoiceId: number,
+  opts: { onDocNumberFallback?: (used: string, preferred: string) => void } = {}
 ): Promise<QboEntityRef | null> {
   const link = await deps.store.getLink(deps.orgId, "invoice", invoiceId);
   if (link) return { id: link.qboId, syncToken: link.syncToken };
 
   const source = await deps.store.getInvoiceSource(deps.orgId, invoiceId);
   if (!source?.snapshot || source.status === "void") return null;
+
+  // For an accounting sync, a divergent total must be a visible failed task,
+  // never a pushed invoice that disagrees with what the customer was billed.
+  // (Also catches the all-lines-unresolved case: [] with a non-zero amount.)
+  const lineSum = source.snapshot.lines.reduce((sum, l) => sum + l.amount, 0);
+  if (Math.abs(lineSum - source.amount) > 0.005) {
+    throw new Error(
+      `Invoice ${invoiceId}: snapshot lines sum to $${lineSum.toFixed(
+        2
+      )} but the invoice amount is $${source.amount.toFixed(2)} — refusing to push a divergent invoice`
+    );
+  }
 
   const customer = await ensureCustomerSynced(deps, source.customerId);
   if (!customer) {
@@ -253,16 +268,24 @@ export async function ensureInvoiceSynced(
     return ref;
   };
 
-  for (const docNumber of docNumberCandidates(source.invoiceNumber)) {
+  const candidates = docNumberCandidates(source.invoiceNumber);
+  const preferred = candidates[0];
+  for (const docNumber of candidates) {
+    const noteFallback = () => {
+      if (docNumber !== preferred) {
+        opts.onDocNumberFallback?.(docNumber, preferred);
+      }
+    };
     const existing = await deps.qbo.findInvoiceByDocNumber(docNumber);
     if (existing) {
       if (invoiceMatches(existing, customer.id, { ...source, taxAmount })) {
+        noteFallback();
         return adopt(existing);
       }
       continue; // foreign invoice occupies this DocNumber — try the fallback
     }
     try {
-      return await adopt(
+      const created = await adopt(
         await deps.qbo.createInvoice(
           buildQboInvoice({
             snapshot: source.snapshot,
@@ -272,6 +295,8 @@ export async function ensureInvoiceSynced(
           })
         )
       );
+      noteFallback();
+      return created;
     } catch (err) {
       if (err instanceof QboApiError && err.kind === "duplicate_docnum") {
         continue;
@@ -363,14 +388,23 @@ export interface ClaimedTask {
   kind: QboTaskKind;
   entityId: number;
   attempts: number;
+  /** The `nextAttemptAt` the claim wrote — part of the claim's identity. */
+  leaseUntil: Date;
 }
 
 export interface TaskStore {
   /** Due pending tasks for the org, oldest first. */
   claimDue(orgId: string, now: Date, limit: number): Promise<ClaimedTask[]>;
-  markDone(taskId: number): Promise<void>;
+  /**
+   * Terminal writes are FENCED on the claim's identity (attempts +
+   * leaseUntil): if the row was re-enqueued while this run was in flight
+   * (an admin's second edit resets it to pending/attempts 0), the write must
+   * be a no-op so the fresh intent is never swallowed. `note` records a
+   * non-fatal warning (e.g. a DocNumber fallback) on the completed task.
+   */
+  markDone(task: ClaimedTask, note?: string): Promise<void>;
   markFailed(args: {
-    taskId: number;
+    task: ClaimedTask;
     error: string;
     attempts: number;
     nextAttemptAt: Date;
@@ -395,17 +429,24 @@ export function isAuthError(err: unknown): boolean {
   );
 }
 
+/** Returns a non-fatal warning note to record on the done task, if any. */
 export async function runTask(
   deps: SyncDeps,
   task: ClaimedTask
-): Promise<void> {
+): Promise<string | undefined> {
   switch (task.kind) {
     case "sync_customer":
       await syncCustomerTask(deps, task.entityId);
       return;
-    case "sync_invoice":
-      await ensureInvoiceSynced(deps, task.entityId);
-      return;
+    case "sync_invoice": {
+      let note: string | undefined;
+      await ensureInvoiceSynced(deps, task.entityId, {
+        onDocNumberFallback: (used, preferred) => {
+          note = `Warning: synced as DocNumber ${used} — ${preferred} was already taken in QuickBooks`;
+        },
+      });
+      return note;
+    }
     case "sync_payment":
       await ensurePaymentSynced(deps, task.entityId);
       return;
@@ -437,8 +478,8 @@ export async function runDueTasksForOrg(
 
   for (const task of due) {
     try {
-      await runTask(deps, task);
-      await tasks.markDone(task.id);
+      const note = await runTask(deps, task);
+      await tasks.markDone(task, note);
       await tasks.touchLastSynced(deps.orgId, now);
       result.done += 1;
     } catch (err) {
@@ -449,7 +490,7 @@ export async function runDueTasksForOrg(
       }
       const attempts = task.attempts + 1;
       await tasks.markFailed({
-        taskId: task.id,
+        task,
         error: err instanceof Error ? err.message : String(err),
         attempts,
         nextAttemptAt: new Date(

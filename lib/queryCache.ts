@@ -12,16 +12,17 @@ export const QUERY_CACHE_KEY = "sqft-query-cache";
  * before the bump is discarded rather than rehydrated into code that expects
  * the new shape (there is no per-query versioning).
  */
-export const QUERY_CACHE_BUSTER = "2026-07-stripe-connect-requirements";
+export const QUERY_CACHE_BUSTER = "2026-08-qbo-sync";
 
 /**
  * Query keys that must never be written to localStorage. `stripe-connect`
  * carries Stripe's identity-verification failure text — the reason a person's
  * ID or tax id was rejected — which has no business sitting in the browser for
  * 24 hours, outliving the session that fetched it, on what may be a shared
- * machine.
+ * machine. `qbo-status` carries the org's Intuit realm id, company name, and
+ * the lastError text of failed accounting pushes — same rule.
  */
-const NEVER_PERSIST = new Set<string>(["stripe-connect"]);
+const NEVER_PERSIST = new Set<string>(["stripe-connect", "qbo-status"]);
 
 export function isPersistableQueryKey(queryKey: readonly unknown[]): boolean {
   return !NEVER_PERSIST.has(String(queryKey[0]));

@@ -287,7 +287,7 @@ export async function updateCustomer(
     if (result.count === 0) return false;
     // Mirror edits into QBO only for customers that already exist there —
     // unsynced customers are pushed lazily by their first invoice.
-    if (await hasCustomerLink(orgId, id)) {
+    if (await hasCustomerLink(orgId, id, tx)) {
       await enqueueQboTaskTx(tx, orgId, "sync_customer", id);
     }
     return true;

@@ -21,6 +21,7 @@ export interface QboStatus {
       id: number;
       kind: string;
       entityId: number;
+      invoiceId: number | null;
       lastError: string | null;
       updatedAt: string;
     }>;

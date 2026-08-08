@@ -21,7 +21,9 @@ export function IntegrationsView() {
     showToast(
       outcome === "connected"
         ? "QuickBooks connected"
-        : "QuickBooks connection failed — try again"
+        : params.get("reason") === "realm_in_use"
+          ? "That QuickBooks company is already connected to another SqFt organization"
+          : "QuickBooks connection failed — try again"
     );
     window.history.replaceState(null, "", window.location.pathname);
   }, [qc, showToast]);

@@ -18,7 +18,9 @@ const txMock = {
   event: { count: eventCount },
   invoice: { count: invoiceCount },
   // QBO enqueue path (updateCustomer): no link → no enqueue.
+  // hasCustomerLink runs on the ambient tx, so qboLink lives here too.
   qboConnection: { findUnique: vi.fn().mockResolvedValue(null) },
+  qboLink: { findUnique: qboLinkFindUnique },
   qboSyncTask: { upsert: qboSyncTaskUpsert },
 };
 

@@ -213,6 +213,88 @@ describe("invariant 5 — the sweeper converges with backoff", () => {
   });
 });
 
+describe("invariant 3 — a re-enqueue during an in-flight run is never swallowed", () => {
+  it("markDone is fenced: an edit racing the runner leaves the task pending", async () => {
+    const { qbo, stores, deps } = setup();
+    const row = stores.enqueue(ORG, "sync_invoice", 42);
+
+    // Mid-flight (during the create), the admin resends the invoice → the
+    // task row is reset to fresh-pending. The stale runner's markDone must
+    // not flip that fresh intent to done.
+    const origCreate = qbo.createInvoice.bind(qbo);
+    qbo.createInvoice = async (body) => {
+      stores.enqueue(ORG, "sync_invoice", 42);
+      return origCreate(body);
+    };
+
+    const result = await runDueTasksForOrg(deps, stores, { now: new Date() });
+    expect(result.done).toBe(1); // the QBO write itself succeeded
+    expect(row.status).toBe("pending"); // …but the fresh intent survives
+    expect(row.attempts).toBe(0);
+
+    // The surviving task converges on the next run (adopts via the link).
+    await runDueTasksForOrg(deps, stores, { now: new Date() });
+    expect(row.status).toBe("done");
+    expect(qbo.invoices).toHaveLength(1);
+  });
+
+  it("markFailed is fenced too: a mid-flight re-enqueue is not overwritten with backoff", async () => {
+    const { qbo, stores, deps } = setup();
+    const row = stores.enqueue(ORG, "sync_invoice", 42);
+
+    qbo.findInvoiceByDocNumber = async () => {
+      stores.enqueue(ORG, "sync_invoice", 42);
+      throw new Error("fake network down");
+    };
+
+    await runDueTasksForOrg(deps, stores, { now: new Date() });
+    expect(row.status).toBe("pending");
+    expect(row.attempts).toBe(0); // not bumped to 1 by the stale runner
+    expect(row.lastError).toBeNull();
+    expect(row.nextAttemptAt.getTime()).toBe(0); // still immediately due
+  });
+});
+
+describe("divergent-total guard", () => {
+  it("an all-unresolved snapshot (no lines, non-zero amount) fails visibly instead of pushing", async () => {
+    const { qbo, stores, deps } = setup();
+    const source = await stores.getInvoiceSource(ORG, 42);
+    if (!source) throw new Error("fixture missing");
+    stores.invoices.set(42, {
+      ...source,
+      snapshot: makeSnapshot({ lines: [] }),
+    });
+    await expect(ensureInvoiceSynced(deps, 42)).rejects.toThrow(
+      /refusing to push a divergent invoice/
+    );
+    expect(qbo.invoices).toHaveLength(0);
+  });
+});
+
+describe("DocNumber fallback is recorded, not silent", () => {
+  it("landing under SQFT-{n} records a warning on the done task", async () => {
+    const { qbo, stores, deps } = setup();
+    // A foreign invoice occupies DocNumber 42 → ours lands under SQFT-42.
+    await qbo.createCustomer({ DisplayName: "Somebody Else" });
+    await qbo.createInvoice({
+      DocNumber: "42",
+      TxnDate: "2026-01-01",
+      CustomerRef: { value: qbo.customers[0].Id },
+      Line: [
+        {
+          DetailType: "SalesItemLineDetail",
+          Amount: 9999,
+          SalesItemLineDetail: { ItemRef: { value: "1" } },
+        },
+      ],
+    });
+    const row = stores.enqueue(ORG, "sync_invoice", 42);
+    await runDueTasksForOrg(deps, stores, { now: new Date() });
+    expect(row.status).toBe("done");
+    expect(row.lastError).toContain("SQFT-42");
+  });
+});
+
 describe("invariant 6 — auth death pauses, never drops", () => {
   it("an auth error pauses the org's tasks and stops the loop; reconnect re-arms", async () => {
     const { qbo, stores, deps } = setup();

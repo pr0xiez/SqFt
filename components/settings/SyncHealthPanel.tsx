@@ -30,15 +30,28 @@ export function SyncHealthPanel({ status }: { status: QboStatus }) {
               {" — "}
               {e.lastError ?? "Unknown error"}
             </span>
-            {e.kind === "sync_invoice" || e.kind === "void_invoice" ? (
+            {e.invoiceId !== null ? (
+              // Covers payment tasks too: the invoice-page Retry re-queues
+              // the invoice AND all of its payments.
               <span className="text-[var(--muted)]">
                 {" · retry from the "}
                 <Link
                   className="text-[var(--accent)] underline"
-                  href={`/invoices/${e.entityId}`}
+                  href={`/invoices/${e.invoiceId}`}
                 >
                   invoice page
                 </Link>
+              </span>
+            ) : e.kind === "sync_customer" ? (
+              <span className="text-[var(--muted)]">
+                {" · saving the "}
+                <Link
+                  className="text-[var(--accent)] underline"
+                  href={`/customers/${e.entityId}`}
+                >
+                  customer
+                </Link>
+                {" re-queues the sync"}
               </span>
             ) : null}
           </li>

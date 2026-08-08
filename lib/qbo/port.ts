@@ -27,6 +27,7 @@ interface QboEntityJson {
   TotalAmt?: number;
   CustomerRef?: { value: string };
   Name?: string;
+  AccountType?: string;
 }
 
 function toRef(entity: QboEntityJson): QboEntityRef {
@@ -154,8 +155,15 @@ export function makeQboPort(getContext: ContextProvider): QboPort {
       return found ? { id: found.Id } : null;
     },
     async createItem(name) {
-      // A Service item needs an income account; adopt the company's first.
-      const income = await queryOne("Account", `AccountType = 'Income'`);
+      // A Service item posts to an income account, and that choice is what
+      // the org's accountant will care about most. Prefer the company's
+      // default "Services" income account (present in every QBO company);
+      // only then fall back to the first income account QBO returns.
+      const services = await queryOne("Account", `Name = 'Services'`);
+      const income =
+        services?.AccountType === "Income"
+          ? services
+          : await queryOne("Account", `AccountType = 'Income'`);
       const ref = await create("/item", "Item", {
         Name: name,
         Type: "Service",

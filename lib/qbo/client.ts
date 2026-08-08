@@ -9,6 +9,9 @@
 
 import { QBO_MINORVERSION } from "./config";
 
+/** Per-request cap on Accounting API calls. */
+export const QBO_FETCH_TIMEOUT_MS = 15_000;
+
 export type QboFaultKind =
   | "auth" // 401 / expired or revoked token — pause, don't retry
   | "duplicate_name" // 6240: DisplayName collides with customer/vendor/employee
@@ -108,6 +111,10 @@ export async function qboFetch(req: QboRequest): Promise<unknown> {
       ...(req.body !== undefined ? { "content-type": "application/json" } : {}),
     },
     body: req.body !== undefined ? JSON.stringify(req.body) : undefined,
+    // A hung Intuit connection must not stall the serial per-org runner (an
+    // after() callback or the cron sweep) indefinitely. A timeout throws a
+    // plain (non-QboApiError) error → retryable, the task backs off.
+    signal: AbortSignal.timeout(QBO_FETCH_TIMEOUT_MS),
   });
 
   const body: unknown = await res.json().catch(() => null);

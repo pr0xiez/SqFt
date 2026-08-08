@@ -301,11 +301,19 @@ export class FakeStores implements SyncStore, TaskStore {
     return this.payments.get(paymentId) ?? null;
   }
 
+  /** Mirrors the real upsert: re-enqueueing an existing row RESETS it (this
+   *  is what a mid-flight admin edit does to a claimed task). */
   enqueue(orgId: string, kind: QboTaskKind, entityId: number): FakeTaskRow {
     const existing = this.tasks.find(
       (t) => t.orgId === orgId && t.kind === kind && t.entityId === entityId
     );
-    if (existing) return existing;
+    if (existing) {
+      existing.status = "pending";
+      existing.attempts = 0;
+      existing.lastError = null;
+      existing.nextAttemptAt = new Date(0);
+      return existing;
+    }
     const row: FakeTaskRow = {
       id: this.nextTaskId++,
       orgId,
@@ -323,6 +331,7 @@ export class FakeStores implements SyncStore, TaskStore {
   async claimDue(orgId: string, now: Date, limit: number) {
     // Mirrors the real store's lease semantics: claiming advances
     // nextAttemptAt so a concurrent claimer skips the same task.
+    const lease = new Date(now.getTime() + 2 * 60_000);
     const due = this.tasks
       .filter(
         (t) =>
@@ -332,7 +341,7 @@ export class FakeStores implements SyncStore, TaskStore {
       )
       .slice(0, limit);
     for (const t of due) {
-      t.nextAttemptAt = new Date(now.getTime() + 2 * 60_000);
+      t.nextAttemptAt = lease;
     }
     return due.map(
       (t): ClaimedTask => ({
@@ -340,23 +349,41 @@ export class FakeStores implements SyncStore, TaskStore {
         kind: t.kind,
         entityId: t.entityId,
         attempts: t.attempts,
+        leaseUntil: lease,
       })
     );
   }
 
-  async markDone(taskId: number) {
-    const t = this.tasks.find((x) => x.id === taskId);
-    if (t) t.status = "done";
+  /** Fenced like the real store: a row re-enqueued while the claim was in
+   *  flight (attempts/lease mismatch) keeps its fresh pending intent. */
+  private claimStillHeld(task: ClaimedTask): FakeTaskRow | null {
+    const t = this.tasks.find((x) => x.id === task.id);
+    if (!t) return null;
+    if (
+      t.status !== "pending" ||
+      t.attempts !== task.attempts ||
+      t.nextAttemptAt.getTime() !== task.leaseUntil.getTime()
+    ) {
+      return null;
+    }
+    return t;
+  }
+
+  async markDone(task: ClaimedTask, note?: string) {
+    const t = this.claimStillHeld(task);
+    if (!t) return;
+    t.status = "done";
+    t.lastError = note ?? null;
   }
 
   async markFailed(args: {
-    taskId: number;
+    task: ClaimedTask;
     error: string;
     attempts: number;
     nextAttemptAt: Date;
     terminal: boolean;
   }) {
-    const t = this.tasks.find((x) => x.id === args.taskId);
+    const t = this.claimStillHeld(args.task);
     if (!t) return;
     t.attempts = args.attempts;
     t.lastError = args.error;

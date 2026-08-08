@@ -115,6 +115,25 @@ describe("GET /api/qbo/callback", () => {
     expect(mockUpsert).not.toHaveBeenCalled();
   });
 
+  it("names the realm_in_use failure when the company belongs to another org", async () => {
+    mockExchange.mockResolvedValueOnce({
+      accessToken: "at",
+      refreshToken: "rt",
+      expiresIn: 3600,
+      refreshExpiresIn: 86400,
+    });
+    mockQboFetch.mockResolvedValueOnce({
+      CompanyInfo: { CompanyName: "Mock Flooring Co" },
+    });
+    mockUpsert.mockRejectedValueOnce(
+      Object.assign(new Error("Unique constraint failed on realmId"), {
+        code: "P2002",
+      })
+    );
+    const res = await GET(callbackRequest(goodQuery()), noParams);
+    expect(res.headers.get("location")).toContain("reason=realm_in_use");
+  });
+
   it("still connects when the company-name read fails (display-only)", async () => {
     mockExchange.mockResolvedValueOnce({
       accessToken: "at",

@@ -4,6 +4,7 @@ import {
   buildAuthorizeUrl,
   exchangeRefreshToken,
   QboAuthDeadError,
+  STATE_TTL_MS,
   shouldRefresh,
   signState,
   verifyState,
@@ -37,6 +38,18 @@ describe("oauth state", () => {
     );
     expect(verifyState(state, "other")).toBeNull();
     expect(verifyState("garbage", "secret")).toBeNull();
+  });
+
+  it("rejects a replayed state past the TTL (and one from the future)", () => {
+    const issued = Date.now();
+    const state = signState("org_abc", "secret", issued);
+    expect(verifyState(state, "secret", issued + STATE_TTL_MS - 1000)).toBe(
+      "org_abc"
+    );
+    expect(
+      verifyState(state, "secret", issued + STATE_TTL_MS + 1000)
+    ).toBeNull();
+    expect(verifyState(state, "secret", issued - 120_000)).toBeNull();
   });
 });
 

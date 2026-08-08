@@ -207,6 +207,79 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("qboRepo", () => {
     });
   });
 
+  it("a domain write while the connection is dead lands paused_auth and re-arms on reconnect", async () => {
+    const { org, invoice, realmId } = await seed();
+    await markQboDisconnected(org.id);
+    // The auth outage must not lose this send's sync intent.
+    await markInvoiceSent(invoice.id, org.id, {
+      to: "sam@example.com",
+      subject: "Invoice",
+      sentByEmail: "lead@acme.com",
+      sentByName: "Lead",
+      snapshot: { amount: 500 },
+    });
+    const rows = await taskRows(org.id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "sync_invoice",
+      status: "paused_auth",
+    });
+
+    await upsertQboConnection({
+      orgId: org.id,
+      realmId,
+      tokens: tokens("re"),
+      companyName: "Seed Co",
+    });
+    expect((await taskRows(org.id))[0]?.status).toBe("pending");
+  });
+
+  it("markDone/markFailed are fenced: a mid-flight re-enqueue survives both", async () => {
+    const { org, invoice } = await seed();
+    await prisma.$transaction((tx) =>
+      enqueueQboTaskTx(tx, org.id, "sync_invoice", invoice.id)
+    );
+    const store = makeTaskStore();
+    const now = new Date(Date.now() + 1000);
+    const [claimed] = await store.claimDue(org.id, now, 10);
+    expect(claimed).toBeDefined();
+
+    // The admin resends while the runner is mid-flight → fresh intent.
+    await prisma.$transaction((tx) =>
+      enqueueQboTaskTx(tx, org.id, "sync_invoice", invoice.id)
+    );
+
+    await store.markDone(claimed);
+    expect((await taskRows(org.id))[0]).toMatchObject({
+      status: "pending",
+      attempts: 0,
+    });
+
+    await store.markFailed({
+      task: claimed,
+      error: "boom",
+      attempts: claimed.attempts + 1,
+      nextAttemptAt: new Date(now.getTime() + 120_000),
+      terminal: false,
+    });
+    expect((await taskRows(org.id))[0]).toMatchObject({
+      status: "pending",
+      attempts: 0,
+      lastError: null,
+    });
+
+    // Without a competing re-enqueue the same claim identity CAN complete:
+    // re-claim (the reset made it due again) and mark done normally.
+    const [reclaimed] = await store.claimDue(
+      org.id,
+      new Date(Date.now() + 1000),
+      10
+    );
+    expect(reclaimed).toBeDefined();
+    await store.markDone(reclaimed);
+    expect((await taskRows(org.id))[0]?.status).toBe("done");
+  });
+
   it("single-flight: two concurrent refreshes make exactly one token call", async () => {
     const { org } = await seed();
     // Force both callers down the refresh path.

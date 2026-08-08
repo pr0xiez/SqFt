@@ -379,29 +379,46 @@ its reliability invariants are pinned one-to-one by tests in
 3. **Enqueue-in-transaction**: `enqueueQboTaskTx` runs INSIDE the domain
    write (markInvoiceSent / recordPayment / recordStripePayment /
    voidInvoice / updateCustomer-with-link) so a connected org can never have
-   a domain write with no sync intent. No-op when the org has no active
-   connection.
+   a domain write with no sync intent — **including while the connection is
+   auth-dead**: the task lands `paused_auth` and re-arms on reconnect. No-op
+   only when the org has never connected. Both Stripe payment paths (webhook
+   + checkout confirm) also kick an `after()` run like the manual paths.
 4. Sync executes via `after()` attempts (latency) + the cron sweeper
-   `GET /api/qbo/sync/run` (guarantee; `CRON_SECRET` bearer, daily in
-   `vercel.json`) + opportunistic sweeps on the status endpoint. Tasks are
-   **lease-claimed** (`claimDue` advances `nextAttemptAt` atomically) so
-   racing runners can't double-run one task; serial per org; backoff
-   `2^attempts` min capped at 6h; terminal `failed` after 10 attempts.
+   `GET /api/qbo/sync/run` (guarantee; `CRON_SECRET` bearer, every 5 min in
+   `vercel.json`, most-overdue org first, `maxDuration` pinned) +
+   opportunistic sweeps on the status endpoint. Tasks are **lease-claimed**
+   (`claimDue` advances `nextAttemptAt` atomically) so racing runners can't
+   double-run one task, and the terminal writes (`markDone`/`markFailed`)
+   are **fenced on the claim identity** — a task re-enqueued while a run is
+   in flight stays pending instead of being swallowed by the stale runner.
+   Serial per org; backoff `2^attempts` min capped at 6h; terminal `failed`
+   after 10 attempts.
 5. **Auth death pauses, never drops**: `invalid_grant` marks the connection
    `disconnected` and flips pending tasks to `paused_auth`; reconnecting the
-   SAME realm re-arms them. Connecting a DIFFERENT realm wipes the org's
-   `QboLink`s (foreign ids must never be written to).
+   SAME realm re-arms them (see invariant 3 for writes made during the
+   outage). Connecting a DIFFERENT realm wipes the org's `QboLink`s (foreign
+   ids must never be written to). **No backfill on connect or realm
+   switch**: records that predate the connection (or lost their links to a
+   realm switch) are only pushed when something re-touches them (an edit,
+   a payment, a manual Sync now).
 6. **Token rotation is single-flight**: Intuit rotates refresh tokens
    (~24h); `getFreshAccessContext` refreshes under `SELECT … FOR UPDATE` on
-   `QboConnection` and persists the pair atomically. Never call the token
-   endpoint outside it. Tokens are AES-256-GCM encrypted at rest
-   (`lib/qbo/crypto.ts`, key `QBO_TOKEN_ENC_KEY`).
+   `QboConnection` and persists the pair atomically — the token fetch is
+   capped at 10s so it can never outlive the transaction, and a
+   post-exchange commit failure salvages the rotated pair out-of-band
+   instead of bricking the connection. Never call the token endpoint outside
+   it. Accounting API calls are capped at 15s (`qboFetch`). Tokens are
+   AES-256-GCM encrypted at rest (`lib/qbo/crypto.ts`, key
+   `QBO_TOKEN_ENC_KEY`).
 
 Surfaces: admin **Settings → Integrations** (`/settings/integrations`,
 `QuickBooksCard` + `SyncHealthPanel` — connect/disconnect/reconnect, health
-counts, failed rows with `lastError`); per-invoice badge (`QboSyncBadge`,
-fed by `qboSync` on the invoice detail payload — synced / pending (polls) /
-failed with Retry → `POST /api/invoices/[id]/qbo-sync`).
+counts, failed rows with `lastError`, each linking to its retry surface);
+per-invoice badge (`QboSyncBadge`, fed by `qboSync` on the invoice detail
+payload — synced / pending (bounded polling) / failed with Retry →
+`POST /api/invoices/[id]/qbo-sync` (re-queues the invoice AND its payments;
+failed payment syncs surface on the invoice badge too) / reconnect
+(`auth_required`) / voided (`void_synced`)).
 
 Environments: `QBO_ENVIRONMENT` = `sandbox | production | mock`; integration
 is invisible when env is absent. `mock` serves the app's own test-only realm

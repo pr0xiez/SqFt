@@ -59,6 +59,34 @@ describe("QboSyncBadge", () => {
     expect(screen.getByText(/syncing…/)).toBeInTheDocument();
   });
 
+  it("auth_required points at Settings → Integrations instead of spinning", () => {
+    render(
+      wrap(
+        <QboSyncBadge
+          invoiceId={5}
+          qboSync={{ state: "auth_required", lastError: null }}
+        />
+      )
+    );
+    expect(screen.getByText(/reconnect/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open settings" })).toHaveAttribute(
+      "href",
+      "/settings/integrations"
+    );
+  });
+
+  it("shows the voided state", () => {
+    render(
+      wrap(
+        <QboSyncBadge
+          invoiceId={5}
+          qboSync={{ state: "void_synced", lastError: null }}
+        />
+      )
+    );
+    expect(screen.getByText(/QuickBooks · voided/)).toBeInTheDocument();
+  });
+
   it("failed state carries the error and Retry re-queues the sync", async () => {
     render(
       wrap(

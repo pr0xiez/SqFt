@@ -3,6 +3,10 @@ import { UnauthorizedError } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
 import { runQboSweep } from "@/lib/qbo/runner";
 
+/** The sweep iterates orgs serially (most-overdue first); give it the full
+ *  window instead of the default so a busy sweep isn't killed part-way. */
+export const maxDuration = 300;
+
 /**
  * The cron sweeper — the delivery guarantee behind the opportunistic
  * after() attempts. Vercel cron invokes GET with

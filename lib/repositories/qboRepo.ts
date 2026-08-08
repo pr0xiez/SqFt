@@ -12,7 +12,9 @@
  *     the lock releases. Waiters re-read and skip their own refresh.
  *   - `enqueueQboTaskTx` — invariant 3: called INSIDE the domain-write
  *     transaction (send / payment / void) so a connected org can never have
- *     a domain write that silently produced no sync intent.
+ *     a domain write that silently produced no sync intent — including while
+ *     the connection is auth-dead (the task lands `paused_auth` and re-arms
+ *     on reconnect).
  */
 
 import type { Prisma } from "@/app/generated/prisma/client";
@@ -33,7 +35,12 @@ import type {
   TaskStore,
 } from "@/lib/qbo/sync";
 
-export type QboSyncBadgeState = "synced" | "pending" | "failed";
+export type QboSyncBadgeState =
+  | "synced"
+  | "pending"
+  | "failed"
+  | "auth_required"
+  | "void_synced";
 
 export interface InvoiceQboState {
   state: QboSyncBadgeState;
@@ -188,6 +195,20 @@ export async function getFreshAccessContext(
     };
   }
 
+  // Once the exchange succeeds, Intuit has ALREADY rotated the pair — losing
+  // it (a commit failure, a transaction timeout) leaves a dead refresh token
+  // in the DB and bricks the connection. Track the exchanged pair so the
+  // catch block can salvage it outside the transaction. (A ref object: TS
+  // flow analysis can't see assignments made inside the tx closure.)
+  const rotated: {
+    current: {
+      tokens: QboTokens;
+      connectionId: string;
+      realmId: string;
+      at: Date;
+    } | null;
+  } = { current: null };
+
   try {
     return await prisma.$transaction(
       async (tx) => {
@@ -218,6 +239,12 @@ export async function getFreshAccessContext(
           config,
           decryptToken(locked.refreshTokenEnc)
         );
+        rotated.current = {
+          tokens,
+          connectionId: locked.id,
+          realmId: locked.realmId,
+          at: lockedAt,
+        };
         await tx.qboConnection.update({
           where: { id: locked.id },
           data: tokenColumns(tokens, lockedAt),
@@ -228,13 +255,33 @@ export async function getFreshAccessContext(
           apiBaseUrl: config.apiBaseUrl,
         };
       },
-      // The token endpoint is called under the lock by design; allow for a
-      // slow response before Prisma aborts the transaction.
+      // The token endpoint is called under the lock by design (its fetch is
+      // capped at 10s, see connect.ts); allow slack before Prisma aborts.
       { timeout: 20_000, maxWait: 20_000 }
     );
   } catch (err) {
     if (err instanceof QboAuthDeadError) {
       await markQboDisconnected(orgId);
+      throw err;
+    }
+    // Exchange succeeded but the transaction failed to commit: persist the
+    // rotated pair out-of-band rather than dropping it (the old refresh
+    // token is already dead on Intuit's side).
+    const salvage = rotated.current;
+    if (salvage) {
+      try {
+        await prisma.qboConnection.update({
+          where: { id: salvage.connectionId },
+          data: tokenColumns(salvage.tokens, salvage.at),
+        });
+        return {
+          accessToken: salvage.tokens.accessToken,
+          realmId: salvage.realmId,
+          apiBaseUrl: config.apiBaseUrl,
+        };
+      } catch {
+        // fall through to the original error
+      }
     }
     throw err;
   }
@@ -244,8 +291,11 @@ export async function getFreshAccessContext(
 
 /**
  * Invariant 3: enqueue a sync intent INSIDE the domain-write transaction.
- * No-op unless the org has an active connection. Re-enqueueing an existing
- * task (resend, re-edit, manual retry) resets it to pending.
+ * No-op only when the org has never connected QBO (no mirror to maintain).
+ * While the connection is dead (`disconnected` after an auth death or a
+ * user disconnect) the intent is captured as `paused_auth` — reconnecting
+ * re-arms it, so an auth outage never loses a domain write. Re-enqueueing an
+ * existing task (resend, re-edit, manual retry) resets it.
  */
 export async function enqueueQboTaskTx(
   tx: Prisma.TransactionClient,
@@ -257,12 +307,13 @@ export async function enqueueQboTaskTx(
     where: { orgId },
     select: { status: true },
   });
-  if (conn?.status !== "active") return;
+  if (!conn) return;
+  const status = conn.status === "active" ? "pending" : "paused_auth";
   const now = new Date();
   await tx.qboSyncTask.upsert({
     where: { orgId_kind_entityId: { orgId, kind, entityId } },
-    create: { orgId, kind, entityId, nextAttemptAt: now },
-    update: { ...TASK_RESET, nextAttemptAt: now },
+    create: { orgId, kind, entityId, status, nextAttemptAt: now },
+    update: { ...TASK_RESET, status, nextAttemptAt: now },
   });
 }
 
@@ -437,19 +488,39 @@ export function makeTaskStore(): TaskStore {
           },
           data: { nextAttemptAt: lease },
         });
-        if (res.count === 1) claimed.push(task as ClaimedTask);
+        if (res.count === 1) {
+          claimed.push({
+            ...task,
+            kind: task.kind as QboTaskKind,
+            leaseUntil: lease,
+          });
+        }
       }
       return claimed;
     },
-    async markDone(taskId) {
-      await prisma.qboSyncTask.update({
-        where: { id: taskId },
-        data: { status: "done", lastError: null },
+    // Terminal writes are fenced on the claim's identity (attempts + the
+    // lease this claim wrote). A count of 0 means the row was re-enqueued
+    // while this run was in flight — the fresh pending intent must survive,
+    // so the stale runner's outcome is dropped on the floor.
+    async markDone(task, note) {
+      await prisma.qboSyncTask.updateMany({
+        where: {
+          id: task.id,
+          status: "pending",
+          attempts: task.attempts,
+          nextAttemptAt: task.leaseUntil,
+        },
+        data: { status: "done", lastError: note ?? null },
       });
     },
     async markFailed(args) {
-      await prisma.qboSyncTask.update({
-        where: { id: args.taskId },
+      await prisma.qboSyncTask.updateMany({
+        where: {
+          id: args.task.id,
+          status: "pending",
+          attempts: args.task.attempts,
+          nextAttemptAt: args.task.leaseUntil,
+        },
         data: {
           status: args.terminal ? "failed" : "pending",
           attempts: args.attempts,
@@ -473,7 +544,9 @@ export function makeTaskStore(): TaskStore {
 // ── Read models (badge + health) ────────────────────────────────────────────
 
 /** Sync badge state for one invoice, or null when there is nothing to show
- *  (no connection, or a draft that has never been enqueued). */
+ *  (no connection, or a draft that has never been enqueued). Payment tasks
+ *  count too: an invoice whose payment sync failed must not show a clean
+ *  check while the books are short a payment. */
 export async function getInvoiceQboState(
   orgId: string,
   invoiceId: number
@@ -484,7 +557,7 @@ export async function getInvoiceQboState(
   });
   if (!conn) return null;
 
-  const [link, tasks] = await Promise.all([
+  const [link, paymentIds] = await Promise.all([
     prisma.qboLink.findUnique({
       where: {
         orgId_entityType_entityId: {
@@ -495,15 +568,28 @@ export async function getInvoiceQboState(
       },
       select: { id: true },
     }),
-    prisma.qboSyncTask.findMany({
-      where: {
-        orgId,
-        entityId: invoiceId,
-        kind: { in: ["sync_invoice", "void_invoice"] },
-      },
-      select: { status: true, lastError: true },
-    }),
+    prisma.payment
+      .findMany({
+        where: { invoiceId, invoice: { orgId } },
+        select: { id: true },
+      })
+      .then((rows) => rows.map((r) => r.id)),
   ]);
+  const tasks = await prisma.qboSyncTask.findMany({
+    where: {
+      orgId,
+      OR: [
+        {
+          entityId: invoiceId,
+          kind: { in: ["sync_invoice", "void_invoice"] },
+        },
+        ...(paymentIds.length > 0
+          ? [{ entityId: { in: paymentIds }, kind: "sync_payment" }]
+          : []),
+      ],
+    },
+    select: { kind: true, status: true, lastError: true },
+  });
 
   // Any task carrying an error shows as failed — a pending retry with a
   // lastError still deserves the error + Retry affordance, not a silent
@@ -512,10 +598,17 @@ export async function getInvoiceQboState(
     (t) => t.status === "failed" || (t.status !== "done" && t.lastError)
   );
   if (failed) return { state: "failed", lastError: failed.lastError };
-  const active = tasks.find(
-    (t) => t.status === "pending" || t.status === "paused_auth"
-  );
-  if (active) return { state: "pending", lastError: null };
+  // A dead connection is not "syncing" — nothing progresses until an admin
+  // reconnects, and the badge should say so instead of spinning forever.
+  if (tasks.some((t) => t.status === "paused_auth")) {
+    return { state: "auth_required", lastError: null };
+  }
+  if (tasks.some((t) => t.status === "pending")) {
+    return { state: "pending", lastError: null };
+  }
+  if (tasks.some((t) => t.kind === "void_invoice" && t.status === "done")) {
+    return { state: "void_synced", lastError: null };
+  }
   if (link) return { state: "synced", lastError: null };
   return null;
 }
@@ -530,13 +623,16 @@ export interface QboSyncHealth {
     id: number;
     kind: string;
     entityId: number;
+    /** The invoice a retry can be launched from (the payment's invoice for
+     *  sync_payment rows); null for customer tasks. */
+    invoiceId: number | null;
     lastError: string | null;
     updatedAt: Date;
   }>;
 }
 
 export async function getQboSyncHealth(orgId: string): Promise<QboSyncHealth> {
-  const [grouped, conn, recentErrors] = await Promise.all([
+  const [grouped, conn, failedRows] = await Promise.all([
     prisma.qboSyncTask.groupBy({
       by: ["status"],
       where: { orgId },
@@ -560,6 +656,29 @@ export async function getQboSyncHealth(orgId: string): Promise<QboSyncHealth> {
       },
     }),
   ]);
+  // A failed payment sync is retried from its INVOICE page (requeue covers
+  // the invoice + all its payments) — map payment ids to invoice ids so the
+  // health panel can link there.
+  const failedPaymentIds = failedRows
+    .filter((r) => r.kind === "sync_payment")
+    .map((r) => r.entityId);
+  const paymentInvoice = new Map<number, number>(
+    failedPaymentIds.length > 0
+      ? (
+          await prisma.payment.findMany({
+            where: { id: { in: failedPaymentIds }, invoice: { orgId } },
+            select: { id: true, invoiceId: true },
+          })
+        ).map((p) => [p.id, p.invoiceId])
+      : []
+  );
+  const recentErrors = failedRows.map((row) => ({
+    ...row,
+    invoiceId:
+      row.kind === "sync_invoice" || row.kind === "void_invoice"
+        ? row.entityId
+        : (paymentInvoice.get(row.entityId) ?? null),
+  }));
   const counts: Record<string, number> = {};
   for (const row of grouped) {
     counts[row.status] = row._count._all;
@@ -574,23 +693,29 @@ export async function getQboSyncHealth(orgId: string): Promise<QboSyncHealth> {
   };
 }
 
-/** Orgs that currently have due work — the cron sweeper iterates these. */
+/** Orgs that currently have due work, MOST OVERDUE FIRST — if a sweep is
+ *  killed by the function timeout, the same orgs must not be starved on
+ *  every subsequent sweep. */
 export async function listOrgsWithDueTasks(now: Date): Promise<string[]> {
-  const rows = await prisma.qboSyncTask.findMany({
+  const rows = await prisma.qboSyncTask.groupBy({
+    by: ["orgId"],
     where: { status: "pending", nextAttemptAt: { lte: now } },
-    distinct: ["orgId"],
-    select: { orgId: true },
+    _min: { nextAttemptAt: true },
+    orderBy: { _min: { nextAttemptAt: "asc" } },
   });
   return rows.map((r) => r.orgId);
 }
 
 /** Whether the customer has a link (used to enqueue update tasks only for
- *  customers that already exist in QBO). */
+ *  customers that already exist in QBO). Pass the ambient transaction when
+ *  calling inside one — the global client would grab a second pooled
+ *  connection while the transaction holds its own. */
 export async function hasCustomerLink(
   orgId: string,
-  customerId: number
+  customerId: number,
+  db: Prisma.TransactionClient = prisma
 ): Promise<boolean> {
-  const link = await prisma.qboLink.findUnique({
+  const link = await db.qboLink.findUnique({
     where: {
       orgId_entityType_entityId: {
         orgId,
