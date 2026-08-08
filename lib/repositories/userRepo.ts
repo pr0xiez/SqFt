@@ -1,6 +1,7 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { LastAdminError } from "@/lib/api/errors";
+import { LastAdminError, NotFoundError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
+import type { UserPatchInput } from "@/lib/users/schema";
 
 export const USER_SELECT = {
   id: true,
@@ -127,4 +128,64 @@ export async function validateUserIds(
   if (ids.length === 0) return true;
   const count = await prisma.user.count({ where: { id: { in: ids }, orgId } });
   return count === ids.length;
+}
+
+/**
+ * Optional hooks a caller can plug into `applyUserPatch`'s pipeline to run a
+ * guard check immediately before the corresponding field is applied — e.g.
+ * the self-org route's "can't demote/archive yourself" checks. Each hook
+ * should throw to abort (before that field's write, but after any earlier
+ * field in the patch has already been applied — matches the historical
+ * per-route ordering this replaces).
+ */
+export type UserPatchGuards = {
+  beforeRoleChange?: (role: string) => void;
+  beforeArchive?: (archived: boolean) => void;
+};
+
+/**
+ * Apply a role / name / title / archived patch to a user, scoped to `orgId`.
+ * Orchestrates: role change (via `updateRole`) -> profile fields (via
+ * `updateProfile`) -> archived flag (via `setArchived`) -> re-fetch. Shared by
+ * the self-org and super-admin PATCH routes; route-specific self-guard checks
+ * (self-demote, self-archive) are injected via `guards`, invoked at the same
+ * point in the pipeline the original per-route code checked them.
+ *
+ * Throws `NotFoundError` if `userId` isn't in `orgId` at any step, or
+ * `LastAdminError` (bubbled from `updateRole`/`setArchived`) if the change
+ * would strip the org's last admin.
+ */
+export async function applyUserPatch(
+  userId: string,
+  orgId: string,
+  patch: UserPatchInput,
+  guards: UserPatchGuards = {}
+): Promise<UserRow> {
+  if (patch.role !== undefined) {
+    guards.beforeRoleChange?.(patch.role);
+    // updateRole throws LastAdminError if this would demote the last admin.
+    if (!(await updateRole(userId, orgId, patch.role))) {
+      throw new NotFoundError();
+    }
+  }
+
+  if (patch.name !== undefined || patch.title !== undefined) {
+    const ok = await updateProfile(userId, orgId, {
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+    });
+    if (!ok) throw new NotFoundError();
+  }
+
+  if (patch.archived !== undefined) {
+    guards.beforeArchive?.(patch.archived);
+    // setArchived throws LastAdminError if this would archive the last admin.
+    if (!(await setArchived(userId, orgId, patch.archived))) {
+      throw new NotFoundError();
+    }
+  }
+
+  const row = await findUserRow(userId, orgId);
+  if (!row) throw new NotFoundError();
+  return row;
 }

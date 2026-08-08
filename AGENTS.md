@@ -108,7 +108,11 @@ with the file that owns it.
   `components/ui/Providers.tsx` and `AccountBlock`.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
-  `validateUserIds`).
+  `validateUserIds`, and `applyUserPatch` — the shared role/profile/archived
+  orchestration used by both the self-org and super-admin PATCH routes).
+- `lib/users/schema.ts` — the shared `userCreateSchema` / `userPatchSchema`
+  Zod schemas, used by both the self-org (`app/api/users/`) and super-admin
+  (`app/api/admin/orgs/[orgId]/users/`) user create/patch routes.
 - `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;

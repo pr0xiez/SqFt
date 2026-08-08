@@ -33,7 +33,12 @@ Events link assigned users via the `Event.assignees` relation
 the caller's **own** org; there is no separate crew roster. A **super-admin**
 manages **any** org's members the same way from `/admin/orgs/[orgId]`, via the
 same `userRepo` functions with the target org taken from the URL instead of
-the caller's session.
+the caller's session. The self-org and super-admin user create/patch routes
+share one request-validation schema (`lib/users/schema.ts` —
+`userCreateSchema` / `userPatchSchema`) and one orchestration helper
+(`applyUserPatch` in `userRepo.ts`, role → profile → archived → re-fetch);
+only the self-demote/self-archive guards differ, injected into
+`applyUserPatch` as callback hooks.
 
 The editable **Schedule Manager** grid (`/schedule`, **lead+ only** — crew is
 redirected to `/my-schedule`) and the read-only, mobile-first **My Schedule**
