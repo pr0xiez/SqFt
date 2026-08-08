@@ -223,6 +223,16 @@ estimates under the same site measure (they're marked `declined` with a
 
 Estimate status values: `draft | sent | viewed | approved | declined`.
 
+An approved or declined estimate can be **revised**: `reviseEstimate`
+(`lib/repositories/estimateRepo.ts`) clones it (line items, markup/deposit
+pct) into a new `draft` estimate on the same site measure, linked back via
+`revisedFromId`. The `approved | declined` source-status guard is enforced
+**inside `reviseEstimate`'s transaction** (throws `ConflictError` — "Only
+approved or declined estimates can be revised") rather than only in the route
+— mirroring how `saveEstimate` throws `EstimateLockedError` in-repo for its
+own edit-lock guard, so the invariant holds for any caller, not just the
+`POST /api/estimates/[id]/revise` handler, which is a thin caller.
+
 ## Invoice
 
 A priced estimate can spawn **multiple** customer-facing invoices, each billing

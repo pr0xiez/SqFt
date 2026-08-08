@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import {
+  ConflictError,
   EstimateHasEventsError,
   EstimateLockedError,
   HasInvoicesError,
@@ -522,9 +523,12 @@ export async function rotateApprovalToken(
 }
 
 /**
- * Clone an accepted or declined estimate into a new draft estimate on the
+ * Clone an approved or declined estimate into a new draft estimate on the
  * same siteMeasure. The new estimate is linked back via `revisedFromId`.
- * Returns null if the source estimate isn't found / not in the org.
+ * Returns null if the source estimate isn't found / not in the org. Throws
+ * ConflictError if the source estimate isn't approved or declined — the
+ * lifecycle guard lives here (not just in the route) so any caller, not only
+ * the HTTP handler, is protected from cloning a draft/sent/viewed estimate.
  */
 export async function reviseEstimate(
   estimateId: number,
@@ -536,6 +540,11 @@ export async function reviseEstimate(
       include: { lineItems: true },
     });
     if (!original) return null;
+    if (original.status !== "approved" && original.status !== "declined") {
+      throw new ConflictError(
+        "Only approved or declined estimates can be revised"
+      );
+    }
 
     const org = await tx.organization.update({
       where: { id: orgId },
