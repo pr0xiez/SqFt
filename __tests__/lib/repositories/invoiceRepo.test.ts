@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { OVERBILL_EPSILON } from "@/lib/invoices/createInvoiceForm";
 import {
   buildInvoiceProrationSource,
   classifyStripeCharge,
@@ -72,6 +73,23 @@ describe("nextInvoiceStatus", () => {
     expect(nextInvoiceStatus({ current: "void", amount: 100, paid: 100 })).toBe(
       "void"
     );
+  });
+
+  // Pins the paid-in-full threshold to the shared OVERBILL_EPSILON constant
+  // (lib/invoices/createInvoiceForm.ts) rather than an inlined literal — this
+  // would fail if the two ever diverged, e.g. if someone reintroduced a bare
+  // 0.005 (or any other value) at the nextInvoiceStatus call site.
+  it("treats paid within OVERBILL_EPSILON of amount as paid (derives from the shared constant)", () => {
+    const amount = 100;
+    const justWithinTolerance = amount - OVERBILL_EPSILON / 2;
+    const justOutsideTolerance = amount - OVERBILL_EPSILON * 2;
+
+    expect(
+      nextInvoiceStatus({ current: "sent", amount, paid: justWithinTolerance })
+    ).toBe("paid");
+    expect(
+      nextInvoiceStatus({ current: "sent", amount, paid: justOutsideTolerance })
+    ).toBe("partial");
   });
 });
 
@@ -153,5 +171,27 @@ describe("classifyStripeCharge", () => {
         chargeAmount: 500.004,
       }).overpaid
     ).toBe(false);
+  });
+
+  // Pins the overpaid threshold to the shared OVERBILL_EPSILON constant, same
+  // as the nextInvoiceStatus test above — a divergent literal here would flip
+  // one of these two assertions.
+  it("flags overpaid only once the excess exceeds OVERBILL_EPSILON (derives from the shared constant)", () => {
+    const amount = 500;
+    const withinTolerance = classifyStripeCharge({
+      status: "sent",
+      amount,
+      priorPaid: 0,
+      chargeAmount: amount + OVERBILL_EPSILON / 2,
+    });
+    const outsideTolerance = classifyStripeCharge({
+      status: "sent",
+      amount,
+      priorPaid: 0,
+      chargeAmount: amount + OVERBILL_EPSILON * 2,
+    });
+
+    expect(withinTolerance.overpaid).toBe(false);
+    expect(outsideTolerance.overpaid).toBe(true);
   });
 });

@@ -249,8 +249,12 @@ amount without the ±cent distorting a free line. Creating or editing an
 invoice past the estimate's unbilled balance
 throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
 predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
-`OVERBILL_EPSILON` (0.005) tolerance used by both the repo guard and the create
-dialog.
+`OVERBILL_EPSILON` (0.005) tolerance. This is the one constant for every
+money-threshold comparison in the invoice domain — the create dialog's
+client-side guard, the repo's create/patch overbill check, the paid-in-full
+status transition (`nextInvoiceStatus`), and the Stripe overpayment flag
+(`classifyStripeCharge`), both in `lib/repositories/invoiceRepo.ts` — so no
+`0.005` literal is ever inlined a second time.
 
 Invoices are emailed via a public token page (`/invoice-review/[token]`),
 reusing the React-Email + Resend flow. On send, the invoice freezes a

@@ -7,7 +7,7 @@ import {
 import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { computeEstimateBilling } from "@/lib/invoices/compute";
-import { isOverbill } from "@/lib/invoices/createInvoiceForm";
+import { isOverbill, OVERBILL_EPSILON } from "@/lib/invoices/createInvoiceForm";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
 import type { Paginated } from "@/lib/pagination/types";
@@ -211,7 +211,7 @@ export function nextInvoiceStatus(args: {
         ? "viewed"
         : "sent";
   }
-  if (args.paid + 0.005 >= args.amount) return "paid";
+  if (args.paid + OVERBILL_EPSILON >= args.amount) return "paid";
   return "partial";
 }
 
@@ -249,7 +249,7 @@ export function classifyStripeCharge(args: {
     nextStatus,
     paidAfter,
     orphaned: args.status === "void",
-    overpaid: paidAfter > args.amount + 0.005,
+    overpaid: paidAfter > args.amount + OVERBILL_EPSILON,
   };
 }
 
