@@ -69,7 +69,7 @@ describe("POST /api/estimates/[id]/revise", () => {
     expect(mockRevise).toHaveBeenCalledWith(2, "org1");
   });
 
-  it("returns 401 UNAUTHORIZED when the caller's role is below lead", async () => {
+  it("returns 403 FORBIDDEN when the caller's role is below lead", async () => {
     mockRequireSession.mockResolvedValueOnce({
       user: { id: "u1", orgId: "org1", role: "crew" },
       // biome-ignore lint/suspicious/noExplicitAny: test stub session
@@ -80,8 +80,8 @@ describe("POST /api/estimates/[id]/revise", () => {
       params({ id: "1" })
     );
 
-    expect(res.status).toBe(401);
-    expect((await res.json()).error.code).toBe("UNAUTHORIZED");
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe("FORBIDDEN");
     expect(mockGet).not.toHaveBeenCalled();
     expect(mockRevise).not.toHaveBeenCalled();
   });

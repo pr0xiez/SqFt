@@ -14,12 +14,7 @@
 
 import { after, type NextRequest, NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
-import {
-  ApiError,
-  ForbiddenError,
-  UnauthorizedError,
-  ValidationError,
-} from "@/lib/api/errors";
+import { ApiError, ForbiddenError, ValidationError } from "@/lib/api/errors";
 import { hasMinRole } from "@/lib/auth/permissions";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { logError, logMutation, logRequest } from "@/lib/logger";
@@ -91,7 +86,7 @@ export function apiRoute<TInput, TParams>(
     } else if (options.minRole) {
       const session = await requireSession();
       if (!hasMinRole(session.user.role, options.minRole)) {
-        throw new UnauthorizedError();
+        throw new ForbiddenError();
       }
       orgId = session.user.orgId;
     } else {

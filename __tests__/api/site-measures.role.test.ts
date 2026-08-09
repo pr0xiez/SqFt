@@ -48,15 +48,15 @@ beforeEach(() => {
 });
 
 describe("POST /api/site-measures — role gate", () => {
-  it("401 for crew", async () => {
+  it("403 for crew", async () => {
     asRole("crew");
     const res = await POST(makePost(), { params: Promise.resolve({}) });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("passes the gate for lead", async () => {
     asRole("lead");
     const res = await POST(makePost(), { params: Promise.resolve({}) });
-    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
   });
 });

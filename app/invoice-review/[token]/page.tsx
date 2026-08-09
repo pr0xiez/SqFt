@@ -5,6 +5,7 @@ import {
   PublicInvoiceView,
 } from "@/components/invoices/PublicInvoiceView";
 import { round2 } from "@/lib/money";
+import { trackViewed } from "@/lib/publicReview";
 import {
   getInvoiceByToken,
   getOrgStripe,
@@ -55,7 +56,11 @@ export default async function PublicInvoicePage({
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = h.get("user-agent") ?? null;
-    void markInvoiceViewed(invoice.id, { ip, userAgent });
+    trackViewed(
+      "invoice",
+      invoice.id,
+      markInvoiceViewed(invoice.id, { ip, userAgent })
+    );
   }
 
   const snap = invoice.snapshot as unknown as SnapshotShape;

@@ -11,6 +11,7 @@ import {
   snapshotRoomItems,
 } from "@/lib/estimateView/parseSnapshot";
 import { logError } from "@/lib/logger";
+import { trackViewed } from "@/lib/publicReview";
 import { getEstimateByToken, markEstimateViewed } from "@/lib/repositories";
 import { parseQtyMode, parseRoomSegments } from "@/lib/utils";
 
@@ -37,7 +38,11 @@ export default async function PublicEstimatePage({ params }: Props) {
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = h.get("user-agent") ?? null;
-    void markEstimateViewed(estimate.id, { ip, userAgent });
+    trackViewed(
+      "estimate",
+      estimate.id,
+      markEstimateViewed(estimate.id, { ip, userAgent })
+    );
   }
 
   // An approved estimate renders from the approval snapshot — the frozen

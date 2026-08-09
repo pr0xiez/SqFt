@@ -384,7 +384,7 @@ describe("apiRoute — minRole option", () => {
     });
   });
 
-  it("returns 401 when the session role is below minRole", async () => {
+  it("returns 403 FORBIDDEN when the session role is below minRole", async () => {
     mockRequireSession.mockResolvedValueOnce(
       // biome-ignore lint/suspicious/noExplicitAny: test stub session
       { user: { id: "u1", orgId: "org1", role: "crew" } } as any
@@ -393,7 +393,10 @@ describe("apiRoute — minRole option", () => {
 
     const res = await handler(makeRequest("GET"), ctx);
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: { code: "FORBIDDEN", message: "Forbidden" },
+    });
   });
 
   it("invokes the handler with orgId when role meets minRole (lead → lead)", async () => {
@@ -437,6 +440,8 @@ describe("apiRoute — minRole option", () => {
 
     const res = await handler(makeRequest("GET"), ctx);
 
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error.code).toBe("FORBIDDEN");
   });
 });

@@ -75,10 +75,10 @@ describe("PATCH /api/org", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 401 when role is not admin", async () => {
+  it("returns 403 when role is not admin", async () => {
     asCrew();
     const res = await PATCH(makeRequest("PATCH", { name: "x" }), noParams);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("returns 400 VALIDATION_FAILED on bad hex color", async () => {

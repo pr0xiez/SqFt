@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/invoices", () => {
-  it("401 for crew role", async () => {
+  it("403 for crew role", async () => {
     mockRequireSession.mockResolvedValue({
       user: { id: "u1", orgId: "org1", role: "crew" },
       // biome-ignore lint/suspicious/noExplicitAny: test stub session
@@ -54,7 +54,7 @@ describe("GET /api/invoices", () => {
       makeRequest("GET", "http://x/api/invoices"),
       noParams
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("defaults to status=all and sentAt desc", async () => {
