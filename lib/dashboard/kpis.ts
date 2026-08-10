@@ -5,6 +5,7 @@ import {
   fromPrismaEstimate,
   type PrismaEstimateForView,
 } from "@/lib/estimateView/fromPrisma";
+import { round2 } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 
 export interface DashboardKpis {
@@ -142,17 +143,21 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     }),
   ]);
 
-  const bookedRevenueMtd = (acceptedMtd as PrismaEstimateForView[]).reduce(
-    (sum: number, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-    0
-  );
-  const bookedRevenueDelta =
-    bookedRevenueMtd -
-    (acceptedLastMonthSamePeriod as PrismaEstimateForView[]).reduce(
+  const bookedRevenueMtd = round2(
+    (acceptedMtd as PrismaEstimateForView[]).reduce(
       (sum: number, q) =>
         sum + computeEstimateView(fromPrismaEstimate(q)).total,
       0
-    );
+    )
+  );
+  const bookedRevenueDelta = round2(
+    bookedRevenueMtd -
+      (acceptedLastMonthSamePeriod as PrismaEstimateForView[]).reduce(
+        (sum: number, q) =>
+          sum + computeEstimateView(fromPrismaEstimate(q)).total,
+        0
+      )
+  );
 
   const expiringSoonCount = awaitingEstimates.filter((q) => {
     if (!q.sentAt) return false;

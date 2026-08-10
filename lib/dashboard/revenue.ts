@@ -5,6 +5,7 @@ import {
   fromPrismaEstimate,
   type PrismaEstimateForView,
 } from "@/lib/estimateView/fromPrisma";
+import { round2 } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 
 export interface WeekSummary {
@@ -80,9 +81,11 @@ export async function getDashboardRevenue(
     approvedAt: Date | null;
   };
 
-  const mtdTotal = (acceptedMtd as AcceptedEstimateRow[]).reduce(
-    (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-    0
+  const mtdTotal = round2(
+    (acceptedMtd as AcceptedEstimateRow[]).reduce(
+      (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
+      0
+    )
   );
 
   // Build 4 fixed week buckets (day ranges within the month)
@@ -106,15 +109,17 @@ export async function getDashboardRevenue(
 
     const weekStart = new Date(year, month, start);
     const weekEnd = new Date(year, month, end, 23, 59, 59, 999);
-    const amount = (acceptedMtd as AcceptedEstimateRow[])
-      .filter(
-        (q) =>
-          q.approvedAt && q.approvedAt >= weekStart && q.approvedAt <= weekEnd
-      )
-      .reduce(
-        (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-        0
-      );
+    const amount = round2(
+      (acceptedMtd as AcceptedEstimateRow[])
+        .filter(
+          (q) =>
+            q.approvedAt && q.approvedAt >= weekStart && q.approvedAt <= weekEnd
+        )
+        .reduce(
+          (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
+          0
+        )
+    );
 
     return { label, amount, isCurrent, isFuture };
   });

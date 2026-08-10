@@ -35,6 +35,7 @@ const {
   getCustomer,
   createCustomer,
   updateCustomer,
+  updateCustomerEmail,
   deleteCustomer,
 } = await import("@/lib/repositories/customerRepo");
 
@@ -119,6 +120,32 @@ describe("updateCustomer", () => {
     findFirst.mockResolvedValue({ id: 1, name: "Updated" });
     const result = await updateCustomer(1, "org1", { name: "Updated" });
     expect(result).toEqual({ id: 1, name: "Updated" });
+  });
+});
+
+describe("updateCustomerEmail", () => {
+  it("scopes the update to id + orgId and returns true on a match", async () => {
+    updateMany.mockResolvedValue({ count: 1 });
+    const result = await updateCustomerEmail(1, "org1", "new@example.com");
+    expect(result).toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      data: { email: "new@example.com" },
+    });
+  });
+
+  it("returns false when no row matches in the org", async () => {
+    updateMany.mockResolvedValue({ count: 0 });
+    expect(await updateCustomerEmail(99, "org1", "new@example.com")).toBe(
+      false
+    );
+  });
+
+  it("propagates a rejected prisma call", async () => {
+    updateMany.mockRejectedValue(new Error("db down"));
+    await expect(
+      updateCustomerEmail(1, "org1", "new@example.com")
+    ).rejects.toThrow("db down");
   });
 });
 
