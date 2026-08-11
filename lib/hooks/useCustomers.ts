@@ -7,14 +7,8 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { readApiError } from "@/lib/api/errors";
+import type { EstimateStatus } from "@/lib/estimateStatus";
 import type { SortDirection } from "@/lib/sort";
-
-export type EstimateStatus =
-  | "draft"
-  | "sent"
-  | "viewed"
-  | "approved"
-  | "declined";
 
 export interface CustomerEstimateSummary {
   id: number;

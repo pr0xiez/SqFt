@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { readApiError } from "@/lib/api/errors";
+import type { EstimateStatus } from "@/lib/estimateStatus";
 import type { SortDirection } from "@/lib/sort";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 
@@ -82,7 +83,7 @@ export interface EstimateDetail {
 }
 
 export interface UpdateEstimateInput {
-  status?: "draft" | "sent" | "approved" | "declined";
+  status?: EstimateStatus;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemCalc[];

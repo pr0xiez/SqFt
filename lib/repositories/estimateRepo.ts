@@ -6,6 +6,7 @@ import {
   EstimateLockedError,
   HasInvoicesError,
 } from "@/lib/api/errors";
+import { ESTIMATE_STATUSES, type EstimateStatus } from "@/lib/estimateStatus";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
@@ -163,7 +164,7 @@ type LineItemInput = Omit<
 > & { id?: number };
 
 export type EstimatePatch = {
-  status?: "draft" | "sent" | "approved" | "declined";
+  status?: EstimateStatus;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemInput[];
@@ -221,8 +222,6 @@ function estimateSearchWhere(q: string): Prisma.EstimateWhereInput | null {
   if (n !== null) or.push({ estimateNumber: n });
   return { OR: or };
 }
-
-const ESTIMATE_STATUSES = ["draft", "sent", "approved", "declined"] as const;
 
 export async function listEstimates(
   orgId: string,

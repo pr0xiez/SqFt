@@ -135,7 +135,25 @@ describe("listEstimates (paginated)", () => {
       all: 5,
       draft: 2,
       sent: 0,
+      viewed: 0,
       approved: 3,
+      declined: 0,
+    });
+  });
+
+  it("counts a 'viewed' row in its own facet, not just 'all' (regression)", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(1);
+    estimateGroupBy.mockResolvedValue([
+      { status: "viewed", _count: { _all: 1 } },
+    ]);
+    const res = await listEstimates("org1", baseParams);
+    expect(res.facets).toEqual({
+      all: 1,
+      draft: 0,
+      sent: 0,
+      viewed: 1,
+      approved: 0,
       declined: 0,
     });
   });

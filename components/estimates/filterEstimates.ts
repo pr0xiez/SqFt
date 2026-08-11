@@ -1,9 +1,11 @@
-export type EstimateStatusFilter =
-  | "all"
-  | "draft"
-  | "sent"
-  | "approved"
-  | "declined";
+import { ESTIMATE_STATUSES, type EstimateStatus } from "@/lib/estimateStatus";
+
+export type EstimateStatusFilter = "all" | EstimateStatus;
+
+export const ESTIMATE_STATUS_FILTERS = [
+  "all",
+  ...ESTIMATE_STATUSES,
+] as const satisfies readonly EstimateStatusFilter[];
 
 export type EstimateFilterInput = {
   id: number;

@@ -51,19 +51,19 @@ describe("approveEstimateByToken — sibling auto-decline", () => {
     const result = await approveEstimateByToken(baseInput);
 
     expect(result).toBe("ok");
-    // sibling sweep updateMany
+    // sibling sweep updateMany — driven off the ids collected by the earlier
+    // findMany, not a re-stated siteMeasureId/status where.
     const siblingCall = tx.estimate.updateMany.mock.calls.find(
       (c: unknown[]) =>
         // biome-ignore lint/suspicious/noExplicitAny: test inspect
-        (c[0] as any).where?.id?.not === 7
+        (c[0] as any).where?.id?.in !== undefined
     );
     expect(siblingCall).toBeTruthy();
     // biome-ignore lint/suspicious/noExplicitAny: test inspect
     const where = (siblingCall as any[])[0].where;
     // biome-ignore lint/suspicious/noExplicitAny: test inspect
     const data = (siblingCall as any[])[0].data;
-    expect(where.siteMeasureId).toBe(42);
-    expect(where.status).toEqual({ in: ["draft", "sent", "viewed"] });
+    expect(where.id.in).toEqual([8, 9]);
     expect(data.status).toBe("declined");
     expect(data.declineReason).toMatch(
       /^Superseded — customer approved Estimate #5002/
@@ -96,13 +96,16 @@ describe("approveEstimateByToken — sibling auto-decline", () => {
 
     await approveEstimateByToken(baseInput);
 
-    // updateMany still called, but with an empty in-scope set
+    // updateMany still called, but with an empty in-scope set — `id: { in: [] }`
+    // matches no rows, so this is a safe no-op.
     const siblingCall = tx.estimate.updateMany.mock.calls.find(
       (c: unknown[]) =>
         // biome-ignore lint/suspicious/noExplicitAny: test inspect
-        (c[0] as any).where?.id?.not === 7
+        (c[0] as any).where?.id?.in !== undefined
     );
     expect(siblingCall).toBeTruthy();
+    // biome-ignore lint/suspicious/noExplicitAny: test inspect
+    expect((siblingCall as any[])[0].where.id.in).toEqual([]);
     expect(tx.estimateEvent.createMany).not.toHaveBeenCalled();
   });
 });

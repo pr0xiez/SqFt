@@ -1,10 +1,7 @@
 // lib/dashboard/kpis.ts
 
 import { computeEstimateView } from "@/lib/estimateView/compute";
-import {
-  fromPrismaEstimate,
-  type PrismaEstimateForView,
-} from "@/lib/estimateView/fromPrisma";
+import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
 import { prisma } from "@/lib/prisma";
 
 export interface DashboardKpis {
@@ -142,15 +139,14 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     }),
   ]);
 
-  const bookedRevenueMtd = (acceptedMtd as PrismaEstimateForView[]).reduce(
-    (sum: number, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
+  const bookedRevenueMtd = acceptedMtd.reduce(
+    (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
     0
   );
   const bookedRevenueDelta =
     bookedRevenueMtd -
-    (acceptedLastMonthSamePeriod as PrismaEstimateForView[]).reduce(
-      (sum: number, q) =>
-        sum + computeEstimateView(fromPrismaEstimate(q)).total,
+    acceptedLastMonthSamePeriod.reduce(
+      (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
       0
     );
 

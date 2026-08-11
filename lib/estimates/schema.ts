@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ESTIMATE_STATUSES } from "@/lib/estimateStatus";
 import { QTY_MODE_VALUES, QtyMode } from "@/lib/utils";
 
 const lineItemSchema = z.object({
@@ -19,7 +20,7 @@ export const estimateCreateSchema = z.object({
 });
 
 export const estimateUpdateSchema = z.object({
-  status: z.enum(["draft", "sent", "approved", "declined"]).optional(),
+  status: z.enum(ESTIMATE_STATUSES).optional(),
   markupPct: z.number().min(0).optional(),
   depositPct: z.number().min(0).max(1).optional(),
   lineItems: z.array(lineItemSchema).optional(),

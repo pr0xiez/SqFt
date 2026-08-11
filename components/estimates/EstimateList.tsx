@@ -20,6 +20,7 @@ const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "draft", label: "Draft" },
   { value: "sent", label: "Sent" },
+  { value: "viewed", label: "Viewed" },
   { value: "approved", label: "Approved" },
   { value: "declined", label: "Declined" },
 ];
@@ -27,6 +28,7 @@ const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
 const STATUS_PILL_COLOR: Record<string, string> = {
   draft: "text-[var(--muted)]",
   sent: "text-[var(--gold)]",
+  viewed: "text-[var(--gold)]",
   approved: "text-[var(--sage)]",
   declined: "text-[var(--accent)]",
 };
@@ -93,6 +95,7 @@ export function EstimateListView() {
     all: facets.all ?? 0,
     draft: facets.draft ?? 0,
     sent: facets.sent ?? 0,
+    viewed: facets.viewed ?? 0,
     approved: facets.approved ?? 0,
     declined: facets.declined ?? 0,
   } as Record<EstimateStatusFilter, number>;
