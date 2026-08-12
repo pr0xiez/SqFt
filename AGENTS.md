@@ -109,8 +109,13 @@ with the file that owns it.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
   `validateUserIds`).
-- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
+- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …), plus a
+  couple of plain DOM hooks (`useFocusTrap`, `useScrollLock` — nest-safe,
+  ref-counted body scroll lock) shared by `Modal`/`SlidePanel`.
 - `lib/email/` — React-Email templates + Resend senders.
+- `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
+  `generateToken()` output) and `trackPublicView`, the shared status-gated
+  view-tracking spine used by `estimate-review`/`invoice-review`.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,
