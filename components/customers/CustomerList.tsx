@@ -98,7 +98,7 @@ export function CustomerListView() {
     defaultSort: { key: "createdAt", direction: "desc" },
   });
 
-  const { data, isLoading } = useCustomers({
+  const { data, isLoading, isError, refetch } = useCustomers({
     page,
     perPage,
     sort: sort?.key ?? "createdAt",
@@ -272,6 +272,15 @@ export function CustomerListView() {
         {isLoading ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Loading…
+          </div>
+        ) : isError ? (
+          <div className="p-6 flex flex-col items-start gap-2.5">
+            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
+              Something went wrong loading customers.
+            </div>
+            <Button variant="default" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
           </div>
         ) : total === 0 ? (
           <EmptyState noun="customer" query={query} />
