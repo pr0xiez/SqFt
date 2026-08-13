@@ -15,7 +15,8 @@ export const QUERY_CACHE_KEY = "sqft-query-cache";
  * already-written sensitive data would sit in localStorage until its 24h
  * `maxAge` expired on its own.
  */
-export const QUERY_CACHE_BUSTER = "2026-08-never-persist-invoices-customers-users";
+export const QUERY_CACHE_BUSTER =
+  "2026-08-never-persist-invoices-customers-users";
 
 /**
  * Query keys that must never be written to localStorage.

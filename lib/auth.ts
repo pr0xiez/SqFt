@@ -1,8 +1,8 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { authenticateCredentials } from "@/lib/auth/login";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { prisma } from "@/lib/prisma";
 
@@ -50,23 +50,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const { email, password } = parsed.data;
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
-
-        if (!user) return null;
-        if (user.archived) return null;
-
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return null;
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          orgId: user.orgId,
-          role: user.role,
-        };
+        // Returns null for every failure case — unknown email, archived,
+        // locked, or wrong password — so the client can't distinguish them
+        // (see lib/auth/login.ts for the lockout mechanics).
+        return authenticateCredentials(email, password);
       },
     }),
   ],

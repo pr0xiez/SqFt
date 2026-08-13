@@ -51,7 +51,7 @@ const mockHandleStripeEvent = vi.mocked(handleStripeEvent);
 const EVENT = {
   id: "evt_test_123",
   type: "checkout.session.completed",
-} as never;
+};
 
 function postRequest() {
   return makeRequest("POST", "http://localhost/api/webhooks/stripe", "{}");
@@ -63,7 +63,7 @@ describe("POST /api/webhooks/stripe", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
-    mockConstructStripeEvent.mockReturnValue(EVENT);
+    mockConstructStripeEvent.mockReturnValue(EVENT as never);
   });
 
   afterAll(() => {

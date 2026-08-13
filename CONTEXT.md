@@ -27,6 +27,11 @@ A user has a `role` (`admin | lead | crew`) and an optional free-text `title`
 to calendar Events; the schedule's crew picker and `/api/users/assignable` are
 sourced from active users. `User.archived` **deactivates** a person: they can't
 log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
+Credential login also enforces a DB-backed lockout: `User.failedLoginCount` /
+`lockedUntil` (`lib/auth/login.ts`, `authenticateCredentials`) reject a locked
+account before bcrypt runs and lock after 5 consecutive failures for 15
+minutes; every failure path returns the same generic result so the client
+can't tell "no such user" from "locked" from "wrong password".
 Events link assigned users via the `Event.assignees` relation
 (`eventRepo` `assigneeIds: string[]`). People are managed on the admin
 **Members** page (`/settings/members`) — role, title, archive/restore — for
