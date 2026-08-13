@@ -67,8 +67,15 @@ export async function POST(req: Request) {
         };
       },
     });
-  } catch (_err) {
+  } catch (err) {
     // Returning 500 makes Stripe retry — acceptable since handling is idempotent.
+    // Still log here: this route isn't wrapped in apiRoute, so none of the
+    // usual wrapHandler/instrumentation logging sees this error otherwise.
+    logError({
+      path: "api/webhooks/stripe",
+      errorMessage: `Stripe event ${event.id} (${event.type}) handling failed`,
+      err,
+    });
     return new NextResponse("handler error", { status: 500 });
   }
   return new NextResponse(null, { status: 200 });
