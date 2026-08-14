@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeEstimateBilling, prorateInvoice } from "@/lib/invoices/compute";
+import {
+  computeEstimateBilling,
+  invoiceOutstanding,
+  isInvoiceOverdue,
+  paymentsPaidTotal,
+  prorateInvoice,
+} from "@/lib/invoices/compute";
 import type { ProrationSource } from "@/lib/invoices/types";
 
 describe("computeEstimateBilling", () => {
@@ -158,5 +164,67 @@ describe("prorateInvoice", () => {
     const sum = out.lines.reduce((s, l) => s + l.amount, 0);
     expect(Math.round(sum * 100) / 100).toBe(4000);
     expect(out.total).toBe(4000);
+  });
+});
+
+describe("paymentsPaidTotal", () => {
+  it("sums payment amounts", () => {
+    expect(paymentsPaidTotal([{ amount: 100 }, { amount: 50.5 }])).toBe(150.5);
+  });
+
+  it("returns 0 for no payments", () => {
+    expect(paymentsPaidTotal([])).toBe(0);
+  });
+});
+
+describe("invoiceOutstanding", () => {
+  it("subtracts paid total from the invoice amount, rounded to cents", () => {
+    expect(
+      invoiceOutstanding({
+        amount: 1000,
+        payments: [{ amount: 250 }, { amount: 100 }],
+      })
+    ).toBe(650);
+  });
+
+  it("equals the full amount when there are no payments", () => {
+    expect(invoiceOutstanding({ amount: 1000, payments: [] })).toBe(1000);
+  });
+});
+
+describe("isInvoiceOverdue", () => {
+  it("is false for a non-open status even with a past due date", () => {
+    expect(isInvoiceOverdue({ status: "draft", dueDate: "2000-01-01" })).toBe(
+      false
+    );
+    expect(isInvoiceOverdue({ status: "paid", dueDate: "2000-01-01" })).toBe(
+      false
+    );
+  });
+
+  it("is false for an open status with no due date", () => {
+    expect(isInvoiceOverdue({ status: "sent", dueDate: null })).toBe(false);
+  });
+
+  it("is false on the due date itself, true the day after (end-of-day boundary)", () => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, "0");
+    const d = String(today.getDate()).padStart(2, "0");
+    expect(
+      isInvoiceOverdue({ status: "sent", dueDate: `${y}-${m}-${d}` })
+    ).toBe(false);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yy = yesterday.getFullYear();
+    const ym = String(yesterday.getMonth() + 1).padStart(2, "0");
+    const yd = String(yesterday.getDate()).padStart(2, "0");
+    expect(
+      isInvoiceOverdue({
+        status: "partial",
+        dueDate: `${yy}-${ym}-${yd}`,
+      })
+    ).toBe(true);
   });
 });

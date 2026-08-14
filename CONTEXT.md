@@ -243,8 +243,14 @@ reusing the React-Email + Resend flow. On send, the invoice freezes a
 document can never drift from later estimate edits; the public page renders
 from that snapshot and flips `sent → viewed` on first open. **Balance due is
 the exception**: both the public page and the builder's `InvoiceDetail`
-compute it live from the payments ledger (`amount − Σ payments`) — a
-partially-paid invoice must never show the full amount as still owed.
+compute it live from the payments ledger via `paymentsPaidTotal` /
+`invoiceOutstanding` (`lib/invoices/compute.ts`, re-exported from
+`lib/invoices`) — `amount − Σ payments`, rounded with `round2` — the one
+place that sums a payments array and rounds the outstanding balance, so a
+partially-paid invoice never shows the full amount as still owed and no UI
+surface hand-rolls its own `Math.round`. The list view's overdue rule (open
+status + elapsed due date) is likewise centralized as `isInvoiceOverdue` in
+the same file.
 
 Homeowners pay the exact invoice balance via a Stripe-hosted **Checkout
 Session** created on the org's Stripe Connect account (direct charge; the
@@ -332,7 +338,10 @@ Invoice status values: `draft | sent | viewed | partial | paid | void`.
 group — `sent + viewed + partial` ("sent but not fully paid") — is the
 second pill and is defined once as `OPEN_INVOICE_STATUSES` in
 `components/invoices/filterInvoices.ts`. Each row carries a computed
-`balanceDue` (amount − recorded payments). Facet counts are org-wide and
+`balanceDue` (amount − recorded payments). The list's overdue rule (open
+status + a due date whose day has fully elapsed) is the shared
+`isInvoiceOverdue` (`lib/invoices/compute.ts`), so `InvoiceList` doesn't carry
+its own copy of the date-boundary logic. Facet counts are org-wide and
 ignore the active filter/search.
 
 **Builder UI.** The estimate page's `InvoicesSection`
