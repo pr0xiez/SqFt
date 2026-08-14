@@ -101,7 +101,8 @@ export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      await fetch(`/api/events/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/events/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete event");
     },
     onSuccess: () => invalidateEventQueries(qc),
   });
