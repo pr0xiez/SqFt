@@ -353,6 +353,9 @@ export async function listEstimatesForSiteMeasure(
   return prisma.estimate.findMany({
     where: { orgId, siteMeasureId },
     orderBy: { createdAt: "desc" },
+    // A site measure accrues at most one estimate per revision; 200 is a
+    // generous ceiling against runaway revision chains.
+    take: 200,
     include: {
       siteMeasure: {
         select: {

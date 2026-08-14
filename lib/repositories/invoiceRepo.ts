@@ -104,6 +104,7 @@ export async function listInvoicesForEstimate(
     where: { orgId, estimateId },
     orderBy: { createdAt: "asc" },
     include: INVOICE_INCLUDE,
+    take: 200,
   });
 }
 

@@ -24,6 +24,7 @@ export function listUsers(
     where: { orgId, ...(opts.includeArchived ? {} : { archived: false }) },
     select: USER_SELECT,
     orderBy: { createdAt: "asc" },
+    take: 200,
   });
 }
 
