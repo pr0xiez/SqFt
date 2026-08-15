@@ -1,7 +1,7 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { assertDeletable } from "@/lib/repositories/deleteGuards";
 import { searchableInt } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 import type { RoomSegment } from "@/lib/utils";
@@ -304,14 +304,7 @@ export async function deleteSiteMeasure(
   orgId: string
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const eventCount = await tx.event.count({
-      where: { orgId, estimate: { siteMeasureId: id } },
-    });
-    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
-    const invoiceCount = await tx.invoice.count({
-      where: { orgId, estimate: { siteMeasureId: id } },
-    });
-    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
+    await assertDeletable(tx, orgId, { estimate: { siteMeasureId: id } });
     const result = await tx.siteMeasure.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });

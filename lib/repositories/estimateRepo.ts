@@ -1,10 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
-import {
-  EstimateHasEventsError,
-  EstimateLockedError,
-  HasInvoicesError,
-} from "@/lib/api/errors";
+import { EstimateLockedError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
@@ -12,6 +8,7 @@ import {
   type InvoiceableCandidate,
   toInvoiceableCandidates,
 } from "@/lib/quickCreate/candidates";
+import { assertDeletable } from "@/lib/repositories/deleteGuards";
 import { searchableInt } from "@/lib/repositories/search";
 import {
   type SchedulableCandidate,
@@ -498,14 +495,7 @@ export async function deleteEstimate(
   orgId: string
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const eventCount = await tx.event.count({
-      where: { orgId, estimateId: id },
-    });
-    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
-    const invoiceCount = await tx.invoice.count({
-      where: { orgId, estimateId: id },
-    });
-    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
+    await assertDeletable(tx, orgId, { estimateId: id });
     const result = await tx.estimate.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });

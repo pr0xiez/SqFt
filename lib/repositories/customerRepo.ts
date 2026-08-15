@@ -1,7 +1,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
-import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { assertDeletable } from "@/lib/repositories/deleteGuards";
 import type { SortDirection } from "@/lib/sort";
 
 const LIST_ESTIMATE_SELECT = {
@@ -298,17 +298,9 @@ export async function deleteCustomer(
   orgId: string
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const descendantEstimates = {
+    await assertDeletable(tx, orgId, {
       estimate: { siteMeasure: { location: { customerId: id } } },
-    };
-    const eventCount = await tx.event.count({
-      where: { orgId, ...descendantEstimates },
     });
-    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
-    const invoiceCount = await tx.invoice.count({
-      where: { orgId, ...descendantEstimates },
-    });
-    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
     const result = await tx.customer.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });
