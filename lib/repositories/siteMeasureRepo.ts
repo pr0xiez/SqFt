@@ -2,7 +2,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { assertDeletable } from "@/lib/repositories/deleteGuards";
-import { searchableInt } from "@/lib/repositories/search";
+import { buildSearchWhere } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 import type { RoomSegment } from "@/lib/utils";
 
@@ -118,18 +118,14 @@ function siteMeasureOrderBy(
 function siteMeasureSearchWhere(
   q: string
 ): Prisma.SiteMeasureWhereInput | null {
-  const cleaned = q.trim().replace(/^#/, "");
-  if (cleaned.length === 0) return null;
-  const or: Prisma.SiteMeasureWhereInput[] = [
-    {
+  return buildSearchWhere<Prisma.SiteMeasureWhereInput>(q, {
+    customerName: (cleaned) => ({
       location: {
         customer: { name: { contains: cleaned, mode: "insensitive" } },
       },
-    },
-  ];
-  const n = searchableInt(cleaned);
-  if (n !== null) or.push({ siteMeasureNumber: n });
-  return { OR: or };
+    }),
+    number: (n) => ({ siteMeasureNumber: n }),
+  });
 }
 
 export async function listSiteMeasures(
