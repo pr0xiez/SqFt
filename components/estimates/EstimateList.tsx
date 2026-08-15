@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -13,6 +12,7 @@ import { cn } from "@/lib/cn";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
+import type { EstimateStatusFilter } from "@/lib/repositories/estimateRepo";
 import { cycleSort } from "@/lib/sort";
 import { fmtBig } from "@/lib/utils";
 

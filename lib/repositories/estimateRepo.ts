@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
-import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import {
   EstimateHasEventsError,
   EstimateLockedError,
@@ -176,6 +175,13 @@ export type EstimateSortKey =
   | "total"
   | "status"
   | "date";
+
+export type EstimateStatusFilter =
+  | "all"
+  | "draft"
+  | "sent"
+  | "approved"
+  | "declined";
 
 export interface ListEstimatesParams {
   page: number;
