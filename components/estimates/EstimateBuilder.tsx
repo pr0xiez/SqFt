@@ -168,7 +168,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
         estimateNumber={estimate.estimateNumber}
         orgName={estimate.org?.name ?? ""}
         customerEmail={estimate.siteMeasure.location?.customer?.email ?? null}
-        hasToken={Boolean(estimate.approvalToken)}
+        hasToken={estimate.hasApprovalToken}
         open={sendDialogOpen}
         onClose={() => setSendDialogOpen(false)}
       />

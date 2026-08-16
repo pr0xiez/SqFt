@@ -97,7 +97,11 @@ export interface InvoiceDetail {
   paymentInstructions: string;
   date: string;
   dueDate: string | null;
-  publicToken: string | null;
+  /** The public review token is never sent to the client (CWE-201/522: it's
+   *  a bearer credential for the unauthenticated invoice-review payment
+   *  flow). Use `useInvoicePublicToken` to mint/read one when actually
+   *  needed (the "copy public link" action). */
+  hasPublicToken: boolean;
   sentAt: string | null;
   sentToEmail: string | null;
   customerEmail: string | null;
@@ -177,6 +181,23 @@ export function useCreateInvoice(estimateId: number) {
       qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
       qc.invalidateQueries({ queryKey: ["estimates", estimateId] });
       qc.invalidateQueries({ queryKey: ["invoices", "list"] });
+    },
+  });
+}
+
+/** Rotate (or mint, if none exists) the invoice's public review token — the
+ *  one sanctioned way to read a live token value, since the invoice detail
+ *  payload never carries it. Used by the "copy public link" action. */
+export function useInvoicePublicToken(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<{ publicToken: string }> =>
+      jsonOrThrow<{ publicToken: string }>(
+        await fetch(`/api/invoices/${id}/public-token`, { method: "POST" }),
+        "Failed to generate link"
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices", id] });
     },
   });
 }

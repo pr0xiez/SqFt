@@ -383,6 +383,32 @@ adapter's functions — so the spine's ordering/error tests
 database. Routes are thin: parse input, resolve the sender (`requireSender`,
 `lib/send/sender.ts`), call `sendEstimate` / `sendInvoice`.
 
+### Public tokens
+
+`Estimate.approvalToken` and `Invoice.publicToken` are the **sole**
+authentication factor for the unauthenticated `/estimate-review/[token]` and
+`/invoice-review/[token]` pages — a live bearer credential capable of
+one-click approval / payment on the customer's behalf. They must never appear
+in a payload an authenticated API route returns to the browser: the repo
+`select` constants behind the authenticated reads (`ESTIMATE_LIST_SELECT`,
+`ESTIMATE_DETAILS_SELECT`, `INVOICE_SELECT`/`INVOICE_DETAIL_SELECT` in
+`lib/repositories/{estimate,invoice}Repo.ts`) deliberately enumerate every
+scalar column *except* the token, rather than `include`-ing it and stripping
+it back out downstream. The only sanctioned reads of the live value are:
+`rotateApprovalToken` / `rotateInvoiceToken` (always mint a fresh token — used
+internally by the send pipeline's mint-if-missing `currentToken`/`rotateToken`
+flow, `lib/send/pipeline.ts`), `getOrCreateInvoicePublicToken` (reuses the
+existing token if there is one, minting only if missing — mirrors that same
+pipeline semantics; backs `POST /api/invoices/[id]/public-token`, the
+"copy public link" action, so repeated clicks don't invalidate a link already
+shared with the customer) / the equivalent `POST /api/estimates/[id]/approval-token`
+route, and `getEstimateForSend` (`lib/repositories/estimateRepo.ts`, a
+server-only include used solely by `lib/send/sendEstimate.ts` — its result is
+never returned from an API route). A detail payload instead carries a
+`hasApprovalToken` / `hasPublicToken` boolean (`estimateHasApprovalToken` /
+`invoiceHasPublicToken`) for UI affordances that only need to know whether a
+link exists yet, not what it is.
+
 ## Quick Create
 
 A global **"+ New" launcher** (sidebar + mobile drawer, lead+ only) opens a

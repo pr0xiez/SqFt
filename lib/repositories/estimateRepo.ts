@@ -60,9 +60,72 @@ const REVISED_PAIR_SELECT = {
   revisedBy: { select: { id: true, estimateNumber: true } },
 } satisfies Prisma.EstimateInclude;
 
-/** Full estimate-with-details include used by the builder reads
- *  (getEstimate / createEstimate / saveEstimate). */
-const ESTIMATE_DETAILS_INCLUDE = {
+/** Scalar fields of Estimate returned by the builder reads and the org-wide
+ *  list — every column EXCEPT `approvalToken`. `approvalToken` is a live
+ *  bearer credential for the unauthenticated `/estimate-review/[token]`
+ *  approval flow (one-click POST, no other auth factor); it must never ride
+ *  along in a payload an authenticated API route hands back to the browser.
+ *  The only sanctioned reads of it are `rotateApprovalToken` (returns a
+ *  freshly-minted token to the lead who explicitly requested one) and
+ *  `getEstimateForSend` (server-only, feeds the send pipeline, never
+ *  serialized to a client). See CONTEXT.md "Public tokens". */
+const ESTIMATE_SCALAR_SELECT = {
+  id: true,
+  orgId: true,
+  siteMeasureId: true,
+  estimateNumber: true,
+  status: true,
+  date: true,
+  markupPct: true,
+  depositPct: true,
+  terms: true,
+  validityDays: true,
+  sentAt: true,
+  sentToEmail: true,
+  sentByEmail: true,
+  sentByName: true,
+  viewedAt: true,
+  approvedAt: true,
+  declinedAt: true,
+  declineReason: true,
+  createdAt: true,
+  total: true,
+  revisedFromId: true,
+} satisfies Prisma.EstimateSelect;
+
+/** Full estimate-with-details select used by the builder reads
+ *  (getEstimate / createEstimate / saveEstimate) and returned directly by
+ *  their API routes — deliberately a `select`, not an `include`, so adding a
+ *  sensitive scalar (like `approvalToken`) to the model doesn't silently
+ *  start round-tripping it to the browser. */
+const ESTIMATE_DETAILS_SELECT = {
+  ...ESTIMATE_SCALAR_SELECT,
+  siteMeasure: {
+    include: {
+      location: { include: { customer: true } },
+      items: { orderBy: { sortOrder: "asc" } },
+    },
+  },
+  lineItems: { orderBy: { sortOrder: "asc" } },
+  org: { select: { name: true, defaultDepositPct: true } },
+  estimateEvents: {
+    where: { type: "declined" },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  },
+  ...REVISED_PAIR_SELECT,
+} satisfies Prisma.EstimateSelect;
+
+/**
+ * Include used internally by the send pipeline (`getEstimateForSend`), which
+ * needs the live `approvalToken` to decide whether to rotate before mailing
+ * a fresh review link. Shape mirrors `ESTIMATE_DETAILS_SELECT` but as a plain
+ * `include` (so it does carry the token) — safe ONLY because its one caller,
+ * `lib/send/sendEstimate.ts`, never returns the loaded doc to the client (the
+ * send route responds `{ ok: true }`). Do not reuse this include anywhere a
+ * result is returned from an API route.
+ */
+const ESTIMATE_SEND_INCLUDE = {
   siteMeasure: {
     include: {
       location: { include: { customer: true } },
@@ -106,7 +169,8 @@ const ESTIMATE_PUBLIC_INCLUDE = {
   approval: true,
 } satisfies Prisma.EstimateInclude;
 
-const ESTIMATE_LIST_INCLUDE = {
+const ESTIMATE_LIST_SELECT = {
+  ...ESTIMATE_SCALAR_SELECT,
   siteMeasure: {
     select: {
       id: true,
@@ -123,34 +187,43 @@ const ESTIMATE_LIST_INCLUDE = {
   },
   lineItems: { orderBy: { sortOrder: "asc" } },
   _count: { select: { lineItems: true } },
-} satisfies Prisma.EstimateInclude;
+} satisfies Prisma.EstimateSelect;
 
 export type EstimateWithSiteMeasureSummary = Prisma.EstimateGetPayload<{
-  include: typeof ESTIMATE_LIST_INCLUDE;
+  select: typeof ESTIMATE_LIST_SELECT;
 }>;
+
+const ESTIMATE_SITE_MEASURE_SUMMARY_NARROW_SELECT = {
+  ...ESTIMATE_SCALAR_SELECT,
+  siteMeasure: {
+    select: {
+      id: true,
+      siteMeasureNumber: true,
+      location: {
+        select: {
+          id: true,
+          address: true,
+          customer: { select: { id: true, name: true } },
+        },
+      },
+    },
+  },
+  _count: { select: { lineItems: true } },
+} satisfies Prisma.EstimateSelect;
 
 /** Narrower payload used by listEstimatesForSiteMeasure — no lineItems or siteMeasure.items needed there. */
 export type EstimateWithSiteMeasureSummaryNarrow = Prisma.EstimateGetPayload<{
-  include: {
-    siteMeasure: {
-      select: {
-        id: true;
-        siteMeasureNumber: true;
-        location: {
-          select: {
-            id: true;
-            address: true;
-            customer: { select: { id: true; name: true } };
-          };
-        };
-      };
-    };
-    _count: { select: { lineItems: true } };
-  };
+  select: typeof ESTIMATE_SITE_MEASURE_SUMMARY_NARROW_SELECT;
 }>;
 
 export type EstimateWithDetails = Prisma.EstimateGetPayload<{
-  include: typeof ESTIMATE_DETAILS_INCLUDE;
+  select: typeof ESTIMATE_DETAILS_SELECT;
+}>;
+
+/** Server-only payload for the send pipeline — carries `approvalToken`.
+ *  See {@link ESTIMATE_SEND_INCLUDE}; never return this from an API route. */
+export type EstimateForSend = Prisma.EstimateGetPayload<{
+  include: typeof ESTIMATE_SEND_INCLUDE;
 }>;
 
 export type EstimateWithPublicView = Prisma.EstimateGetPayload<{
@@ -239,7 +312,7 @@ export async function listEstimates(
       orderBy: estimateOrderBy(params.sort),
       skip: (params.page - 1) * params.perPage,
       take: params.perPage,
-      include: ESTIMATE_LIST_INCLUDE,
+      select: ESTIMATE_LIST_SELECT,
     }),
     prisma.estimate.count({ where }),
     prisma.estimate.groupBy({
@@ -353,22 +426,7 @@ export async function listEstimatesForSiteMeasure(
   return prisma.estimate.findMany({
     where: { orgId, siteMeasureId },
     orderBy: { createdAt: "desc" },
-    include: {
-      siteMeasure: {
-        select: {
-          id: true,
-          siteMeasureNumber: true,
-          location: {
-            select: {
-              id: true,
-              address: true,
-              customer: { select: { id: true, name: true } },
-            },
-          },
-        },
-      },
-      _count: { select: { lineItems: true } },
-    },
+    select: ESTIMATE_SITE_MEASURE_SUMMARY_NARROW_SELECT,
   });
 }
 
@@ -378,7 +436,19 @@ export async function getEstimate(
 ): Promise<EstimateWithDetails | null> {
   return prisma.estimate.findFirst({
     where: { id, orgId },
-    include: ESTIMATE_DETAILS_INCLUDE,
+    select: ESTIMATE_DETAILS_SELECT,
+  });
+}
+
+/** Server-only load for the send pipeline — see {@link ESTIMATE_SEND_INCLUDE}.
+ *  Do not return this value from an API route (it carries `approvalToken`). */
+export async function getEstimateForSend(
+  id: number,
+  orgId: string
+): Promise<EstimateForSend | null> {
+  return prisma.estimate.findFirst({
+    where: { id, orgId },
+    include: ESTIMATE_SEND_INCLUDE,
   });
 }
 
@@ -423,7 +493,7 @@ export async function createEstimate(
 
     return tx.estimate.findFirst({
       where: { id: created.id, orgId },
-      include: ESTIMATE_DETAILS_INCLUDE,
+      select: ESTIMATE_DETAILS_SELECT,
     });
   });
 }
@@ -470,7 +540,7 @@ export async function saveEstimate(
 
     const result = await tx.estimate.findFirst({
       where: { id, orgId },
-      include: ESTIMATE_DETAILS_INCLUDE,
+      select: ESTIMATE_DETAILS_SELECT,
     });
     if (!result) return null;
 
@@ -519,6 +589,24 @@ export async function rotateApprovalToken(
     data: { approvalToken: token },
   });
   return result.count > 0 ? token : null;
+}
+
+/**
+ * Whether the estimate currently has a live approval token — collapsed to a
+ * boolean before it ever leaves the server, so the "regenerate link" UI
+ * affordance doesn't require exposing `approvalToken` itself. Returns false
+ * for an estimate outside the org (matches the null-object pattern other
+ * reads use rather than throwing).
+ */
+export async function estimateHasApprovalToken(
+  id: number,
+  orgId: string
+): Promise<boolean> {
+  const row = await prisma.estimate.findFirst({
+    where: { id, orgId },
+    select: { approvalToken: true },
+  });
+  return Boolean(row?.approvalToken);
 }
 
 /**

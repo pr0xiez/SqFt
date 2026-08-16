@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
-  getEstimate: vi.fn(),
+  getEstimateForSend: vi.fn(),
   rotateApprovalToken: vi.fn(),
   markEstimateSent: vi.fn(),
   writeEstimateEvent: vi.fn(),
@@ -34,7 +34,7 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 const {
-  getEstimate,
+  getEstimateForSend,
   rotateApprovalToken,
   markEstimateSent,
   writeEstimateEvent,
@@ -43,7 +43,7 @@ const { requireSession } = await import("@/lib/tenant");
 const { sendEstimateEmail } = await import("@/lib/email/sendEstimateEmail");
 const { POST } = await import("@/app/api/estimates/[id]/send/route");
 
-const mockGetEstimate = vi.mocked(getEstimate);
+const mockGetEstimate = vi.mocked(getEstimateForSend);
 const mockRotate = vi.mocked(rotateApprovalToken);
 const mockMarkSent = vi.mocked(markEstimateSent);
 const mockWriteEvent = vi.mocked(writeEstimateEvent);

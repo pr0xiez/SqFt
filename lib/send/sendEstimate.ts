@@ -6,22 +6,22 @@ import {
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { prisma } from "@/lib/prisma";
 import {
-  getEstimate,
+  getEstimateForSend,
   markEstimateSent,
   rotateApprovalToken,
   writeEstimateEvent,
 } from "@/lib/repositories";
-import type { EstimateWithDetails } from "@/lib/repositories/estimateRepo";
+import type { EstimateForSend } from "@/lib/repositories/estimateRepo";
 import { runSendPipeline, type Sendable, type SendRequest } from "./pipeline";
 
 export type EstimateSendRequest = SendRequest & { message?: string };
 
 const estimateSendable: Sendable<
-  EstimateWithDetails,
+  EstimateForSend,
   SendEstimateEmailInput,
   EstimateSendRequest
 > = {
-  load: getEstimate,
+  load: getEstimateForSend,
 
   guard(estimate) {
     if (estimate.status === "approved" || estimate.status === "declined") {
