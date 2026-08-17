@@ -159,4 +159,67 @@ describe("prorateInvoice", () => {
     expect(Math.round(sum * 100) / 100).toBe(4000);
     expect(out.total).toBe(4000);
   });
+
+  it("never NaNs on a $0 (fully-discounted) estimate — the zero-total guard short-circuits the ratio", () => {
+    // Every line is RESOLVED (qty known) but priced at $0 — e.g. a 100%
+    // discounted estimate. estimateTotal is 0, so `amount / estimateTotal`
+    // would be 0/0 = NaN without the `estimateTotal === 0` guard.
+    const freeEstimate: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: 1, subtotal: 0 },
+          { id: 2, effectiveQty: 2, subtotal: 0 },
+        ],
+        subtotal: 0,
+        markup: 0,
+        total: 0,
+        deposit: 0,
+        hasUnresolvedLines: false,
+      },
+      lineMeta: [
+        { id: 1, name: "Carpet Tear Out", description: null },
+        { id: 2, name: "RED OAK", description: null },
+      ],
+    };
+    const out = prorateInvoice(freeEstimate, 0);
+    expect(Number.isNaN(out.ratio)).toBe(false);
+    expect(out.ratio).toBe(0);
+    for (const line of out.lines) {
+      expect(Number.isNaN(line.amount)).toBe(false);
+      expect(line.amount).toBe(0);
+    }
+    expect(Number.isNaN(out.total)).toBe(false);
+    expect(out.total).toBe(0);
+  });
+
+  it("never NaNs on an all-UNRESOLVED view (every line still unpriced) — total is 0, guard short-circuits", () => {
+    // Every line's qty is unresolved (null), so per computeEstimateView every
+    // line contributes 0 to subtotal, and total is necessarily 0 too. Confirms
+    // the `estimateTotal === 0` guard also covers this shape, not just the
+    // explicit-$0-price case above, and that the resulting breakdown carries
+    // no NaN despite every line being omitted.
+    const allUnresolved: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: null, subtotal: null },
+          { id: 2, effectiveQty: null, subtotal: null },
+        ],
+        subtotal: 0,
+        markup: 0,
+        total: 0,
+        deposit: 0,
+        hasUnresolvedLines: true,
+      },
+      lineMeta: [
+        { id: 1, name: "Carpet Tear Out", description: null },
+        { id: 2, name: "RED OAK", description: null },
+      ],
+    };
+    const out = prorateInvoice(allUnresolved, 0);
+    expect(Number.isNaN(out.ratio)).toBe(false);
+    expect(out.ratio).toBe(0);
+    expect(out.lines).toEqual([]); // both lines omitted, no phantom $0/$NaN rows
+    expect(Number.isNaN(out.total)).toBe(false);
+    expect(out.total).toBe(0);
+  });
 });

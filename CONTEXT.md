@@ -180,7 +180,11 @@ steered onto the largest-priced resolved line by `residualTargetIndex`
 (`lib/money.ts`), so the ±cent never lands on a $0 (free) line or an
 unresolved line. `lib/money.ts` is the shared home for
 `round2` and `residualTargetIndex`, used by both the fold and invoice
-proration.
+proration. `round2` is itself `roundToDecimals(n, 2)` — the generic,
+epsilon-nudged half-up rounder also exported for non-2dp callers;
+`components/ui/DecimalInput` (the shared money/quantity input) commits through
+`roundToDecimals(n, maxDecimals)` so a value's on-blur commit can never
+diverge from what this SSOT math would round it to.
 
 Two customer surfaces consume the fold:
 
