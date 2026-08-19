@@ -5,7 +5,7 @@ vi.mock("@/lib/repositories", () => ({
   getOrgById: vi.fn(),
   listUsers: vi.fn(),
   createUser: vi.fn(),
-  findByEmail: vi.fn(),
+  findByEmailInOrg: vi.fn(),
   updateRole: vi.fn(),
   updateProfile: vi.fn(),
   setArchived: vi.fn(),
@@ -141,24 +141,46 @@ describe("POST /api/admin/orgs/[orgId]/users", () => {
     expect(repos.createUser).not.toHaveBeenCalled();
   });
 
-  it("409 EMAIL_TAKEN when the email exists", async () => {
+  it("409 EMAIL_TAKEN when the email exists in the TARGET org", async () => {
     asSuperAdmin();
     // biome-ignore lint/suspicious/noExplicitAny: partial stub
     vi.mocked(repos.getOrgById).mockResolvedValueOnce({ id: "org1" } as any);
-    vi.mocked(repos.findByEmail).mockResolvedValueOnce(
+    vi.mocked(repos.findByEmailInOrg).mockResolvedValueOnce(
       // biome-ignore lint/suspicious/noExplicitAny: partial stub
       { id: "existing" } as any
     );
     const res = await POST(makeRequest("POST", "http://localhost/", body), p);
     expect(res.status).toBe(409);
     expect((await res.json()).error.code).toBe("EMAIL_TAKEN");
+    // Scoped to the target org (URL param), not the operator's own org (#324).
+    expect(repos.findByEmailInOrg).toHaveBeenCalledWith("org1", "new@org.test");
+  });
+
+  it("does not disclose a cross-org email collision as EMAIL_TAKEN/409 (#324)", async () => {
+    asSuperAdmin();
+    // biome-ignore lint/suspicious/noExplicitAny: partial stub
+    vi.mocked(repos.getOrgById).mockResolvedValueOnce({ id: "org1" } as any);
+    // Not found in the target org...
+    vi.mocked(repos.findByEmailInOrg).mockResolvedValueOnce(null);
+    // ...but createUser rejects because the email collides with a user in a
+    // DIFFERENT org (the DB's global unique constraint) — userRepo.createUser
+    // surfaces that as a generic (non-ApiError) failure, not EmailTakenError.
+    vi.mocked(repos.createUser).mockRejectedValueOnce(
+      new Error("Failed to create user: email conflict")
+    );
+    const res = await POST(makeRequest("POST", "http://localhost/", body), p);
+    expect(res.status).not.toBe(409);
+    const responseBody = await res.json();
+    expect(responseBody.error.code).not.toBe("EMAIL_TAKEN");
+    expect(res.status).toBe(500);
+    expect(responseBody.error.code).toBe("INTERNAL");
   });
 
   it("201 creates the user in the TARGET org with a hashed, lowercased email", async () => {
     asSuperAdmin();
     // biome-ignore lint/suspicious/noExplicitAny: partial stub
     vi.mocked(repos.getOrgById).mockResolvedValueOnce({ id: "org1" } as any);
-    vi.mocked(repos.findByEmail).mockResolvedValueOnce(null);
+    vi.mocked(repos.findByEmailInOrg).mockResolvedValueOnce(null);
     vi.mocked(repos.createUser).mockResolvedValueOnce(
       // biome-ignore lint/suspicious/noExplicitAny: partial stub
       { id: "m2", email: "new@org.test" } as any

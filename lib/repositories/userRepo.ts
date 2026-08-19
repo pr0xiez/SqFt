@@ -39,20 +39,69 @@ export async function createUser(
   orgId: string,
   data: { name: string; email: string; role: string; password: string }
 ): Promise<UserRow> {
-  return prisma.user.create({
-    data: {
-      orgId,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      password: data.password,
-    },
-    select: USER_SELECT,
+  try {
+    return await prisma.user.create({
+      data: {
+        orgId,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        password: data.password,
+      },
+      select: USER_SELECT,
+    });
+  } catch (err) {
+    // Callers are expected to pre-check email availability with
+    // `findByEmailInOrg` (org-scoped), which only rules out a duplicate
+    // *within the caller's own org*. `User.email` is still globally @unique,
+    // so this insert can still collide with a DIFFERENT org's user. Don't
+    // surface the specific EMAIL_TAKEN/409 for that case — doing so would let
+    // an org admin submit arbitrary emails and learn from the response
+    // whether they're registered anywhere on the platform, not just their
+    // own org (cross-tenant registration oracle, see #324). Fall through to
+    // the same generic 500 any other unexpected write failure gets, so the
+    // response is indistinguishable from a transient error.
+    if (isUniqueEmailViolation(err)) {
+      throw new Error("Failed to create user: email conflict");
+    }
+    throw err;
+  }
+}
+
+/**
+ * Org-scoped "is this email already used" check — the one callers creating a
+ * user should use. Deliberately does NOT look outside `orgId`: a global
+ * lookup here is the cross-tenant oracle from #324. A genuine cross-org
+ * collision is still caught at insert time by the DB's global unique
+ * constraint on `email` (see `createUser`'s P2002 handling above).
+ */
+export function findByEmailInOrg(orgId: string, email: string) {
+  return prisma.user.findFirst({
+    where: { email, orgId },
+    select: { id: true },
   });
 }
 
+/**
+ * Global email lookup. Only correct for flows that are inherently
+ * platform-wide, i.e. nothing org-scoped exists yet to check against (e.g.
+ * login, or the pre-flight check when creating a brand-new org's first
+ * admin). Do NOT use this for an "already taken in my org" existence check —
+ * see `findByEmailInOrg`.
+ */
 export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
+}
+
+function isUniqueEmailViolation(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { code?: string; meta?: { target?: string[] | string } };
+  if (e.code !== "P2002") return false;
+  const target = e.meta?.target;
+  if (!target) return false;
+  return Array.isArray(target)
+    ? target.includes("email")
+    : target.includes("email");
 }
 
 export function findUserRow(

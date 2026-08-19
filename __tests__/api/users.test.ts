@@ -30,7 +30,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
 const mockFindMany = vi.mocked(prisma.user.findMany);
-const mockFindUnique = vi.mocked(prisma.user.findUnique);
+const mockFindFirst = vi.mocked(prisma.user.findFirst);
 const mockCreate = vi.mocked(prisma.user.create);
 
 function makeRequest(method = "GET", body?: unknown) {
@@ -151,7 +151,7 @@ describe("POST /api/users", () => {
 
   it("201 creates a user; lowercases email; password is hashed and not returned", async () => {
     asRole("admin");
-    mockFindUnique.mockResolvedValueOnce(null);
+    mockFindFirst.mockResolvedValueOnce(null);
     const created = {
       id: "new1",
       name: "Jane",
@@ -192,10 +192,10 @@ describe("POST /api/users", () => {
     expect(callArg.data.password.startsWith("$2")).toBe(true); // bcrypt signature
   });
 
-  it("409 EMAIL_TAKEN when the email already exists", async () => {
+  it("409 EMAIL_TAKEN when the email already exists in the caller's own org", async () => {
     asRole("admin");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockFindUnique.mockResolvedValueOnce({ id: "existing" } as any);
+    mockFindFirst.mockResolvedValueOnce({ id: "existing" } as any);
 
     const res = await POST(
       makePost({
@@ -211,6 +211,44 @@ describe("POST /api/users", () => {
     const body = await res.json();
     expect(body.error.code).toBe("EMAIL_TAKEN");
     expect(mockCreate).not.toHaveBeenCalled();
+    // The existence check must be scoped to the caller's own org (#324) —
+    // never a bare global lookup by email.
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: "dup@test.dev", orgId: "org1" },
+      })
+    );
+  });
+
+  it("does not disclose a cross-org email collision as EMAIL_TAKEN/409 (#324)", async () => {
+    asRole("admin");
+    // The org-scoped existence check finds nothing in the caller's org...
+    mockFindFirst.mockResolvedValueOnce(null);
+    // ...but the email is registered in a DIFFERENT org, so the DB's global
+    // unique constraint rejects the insert. The response must not be the
+    // distinguishable EMAIL_TAKEN/409 an admin could use as an oracle for
+    // "this email exists somewhere on the platform".
+    const p2002 = Object.assign(new Error("Unique constraint failed"), {
+      code: "P2002",
+      meta: { target: ["email"] },
+    });
+    mockCreate.mockRejectedValueOnce(p2002);
+
+    const res = await POST(
+      makePost({
+        name: "Jane",
+        email: "other-org@test.dev",
+        role: "crew",
+        password: "abcd1234",
+      }),
+      noParams
+    );
+
+    expect(res.status).not.toBe(409);
+    const body = await res.json();
+    expect(body.error.code).not.toBe("EMAIL_TAKEN");
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe("INTERNAL");
   });
 
   it("400 on bad payload (invalid role, short password, bad email)", async () => {

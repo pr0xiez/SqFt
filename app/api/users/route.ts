@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { EmailTakenError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
-import { createUser, findByEmail, listUsers } from "@/lib/repositories";
+import { createUser, findByEmailInOrg, listUsers } from "@/lib/repositories";
 
 export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) =>
   listUsers(orgId, { includeArchived: true })
@@ -20,7 +20,7 @@ const CreateBody = z
 export const POST = apiRoute(
   { minRole: "admin", input: CreateBody, status: 201 },
   async ({ orgId, input }) => {
-    if (await findByEmail(input.email)) throw new EmailTakenError();
+    if (await findByEmailInOrg(orgId, input.email)) throw new EmailTakenError();
     const password = await bcrypt.hash(input.password, 10);
     return createUser(orgId, {
       name: input.name,
