@@ -102,6 +102,10 @@ with the file that owns it.
   status briefly (bounded window, see `PaymentsSettingsView`) instead of going
   silent. The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
+- `lib/request.ts` — low-level HTTP request helpers shared by public routes/
+  pages, currently `getClientIp` (prefers Vercel's platform-populated
+  `x-vercel-forwarded-for`/`x-real-ip` over the spoofable client-supplied
+  `X-Forwarded-For` for audit/view-tracking IPs).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/queryCache.ts` — persisted react-query cache policy (localStorage key,
   buster, the never-persist key list, and the sign-out clear). Consumed by
