@@ -67,6 +67,34 @@ describe("POST /api/estimate-review/[token]/decline", () => {
     expect(res.status).toBe(200);
   });
 
+  it("records the platform-verified IP, ignoring a spoofed x-forwarded-for", async () => {
+    vi.mocked(getEstimateByToken).mockResolvedValue({
+      id: 1,
+      status: "viewed",
+      orgId: "o",
+      estimateNumber: 1,
+      siteMeasure: { customer: { name: "C", email: "c@x.com" } },
+    } as never);
+    vi.mocked(declineEstimateByToken).mockResolvedValue("ok");
+    const res = await POST(
+      makeRequest(
+        "POST",
+        `http://x/api/estimate-review/${validToken}/decline`,
+        { reason: "too expensive" },
+        {
+          "x-forwarded-for": "6.6.6.6",
+          "x-vercel-forwarded-for": "203.0.113.9",
+        }
+      ),
+      params({ token: validToken })
+    );
+    expect(res.status).toBe(200);
+    expect(declineEstimateByToken).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ ip: "203.0.113.9" })
+    );
+  });
+
   it("returns CONFLICT when already approved", async () => {
     vi.mocked(getEstimateByToken).mockResolvedValue({
       id: 1,

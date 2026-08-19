@@ -12,6 +12,7 @@ import {
 } from "@/lib/estimateView/parseSnapshot";
 import { logError } from "@/lib/logger";
 import { getEstimateByToken, markEstimateViewed } from "@/lib/repositories";
+import { getClientIp } from "@/lib/request";
 import { parseQtyMode, parseRoomSegments } from "@/lib/utils";
 
 export const metadata = {
@@ -35,7 +36,8 @@ export default async function PublicEstimatePage({ params }: Props) {
 
   if (estimate.status !== "approved" && estimate.status !== "declined") {
     const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const clientIp = getClientIp(h);
+    const ip = clientIp === "unknown" ? null : clientIp;
     const userAgent = h.get("user-agent") ?? null;
     void markEstimateViewed(estimate.id, { ip, userAgent });
   }

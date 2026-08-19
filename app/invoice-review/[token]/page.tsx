@@ -10,6 +10,7 @@ import {
   getOrgStripe,
   markInvoiceViewed,
 } from "@/lib/repositories";
+import { getClientIp } from "@/lib/request";
 import { fmtDollar } from "@/lib/utils";
 
 export const metadata = {
@@ -53,7 +54,8 @@ export default async function PublicInvoicePage({
 
   if (invoice.status === "sent") {
     const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const clientIp = getClientIp(h);
+    const ip = clientIp === "unknown" ? null : clientIp;
     const userAgent = h.get("user-agent") ?? null;
     void markInvoiceViewed(invoice.id, { ip, userAgent });
   }

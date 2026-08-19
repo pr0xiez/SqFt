@@ -5,6 +5,7 @@ import {
   estimateTokenParams,
 } from "@/lib/estimates/schema";
 import { declineEstimateByToken, getEstimateByToken } from "@/lib/repositories";
+import { getClientIp } from "@/lib/request";
 
 export const POST = publicRoute(
   { input: estimateDeclineSchema },
@@ -17,8 +18,8 @@ export const POST = publicRoute(
       throw new ConflictError(`Estimate already ${estimate.status}`);
     }
 
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const clientIp = getClientIp(req.headers);
+    const ip = clientIp === "unknown" ? null : clientIp;
     const userAgent = req.headers.get("user-agent") ?? null;
 
     const result = await declineEstimateByToken(estimate.id, {

@@ -4,6 +4,7 @@ import { estimateTokenParams } from "@/lib/estimates/schema";
 import { fromPrismaEstimate } from "@/lib/estimateView";
 import { snapshotEstimate } from "@/lib/estimateView/snapshot";
 import { approveEstimateByToken, getEstimateByToken } from "@/lib/repositories";
+import { getClientIp } from "@/lib/request";
 
 export const POST = publicRoute({}, async ({ req, params }) => {
   const { token } = estimateTokenParams.parse(params);
@@ -27,8 +28,7 @@ export const POST = publicRoute({}, async ({ req, params }) => {
     org: estimate.org,
   });
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = getClientIp(req.headers);
   const userAgent = req.headers.get("user-agent") ?? "unknown";
 
   const result = await approveEstimateByToken({
