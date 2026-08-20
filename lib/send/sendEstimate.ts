@@ -3,6 +3,7 @@ import {
   type SendEstimateEmailInput,
   sendEstimateEmail,
 } from "@/lib/email/sendEstimateEmail";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { prisma } from "@/lib/prisma";
 import {
@@ -24,7 +25,7 @@ const estimateSendable: Sendable<
   load: getEstimate,
 
   guard(estimate) {
-    if (estimate.status === "approved" || estimate.status === "declined") {
+    if (isEstimateLocked(estimate.status)) {
       throw new EstimateLockedError(estimate.status);
     }
   },

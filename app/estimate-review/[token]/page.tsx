@@ -4,6 +4,7 @@ import {
   type PublicEstimate,
   PublicEstimateView,
 } from "@/components/estimates/PublicEstimateView";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import {
   estimateViewFromSnapshot,
   parseEstimateSnapshot,
@@ -33,7 +34,7 @@ export default async function PublicEstimatePage({ params }: Props) {
   const estimate = await getEstimateByToken(token);
   if (!estimate) notFound();
 
-  if (estimate.status !== "approved" && estimate.status !== "declined") {
+  if (!isEstimateLocked(estimate.status)) {
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = h.get("user-agent") ?? null;

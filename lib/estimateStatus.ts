@@ -13,6 +13,17 @@ export function isOpenEstimate(q: { status: string }): boolean {
   return q.status === "sent" || q.status === "viewed";
 }
 
+/**
+ * An estimate is locked/terminal once the customer has approved or declined
+ * it — the rule behind the `ESTIMATE_LOCKED` API error. Locked estimates can
+ * no longer be edited, sent, or re-approved/declined.
+ */
+export function isEstimateLocked(
+  status: EstimateStatus | string
+): status is "approved" | "declined" {
+  return status === "approved" || status === "declined";
+}
+
 export function lastTouchAt(q: EstimateTimestamps): string {
   return q.approvedAt ?? q.declinedAt ?? q.viewedAt ?? q.sentAt ?? q.createdAt;
 }

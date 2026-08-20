@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import { estimateTokenParams } from "@/lib/estimates/schema";
 import { fromPrismaEstimate } from "@/lib/estimateView";
 import { snapshotEstimate } from "@/lib/estimateView/snapshot";
@@ -9,7 +10,7 @@ export const POST = publicRoute({}, async ({ req, params }) => {
   const { token } = estimateTokenParams.parse(params);
   const estimate = await getEstimateByToken(token);
   if (!estimate) throw new NotFoundError();
-  if (estimate.status === "approved" || estimate.status === "declined") {
+  if (isEstimateLocked(estimate.status)) {
     throw new ConflictError(`Estimate already ${estimate.status}`);
   }
 
