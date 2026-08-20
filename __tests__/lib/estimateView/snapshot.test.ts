@@ -175,6 +175,15 @@ describe("snapshotEstimate", () => {
     expect(byId.get(20)).toMatchObject({ effectiveQty: 50, subtotal: 100 });
   });
 
+  it("is a plain JSON value the Prisma `snapshot` column can store as-is (no `as never` cast needed at the call site — see issue #119)", () => {
+    const snap = snapshotEstimate(input, meta);
+    // A round-trip through JSON is exactly what Prisma does when persisting a
+    // Json column; equality here confirms the snapshot carries no non-JSON
+    // values (Date, undefined, class instances, …) that would silently
+    // change shape on write.
+    expect(JSON.parse(JSON.stringify(snap))).toEqual(snap);
+  });
+
   it("throws loudly if the computed view drops a line item (no silent null mispairing)", () => {
     // Stub computeEstimateView to return a view that omits the line item's id,
     // simulating a future reorder/filter/drop regression. The snapshot must

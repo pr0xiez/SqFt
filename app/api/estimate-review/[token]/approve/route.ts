@@ -35,7 +35,7 @@ export const POST = publicRoute({}, async ({ req, params }) => {
     estimateId: estimate.id,
     ip,
     userAgent,
-    snapshot: snap as never,
+    snapshot: snap,
   });
   if (result === "not_found") throw new NotFoundError();
   if (result === "already_approved" || result === "declined") {

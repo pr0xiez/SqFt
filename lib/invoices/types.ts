@@ -23,12 +23,17 @@ export interface EstimateBilling {
   outstanding: number;
 }
 
-/** A single prorated row in an invoice's displayed breakdown. */
-export interface ProratedLine {
+/** A single prorated row in an invoice's displayed breakdown. A `type` (not
+ *  an `interface`) — it's persisted verbatim inside `InvoiceSnapshot.lines`,
+ *  and TypeScript only infers the implicit string index signature JSON
+ *  columns need (`Prisma.InputJsonValue`) for type literals, not for named
+ *  interfaces, so keeping this a `type` is what lets `InvoiceSnapshot` reach
+ *  the Prisma write with no `as never` cast. */
+export type ProratedLine = {
   name: string;
   description: string | null;
   amount: number;
-}
+};
 
 /** The full prorated breakdown for one invoice. */
 export interface ProratedBreakdown {
@@ -77,8 +82,14 @@ export interface InvoiceSnapshotMeta {
   stripePaymentLinkUrl: string | null;
 }
 
-export interface InvoiceSnapshot
-  extends Omit<InvoiceSnapshotMeta, "date" | "dueDate"> {
+/** The frozen, customer-facing invoice artifact. A `type` (not an
+ *  `interface extends ...`) so the whole tree is directly assignable to
+ *  `Prisma.InputJsonValue` — see `ProratedLine` for why — letting the
+ *  persistence call site pass this value straight to the Prisma write
+ *  without an `as never` escape hatch. A future field that isn't JSON-safe
+ *  (e.g. a `Date` or a class instance) becomes a compile error right here
+ *  instead of a silent runtime cast. */
+export type InvoiceSnapshot = Omit<InvoiceSnapshotMeta, "date" | "dueDate"> & {
   date: string;
   dueDate: string | null;
   lines: ProratedLine[];
@@ -87,4 +98,4 @@ export interface InvoiceSnapshot
     markup: number;
     balanceDue: number;
   };
-}
+};
