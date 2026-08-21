@@ -299,6 +299,30 @@ export async function saveSiteMeasure(
  * invoice. Otherwise deleting a site measure would bypass the guards that
  * deleting the estimate itself enforces.
  */
+export interface SiteMeasureCreationCounts {
+  total: number;
+  thisWeek: number;
+  lastWeek: number;
+}
+
+/** Site-measure creation counts for the dashboard's site-measures KPI. */
+export async function getSiteMeasureCreationCounts(
+  orgId: string,
+  weekAgo: Date,
+  twoWeeksAgo: Date
+): Promise<SiteMeasureCreationCounts> {
+  const [total, thisWeek, lastWeek] = await Promise.all([
+    prisma.siteMeasure.count({ where: { orgId } }),
+    prisma.siteMeasure.count({
+      where: { orgId, createdAt: { gte: weekAgo } },
+    }),
+    prisma.siteMeasure.count({
+      where: { orgId, createdAt: { gte: twoWeeksAgo, lt: weekAgo } },
+    }),
+  ]);
+  return { total, thisWeek, lastWeek };
+}
+
 export async function deleteSiteMeasure(
   id: number,
   orgId: string

@@ -287,6 +287,20 @@ export async function updateCustomer(
 }
 
 /**
+ * Opportunistic write-through: keep a customer's email current with where a
+ * document was actually sent. Org-scoped `updateMany` no-ops (rather than
+ * throwing) when the id/orgId pair doesn't match, which callers rely on to
+ * treat this as a best-effort side effect.
+ */
+export async function updateCustomerEmail(
+  id: number,
+  orgId: string,
+  email: string
+): Promise<void> {
+  await prisma.customer.updateMany({ where: { id, orgId }, data: { email } });
+}
+
+/**
  * Delete a customer. The cascade reaches every descendant estimate via
  * Location→SiteMeasure→Estimate (and Estimate→Invoice→Payment is also
  * Cascade), so this refuses — like deleteEstimate — while a descendant

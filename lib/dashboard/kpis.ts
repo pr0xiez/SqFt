@@ -1,11 +1,14 @@
 // lib/dashboard/kpis.ts
 
 import { computeEstimateView } from "@/lib/estimateView/compute";
+import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
 import {
-  fromPrismaEstimate,
-  type PrismaEstimateForView,
-} from "@/lib/estimateView/fromPrisma";
-import { prisma } from "@/lib/prisma";
+  getEstimateCreationCounts,
+  getEstimateWinLossCounts,
+  listApprovedEstimatesForRevenue,
+  listAwaitingEstimates,
+} from "@/lib/repositories/estimateRepo";
+import { getSiteMeasureCreationCounts } from "@/lib/repositories/siteMeasureRepo";
 
 export interface DashboardKpis {
   estimatesTotal: number;
@@ -19,41 +22,6 @@ export interface DashboardKpis {
   bookedRevenueMtd: number;
   bookedRevenueDelta: number;
 }
-
-const revenueSelect = {
-  markupPct: true,
-  depositPct: true,
-  lineItems: {
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      rate: true,
-      qtyMode: true,
-      qty: true,
-      wastePct: true,
-      unitLabel: true,
-      linkedRoomIds: true,
-      sortOrder: true,
-    },
-  },
-  siteMeasure: {
-    select: {
-      items: {
-        select: {
-          id: true,
-          type: true,
-          name: true,
-          shape: true,
-          w: true,
-          l: true,
-          note: true,
-          text: true,
-        },
-      },
-    },
-  },
-} as const;
 
 export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
   const now = new Date();
@@ -74,83 +42,37 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
   );
 
   const [
-    estimatesTotal,
-    estimatesThisWeek,
-    estimatesLastWeek,
-    estimatesSentTotal,
-    estimatesSentThisWeek,
-    estimatesSentLastWeek,
+    siteMeasureCounts,
+    estimateCounts,
     awaitingEstimates,
-    won30d,
-    lost30d,
-    won60to30d,
-    lost60to30d,
+    winLoss30d,
+    winLoss60to30d,
     acceptedMtd,
     acceptedLastMonthSamePeriod,
   ] = await Promise.all([
-    prisma.siteMeasure.count({ where: { orgId } }),
-    prisma.siteMeasure.count({ where: { orgId, createdAt: { gte: weekAgo } } }),
-    prisma.siteMeasure.count({
-      where: { orgId, createdAt: { gte: twoWeeksAgo, lt: weekAgo } },
+    getSiteMeasureCreationCounts(orgId, weekAgo, twoWeeksAgo),
+    getEstimateCreationCounts(orgId, weekAgo, twoWeeksAgo),
+    listAwaitingEstimates(orgId),
+    getEstimateWinLossCounts(orgId, { gte: thirtyDaysAgo }),
+    getEstimateWinLossCounts(orgId, {
+      gte: sixtyDaysAgo,
+      lt: thirtyDaysAgo,
     }),
-    prisma.estimate.count({ where: { orgId, status: { not: "draft" } } }),
-    prisma.estimate.count({
-      where: { orgId, status: { not: "draft" }, createdAt: { gte: weekAgo } },
-    }),
-    prisma.estimate.count({
-      where: {
-        orgId,
-        status: { not: "draft" },
-        createdAt: { gte: twoWeeksAgo, lt: weekAgo },
-      },
-    }),
-    prisma.estimate.findMany({
-      where: { orgId, status: { in: ["sent", "viewed"] } },
-      select: { id: true, sentAt: true, validityDays: true },
-    }),
-    prisma.estimate.count({
-      where: { orgId, status: "approved", approvedAt: { gte: thirtyDaysAgo } },
-    }),
-    prisma.estimate.count({
-      where: { orgId, status: "declined", declinedAt: { gte: thirtyDaysAgo } },
-    }),
-    prisma.estimate.count({
-      where: {
-        orgId,
-        status: "approved",
-        approvedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
-      },
-    }),
-    prisma.estimate.count({
-      where: {
-        orgId,
-        status: "declined",
-        declinedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
-      },
-    }),
-    prisma.estimate.findMany({
-      where: { orgId, status: "approved", approvedAt: { gte: monthStart } },
-      select: revenueSelect,
-    }),
-    prisma.estimate.findMany({
-      where: {
-        orgId,
-        status: "approved",
-        approvedAt: { gte: lastMonthStart, lte: lastMonthSamePeriodEnd },
-      },
-      select: revenueSelect,
+    listApprovedEstimatesForRevenue(orgId, { gte: monthStart }),
+    listApprovedEstimatesForRevenue(orgId, {
+      gte: lastMonthStart,
+      lte: lastMonthSamePeriodEnd,
     }),
   ]);
 
-  const bookedRevenueMtd = (acceptedMtd as PrismaEstimateForView[]).reduce(
-    (sum: number, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
+  const bookedRevenueMtd = acceptedMtd.reduce(
+    (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
     0
   );
   const bookedRevenueDelta =
     bookedRevenueMtd -
-    (acceptedLastMonthSamePeriod as PrismaEstimateForView[]).reduce(
-      (sum: number, q) =>
-        sum + computeEstimateView(fromPrismaEstimate(q)).total,
+    acceptedLastMonthSamePeriod.reduce(
+      (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
       0
     );
 
@@ -161,17 +83,22 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     return expiresAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   }).length;
 
-  const total30d = won30d + lost30d;
-  const winRate30d = total30d === 0 ? 0 : Math.round((won30d / total30d) * 100);
-  const totalPrev30d = won60to30d + lost60to30d;
+  const total30d = winLoss30d.won + winLoss30d.lost;
+  const winRate30d =
+    total30d === 0 ? 0 : Math.round((winLoss30d.won / total30d) * 100);
+  const totalPrev30d = winLoss60to30d.won + winLoss60to30d.lost;
   const winRatePrev =
-    totalPrev30d === 0 ? 0 : Math.round((won60to30d / totalPrev30d) * 100);
+    totalPrev30d === 0
+      ? 0
+      : Math.round((winLoss60to30d.won / totalPrev30d) * 100);
 
   return {
-    estimatesTotal,
-    estimatesDelta: estimatesThisWeek - estimatesLastWeek,
-    estimatesSentTotal,
-    estimatesSentDelta: estimatesSentThisWeek - estimatesSentLastWeek,
+    // "Estimates" KPI card is actually a site-measures-started count — kept
+    // as-is; only the data access moved into the repo layer.
+    estimatesTotal: siteMeasureCounts.total,
+    estimatesDelta: siteMeasureCounts.thisWeek - siteMeasureCounts.lastWeek,
+    estimatesSentTotal: estimateCounts.total,
+    estimatesSentDelta: estimateCounts.thisWeek - estimateCounts.lastWeek,
     awaitingSignature: awaitingEstimates.length,
     expiringSoonCount,
     winRate30d,

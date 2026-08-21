@@ -6,6 +6,12 @@ vi.mock("@/lib/repositories", () => ({
   rotateApprovalToken: vi.fn(),
   markEstimateSent: vi.fn(),
   writeEstimateEvent: vi.fn(),
+  getOrgSendInfo: vi.fn().mockResolvedValue({
+    name: "Acme Flooring",
+    phone: "555-1212",
+    logo: null,
+  }),
+  updateCustomerEmail: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockResolvedValue("org1"),
@@ -13,20 +19,6 @@ vi.mock("@/lib/tenant", () => ({
 }));
 vi.mock("@/lib/email/sendEstimateEmail", () => ({
   sendEstimateEmail: vi.fn(),
-}));
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    organization: {
-      findUniqueOrThrow: vi.fn().mockResolvedValue({
-        name: "Acme Flooring",
-        phone: "555-1212",
-        logo: null,
-      }),
-    },
-    customer: {
-      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
-    },
-  },
 }));
 vi.mock("next/server", async (importOriginal) => {
   const mod = await importOriginal<typeof import("next/server")>();

@@ -4,11 +4,12 @@ import {
   sendEstimateEmail,
 } from "@/lib/email/sendEstimateEmail";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
-import { prisma } from "@/lib/prisma";
 import {
   getEstimate,
+  getOrgSendInfo,
   markEstimateSent,
   rotateApprovalToken,
+  updateCustomerEmail,
   writeEstimateEvent,
 } from "@/lib/repositories";
 import type { EstimateWithDetails } from "@/lib/repositories/estimateRepo";
@@ -43,10 +44,7 @@ const estimateSendable: Sendable<
   publicPath: (token) => `/estimate-review/${token}`,
 
   async prepare(estimate, publicUrl, req) {
-    const org = await prisma.organization.findUniqueOrThrow({
-      where: { id: estimate.orgId },
-      select: { name: true, phone: true, logo: true },
-    });
+    const org = await getOrgSendInfo(estimate.orgId);
     // The emailed total is the live Estimate View — single source of truth.
     const total =
       estimate.lineItems.length === 0
@@ -80,10 +78,7 @@ const estimateSendable: Sendable<
   async afterSent(estimate, req) {
     const customer = estimate.siteMeasure.location.customer;
     if (!customer || customer.email === req.to) return;
-    await prisma.customer.updateMany({
-      where: { id: customer.id, orgId: estimate.orgId },
-      data: { email: req.to },
-    });
+    await updateCustomerEmail(customer.id, estimate.orgId, req.to);
   },
 };
 
