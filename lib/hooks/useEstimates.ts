@@ -218,6 +218,32 @@ export function useSendEstimate(estimateId: number) {
   });
 }
 
+export interface ReviseEstimateResult {
+  ok: true;
+  id: number;
+}
+
+export function useReviseEstimate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number): Promise<ReviseEstimateResult> => {
+      const res = await fetch(`/api/estimates/${id}/revise`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const { message } = await readApiError(res, `Failed (${res.status})`);
+        throw new Error(message);
+      }
+      return res.json();
+    },
+    onSuccess: (_result, id) => {
+      qc.invalidateQueries({ queryKey: ["estimates"] });
+      qc.invalidateQueries({ queryKey: ["estimates", id] });
+      qc.invalidateQueries({ queryKey: ["customers"] });
+    },
+  });
+}
+
 export function useDeleteEstimate() {
   const qc = useQueryClient();
   return useMutation({
