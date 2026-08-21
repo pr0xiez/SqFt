@@ -8,7 +8,7 @@ import {
   recordStripePayment,
   recordStripePaymentFailure,
 } from "@/lib/repositories/invoiceRepo";
-import { getOrgIdByConnectAccount } from "@/lib/repositories/orgRepo";
+import { getOrgIdByConnectAccount } from "@/lib/repositories/organizationRepo";
 import { getStripe } from "@/lib/stripe/client";
 import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
 

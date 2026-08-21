@@ -13,6 +13,7 @@
 import bcrypt from "bcryptjs";
 import { EmailTakenError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
+import { findByEmail } from "@/lib/repositories/userRepo";
 import {
   DEFAULT_LINE_ITEM_TEMPLATES,
   type DefaultLineItemTemplate,
@@ -55,10 +56,7 @@ export async function createOrganization(
   // Pre-flight: email uniqueness check. The User.email column has a unique
   // index so the transaction would also catch this, but we surface a typed
   // error message instead of a Prisma P2002.
-  const existingUser = await prisma.user.findUnique({
-    where: { email: args.admin.email.toLowerCase() },
-    select: { id: true },
-  });
+  const existingUser = await findByEmail(args.admin.email.toLowerCase());
   if (existingUser) throw new EmailTakenError();
 
   const baseSlug = args.org.slug ?? kebabSlug(args.org.name);

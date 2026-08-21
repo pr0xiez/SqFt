@@ -9,13 +9,9 @@ vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    organization: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-    },
-  },
+vi.mock("@/lib/repositories/organizationRepo", () => ({
+  getOrgSettings: vi.fn(),
+  updateOrgSettings: vi.fn(),
 }));
 
 vi.mock("next/server", async (importOriginal) => {
@@ -27,13 +23,16 @@ import type { NextRequest } from "next/server";
 import type { Session } from "next-auth";
 import { GET, PATCH } from "@/app/api/org/route";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import {
+  getOrgSettings,
+  updateOrgSettings,
+} from "@/lib/repositories/organizationRepo";
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
-const mockUpdate = vi.mocked(prisma.organization.update);
-const mockFindUnique = vi.mocked(prisma.organization.findUnique);
+const mockUpdate = vi.mocked(updateOrgSettings);
+const mockFindUnique = vi.mocked(getOrgSettings);
 
 function makeRequest(method: string, body?: unknown) {
   const init: RequestInit = { method };
@@ -142,12 +141,10 @@ describe("PATCH /api/org", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(updated);
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "org1" },
-        data: { brandColor: "#3d6b4a", defaultDepositPct: 0.4 },
-      })
-    );
+    expect(mockUpdate).toHaveBeenCalledWith("org1", {
+      brandColor: "#3d6b4a",
+      defaultDepositPct: 0.4,
+    });
   });
 
   it("normalizes hex to lowercase", async () => {
@@ -155,9 +152,9 @@ describe("PATCH /api/org", () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockUpdate.mockResolvedValueOnce({ brandColor: "#abcdef" } as any);
     await PATCH(makeRequest("PATCH", { brandColor: "#ABCDEF" }), noParams);
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { brandColor: "#abcdef" } })
-    );
+    expect(mockUpdate).toHaveBeenCalledWith("org1", {
+      brandColor: "#abcdef",
+    });
   });
 
   it("stores empty tagline as null", async () => {
@@ -165,9 +162,7 @@ describe("PATCH /api/org", () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockUpdate.mockResolvedValueOnce({ tagline: null } as any);
     await PATCH(makeRequest("PATCH", { tagline: "" }), noParams);
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { tagline: null } })
-    );
+    expect(mockUpdate).toHaveBeenCalledWith("org1", { tagline: null });
   });
 
   it("returns 400 on unknown timezone format", async () => {
@@ -272,13 +267,6 @@ describe("GET /api/org", () => {
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(org);
-    expect(mockFindUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        select: expect.objectContaining({
-          brandColor: true,
-          defaultDepositPct: true,
-        }),
-      })
-    );
+    expect(mockFindUnique).toHaveBeenCalledWith("org1");
   });
 });

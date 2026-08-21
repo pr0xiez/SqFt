@@ -1,11 +1,8 @@
 // lib/dashboard/revenue.ts
 
 import { computeEstimateView } from "@/lib/estimateView/compute";
-import {
-  fromPrismaEstimate,
-  type PrismaEstimateForView,
-} from "@/lib/estimateView/fromPrisma";
-import { prisma } from "@/lib/prisma";
+import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
+import { listApprovedEstimatesForRevenue } from "@/lib/repositories/estimateRepo";
 
 export interface WeekSummary {
   label: string;
@@ -24,42 +21,6 @@ export interface DashboardRevenue {
 
 const MONTH_GOAL = 65_000;
 
-const revenueSelect = {
-  markupPct: true,
-  depositPct: true,
-  approvedAt: true,
-  lineItems: {
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      rate: true,
-      qtyMode: true,
-      qty: true,
-      wastePct: true,
-      unitLabel: true,
-      linkedRoomIds: true,
-      sortOrder: true,
-    },
-  },
-  siteMeasure: {
-    select: {
-      items: {
-        select: {
-          id: true,
-          type: true,
-          name: true,
-          shape: true,
-          w: true,
-          l: true,
-          note: true,
-          text: true,
-        },
-      },
-    },
-  },
-} as const;
-
 export async function getDashboardRevenue(
   orgId: string
 ): Promise<DashboardRevenue> {
@@ -71,16 +32,11 @@ export async function getDashboardRevenue(
   const daysLeft = totalDays - today;
   const monthStart = new Date(year, month, 1);
 
-  const acceptedMtd = await prisma.estimate.findMany({
-    where: { orgId, status: "approved", approvedAt: { gte: monthStart } },
-    select: revenueSelect,
+  const acceptedMtd = await listApprovedEstimatesForRevenue(orgId, {
+    gte: monthStart,
   });
 
-  type AcceptedEstimateRow = PrismaEstimateForView & {
-    approvedAt: Date | null;
-  };
-
-  const mtdTotal = (acceptedMtd as AcceptedEstimateRow[]).reduce(
+  const mtdTotal = acceptedMtd.reduce(
     (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
     0
   );
@@ -106,7 +62,7 @@ export async function getDashboardRevenue(
 
     const weekStart = new Date(year, month, start);
     const weekEnd = new Date(year, month, end, 23, 59, 59, 999);
-    const amount = (acceptedMtd as AcceptedEstimateRow[])
+    const amount = acceptedMtd
       .filter(
         (q) =>
           q.approvedAt && q.approvedAt >= weekStart && q.approvedAt <= weekEnd

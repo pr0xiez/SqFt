@@ -6,7 +6,7 @@ import {
   getInvoiceByToken,
   recordStripePayment,
 } from "@/lib/repositories/invoiceRepo";
-import { getOrgStripe } from "@/lib/repositories/orgRepo";
+import { getOrgStripe } from "@/lib/repositories/organizationRepo";
 import { getStripe } from "@/lib/stripe/client";
 
 const Body = z.object({ sessionId: z.string().min(1).max(200) });

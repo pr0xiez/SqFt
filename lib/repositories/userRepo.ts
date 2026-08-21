@@ -55,6 +55,35 @@ export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }
 
+export const AUTH_USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  password: true,
+  orgId: true,
+  role: true,
+  archived: true,
+} satisfies Prisma.UserSelect;
+
+export type AuthUser = Prisma.UserGetPayload<{
+  select: typeof AUTH_USER_SELECT;
+}>;
+
+/** Full record (including the password hash) for the NextAuth `authorize`
+ *  callback — not org-scoped, since login happens before an org is known. */
+export function findUserForAuth(email: string): Promise<AuthUser | null> {
+  return prisma.user.findUnique({
+    where: { email },
+    select: AUTH_USER_SELECT,
+  });
+}
+
+/** Platform-wide user count for the super-admin dashboard. Not org-scoped —
+ *  the caller must already be gated by `isSuperAdmin`. */
+export function countUsersForAdmin(): Promise<number> {
+  return prisma.user.count();
+}
+
 export function findUserRow(
   id: string,
   orgId: string

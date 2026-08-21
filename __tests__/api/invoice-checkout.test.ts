@@ -20,7 +20,7 @@ vi.mock("@/lib/repositories/invoiceRepo", () => ({
   getInvoiceByToken: vi.fn(),
 }));
 
-vi.mock("@/lib/repositories/orgRepo", () => ({
+vi.mock("@/lib/repositories/organizationRepo", () => ({
   getOrgStripe: vi.fn(),
   setOrgConnectStatus: vi.fn(),
 }));
@@ -41,7 +41,10 @@ vi.mock("next/server", async (importOriginal) => {
 
 import { POST } from "@/app/api/invoice-review/[token]/checkout/route";
 import { getInvoiceByToken } from "@/lib/repositories/invoiceRepo";
-import { getOrgStripe, setOrgConnectStatus } from "@/lib/repositories/orgRepo";
+import {
+  getOrgStripe,
+  setOrgConnectStatus,
+} from "@/lib/repositories/organizationRepo";
 import {
   buildCheckoutParams,
   createInvoiceCheckoutSession,

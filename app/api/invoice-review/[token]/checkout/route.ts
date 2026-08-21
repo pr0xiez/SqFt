@@ -8,7 +8,10 @@ import { publicRoute } from "@/lib/api/route";
 import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { round2 } from "@/lib/money";
 import { getInvoiceByToken } from "@/lib/repositories/invoiceRepo";
-import { getOrgStripe, setOrgConnectStatus } from "@/lib/repositories/orgRepo";
+import {
+  getOrgStripe,
+  setOrgConnectStatus,
+} from "@/lib/repositories/organizationRepo";
 import {
   buildCheckoutParams,
   createInvoiceCheckoutSession,

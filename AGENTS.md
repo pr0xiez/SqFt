@@ -108,7 +108,11 @@ with the file that owns it.
   `components/ui/Providers.tsx` and `AccountBlock`.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
-  `validateUserIds`).
+  `validateUserIds`, the auth-time lookup `findUserForAuth`) and
+  `organizationRepo.ts` owns all `Organization` access (settings read/write,
+  Stripe Connect fields, the dashboard's send-email header, and the
+  super-admin-only `listAllOrgsForAdmin`/`countOrgsForAdmin` — deliberately
+  not org-scoped, gated by the caller instead).
 - `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;

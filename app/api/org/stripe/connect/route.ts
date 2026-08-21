@@ -4,7 +4,7 @@ import {
   getOrgStripe,
   setOrgConnectAccount,
   setOrgConnectStatus,
-} from "@/lib/repositories/orgRepo";
+} from "@/lib/repositories/organizationRepo";
 import {
   createConnectedAccount,
   createOnboardingLink,

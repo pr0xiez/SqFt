@@ -7,6 +7,7 @@ import {
   HasInvoicesError,
 } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import type { PrismaEstimateForView } from "@/lib/estimateView/fromPrisma";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import {
@@ -760,5 +761,131 @@ export async function getEstimateByToken(
   return prisma.estimate.findUnique({
     where: { approvalToken: token },
     include: ESTIMATE_PUBLIC_INCLUDE,
+  });
+}
+
+// ── Dashboard aggregation (lib/dashboard/kpis.ts, lib/dashboard/revenue.ts) ──
+
+export interface EstimateCreationCounts {
+  total: number;
+  thisWeek: number;
+  lastWeek: number;
+}
+
+/** Non-draft estimate creation counts for the dashboard's estimates KPI. */
+export async function getEstimateCreationCounts(
+  orgId: string,
+  weekAgo: Date,
+  twoWeeksAgo: Date
+): Promise<EstimateCreationCounts> {
+  const [total, thisWeek, lastWeek] = await Promise.all([
+    prisma.estimate.count({ where: { orgId, status: { not: "draft" } } }),
+    prisma.estimate.count({
+      where: { orgId, status: { not: "draft" }, createdAt: { gte: weekAgo } },
+    }),
+    prisma.estimate.count({
+      where: {
+        orgId,
+        status: { not: "draft" },
+        createdAt: { gte: twoWeeksAgo, lt: weekAgo },
+      },
+    }),
+  ]);
+  return { total, thisWeek, lastWeek };
+}
+
+export interface AwaitingEstimate {
+  id: number;
+  sentAt: Date | null;
+  validityDays: number;
+}
+
+/** Sent/viewed estimates still awaiting a customer decision. */
+export function listAwaitingEstimates(
+  orgId: string
+): Promise<AwaitingEstimate[]> {
+  return prisma.estimate.findMany({
+    where: { orgId, status: { in: ["sent", "viewed"] } },
+    select: { id: true, sentAt: true, validityDays: true },
+  });
+}
+
+export interface EstimateWinLossCounts {
+  won: number;
+  lost: number;
+}
+
+/** Approved vs. declined counts within `[gte, lt)`, for the win-rate KPI. */
+export async function getEstimateWinLossCounts(
+  orgId: string,
+  range: { gte: Date; lt?: Date }
+): Promise<EstimateWinLossCounts> {
+  const approvedAt = range.lt
+    ? { gte: range.gte, lt: range.lt }
+    : { gte: range.gte };
+  const [won, lost] = await Promise.all([
+    prisma.estimate.count({
+      where: { orgId, status: "approved", approvedAt },
+    }),
+    prisma.estimate.count({
+      where: { orgId, status: "declined", declinedAt: approvedAt },
+    }),
+  ]);
+  return { won, lost };
+}
+
+const REVENUE_ESTIMATE_SELECT = {
+  markupPct: true,
+  depositPct: true,
+  approvedAt: true,
+  lineItems: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      rate: true,
+      qtyMode: true,
+      qty: true,
+      wastePct: true,
+      unitLabel: true,
+      linkedRoomIds: true,
+      sortOrder: true,
+    },
+  },
+  siteMeasure: {
+    select: {
+      items: {
+        select: {
+          id: true,
+          type: true,
+          name: true,
+          shape: true,
+          w: true,
+          l: true,
+          note: true,
+          text: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.EstimateSelect;
+
+export type RevenueEstimateRow = PrismaEstimateForView & {
+  approvedAt: Date | null;
+};
+
+/** Approved estimates within a date range, hydrated for `computeEstimateView`
+ *  — shared by the dashboard's booked-revenue KPI and the revenue-by-week
+ *  breakdown, both of which need the same view-computable shape. */
+export function listApprovedEstimatesForRevenue(
+  orgId: string,
+  range: { gte: Date; lte?: Date }
+): Promise<RevenueEstimateRow[]> {
+  const approvedAt = range.lte
+    ? { gte: range.gte, lte: range.lte }
+    : { gte: range.gte };
+  return prisma.estimate.findMany({
+    where: { orgId, status: "approved", approvedAt },
+    select: REVENUE_ESTIMATE_SELECT,
   });
 }

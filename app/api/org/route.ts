@@ -1,31 +1,13 @@
 import { z } from "zod";
 import { NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
-import { prisma } from "@/lib/prisma";
-
-const ORG_SELECT = {
-  id: true,
-  name: true,
-  phone: true,
-  address: true,
-  licenseNumber: true,
-  logo: true,
-  timezone: true,
-  locale: true,
-  brandColor: true,
-  tagline: true,
-  showLicenseOnEstimates: true,
-  defaultDepositPct: true,
-  defaultValidityDays: true,
-  defaultUnitLabel: true,
-  defaultTerms: true,
-} as const;
+import {
+  getOrgSettings,
+  updateOrgSettings,
+} from "@/lib/repositories/organizationRepo";
 
 export const GET = apiRoute(async ({ orgId }) => {
-  const org = await prisma.organization.findUnique({
-    where: { id: orgId },
-    select: ORG_SELECT,
-  });
+  const org = await getOrgSettings(orgId);
   if (!org) throw new NotFoundError();
   return org;
 });
@@ -62,11 +44,6 @@ export const PATCH = apiRoute(
     const data = Object.fromEntries(
       Object.entries(input).filter(([, v]) => v !== undefined)
     );
-    const org = await prisma.organization.update({
-      where: { id: orgId },
-      data,
-      select: ORG_SELECT,
-    });
-    return org;
+    return updateOrgSettings(orgId, data);
   }
 );

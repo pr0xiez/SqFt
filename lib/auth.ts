@@ -5,6 +5,7 @@ import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { prisma } from "@/lib/prisma";
+import { findUserForAuth } from "@/lib/repositories/userRepo";
 
 // Extend the built-in session types to include orgId and role
 declare module "next-auth" {
@@ -50,9 +51,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const { email, password } = parsed.data;
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        const user = await findUserForAuth(email);
 
         if (!user) return null;
         if (user.archived) return null;

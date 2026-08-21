@@ -35,6 +35,7 @@ const {
   getCustomer,
   createCustomer,
   updateCustomer,
+  updateCustomerEmail,
   deleteCustomer,
 } = await import("@/lib/repositories/customerRepo");
 
@@ -119,6 +120,24 @@ describe("updateCustomer", () => {
     findFirst.mockResolvedValue({ id: 1, name: "Updated" });
     const result = await updateCustomer(1, "org1", { name: "Updated" });
     expect(result).toEqual({ id: 1, name: "Updated" });
+  });
+});
+
+describe("updateCustomerEmail", () => {
+  it("scopes the write by id and orgId", async () => {
+    updateMany.mockResolvedValue({ count: 1 });
+    await updateCustomerEmail(1, "org1", "new@example.com");
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      data: { email: "new@example.com" },
+    });
+  });
+
+  it("no-ops (does not throw) when the customer isn't in the org", async () => {
+    updateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      updateCustomerEmail(99, "org1", "x@x.com")
+    ).resolves.toBeUndefined();
   });
 });
 

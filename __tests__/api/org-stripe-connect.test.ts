@@ -8,7 +8,7 @@ vi.mock("@/lib/auth", () => ({
   auth: vi.fn(),
 }));
 
-vi.mock("@/lib/repositories/orgRepo", () => ({
+vi.mock("@/lib/repositories/organizationRepo", () => ({
   getOrgStripe: vi.fn(),
   setOrgConnectAccount: vi.fn(),
   setOrgConnectStatus: vi.fn(),
@@ -32,7 +32,7 @@ import {
   getOrgStripe,
   setOrgConnectAccount,
   setOrgConnectStatus,
-} from "@/lib/repositories/orgRepo";
+} from "@/lib/repositories/organizationRepo";
 import {
   createConnectedAccount,
   createOnboardingLink,

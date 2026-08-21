@@ -4,7 +4,7 @@ import type {
   SubscriptionStatus,
 } from "@/components/admin/orgs/types";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
-import { prisma } from "@/lib/prisma";
+import { listAllOrgsForAdmin } from "@/lib/repositories/organizationRepo";
 import { requireSession } from "@/lib/tenant";
 
 export const metadata = { title: "Organizations · Admin · SqFt" };
@@ -18,19 +18,7 @@ export default async function AdminOrgsPage() {
     return <AdminOrgsView initial={[]} />;
   }
 
-  const rows = await prisma.organization.findMany({
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      subscriptionStatus: true,
-      trialEndsAt: true,
-      currentPeriodEndsAt: true,
-      createdAt: true,
-      _count: { select: { users: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const rows = await listAllOrgsForAdmin();
 
   const initial: AdminOrgRow[] = rows.map((r) => ({
     id: r.id,
@@ -40,7 +28,7 @@ export default async function AdminOrgsPage() {
     trialEndsAt: r.trialEndsAt?.toISOString() ?? null,
     currentPeriodEndsAt: r.currentPeriodEndsAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
-    userCount: r._count.users,
+    userCount: r.userCount,
   }));
 
   return <AdminOrgsView initial={initial} />;
