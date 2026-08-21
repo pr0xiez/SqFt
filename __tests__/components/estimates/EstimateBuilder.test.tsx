@@ -21,6 +21,11 @@ vi.mock("@/lib/hooks/useEstimates", () => ({
   useUpdateEstimate: () => ({ mutateAsync }),
   // SendEstimateDialog (rendered but closed) pulls this in.
   useSendEstimate: () => ({ mutate: vi.fn(), isPending: false }),
+  // ReviseButton (rendered on locked estimates) pulls this in.
+  useReviseEstimate: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({ ok: true, id: 999 }),
+    isPending: false,
+  }),
 }));
 
 vi.mock("@/lib/hooks/useLineItemTemplates", () => ({

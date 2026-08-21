@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { readApiError } from "@/lib/api/errors";
 
 export interface Location {
   id: number;
@@ -55,7 +56,13 @@ export function useCreateLocation() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      if (!res.ok) throw new Error("Failed to create location");
+      if (!res.ok) {
+        const { message } = await readApiError(
+          res,
+          "Failed to create location"
+        );
+        throw new Error(message);
+      }
       return res.json() as Promise<Location>;
     },
     onSuccess: (loc) => {
