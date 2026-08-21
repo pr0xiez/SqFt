@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { getEnv } from "@/lib/env";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
@@ -12,7 +13,7 @@ import { getStripe } from "@/lib/stripe/client";
 import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
 
 export async function POST(req: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = getEnv().STRIPE_WEBHOOK_SECRET;
   if (!secret) return new NextResponse("not configured", { status: 500 });
 
   const body = await req.text(); // RAW body — required for signature verification

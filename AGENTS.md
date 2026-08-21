@@ -113,6 +113,19 @@ with the file that owns it.
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
+- `lib/env.ts` — **centralized `process.env` access**: a zod schema
+  (`getEnv()`) covering every infra/secret var (`DATABASE_URL`,
+  `RESEND_API_KEY`/`EMAIL_FROM`, `GEOAPIFY_API_KEY`, `SUPER_ADMIN_EMAILS`,
+  the `PUBLIC_BASE_URL`/`VERCEL_*` set consumed by `lib/baseUrl.ts`,
+  `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). Only `DATABASE_URL` is
+  required; everything else keeps its pre-existing optional/fallback
+  semantics — this only centralizes *how* they're read and typed. `getEnv()`
+  re-validates `process.env` on every call rather than freezing it at import
+  (several consumers/tests rely on re-reading env vars that change after
+  module load), so a missing `DATABASE_URL` still fails at first import of
+  `lib/prisma.ts` rather than lazily mid-request. Business-logic defaults
+  (non-secret constants) are a separate concern — see #95 — and don't belong
+  here.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,
   `siteMeasures`, …) plus shared `components/ui/` (`Modal`, `Button`, `Toast`).
 - `prisma/` — schema, migrations, `seed.ts`. Design docs and plans live in
