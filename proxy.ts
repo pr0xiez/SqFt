@@ -3,19 +3,6 @@ import { auth } from "@/lib/auth";
 import { isPublicReviewPath } from "@/lib/publicRoutes";
 
 export default auth((req) => {
-  if (req.nextUrl.pathname.startsWith("/api/")) {
-    console.log(
-      JSON.stringify({
-        type: "proxy_request",
-        ts: new Date().toISOString(),
-        method: req.method,
-        path: req.nextUrl.pathname,
-        isAuthenticated: !!req.auth,
-        env: process.env.NODE_ENV,
-      })
-    );
-  }
-
   const isAuth = !!req.auth;
   const isAuthRoute = req.nextUrl.pathname.startsWith("/login");
   const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");

@@ -292,6 +292,10 @@ export async function updateCustomer(
  * Cascade), so this refuses — like deleteEstimate — while a descendant
  * estimate has scheduled Events or any invoice. Otherwise deleting the
  * customer would bypass the guards that deleting the estimate itself enforces.
+ * Events can also link to a Customer directly (nullable `customerId`, used by
+ * non-`job` events with no estimate chain), so the Event guard checks both
+ * paths — otherwise Prisma's `SetNull` FK action would silently orphan a live
+ * scheduled event instead of blocking the delete.
  */
 export async function deleteCustomer(
   id: number,
@@ -302,7 +306,10 @@ export async function deleteCustomer(
       estimate: { siteMeasure: { location: { customerId: id } } },
     };
     const eventCount = await tx.event.count({
-      where: { orgId, ...descendantEstimates },
+      where: {
+        orgId,
+        OR: [{ customerId: id }, descendantEstimates],
+      },
     });
     if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
     const invoiceCount = await tx.invoice.count({
