@@ -26,7 +26,9 @@ A user has a `role` (`admin | lead | crew`) and an optional free-text `title`
 (e.g. "Lead Installer"). Any non-archived user — of any role — is **assignable**
 to calendar Events; the schedule's crew picker and `/api/users/assignable` are
 sourced from active users. `User.archived` **deactivates** a person: they can't
-log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
+log in (`lib/auth/authorize.ts`'s `authorizeCredentials`, wired into the
+Credentials provider in `lib/auth.ts`) or be newly assigned, but their
+history is preserved.
 Events link assigned users via the `Event.assignees` relation
 (`eventRepo` `assigneeIds: string[]`). People are managed on the admin
 **Members** page (`/settings/members`) — role, title, archive/restore — for
