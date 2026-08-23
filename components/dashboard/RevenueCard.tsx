@@ -4,13 +4,7 @@ import type {
   DashboardRevenue,
   WeekSummary,
 } from "@/lib/hooks/useDashboardRevenue";
-
-function formatCurrency(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.round(n));
-}
+import { fmtWholeDollar } from "@/lib/utils";
 
 interface WeekBarProps {
   week: WeekSummary;
@@ -44,7 +38,7 @@ function WeekBar({ week, maxAmount }: WeekBarProps) {
             >
               $
             </span>
-            {formatCurrency(week.amount)}{" "}
+            {fmtWholeDollar(week.amount)}{" "}
             <span
               style={{
                 color: "var(--muted)",
@@ -67,7 +61,7 @@ function WeekBar({ week, maxAmount }: WeekBarProps) {
             >
               $
             </span>
-            {formatCurrency(week.amount)}
+            {fmtWholeDollar(week.amount)}
           </>
         )}
       </div>
@@ -129,14 +123,14 @@ export function RevenueCard({ revenue }: Props) {
             >
               $
             </span>
-            {formatCurrency(mtdTotal)}
+            {fmtWholeDollar(mtdTotal)}
           </div>
         </div>
         <div
           className="text-right font-[var(--font-mono)] text-[11px]"
           style={{ color: "var(--muted)" }}
         >
-          Target ${formatCurrency(monthGoal)}
+          Target ${fmtWholeDollar(monthGoal)}
           <br />
           <span style={{ color: "var(--sage)", fontWeight: 600 }}>
             {Math.round(goalPct)}% of goal
@@ -179,14 +173,14 @@ export function RevenueCard({ revenue }: Props) {
       >
         <span>
           <strong style={{ color: "var(--ink)", fontWeight: 600 }}>
-            ${formatCurrency(mtdTotal)}
+            ${fmtWholeDollar(mtdTotal)}
           </strong>{" "}
           booked
         </span>
         <span>
           of{" "}
           <strong style={{ color: "var(--ink)", fontWeight: 600 }}>
-            ${formatCurrency(monthGoal)}
+            ${fmtWholeDollar(monthGoal)}
           </strong>{" "}
           goal
         </span>
