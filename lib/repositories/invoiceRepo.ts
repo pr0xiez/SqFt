@@ -1,13 +1,12 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
+import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
+import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { computeEstimateBilling, isOverbill } from "@/lib/invoices/compute";
 import {
   type InvoiceStatusFilter,
   OPEN_INVOICE_STATUSES,
-} from "@/components/invoices/filterInvoices";
-import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
-import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
-import { computeEstimateBilling } from "@/lib/invoices/compute";
-import { isOverbill } from "@/lib/invoices/createInvoiceForm";
+} from "@/lib/invoices/statusFilter";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
 import type { Paginated } from "@/lib/pagination/types";

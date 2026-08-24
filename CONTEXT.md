@@ -233,7 +233,7 @@ reconciles onto the largest row so the displayed rows sum exactly to the billed
 amount without the ±cent distorting a free line. Creating or editing an
 invoice past the estimate's unbilled balance
 throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
-predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
+predicate (`lib/invoices/compute.ts`), which owns the single
 `OVERBILL_EPSILON` (0.005) tolerance used by both the repo guard and the create
 dialog.
 
@@ -331,7 +331,7 @@ Invoice status values: `draft | sent | viewed | partial | paid | void`.
 `all | open | draft | paid | void`, defaulting to **`all`**. The `open`
 group — `sent + viewed + partial` ("sent but not fully paid") — is the
 second pill and is defined once as `OPEN_INVOICE_STATUSES` in
-`components/invoices/filterInvoices.ts`. Each row carries a computed
+`lib/invoices/statusFilter.ts`. Each row carries a computed
 `balanceDue` (amount − recorded payments). Facet counts are org-wide and
 ignore the active filter/search.
 

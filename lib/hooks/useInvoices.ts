@@ -6,8 +6,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
 import { readApiError } from "@/lib/api/errors";
+import type { InvoiceStatusFilter } from "@/lib/invoices/statusFilter";
 import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
 import type { SortDirection } from "@/lib/sort";
 

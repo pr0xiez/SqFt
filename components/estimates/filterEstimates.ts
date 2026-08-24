@@ -1,9 +1,6 @@
-export type EstimateStatusFilter =
-  | "all"
-  | "draft"
-  | "sent"
-  | "approved"
-  | "declined";
+import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
+
+export type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 
 export type EstimateFilterInput = {
   id: number;

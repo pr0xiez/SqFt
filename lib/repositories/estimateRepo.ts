@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
-import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import {
   EstimateHasEventsError,
   EstimateLockedError,
   HasInvoicesError,
 } from "@/lib/api/errors";
+import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
