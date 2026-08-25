@@ -54,6 +54,26 @@ jobs:
   test:
     name: Tests
     runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    # Ephemeral Postgres so the real-DB repository integration suites (gated
+    # in vitest.setup.ts on VITEST_DB_AVAILABLE, which is only set when
+    # DATABASE_URL is present) actually run here instead of silently
+    # skipping. Mocked repo suites run regardless of this service.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,6 +81,8 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
+      - name: Apply migrations
+        run: npx prisma migrate deploy
       - run: npm test
 
   build:
