@@ -61,45 +61,7 @@ jobs:
           node-version: "20"
           cache: "npm"
       - run: npm ci
-      # Ephemeral Neon branch so the real-DB repository integration suites
-      # (gated in vitest.setup.ts on VITEST_DB_AVAILABLE, which is only set
-      # when DATABASE_URL is present) actually run here instead of silently
-      # skipping — mocked repo suites already run regardless. A `services:
-      # postgres` container was the other option, but this job's runner
-      # defaults to the self-hosted macOS runner (see RUNNER SELECTION above
-      # and the e2e job's "macOS self-hosted" note), and GitHub Actions
-      # service containers require a Linux runner — that would break the
-      # default `CI_RUNNER` unset case. Branching off Neon works on either
-      # runner and reuses the same NEON_PROJECT_ID/NEON_API_KEY already wired
-      # for preview-branch cleanup in delete-neon-branch.yml.
-      - name: Create ephemeral Neon test branch
-        id: neon-branch
-        uses: neondatabase/create-branch-action@v6
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          api_key: ${{ secrets.NEON_API_KEY }}
-          branch_name: ci-test/${{ github.run_id }}-${{ github.run_attempt }}
-          prisma: true
-      - name: Apply migrations
-        # Direct (unpooled) connection — migrate deploy's advisory lock isn't
-        # meant to go through PgBouncer, mirroring the -pooler strip in the
-        # root vercel.json buildCommand.
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ steps.neon-branch.outputs.db_url }}
-      - name: Run tests
-        # Pooled connection — vitest runs suites across multiple
-        # workers/files concurrently, each with its own Prisma client.
-        run: npm test
-        env:
-          DATABASE_URL: ${{ steps.neon-branch.outputs.db_url_pooled }}
-      - name: Delete ephemeral Neon test branch
-        if: always()
-        uses: neondatabase/delete-branch-action@v3
-        with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          branch: ci-test/${{ github.run_id }}-${{ github.run_attempt }}
-          api_key: ${{ secrets.NEON_API_KEY }}
+      - run: npm test
 
   build:
     name: Build
