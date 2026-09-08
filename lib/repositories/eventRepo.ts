@@ -203,10 +203,10 @@ export async function updateEvent(
   if (!current) return null;
 
   const nextType = typeof data.type === "string" ? data.type : current.type;
-  const nextEstimateId =
-    data.estimateId === undefined
-      ? current.estimateId
-      : (data.estimateId as number | null);
+  const nextEstimateId = scalarOr<number | null>(
+    data.estimateId,
+    current.estimateId
+  );
   assertJobHasEstimate(nextType, nextEstimateId);
   assertSameDayTimesOrdered(
     scalarOr(data.date, current.date),
@@ -214,10 +214,15 @@ export async function updateEvent(
     scalarOr(data.startTime, current.startTime),
     scalarOr(data.endTime, current.endTime)
   );
+  // Unwrap Prisma's `{ set }` shape the same way as above: assertFksInOrg
+  // only validates fields actually being written, so an untouched field
+  // must resolve to `null` (skip) rather than the already-valid stored
+  // value — unlike nextEstimateId's merge above, this must not fall back
+  // to `current.*`.
   await assertFksInOrg(
     orgId,
-    typeof data.customerId === "number" ? data.customerId : null,
-    typeof data.estimateId === "number" ? data.estimateId : null
+    scalarOr<number | null>(data.customerId, null),
+    scalarOr<number | null>(data.estimateId, null)
   );
 
   const { assigneeIds, ...rest } = data;

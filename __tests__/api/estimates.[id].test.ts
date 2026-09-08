@@ -83,6 +83,37 @@ describe("PATCH /api/estimates/[id]", () => {
     expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
   });
 
+  // Issue #288: the general-purpose PATCH must not be able to forge an
+  // approval/decline — that bypasses the EstimateApproval consent record and
+  // the supersede-siblings invariant, which only exist in
+  // approveEstimateByToken / declineEstimateByToken. Rejected at the zod
+  // layer before saveEstimate is ever called.
+  it.each([
+    "approved",
+    "declined",
+  ] as const)("rejects a direct status=%s patch with VALIDATION_FAILED and never calls saveEstimate", async (status) => {
+    const res = await PATCH(
+      makeRequest("PATCH", "http://x/api/estimates/1", { status }),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+    expect(mockSaveEstimate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "draft",
+    "sent",
+  ] as const)("still allows a legitimate direct status=%s transition", async (status) => {
+    mockSaveEstimate.mockResolvedValue({ id: 1, status } as never);
+    const res = await PATCH(
+      makeRequest("PATCH", "http://x/api/estimates/1", { status }),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(200);
+    expect(mockSaveEstimate).toHaveBeenCalledWith(1, "org1", { status });
+  });
+
   it("rejects depositPct out of range with VALIDATION_FAILED", async () => {
     const res = await PATCH(
       makeRequest("PATCH", "http://x/api/estimates/1", {

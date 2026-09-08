@@ -220,6 +220,16 @@ approves. Approving an estimate also supersedes any other open
 estimates under the same site measure (they're marked `declined` with a
 "Superseded" reason and a `system_supersede` event).
 
+**`approved`/`declined` are reachable only through the token routes.** The
+general-purpose builder PATCH (`app/api/estimates/[id]/route.ts` →
+`saveEstimate`, `lib/repositories/estimateRepo.ts`) cannot set an estimate to
+either terminal status: `estimateUpdateSchema` (`lib/estimates/schema.ts`)
+restricts the settable `status` enum to `draft | sent`, and `saveEstimate`
+itself re-checks this at the repo layer (the trust boundary) and throws
+`ValidationError` (`VALIDATION_FAILED`) if asked to set anything else — so a
+looser schema or a rewired caller still can't forge an approval/decline and
+skip the `EstimateApproval` consent row / supersede-siblings logic above.
+
 Estimate status values: `draft | sent | viewed | approved | declined`.
 
 ## Invoice
