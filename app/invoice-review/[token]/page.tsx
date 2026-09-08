@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   type PublicInvoice,
@@ -11,6 +10,7 @@ import {
   getOrgStripe,
   markInvoiceViewed,
 } from "@/lib/repositories";
+import { isValidTokenShape, trackPublicView } from "@/lib/tokens";
 import { fmtDollar } from "@/lib/utils";
 
 export const metadata = {
@@ -29,7 +29,7 @@ export default async function PublicInvoicePage({
 }: Props) {
   const { token } = await params;
   const { pay, session_id } = await searchParams;
-  if (!token || token.length < 16 || token.length > 128) notFound();
+  if (!token || !isValidTokenShape(token)) notFound();
 
   const invoice = await getInvoiceByToken(token);
   if (!invoice || !invoice.snapshot) notFound();
@@ -37,12 +37,9 @@ export default async function PublicInvoicePage({
   // open — or pay — a cancelled invoice from a stale email.
   if (invoice.status === "void") notFound();
 
-  if (invoice.status === "sent") {
-    const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-    const userAgent = h.get("user-agent") ?? null;
-    void markInvoiceViewed(invoice.id, { ip, userAgent });
-  }
+  await trackPublicView(invoice.status === "sent", (meta) =>
+    markInvoiceViewed(invoice.id, meta)
+  );
 
   // Snapshots are frozen forever, even across later schema changes — validate
   // the shape rather than casting, so a stale/malformed snapshot 404s cleanly

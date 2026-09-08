@@ -1,7 +1,9 @@
 "use client";
 
-import { type ReactNode, useEffect, useId } from "react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/cn";
+import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
+import { useScrollLock } from "@/lib/hooks/useScrollLock";
 
 interface ModalProps {
   open: boolean;
@@ -29,6 +31,7 @@ export function Modal({
   children,
 }: ModalProps) {
   const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape (document-level so the panel needn't hold focus).
   useEffect(() => {
@@ -40,14 +43,11 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  // Lock body scroll while open.
-  useEffect(() => {
-    if (!open) return;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+  // Lock body scroll while open (nest-safe: ref-counted, see useScrollLock).
+  useScrollLock(open);
+
+  // Trap focus inside the panel, move initial focus in on open, restore on close.
+  useFocusTrap(panelRef, open);
 
   if (!open) return null;
 
@@ -62,9 +62,11 @@ export function Modal({
 
       {/* Panel */}
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className="relative bg-[var(--paper)] rounded-lg p-8 w-[calc(100%-32px)] shadow-2xl"
         style={{ maxWidth }}
       >

@@ -127,7 +127,11 @@ with the file that owns it.
   `res.json()` (204 → `undefined`) in one place, so every query/mutation
   surfaces the server's real `{code, message}` instead of a fixed generic
   string. New hooks should call it rather than hand-rolling the fetch dance.
+  Shared dialog DOM hooks (`useFocusTrap`, `useScrollLock`) live here too.
 - `lib/email/` — React-Email templates + Resend senders.
+- `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
+  `generateToken()` output) and `trackPublicView`, the shared status-gated
+  view-tracking spine used by `estimate-review`/`invoice-review`.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,

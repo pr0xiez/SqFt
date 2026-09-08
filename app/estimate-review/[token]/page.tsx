@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   type PublicEstimate,
@@ -12,6 +11,7 @@ import {
 } from "@/lib/estimateView/parseSnapshot";
 import { logError } from "@/lib/logger";
 import { getEstimateByToken, markEstimateViewed } from "@/lib/repositories";
+import { isValidTokenShape, trackPublicView } from "@/lib/tokens";
 import { parseQtyMode, parseRoomSegments } from "@/lib/utils";
 
 export const metadata = {
@@ -28,17 +28,15 @@ export default async function PublicEstimatePage({ params }: Props) {
   const { token } = await params;
 
   // Reject any token shape that couldn't have been issued, before hitting the DB.
-  if (!token || token.length < 16 || token.length > 128) notFound();
+  if (!token || !isValidTokenShape(token)) notFound();
 
   const estimate = await getEstimateByToken(token);
   if (!estimate) notFound();
 
-  if (estimate.status !== "approved" && estimate.status !== "declined") {
-    const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-    const userAgent = h.get("user-agent") ?? null;
-    void markEstimateViewed(estimate.id, { ip, userAgent });
-  }
+  await trackPublicView(
+    estimate.status !== "approved" && estimate.status !== "declined",
+    (meta) => markEstimateViewed(estimate.id, meta)
+  );
 
   // An approved estimate renders from the approval snapshot — the frozen
   // record of what the customer signed — not from the live rows, whose
