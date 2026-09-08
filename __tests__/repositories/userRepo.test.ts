@@ -80,6 +80,14 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("userRepo", () => {
     expect(await validateUserIds(orgId, [])).toBe(true);
   });
 
+  it("validateUserIds rejects archived users", async () => {
+    await setArchived(crewId, orgId, true);
+    expect(await validateUserIds(orgId, [crewId])).toBe(false);
+    expect(await validateUserIds(orgId, [adminId, crewId])).toBe(false);
+    expect(await validateUserIds(orgId, [adminId])).toBe(true);
+    await setArchived(crewId, orgId, false); // restore for later assertions
+  });
+
   it("updateProfile sets name and title", async () => {
     const updated = await updateProfile(crewId, orgId, {
       title: "Lead Installer",

@@ -91,6 +91,20 @@ describe("POST /api/events", () => {
     );
   });
 
+  it("returns VALIDATION_FAILED when an assignee fails validation (e.g. archived)", async () => {
+    mockValidateUserIds.mockResolvedValueOnce(false);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", {
+        ...validPayload,
+        assigneeIds: ["archived-user"],
+      }),
+      params({})
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it("creates a job with a estimateId", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockCreate.mockResolvedValue({ id: 1 } as any);
@@ -163,6 +177,19 @@ describe("PATCH /api/events/[id]", () => {
       "org1",
       expect.objectContaining({ title: "Rescheduled" })
     );
+  });
+
+  it("returns VALIDATION_FAILED when an assignee fails validation (e.g. archived)", async () => {
+    mockValidateUserIds.mockResolvedValueOnce(false);
+    const res = await PATCH(
+      makeRequest("PATCH", "http://x/api/events/1", {
+        assigneeIds: ["archived-user"],
+      }),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it("returns NOT_FOUND when updateEvent returns null", async () => {
