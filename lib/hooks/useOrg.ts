@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export interface Org {
   id: string;
@@ -20,15 +21,9 @@ export interface Org {
   defaultTerms: string;
 }
 
-async function fetchOrg(): Promise<Org> {
-  const res = await fetch("/api/org");
-  if (!res.ok) throw new Error("Failed to fetch org");
-  return res.json();
-}
-
 export function useOrg() {
   return useQuery({
     queryKey: ["org"],
-    queryFn: fetchOrg,
+    queryFn: () => apiFetch<Org>("/api/org", undefined, "Failed to fetch org"),
   });
 }

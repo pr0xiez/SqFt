@@ -490,4 +490,8 @@ Clients read the envelope via `readApiError(res, fallback)` from the same
 module. It returns `{ code, message, details }` with safe fallbacks if the
 body isn't JSON. Use it instead of inlining `res.json()` parsing — it keeps
 the wire contract in one place and gives the caller access to `code` for
-branching.
+branching. Every `lib/hooks/*` query/mutation goes through
+`apiFetch<T>(url, init?, fallbackMessage?)` (`lib/hooks/apiFetch.ts`), which
+wraps `fetch` + the `res.ok` check + `readApiError` + `res.json()` (204 → no
+body, resolves `undefined`) in one call — so hooks never re-hand-roll this and
+always surface the server's real message instead of a fixed generic string.

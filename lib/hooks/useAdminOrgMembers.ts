@@ -5,7 +5,7 @@ import type {
   MemberRole,
   MemberRow,
 } from "@/components/settings/members/types";
-import { readApiError } from "@/lib/api/errors";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export type CreateAdminUserInput = {
   name: string;
@@ -26,15 +26,16 @@ const key = (orgId: string) => ["admin", "orgs", orgId, "users"] as const;
 export function useCreateAdminOrgMember(orgId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateAdminUserInput): Promise<MemberRow> => {
-      const res = await fetch(`/api/admin/orgs/${orgId}/users`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw await readApiError(res, "Failed to add user");
-      return (await res.json()) as MemberRow;
-    },
+    mutationFn: (input: CreateAdminUserInput) =>
+      apiFetch<MemberRow>(
+        `/api/admin/orgs/${orgId}/users`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        "Failed to add user"
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: key(orgId) }),
   });
 }
@@ -42,18 +43,16 @@ export function useCreateAdminOrgMember(orgId: string) {
 export function useUpdateAdminOrgMember(orgId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      userId,
-      ...patch
-    }: UpdateAdminUserInput): Promise<MemberRow> => {
-      const res = await fetch(`/api/admin/orgs/${orgId}/users/${userId}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) throw await readApiError(res, "Failed to update user");
-      return (await res.json()) as MemberRow;
-    },
+    mutationFn: ({ userId, ...patch }: UpdateAdminUserInput) =>
+      apiFetch<MemberRow>(
+        `/api/admin/orgs/${orgId}/users/${userId}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patch),
+        },
+        "Failed to update user"
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: key(orgId) }),
   });
 }

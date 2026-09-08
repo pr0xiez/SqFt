@@ -219,6 +219,70 @@ describe("createInvoice", () => {
     ).rejects.toBeInstanceOf(InvoiceOverbillError);
     expect(invoiceCreate).not.toHaveBeenCalled();
   });
+
+  // Regression for issue #298: the overbill decision must be serialized the
+  // same way nextInvoiceNumber allocation already is, by locking the Estimate
+  // row before reading it (and its invoices) — a plain read does not lock
+  // under READ COMMITTED.
+
+  it("locks the Estimate row (SELECT ... FOR UPDATE) before reading it and its invoices", async () => {
+    estimateFindFirst.mockResolvedValue(estimateFixture({ total: 1000 }));
+    orgUpdate.mockResolvedValue({
+      nextInvoiceNumber: 2,
+      defaultPaymentInstructions: "",
+    });
+    invoiceCreate.mockResolvedValue({ id: 1 });
+    queryRaw.mockResolvedValue(undefined);
+
+    await createInvoice("org1", { estimateId: 1, amount: 100 });
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    const [strings, ...values] = queryRaw.mock.calls[0];
+    const sql = (strings as unknown as string[]).join("");
+    expect(sql).toContain("Estimate");
+    expect(sql).toContain("FOR UPDATE");
+    expect(values).toEqual([1, "org1"]);
+
+    // The lock must be acquired before the estimate (with its invoices) is
+    // read — that ordering is what serializes the overbill decision below.
+    expect(queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      estimateFindFirst.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("serializes two concurrent creates so the second sees the first's committed invoice and is rejected as overbill", async () => {
+    // total 1000; two "concurrent" requests each try to bill 600 (sum 1200 >
+    // 1000). Under READ COMMITTED a plain read of the estimate/invoices does
+    // not block, so without the row lock both calls could read unbilled=1000
+    // and both pass. The lock forces the second call's read to wait until the
+    // first commits, so it observes the first invoice and is rejected here.
+    queryRaw.mockResolvedValue(undefined);
+    estimateFindFirst
+      .mockResolvedValueOnce(estimateFixture({ total: 1000, invoices: [] }))
+      .mockResolvedValueOnce(
+        estimateFixture({
+          total: 1000,
+          invoices: [{ amount: 600, status: "draft", payments: [] }],
+        })
+      );
+    orgUpdate.mockResolvedValue({
+      nextInvoiceNumber: 2,
+      defaultPaymentInstructions: "",
+    });
+    invoiceCreate.mockResolvedValue({ id: 1 });
+
+    const first = await createInvoice("org1", { estimateId: 1, amount: 600 });
+    expect(first).toEqual({ id: 1 });
+
+    await expect(
+      createInvoice("org1", { estimateId: 1, amount: 600 })
+    ).rejects.toBeInstanceOf(InvoiceOverbillError);
+
+    // The lock is taken on every call (would serialize a real concurrent
+    // pair), and only the first call's invoice was ever created.
+    expect(queryRaw).toHaveBeenCalledTimes(2);
+    expect(invoiceCreate).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("voidInvoice", () => {

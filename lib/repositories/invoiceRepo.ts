@@ -139,6 +139,15 @@ export interface CreateInvoiceInput {
 
 export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
   return prisma.$transaction(async (tx) => {
+    // Lock the Estimate row before reading it (and its invoices) so the
+    // overbill decision below is serialized across concurrent creates for the
+    // same estimate — a plain read does not lock under READ COMMITTED, so two
+    // concurrent requests could both read the same stale `unbilled` balance,
+    // both pass the check, and both commit past the estimate total (issue
+    // #298). This mirrors the nextInvoiceNumber lock further down, just
+    // applied to the estimate row instead of the org row.
+    await tx.$queryRaw`SELECT id FROM "Estimate" WHERE id = ${input.estimateId} AND "orgId" = ${orgId} FOR UPDATE`;
+
     const estimate = await tx.estimate.findFirst({
       where: { id: input.estimateId, orgId },
       include: {
