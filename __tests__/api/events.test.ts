@@ -23,9 +23,8 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
-  "@/lib/repositories"
-);
+const { listEvents, createEvent, updateEvent, deleteEvent, validateUserIds } =
+  await import("@/lib/repositories");
 const { GET: listGET, POST } = await import("@/app/api/events/route");
 const { PATCH, DELETE } = await import("@/app/api/events/[id]/route");
 
@@ -33,6 +32,7 @@ const mockList = vi.mocked(listEvents);
 const mockCreate = vi.mocked(createEvent);
 const mockUpdate = vi.mocked(updateEvent);
 const mockDelete = vi.mocked(deleteEvent);
+const mockValidateUserIds = vi.mocked(validateUserIds);
 
 const validPayload = {
   type: "job",
@@ -132,6 +132,21 @@ describe("POST /api/events", () => {
     expect(body.error.code).toBe("VALIDATION_FAILED");
     expect(body.error.message).toBe("Job events require a estimateId");
   });
+
+  it("returns VALIDATION_FAILED and skips createEvent when validateUserIds rejects the assignees", async () => {
+    mockValidateUserIds.mockResolvedValueOnce(false);
+    const res = await POST(
+      makeRequest("POST", "http://x/api/events", {
+        ...validPayload,
+        assigneeIds: ["u10", "u11"],
+      }),
+      params({})
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("VALIDATION_FAILED");
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /api/events/[id]", () => {
@@ -157,6 +172,20 @@ describe("PATCH /api/events/[id]", () => {
       params({ id: "99" })
     );
     expect(res.status).toBe(404);
+  });
+
+  it("returns VALIDATION_FAILED and skips updateEvent when validateUserIds rejects the assignees", async () => {
+    mockValidateUserIds.mockResolvedValueOnce(false);
+    const res = await PATCH(
+      makeRequest("PATCH", "http://x/api/events/1", {
+        assigneeIds: ["u10", "u11"],
+      }),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.code).toBe("VALIDATION_FAILED");
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
 

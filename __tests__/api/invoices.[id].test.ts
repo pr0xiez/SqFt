@@ -22,6 +22,7 @@ import { POST as PAY } from "@/app/api/invoices/[id]/payments/route";
 import { GET, PATCH } from "@/app/api/invoices/[id]/route";
 import { POST as VOID } from "@/app/api/invoices/[id]/void/route";
 import { recordPayment } from "@/lib/repositories";
+import { requireSession } from "@/lib/tenant";
 
 const ctx = params({ id: "9" });
 
@@ -69,5 +70,52 @@ describe("invoice detail routes", () => {
         recordedByName: "Amy",
       })
     );
+  });
+  it("payments 401s when the session is missing a name", async () => {
+    const fullSession = {
+      user: { orgId: "org_1", email: "a@b.c", name: "Amy", role: "lead" },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+    } as any;
+    const noNameSession = {
+      user: { orgId: "org_1", email: "a@b.c", name: null, role: "lead" },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+    } as any;
+    // First call is apiRoute's own minRole gate (needs a valid role to reach
+    // the handler); second call is the route's hand-rolled actor guard,
+    // which is what this test targets.
+    vi.mocked(requireSession)
+      .mockResolvedValueOnce(fullSession)
+      .mockResolvedValueOnce(noNameSession);
+    const res = await PAY(
+      makeRequest("POST", "http://t/api/invoices/9/payments", {
+        amount: 100,
+        method: "check",
+      }),
+      ctx
+    );
+    expect(res.status).toBe(401);
+    expect(recordPayment).not.toHaveBeenCalled();
+  });
+  it("payments 401s when the session is missing an email", async () => {
+    const fullSession = {
+      user: { orgId: "org_1", email: "a@b.c", name: "Amy", role: "lead" },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+    } as any;
+    const noEmailSession = {
+      user: { orgId: "org_1", email: null, name: "Amy", role: "lead" },
+      // biome-ignore lint/suspicious/noExplicitAny: test stub session
+    } as any;
+    vi.mocked(requireSession)
+      .mockResolvedValueOnce(fullSession)
+      .mockResolvedValueOnce(noEmailSession);
+    const res = await PAY(
+      makeRequest("POST", "http://t/api/invoices/9/payments", {
+        amount: 100,
+        method: "check",
+      }),
+      ctx
+    );
+    expect(res.status).toBe(401);
+    expect(recordPayment).not.toHaveBeenCalled();
   });
 });
