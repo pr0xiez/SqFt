@@ -12,6 +12,7 @@ import {
   useLineItemTemplates,
   useUpdateLineItemTemplate,
 } from "@/lib/hooks/useLineItemTemplates";
+import { fmtDollar } from "@/lib/utils";
 
 export function LineItemTemplatesView() {
   const { data: all = [], isLoading } = useLineItemTemplates({
@@ -278,7 +279,7 @@ function TemplateRow({
             {template.name}
           </div>
           <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            ${template.rate.toFixed(2)} / {template.unitLabel}
+            {fmtDollar(template.rate)} / {template.unitLabel}
           </div>
         </div>
         {template.description && (

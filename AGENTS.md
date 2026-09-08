@@ -76,6 +76,14 @@ with the file that owns it.
   adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin
   callers; ordering/error invariants live here (see *Send Pipeline* in
   `CONTEXT.md`).
+- `lib/dashboard/approvedRevenue.ts` — shared **approved-revenue query**
+  (`getApprovedEstimateRevenueRows`, `getMtdApprovedEstimates`): the one place
+  that queries approved estimates in a date range and reduces them via
+  `computeEstimateView`. Both `getDashboardKpis` (`lib/dashboard/kpis.ts`,
+  `bookedRevenueMtd`) and `getDashboardRevenue` (`lib/dashboard/revenue.ts`,
+  `mtdTotal` + weekly buckets) call it instead of each defining its own
+  "what counts as MTD approved revenue" — add any future MTD-revenue logic
+  here, not by re-deriving it in either dashboard function.
 - `lib/quickCreate/` — **pure quick-create logic** (`toInvoiceableCandidates`):
   projects estimates to billable candidates (`unbilled > 0`) for the
   quick-invoice search. The global **"+ New" launcher** UI lives in
@@ -108,9 +116,22 @@ with the file that owns it.
   `components/ui/Providers.tsx` and `AccountBlock`.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
-  `validateUserIds`).
-- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
+  `validateUserIds`, and `applyUserPatch` — the shared role/profile/archived
+  orchestration used by both the self-org and super-admin PATCH routes).
+- `lib/users/schema.ts` — the shared `userCreateSchema` / `userPatchSchema`
+  Zod schemas, used by both the self-org (`app/api/users/`) and super-admin
+  (`app/api/admin/orgs/[orgId]/users/`) user create/patch routes.
+- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …), all
+  built on the shared `apiFetch<T>(url, init?, fallbackMessage?)`
+  (`lib/hooks/apiFetch.ts`) — fetch + `res.ok` check + `readApiError` +
+  `res.json()` (204 → `undefined`) in one place, so every query/mutation
+  surfaces the server's real `{code, message}` instead of a fixed generic
+  string. New hooks should call it rather than hand-rolling the fetch dance.
+  Shared dialog DOM hooks (`useFocusTrap`, `useScrollLock`) live here too.
 - `lib/email/` — React-Email templates + Resend senders.
+- `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
+  `generateToken()` output) and `trackPublicView`, the shared status-gated
+  view-tracking spine used by `estimate-review`/`invoice-review`.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,
@@ -155,6 +176,8 @@ with the file that owns it.
   `onDelete: Cascade`.** Delete paths at every level must guard against
   cascading away financial records (`HAS_INVOICES`) and scheduled events
   (`ESTIMATE_HAS_EVENTS`) — don't add a new delete path without those checks.
+  The shared guard lives in `lib/repositories/deleteGuards.ts`; customer
+  deletion also checks Events linked directly by `customerId`.
 - **Stripe test/live modes are isolated.** The Stripe secret key mode must
   match the mode of the stored `stripeConnectAccountId` (an account created
   with a test-mode key cannot be used with a live-mode key and vice versa).

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { EstimateBuilderView } from "@/components/estimates/EstimateBuilder";
 import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
+import { parseRouteId } from "@/lib/routeParams";
 import { requireSession } from "@/lib/tenant";
 
 export const metadata = { title: "Estimate Builder — SqFt" };
@@ -14,5 +15,5 @@ export default async function EstimateBuilderPage({ params }: Props) {
   if (!hasMinRole(session.user.role, "lead"))
     redirect(homePathFor(session.user.role));
   const { id } = await params;
-  return <EstimateBuilderView estimateId={parseInt(id, 10)} />;
+  return <EstimateBuilderView estimateId={parseRouteId(id)} />;
 }

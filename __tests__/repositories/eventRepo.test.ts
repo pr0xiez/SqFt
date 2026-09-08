@@ -252,6 +252,37 @@ describe("updateEvent", () => {
     expect(eventUpdate).not.toHaveBeenCalled();
   });
 
+  // Prisma's UncheckedUpdateInput types every scalar as `T | { set: T }`, so
+  // a caller building the update object "natively" (rather than passing a
+  // raw zod-parsed number, as the only current route does) could legally
+  // hand updateEvent a `{ set }`-wrapped FK. Regression test for #287: this
+  // shape must still route through assertFksInOrg, not silently skip it.
+  it("rejects a { set } - wrapped customerId outside the org", async () => {
+    eventFindFirst.mockResolvedValueOnce(storedEvent());
+    customerFindFirst.mockResolvedValueOnce(null);
+    await expect(
+      updateEvent(1, "org1", { customerId: { set: 77 } })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(customerFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 77, orgId: "org1" } })
+    );
+    expect(eventUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a { set } - wrapped estimateId outside the org", async () => {
+    eventFindFirst.mockResolvedValueOnce(
+      storedEvent({ type: "job", estimateId: 1 })
+    );
+    estimateFindFirst.mockResolvedValueOnce(null);
+    await expect(
+      updateEvent(1, "org1", { estimateId: { set: 42 } })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(estimateFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 42, orgId: "org1" } })
+    );
+    expect(eventUpdate).not.toHaveBeenCalled();
+  });
+
   it("does not look up FKs that aren't being changed", async () => {
     eventFindFirst.mockResolvedValueOnce(storedEvent());
     eventUpdate.mockResolvedValue({ id: 1 });

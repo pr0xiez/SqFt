@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export interface LineItemTemplate {
   id: number;
@@ -30,37 +31,34 @@ export interface UpdateLineItemTemplateInput {
   sortOrder?: number;
 }
 
-async function fetchTemplates(
-  includeArchived: boolean
-): Promise<LineItemTemplate[]> {
-  const url = includeArchived
-    ? "/api/line-item-templates?includeArchived=1"
-    : "/api/line-item-templates";
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch line item templates");
-  return res.json();
-}
-
 export function useLineItemTemplates(opts: { includeArchived?: boolean } = {}) {
   const includeArchived = opts.includeArchived ?? false;
   return useQuery({
     queryKey: ["line-item-templates", { includeArchived }],
-    queryFn: () => fetchTemplates(includeArchived),
+    queryFn: () =>
+      apiFetch<LineItemTemplate[]>(
+        includeArchived
+          ? "/api/line-item-templates?includeArchived=1"
+          : "/api/line-item-templates",
+        undefined,
+        "Failed to fetch line item templates"
+      ),
   });
 }
 
 export function useCreateLineItemTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateLineItemTemplateInput) => {
-      const res = await fetch("/api/line-item-templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error("Failed to create template");
-      return res.json() as Promise<LineItemTemplate>;
-    },
+    mutationFn: (input: CreateLineItemTemplateInput) =>
+      apiFetch<LineItemTemplate>(
+        "/api/line-item-templates",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        "Failed to create template"
+      ),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["line-item-templates"] }),
   });
@@ -69,15 +67,16 @@ export function useCreateLineItemTemplate() {
 export function useUpdateLineItemTemplate(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: UpdateLineItemTemplateInput) => {
-      const res = await fetch(`/api/line-item-templates/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update template");
-      return res.json() as Promise<LineItemTemplate>;
-    },
+    mutationFn: (data: UpdateLineItemTemplateInput) =>
+      apiFetch<LineItemTemplate>(
+        `/api/line-item-templates/${id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        },
+        "Failed to update template"
+      ),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["line-item-templates"] }),
   });
@@ -86,12 +85,12 @@ export function useUpdateLineItemTemplate(id: number) {
 export function useDeleteLineItemTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/line-item-templates/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Failed to delete template");
-    },
+    mutationFn: (id: number) =>
+      apiFetch<void>(
+        `/api/line-item-templates/${id}`,
+        { method: "DELETE" },
+        "Failed to delete template"
+      ),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["line-item-templates"] }),
   });

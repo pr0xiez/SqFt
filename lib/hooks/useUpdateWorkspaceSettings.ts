@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { readApiError } from "@/lib/api/errors";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import type { Org } from "@/lib/hooks/useOrg";
 
 export type WorkspaceSettingsPatch = Partial<{
@@ -17,17 +17,16 @@ export type WorkspaceSettingsPatch = Partial<{
   defaultTerms: string;
 }>;
 
-async function patchOrg(patch: WorkspaceSettingsPatch): Promise<Org> {
-  const res = await fetch("/api/org", {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) {
-    const err = await readApiError(res, "Failed to save workspace settings");
-    throw new Error(err.message);
-  }
-  return (await res.json()) as Org;
+function patchOrg(patch: WorkspaceSettingsPatch): Promise<Org> {
+  return apiFetch<Org>(
+    "/api/org",
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    },
+    "Failed to save workspace settings"
+  );
 }
 
 export function useUpdateWorkspaceSettings() {

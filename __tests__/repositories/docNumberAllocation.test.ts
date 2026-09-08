@@ -18,6 +18,7 @@ vi.mock("@/lib/prisma", () => {
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
     },
+    $queryRaw: vi.fn(),
   };
   return {
     prisma: {

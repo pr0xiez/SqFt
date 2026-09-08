@@ -170,9 +170,21 @@ describe("snapshotEstimate", () => {
     const byId = new Map(snap.lineItems.map((li) => [li.id, li]));
     expect(byId.get(10)).toMatchObject({
       effectiveQty: 100,
-      subtotal: 100 * 4.85,
+      // 100 * 4.85 is 484.99999999999994 in IEEE-754; the computed view
+      // round2's every line subtotal, so the snapshot carries the exact
+      // cents value (485), not the raw float.
+      subtotal: 485,
     });
     expect(byId.get(20)).toMatchObject({ effectiveQty: 50, subtotal: 100 });
+  });
+
+  it("is a plain JSON value the Prisma `snapshot` column can store as-is (no `as never` cast needed at the call site — see issue #119)", () => {
+    const snap = snapshotEstimate(input, meta);
+    // A round-trip through JSON is exactly what Prisma does when persisting a
+    // Json column; equality here confirms the snapshot carries no non-JSON
+    // values (Date, undefined, class instances, …) that would silently
+    // change shape on write.
+    expect(JSON.parse(JSON.stringify(snap))).toEqual(snap);
   });
 
   it("throws loudly if the computed view drops a line item (no silent null mispairing)", () => {

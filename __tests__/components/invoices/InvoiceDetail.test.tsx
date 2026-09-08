@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InvoiceDetail } from "@/components/invoices/InvoiceDetail";
@@ -31,7 +31,7 @@ const partiallyPaidInvoice = {
   paymentInstructions: "",
   date: "2026-06-01T00:00:00.000Z",
   dueDate: null,
-  publicToken: "tok",
+  hasPublicToken: true,
   sentAt: "2026-06-01T00:00:00.000Z",
   sentToEmail: null,
   viewedAt: null,
@@ -76,5 +76,43 @@ describe("InvoiceDetail", () => {
     // The full amount stays visible as the invoice total.
     const totalRow = screen.getByText("Invoice total").parentElement;
     expect(totalRow?.textContent).toContain("$5000.00");
+  });
+
+  // Regression coverage for #319 (CWE-201/522): the invoice detail payload
+  // never carries the raw `publicToken` — "copy public link" must fetch the
+  // live token from the dedicated rotate endpoint instead.
+  it("copies the link fetched from the public-token endpoint, not from the detail payload", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/public-token")) {
+        return new Response(JSON.stringify({ publicToken: "fresh-token" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(partiallyPaidInvoice), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    render(wrap(<InvoiceDetail invoiceId={9} estimateId={3} />));
+    const copyButton = await screen.findByText("copy public link");
+    fireEvent.click(copyButton);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/invoices/9/public-token",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        expect.stringContaining("/invoice-review/fresh-token")
+      )
+    );
   });
 });

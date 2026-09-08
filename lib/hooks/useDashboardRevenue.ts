@@ -2,18 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { DashboardRevenue, WeekSummary } from "@/lib/dashboard/revenue";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export type { DashboardRevenue, WeekSummary };
-
-async function fetchDashboardRevenue(): Promise<DashboardRevenue> {
-  const res = await fetch("/api/dashboard/revenue");
-  if (!res.ok) throw new Error("Failed to fetch dashboard revenue");
-  return res.json();
-}
 
 export function useDashboardRevenue() {
   return useQuery({
     queryKey: ["dashboard", "revenue"],
-    queryFn: fetchDashboardRevenue,
+    queryFn: () =>
+      apiFetch<DashboardRevenue>(
+        "/api/dashboard/revenue",
+        undefined,
+        "Failed to fetch dashboard revenue"
+      ),
   });
 }

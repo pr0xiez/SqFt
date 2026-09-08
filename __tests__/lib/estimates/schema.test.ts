@@ -46,9 +46,13 @@ describe("estimateUpdateSchema", () => {
   });
 
   it("accepts every valid status enum value", () => {
-    for (const status of ["draft", "sent", "approved", "declined"] as const) {
+    for (const status of ["draft", "sent"] as const) {
       expect(estimateUpdateSchema.safeParse({ status }).success).toBe(true);
     }
+  });
+
+  it.each(["approved", "declined"])("rejects forged %s status", (status) => {
+    expect(estimateUpdateSchema.safeParse({ status }).success).toBe(false);
   });
 
   it("rejects an invalid status value", () => {
