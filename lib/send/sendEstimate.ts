@@ -7,13 +7,13 @@ import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
-  getEstimate,
+  getEstimateForSend,
   markEstimateSent,
   rotateApprovalToken,
   updateCustomerEmail,
   writeEstimateEvent,
 } from "@/lib/repositories";
-import type { EstimateWithDetails } from "@/lib/repositories/estimateRepo";
+import type { EstimateForSend } from "@/lib/repositories/estimateRepo";
 import { runSendPipeline, type Sendable, type SendRequest } from "./pipeline";
 
 export type EstimateSendRequest = SendRequest & { message?: string };
@@ -22,9 +22,9 @@ export type EstimateSendRequest = SendRequest & { message?: string };
  *  mutable state across concurrent sends. */
 function buildEstimateSendable(customerEmailResult: {
   saved: boolean;
-}): Sendable<EstimateWithDetails, SendEstimateEmailInput, EstimateSendRequest> {
+}): Sendable<EstimateForSend, SendEstimateEmailInput, EstimateSendRequest> {
   return {
-    load: getEstimate,
+    load: getEstimateForSend,
 
     guard(estimate) {
       if (estimate.status === "approved" || estimate.status === "declined") {

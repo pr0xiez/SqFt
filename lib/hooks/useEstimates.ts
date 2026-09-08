@@ -54,7 +54,12 @@ export interface EstimateDetail {
   date: string;
   markupPct: number;
   depositPct: number;
-  approvalToken?: string | null;
+  /** Whether the estimate has a live approval token — the token itself is
+   *  never sent to the client (CWE-201/522: it's a bearer credential for the
+   *  unauthenticated estimate-review approval flow). Use
+   *  `useRotateApprovalToken` to mint/read one when actually needed (e.g. a
+   *  copy-link action). */
+  hasApprovalToken: boolean;
   approvedAt?: string | null;
   declinedAt?: string | null;
   declineReason?: string | null;

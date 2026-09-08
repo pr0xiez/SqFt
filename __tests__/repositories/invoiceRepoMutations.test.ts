@@ -63,6 +63,10 @@ const {
   recordPayment,
   markInvoiceSent,
   markInvoiceViewed,
+  getInvoice,
+  getInvoiceByToken,
+  invoiceHasPublicToken,
+  getOrCreateInvoicePublicToken,
 } = await import("@/lib/repositories/invoiceRepo");
 
 beforeEach(() => {
@@ -660,5 +664,136 @@ describe("markInvoiceViewed", () => {
 
     expect(invoiceUpdateMany).not.toHaveBeenCalled();
     expect(invoiceEventCreate).not.toHaveBeenCalled();
+  });
+});
+
+// Regression coverage for #319 (CWE-201/522): `publicToken` is the sole
+// bearer credential for the unauthenticated `/invoice-review/[token]` page —
+// none of the authenticated reads/writes below may select it.
+describe("publicToken is never selected by authenticated reads/writes", () => {
+  it("getInvoice", async () => {
+    invoiceFindFirst.mockResolvedValue({
+      id: 1,
+      estimate: {
+        siteMeasure: { location: { customer: { email: "j@example.com" } } },
+      },
+    });
+    await getInvoice(1, "org1");
+    const call = invoiceFindFirst.mock.calls[0][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(call.select).not.toHaveProperty("publicToken");
+  });
+
+  it("getInvoiceByToken", async () => {
+    invoiceFindUnique.mockResolvedValue(null);
+    await getInvoiceByToken("abc123");
+    const call = invoiceFindUnique.mock.calls[0][0] as {
+      where: unknown;
+      select: Record<string, unknown>;
+    };
+    expect(call.where).toEqual({ publicToken: "abc123" });
+    expect(call.select).not.toHaveProperty("publicToken");
+  });
+
+  it("createInvoice", async () => {
+    estimateFindFirst.mockResolvedValue(estimateFixture({ total: 1000 }));
+    orgUpdate.mockResolvedValue({
+      nextInvoiceNumber: 2,
+      defaultPaymentInstructions: "",
+    });
+    invoiceCreate.mockResolvedValue({ id: 1 });
+    await createInvoice("org1", { estimateId: 1, amount: 100 });
+    const call = invoiceCreate.mock.calls[0][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(call.select).not.toHaveProperty("publicToken");
+  });
+
+  it("updateInvoice", async () => {
+    invoiceFindFirst.mockResolvedValue({
+      id: 1,
+      status: "draft",
+      estimate: estimateFixture({ total: 1000 }),
+    });
+    invoiceUpdate.mockResolvedValue({ id: 1 });
+    await updateInvoice(1, "org1", { memo: "hello" });
+    const call = invoiceUpdate.mock.calls[0][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(call.select).not.toHaveProperty("publicToken");
+  });
+
+  it("recordPayment", async () => {
+    invoiceFindFirst
+      .mockResolvedValueOnce({
+        id: 1,
+        status: "sent",
+        amount: 100,
+        payments: [],
+      })
+      .mockResolvedValueOnce({ id: 1 });
+    paymentCreate.mockResolvedValue({});
+    invoiceUpdate.mockResolvedValue({});
+    invoiceEventCreate.mockResolvedValue({});
+    await recordPayment(1, "org1", {
+      amount: 10,
+      method: "cash",
+      recordedByEmail: "a@b.com",
+      recordedByName: "Alex",
+    });
+    const call = invoiceFindFirst.mock.calls[1][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(call.select).not.toHaveProperty("publicToken");
+  });
+});
+
+describe("invoiceHasPublicToken", () => {
+  it("collapses a present token to true without returning it", async () => {
+    invoiceFindFirst.mockResolvedValue({ publicToken: "secret" });
+    expect(await invoiceHasPublicToken(1, "org1")).toBe(true);
+    expect(invoiceFindFirst).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      select: { publicToken: true },
+    });
+  });
+
+  it("returns false when there's no token, or the invoice isn't in the org", async () => {
+    invoiceFindFirst.mockResolvedValue({ publicToken: null });
+    expect(await invoiceHasPublicToken(1, "org1")).toBe(false);
+    invoiceFindFirst.mockResolvedValue(null);
+    expect(await invoiceHasPublicToken(99, "org1")).toBe(false);
+  });
+});
+
+describe("getOrCreateInvoicePublicToken", () => {
+  it("returns the existing token without minting a new one", async () => {
+    invoiceFindFirst.mockResolvedValue({ publicToken: "existing-token" });
+    expect(await getOrCreateInvoicePublicToken(1, "org1")).toBe(
+      "existing-token"
+    );
+    expect(invoiceFindFirst).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      select: { publicToken: true },
+    });
+    expect(invoiceUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("mints and persists a token when none exists yet", async () => {
+    invoiceFindFirst.mockResolvedValue({ publicToken: null });
+    invoiceUpdateMany.mockResolvedValue({ count: 1 });
+    const token = await getOrCreateInvoicePublicToken(1, "org1");
+    expect(token).toEqual(expect.any(String));
+    expect(invoiceUpdateMany).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      data: { publicToken: token },
+    });
+  });
+
+  it("returns null when the invoice isn't in the org", async () => {
+    invoiceFindFirst.mockResolvedValue(null);
+    expect(await getOrCreateInvoicePublicToken(99, "org1")).toBeNull();
+    expect(invoiceUpdateMany).not.toHaveBeenCalled();
   });
 });

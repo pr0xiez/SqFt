@@ -7,6 +7,7 @@ vi.mock("@/lib/repositories", () => ({
   saveEstimate: vi.fn(),
   deleteEstimate: vi.fn(),
   rotateApprovalToken: vi.fn(),
+  estimateHasApprovalToken: vi.fn(),
 }));
 
 const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
@@ -22,8 +23,13 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const { getEstimate, saveEstimate, deleteEstimate, rotateApprovalToken } =
-  await import("@/lib/repositories");
+const {
+  getEstimate,
+  saveEstimate,
+  deleteEstimate,
+  rotateApprovalToken,
+  estimateHasApprovalToken,
+} = await import("@/lib/repositories");
 const { GET, PATCH, DELETE } = await import("@/app/api/estimates/[id]/route");
 const { POST: tokenPOST } = await import(
   "@/app/api/estimates/[id]/approval-token/route"
@@ -33,9 +39,11 @@ const mockGetEstimate = vi.mocked(getEstimate);
 const mockSaveEstimate = vi.mocked(saveEstimate);
 const mockDeleteEstimate = vi.mocked(deleteEstimate);
 const mockRotate = vi.mocked(rotateApprovalToken);
+const mockHasToken = vi.mocked(estimateHasApprovalToken);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockHasToken.mockResolvedValue(false);
 });
 
 describe("GET /api/estimates/[id]", () => {
@@ -57,6 +65,21 @@ describe("GET /api/estimates/[id]", () => {
       params({ id: "99" })
     );
     expect(res.status).toBe(404);
+  });
+
+  it("carries only the hasApprovalToken flag, never the raw token", async () => {
+    // Shape mirrors the real repo's select (no `approvalToken` key at all —
+    // see ESTIMATE_DETAILS_SELECT in estimateRepo.ts).
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockGetEstimate.mockResolvedValue({ id: 1, status: "sent" } as any);
+    mockHasToken.mockResolvedValue(true);
+    const res = await GET(
+      makeRequest("GET", "http://x/api/estimates/1"),
+      params({ id: "1" })
+    );
+    const body = await res.json();
+    expect(body).not.toHaveProperty("approvalToken");
+    expect(body.hasApprovalToken).toBe(true);
   });
 });
 

@@ -59,14 +59,51 @@ export function computeInvoiceAmount(args: {
   return { amount: round2(args.estimateTotal * pct), pct };
 }
 
-const INVOICE_INCLUDE = {
+/** Scalar fields of Invoice returned by every authenticated read/write below
+ *  — every column EXCEPT `publicToken`. `publicToken` is a live bearer
+ *  credential for the unauthenticated `/invoice-review/[token]` payment flow;
+ *  it must never ride along in a payload an authenticated API route hands
+ *  back to the browser. The only sanctioned read of it is
+ *  `rotateInvoiceToken` (returns a freshly-minted token to the lead who
+ *  explicitly requested one, via the `/api/invoices/[id]/public-token`
+ *  route). See CONTEXT.md "Public tokens". */
+const INVOICE_SCALAR_SELECT = {
+  id: true,
+  orgId: true,
+  estimateId: true,
+  invoiceNumber: true,
+  status: true,
+  amount: true,
+  pct: true,
+  memo: true,
+  coverNote: true,
+  terms: true,
+  paymentInstructions: true,
+  date: true,
+  dueDate: true,
+  sentAt: true,
+  sentToEmail: true,
+  sentByEmail: true,
+  sentByName: true,
+  viewedAt: true,
+  paidAt: true,
+  voidedAt: true,
+  stripePaymentLinkUrl: true,
+  stripePaymentIntentId: true,
+  snapshot: true,
+  createdAt: true,
+} satisfies Prisma.InvoiceSelect;
+
+/** Deliberately a `select`, not an `include` — see {@link INVOICE_SCALAR_SELECT}. */
+const INVOICE_SELECT = {
+  ...INVOICE_SCALAR_SELECT,
   payments: { orderBy: { paidAt: "asc" } },
   invoiceEvents: { orderBy: { createdAt: "desc" } },
-} satisfies Prisma.InvoiceInclude;
+} satisfies Prisma.InvoiceSelect;
 
-/** Detail include also pulls the customer email so the send form can prefill it. */
-const INVOICE_DETAIL_INCLUDE = {
-  ...INVOICE_INCLUDE,
+/** Detail select also pulls the customer email so the send form can prefill it. */
+const INVOICE_DETAIL_SELECT = {
+  ...INVOICE_SELECT,
   estimate: {
     select: {
       siteMeasure: {
@@ -76,10 +113,10 @@ const INVOICE_DETAIL_INCLUDE = {
       },
     },
   },
-} satisfies Prisma.InvoiceInclude;
+} satisfies Prisma.InvoiceSelect;
 
 export type InvoiceWithDetails = Prisma.InvoiceGetPayload<{
-  include: typeof INVOICE_INCLUDE;
+  select: typeof INVOICE_SELECT;
 }>;
 
 /** A single invoice plus the customer email derived from its estimate chain. */
@@ -107,7 +144,7 @@ export async function listInvoicesForEstimate(
   return prisma.invoice.findMany({
     where: { orgId, estimateId },
     orderBy: { createdAt: "asc" },
-    include: INVOICE_INCLUDE,
+    select: INVOICE_SELECT,
   });
 }
 
@@ -117,7 +154,7 @@ export async function getInvoice(
 ): Promise<InvoiceDetailRecord | null> {
   const invoice = await prisma.invoice.findFirst({
     where: { id, orgId },
-    include: INVOICE_DETAIL_INCLUDE,
+    select: INVOICE_DETAIL_SELECT,
   });
   if (!invoice) return null;
   const { estimate, ...rest } = invoice;
@@ -205,7 +242,7 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
         paymentInstructions: org.defaultPaymentInstructions,
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
       },
-      include: INVOICE_INCLUDE,
+      select: INVOICE_SELECT,
     });
   });
 }
@@ -304,6 +341,43 @@ export async function rotateInvoiceToken(id: number, orgId: string) {
     data: { publicToken: token },
   });
   return res.count > 0 ? token : null;
+}
+
+/**
+ * Read the invoice's existing public review token, minting one only if it
+ * doesn't already have one — mirrors the send pipeline's `currentToken` /
+ * `rotateToken` reuse semantics (`lib/send/pipeline.ts`). Backs the "copy
+ * public link" UI action: repeated clicks must return the same link rather
+ * than invalidating one already shared with the customer.
+ */
+export async function getOrCreateInvoicePublicToken(
+  id: number,
+  orgId: string
+): Promise<string | null> {
+  const row = await prisma.invoice.findFirst({
+    where: { id, orgId },
+    select: { publicToken: true },
+  });
+  if (!row) return null;
+  return row.publicToken ?? rotateInvoiceToken(id, orgId);
+}
+
+/**
+ * Whether the invoice currently has a live public review token — collapsed
+ * to a boolean before it ever leaves the server, so the "copy public link"
+ * UI affordance doesn't require exposing `publicToken` itself. Returns false
+ * for an invoice outside the org (matches the null-object pattern other
+ * reads use rather than throwing).
+ */
+export async function invoiceHasPublicToken(
+  id: number,
+  orgId: string
+): Promise<boolean> {
+  const row = await prisma.invoice.findFirst({
+    where: { id, orgId },
+    select: { publicToken: true },
+  });
+  return Boolean(row?.publicToken);
 }
 
 export interface WriteInvoiceEventInput {
@@ -491,7 +565,7 @@ export async function recordPayment(
 
     return tx.invoice.findFirst({
       where: { id: invoiceId },
-      include: INVOICE_INCLUDE,
+      select: INVOICE_SELECT,
     });
   });
 }
@@ -688,11 +762,14 @@ export async function recordStripeAnomaly(input: {
   });
 }
 
-/** Public token lookup (no org scope — the token authorizes). */
+/** Public token lookup (no org scope — the token authorizes). The caller
+ *  already holds the token (it's in the URL), so the response doesn't need
+ *  to carry `publicToken` back — same `INVOICE_SELECT` as the authenticated
+ *  reads. */
 export async function getInvoiceByToken(token: string) {
   return prisma.invoice.findUnique({
     where: { publicToken: token },
-    include: INVOICE_INCLUDE,
+    select: INVOICE_SELECT,
   });
 }
 

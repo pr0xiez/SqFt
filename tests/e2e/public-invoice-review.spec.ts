@@ -2,6 +2,7 @@ import { type BrowserContext, expect, test } from "@playwright/test";
 import { loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
+  getInvoicePublicToken,
   seedEstimateWithLineItem,
   seedInvoice,
 } from "./fixtures/seed";
@@ -37,10 +38,7 @@ test.describe
       await ctx.request.post(`/api/invoices/${invoiceId}/payments`, {
         data: { amount: 40, method: "check" },
       });
-      const inv = await (
-        await ctx.request.get(`/api/invoices/${invoiceId}`)
-      ).json();
-      token = inv.publicToken;
+      token = await getInvoicePublicToken(ctx.request, invoiceId);
     });
 
     test.afterAll(async () => {

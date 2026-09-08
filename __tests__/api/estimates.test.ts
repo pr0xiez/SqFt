@@ -79,6 +79,7 @@ describe("GET /api/estimates", () => {
     expect(body.items[0].total).toBe(123);
     expect(body.items[0].lineItems).toBeUndefined();
     expect(body.items[0].siteMeasure.items).toBeUndefined();
+    expect(body.items[0]).not.toHaveProperty("approvalToken");
     expect(mockList).toHaveBeenCalledWith(
       "org1",
       expect.objectContaining({

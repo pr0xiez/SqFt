@@ -12,6 +12,8 @@ vi.mock("@/lib/repositories", () => ({
   getInvoice: vi.fn(async () => ({ id: 9, status: "draft" })),
   voidInvoice: vi.fn(async () => ({ id: 9, status: "void" })),
   recordPayment: vi.fn(async () => ({ id: 9, status: "partial" })),
+  invoiceHasPublicToken: vi.fn(async () => false),
+  getOrCreateInvoicePublicToken: vi.fn(),
 }));
 vi.mock("next/server", async (importOriginal) => {
   const mod = await importOriginal<typeof import("next/server")>();
@@ -19,9 +21,15 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 import { POST as PAY } from "@/app/api/invoices/[id]/payments/route";
+import { POST as TOKEN } from "@/app/api/invoices/[id]/public-token/route";
 import { GET } from "@/app/api/invoices/[id]/route";
 import { POST as VOID } from "@/app/api/invoices/[id]/void/route";
-import { recordPayment } from "@/lib/repositories";
+import {
+  getOrCreateInvoicePublicToken,
+  recordPayment,
+} from "@/lib/repositories";
+
+const mockGetOrCreateToken = vi.mocked(getOrCreateInvoicePublicToken);
 import { requireSession } from "@/lib/tenant";
 
 const ctx = params({ id: "9" });
@@ -32,9 +40,14 @@ beforeEach(() => {
 
 describe("invoice detail routes", () => {
   it("GET returns the invoice", async () => {
-    expect(
-      (await GET(makeRequest("GET", "http://t/api/invoices/9"), ctx)).status
-    ).toBe(200);
+    const res = await GET(makeRequest("GET", "http://t/api/invoices/9"), ctx);
+    expect(res.status).toBe(200);
+  });
+  it("GET carries only the hasPublicToken flag, never the raw token", async () => {
+    const res = await GET(makeRequest("GET", "http://t/api/invoices/9"), ctx);
+    const body = await res.json();
+    expect(body).not.toHaveProperty("publicToken");
+    expect(body.hasPublicToken).toBe(false);
   });
   it("void marks the invoice void", async () => {
     expect(
@@ -121,5 +134,27 @@ describe("invoice detail routes", () => {
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.error.code).toBe("INVOICE_OVERPAY");
+  });
+});
+
+describe("POST /api/invoices/[id]/public-token", () => {
+  it("returns the existing (or freshly-minted) token", async () => {
+    mockGetOrCreateToken.mockResolvedValue("the-token");
+    const res = await TOKEN(
+      makeRequest("POST", "http://t/api/invoices/9/public-token"),
+      ctx
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ publicToken: "the-token" });
+    expect(mockGetOrCreateToken).toHaveBeenCalledWith(9, "org_1");
+  });
+
+  it("returns NOT_FOUND when the invoice isn't there", async () => {
+    mockGetOrCreateToken.mockResolvedValue(null);
+    const res = await TOKEN(
+      makeRequest("POST", "http://t/api/invoices/99/public-token"),
+      params({ id: "99" })
+    );
+    expect(res.status).toBe(404);
   });
 });
