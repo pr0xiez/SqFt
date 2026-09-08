@@ -7,6 +7,8 @@
  * Codes are documented in CONTEXT.md.
  */
 
+import { fmtDollar } from "@/lib/utils";
+
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
@@ -113,7 +115,7 @@ export class InvoiceOverbillError extends ConflictError {
   readonly unbilled: number;
   constructor(unbilled: number) {
     super(
-      `Amount exceeds the estimate's unbilled balance ($${unbilled.toFixed(2)}).`,
+      `Amount exceeds the estimate's unbilled balance (${fmtDollar(unbilled)}).`,
       "INVOICE_OVERBILL"
     );
     this.unbilled = unbilled;

@@ -1,8 +1,8 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { z } from "zod";
+import { authorizeCredentials } from "@/lib/auth/authorize";
+import { mapTokenToSessionFields } from "@/lib/auth/session";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { prisma } from "@/lib/prisma";
 import { findAuthState } from "@/lib/repositories/userRepo";
@@ -27,11 +27,6 @@ declare module "next-auth" {
   }
 }
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-});
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt", maxAge: SESSION_MAX_AGE_SECONDS },
@@ -47,30 +42,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
-        const parsed = loginSchema.safeParse(credentials);
-        if (!parsed.success) return null;
-
-        const { email, password } = parsed.data;
-
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
-
-        if (!user) return null;
-        if (user.archived) return null;
-
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return null;
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          orgId: user.orgId,
-          role: user.role,
-        };
-      },
+      authorize: authorizeCredentials,
     }),
   ],
   callbacks: {
@@ -94,12 +66,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (token) {
-        if (typeof token.orgId !== "string" || typeof token.role !== "string") {
-          throw new Error("Malformed JWT: orgId and role must be strings");
-        }
-        session.user.id = token.sub ?? "";
-        session.user.orgId = token.orgId;
-        session.user.role = token.role;
+        const fields = mapTokenToSessionFields(token);
+        session.user.id = fields.id;
+        session.user.orgId = fields.orgId;
+        session.user.role = fields.role;
       }
       session.user.isSuperAdmin = isSuperAdmin(session.user.email);
       return session;

@@ -26,7 +26,7 @@ A user has a `role` (`admin | lead | crew`) and an optional free-text `title`
 (e.g. "Lead Installer"). Any non-archived user — of any role — is **assignable**
 to calendar Events; the schedule's crew picker and `/api/users/assignable` are
 sourced from active users. `User.archived` **deactivates** a person: they can't
-log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
+log in (`lib/auth/authorize.ts`, wired into `lib/auth.ts`) or be newly assigned, but their history is preserved.
 Sessions are JWT-strategy and re-validate `archived`/`role`/`orgId` against the
 DB on every request after sign-in (`lib/auth.ts`'s `jwt` callback, via
 `userRepo.findAuthState`): archiving a user or changing their role takes effect
