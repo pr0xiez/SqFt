@@ -1,8 +1,7 @@
 // lib/dashboard/kpis.ts
 
-import { round2 } from "@/lib/money";
-
 import { getApprovedEstimateRevenueRows } from "@/lib/dashboard/approvedRevenue";
+import { round2 } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 
 export interface DashboardKpis {
@@ -98,10 +97,13 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     }),
   ]);
 
-  const bookedRevenueMtd = round2(acceptedMtdRows.reduce((sum, r) => sum + r.total, 0));
+  const bookedRevenueMtd = round2(
+    acceptedMtdRows.reduce((sum, r) => sum + r.total, 0)
+  );
   const bookedRevenueDelta = round2(
     bookedRevenueMtd -
-    acceptedLastMonthSamePeriodRows.reduce((sum, r) => sum + r.total, 0));
+      acceptedLastMonthSamePeriodRows.reduce((sum, r) => sum + r.total, 0)
+  );
 
   const expiringSoonCount = awaitingEstimates.filter((q) => {
     if (!q.sentAt) return false;

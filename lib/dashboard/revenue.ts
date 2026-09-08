@@ -1,8 +1,7 @@
 // lib/dashboard/revenue.ts
 
-import { round2 } from "@/lib/money";
-
 import { getMtdApprovedEstimates } from "@/lib/dashboard/approvedRevenue";
+import { round2 } from "@/lib/money";
 
 export interface WeekSummary {
   label: string;
@@ -57,12 +56,14 @@ export async function getDashboardRevenue(
 
     const weekStart = new Date(year, month, start);
     const weekEnd = new Date(year, month, end, 23, 59, 59, 999);
-    const amount = round2(acceptedMtd
-      .filter(
-        (r) =>
-          r.approvedAt && r.approvedAt >= weekStart && r.approvedAt <= weekEnd
-      )
-      .reduce((sum, r) => sum + r.total, 0));
+    const amount = round2(
+      acceptedMtd
+        .filter(
+          (r) =>
+            r.approvedAt && r.approvedAt >= weekStart && r.approvedAt <= weekEnd
+        )
+        .reduce((sum, r) => sum + r.total, 0)
+    );
 
     return { label, amount, isCurrent, isFuture };
   });

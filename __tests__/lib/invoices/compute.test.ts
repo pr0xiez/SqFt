@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeEstimateBilling, prorateInvoice } from "@/lib/invoices/compute";
+import {
+  computeEstimateBilling,
+  isOverbill,
+  OVERBILL_EPSILON,
+  prorateInvoice,
+} from "@/lib/invoices/compute";
 import type { ProrationSource } from "@/lib/invoices/types";
 
 describe("computeEstimateBilling", () => {
@@ -221,5 +226,23 @@ describe("prorateInvoice", () => {
     expect(out.lines).toEqual([]); // both lines omitted, no phantom $0/$NaN rows
     expect(Number.isNaN(out.total)).toBe(false);
     expect(out.total).toBe(0);
+  });
+});
+
+describe("isOverbill", () => {
+  it("is false when billing exactly the balance", () => {
+    expect(isOverbill(4000, 4000)).toBe(false);
+  });
+
+  it("is false within the floating-point tolerance at exactly unbilled + epsilon", () => {
+    // Boundary: amount === unbilled + 0.005 is NOT an overbill (strict >).
+    expect(isOverbill(4000 + OVERBILL_EPSILON, 4000)).toBe(false);
+    expect(OVERBILL_EPSILON).toBe(0.005);
+  });
+
+  it("is true just past the tolerance", () => {
+    expect(isOverbill(4000 + OVERBILL_EPSILON + 0.001, 4000)).toBe(true);
+    expect(isOverbill(9999, 4000)).toBe(true);
+    expect(isOverbill(4000.01, 4000)).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OVERBILL_EPSILON } from "@/lib/invoices/createInvoiceForm";
+import { OVERBILL_EPSILON } from "@/lib/invoices/compute";
 import {
   buildInvoiceProrationSource,
   classifyStripeCharge,

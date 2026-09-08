@@ -15,7 +15,8 @@ vi.mock("@/lib/tenant", () => ({
 vi.mock("@/lib/email/sendEstimateEmail", () => ({
   sendEstimateEmail: vi.fn(),
 }));
-vi.mock("@/lib/logger", () => ({
+vi.mock("@/lib/logger", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/logger")>()),
   logError: vi.fn(),
   logRequest: vi.fn(),
   logMutation: vi.fn(),

@@ -10,19 +10,6 @@ import { round2 } from "@/lib/money";
  */
 export type InvoiceFormMode = "remaining" | "pct" | "flat";
 
-/**
- * Tolerance applied to money-threshold comparisons so floating-point cents
- * drift (e.g. 4000.0000000001 vs a 4000 balance) does not falsely trip a
- * guard or status transition. This is billing policy and the SINGLE
- * definition shared by the dialog's client-side overbill guard and every
- * server-side money-threshold check in `lib/repositories/invoiceRepo.ts`:
- * the create/patch overbill check (`isOverbill`), the paid-in-full status
- * transition (`nextInvoiceStatus`), and the Stripe overpayment flag
- * (`classifyStripeCharge`). Do not inline `0.005` anywhere else — import
- * this constant instead.
- */
-export const OVERBILL_EPSILON = 0.005;
-
 export interface DeriveInvoiceAmountArgs {
   mode: InvoiceFormMode;
   /** Estimate's remaining unbilled balance, in dollars. */
@@ -58,14 +45,4 @@ export function deriveInvoiceAmount({
 /** Unbilled balance left after billing `amount`, rounded to cents. */
 export function invoiceLeaves(unbilled: number, amount: number): number {
   return round2(unbilled - amount);
-}
-
-/**
- * Whether `amount` bills past the `unbilled` balance, with the shared
- * floating-point tolerance. Matches the server's overbill rule so the dialog's
- * guard and the persisted result never disagree (the server throws
- * `INVOICE_OVERBILL` on the same condition).
- */
-export function isOverbill(amount: number, unbilled: number): boolean {
-  return amount > unbilled + OVERBILL_EPSILON;
 }

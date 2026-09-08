@@ -24,7 +24,7 @@ const { default: PublicInvoicePage } = await import(
   "@/app/invoice-review/[token]/page"
 );
 
-const validToken = "a".repeat(20);
+const validToken = "a".repeat(43);
 
 function callPage(overrides: { pay?: string; session_id?: string } = {}) {
   return PublicInvoicePage({

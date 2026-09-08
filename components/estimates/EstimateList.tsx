@@ -10,10 +10,10 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { cn } from "@/lib/cn";
+import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
-import type { EstimateStatusFilter } from "@/lib/repositories/estimateRepo";
 import { cycleSort } from "@/lib/sort";
 import { fmtBig } from "@/lib/utils";
 

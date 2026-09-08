@@ -12,7 +12,8 @@ import {
  * server data, not stale localStorage.
  */
 export async function reloadFresh(page: Page): Promise<void> {
-  await page.evaluate(() => localStorage.clear());
+  // Clear after the old document and its pending cache writes are gone.
+  await clearStorageOnNextLoad(page.context());
   await page.reload();
 }
 

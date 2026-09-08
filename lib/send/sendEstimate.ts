@@ -27,11 +27,11 @@ function buildEstimateSendable(customerEmailResult: {
   return {
     load: getEstimateForSend,
 
-  guard(estimate) {
-    if (isEstimateLocked(estimate.status)) {
-      throw new EstimateLockedError(estimate.status);
-    }
-  },
+    guard(estimate) {
+      if (isEstimateLocked(estimate.status)) {
+        throw new EstimateLockedError(estimate.status);
+      }
+    },
 
     currentToken: (estimate) => estimate.approvalToken,
     rotateToken: rotateApprovalToken,

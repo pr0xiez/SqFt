@@ -1,5 +1,9 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { EmailTakenError, LastAdminError, NotFoundError } from "@/lib/api/errors";
+import {
+  EmailTakenError,
+  LastAdminError,
+  NotFoundError,
+} from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
 import type { UserPatchInput } from "@/lib/users/schema";
 

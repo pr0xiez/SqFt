@@ -710,20 +710,6 @@ describe("publicToken is never selected by authenticated reads/writes", () => {
     expect(call.select).not.toHaveProperty("publicToken");
   });
 
-  it("updateInvoice", async () => {
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "draft",
-      estimate: estimateFixture({ total: 1000 }),
-    });
-    invoiceUpdate.mockResolvedValue({ id: 1 });
-    await updateInvoice(1, "org1", { memo: "hello" });
-    const call = invoiceUpdate.mock.calls[0][0] as {
-      select: Record<string, unknown>;
-    };
-    expect(call.select).not.toHaveProperty("publicToken");
-  });
-
   it("recordPayment", async () => {
     invoiceFindFirst
       .mockResolvedValueOnce({

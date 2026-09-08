@@ -6,8 +6,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import type { InvoiceStatusFilter } from "@/lib/invoices/statusFilter";
 import type { InvoiceSnapshot } from "@/lib/invoices/types";
 import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
 import type { SortDirection } from "@/lib/sort";
@@ -176,15 +176,16 @@ export function useCreateInvoice(estimateId: number) {
   });
 }
 
-/** Rotate (or mint, if none exists) the invoice's public review token — the
+/** Reuse (or mint, if none exists) the invoice's public review token — the
  *  one sanctioned way to read a live token value, since the invoice detail
  *  payload never carries it. Used by the "copy public link" action. */
 export function useInvoicePublicToken(id: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<{ publicToken: string }> =>
-      jsonOrThrow<{ publicToken: string }>(
-        await fetch(`/api/invoices/${id}/public-token`, { method: "POST" }),
+      apiFetch<{ publicToken: string }>(
+        `/api/invoices/${id}/public-token`,
+        { method: "POST" },
         "Failed to generate link"
       ),
     onSuccess: () => {

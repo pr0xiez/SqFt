@@ -276,13 +276,13 @@ Markup is folded into the line prices (via `foldMarkupIntoLines` — see
 **Markup**), so neither a "Markup" row nor a fee row is emitted. Unresolved
 lines are omitted rather than billed as $0, and the rounding residual
 reconciles onto the largest row so the displayed rows sum exactly to the billed
-amount without the ±cent distorting a free line. Creating or editing an
+amount without the ±cent distorting a free line. Creating an
 invoice past the estimate's unbilled balance
 throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
-predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
+predicate (`lib/invoices/compute.ts`), which owns the single
 `OVERBILL_EPSILON` (0.005) tolerance. This is the one constant for every
 money-threshold comparison in the invoice domain — the create dialog's
-client-side guard, the repo's create/patch overbill check, the paid-in-full
+client-side guard, the repo's create overbill check, the paid-in-full
 status transition (`nextInvoiceStatus`), and the Stripe overpayment flag
 (`classifyStripeCharge`), both in `lib/repositories/invoiceRepo.ts` — so no
 `0.005` literal is ever inlined a second time.
@@ -386,7 +386,7 @@ Invoice status values: `draft | sent | viewed | partial | paid | void`.
 `all | open | draft | paid | void`, defaulting to **`all`**. The `open`
 group — `sent + viewed + partial` ("sent but not fully paid") — is the
 second pill and is defined once as `OPEN_INVOICE_STATUSES` in
-`components/invoices/filterInvoices.ts`. Each row carries a computed
+`lib/invoices/statusFilter.ts`. Each row carries a computed
 `balanceDue` (amount − recorded payments). Facet counts are org-wide and
 ignore the active filter/search.
 

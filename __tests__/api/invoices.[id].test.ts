@@ -30,6 +30,7 @@ import {
 } from "@/lib/repositories";
 
 const mockGetOrCreateToken = vi.mocked(getOrCreateInvoicePublicToken);
+
 import { requireSession } from "@/lib/tenant";
 
 const ctx = params({ id: "9" });

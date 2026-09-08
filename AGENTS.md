@@ -176,6 +176,8 @@ with the file that owns it.
   `onDelete: Cascade`.** Delete paths at every level must guard against
   cascading away financial records (`HAS_INVOICES`) and scheduled events
   (`ESTIMATE_HAS_EVENTS`) — don't add a new delete path without those checks.
+  The shared guard lives in `lib/repositories/deleteGuards.ts`; customer
+  deletion also checks Events linked directly by `customerId`.
 - **Stripe test/live modes are isolated.** The Stripe secret key mode must
   match the mode of the stored `stripeConnectAccountId` (an account created
   with a test-mode key cannot be used with a live-mode key and vice versa).
