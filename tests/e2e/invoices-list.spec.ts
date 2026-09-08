@@ -83,10 +83,10 @@ test.describe
     test("Open pill excludes drafts", async () => {
       const page = await ctx.newPage();
       await page.goto("/invoices");
-      // Exact match: the dev-tools button "Open Next.js Dev Tools" also
-      // starts with "Open". Generous timeout for Vercel preview cold starts.
+      // Include the optional count while excluding "Open Next.js Dev Tools".
+      // Allow time for Vercel preview cold starts.
       await page
-        .getByRole("button", { name: "Open", exact: true })
+        .getByRole("button", { name: /^Open(?: \d+)?$/ })
         .click({ timeout: 30_000 });
 
       const search = page.locator('input[placeholder^="Search invoice"]');
