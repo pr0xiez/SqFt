@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
 
 // --- Prisma mock ----------------------------------------------------------
-// createInvoice / updateInvoice / recordPayment / markInvoiceSent /
-// markInvoiceViewed run inside prisma.$transaction(async (tx) => ...).
-// We make $transaction invoke its callback with a `tx` object whose model
-// delegates are the same vi.fn()s used for the non-transactional calls, so a
-// single set of mocks covers both styles. voidInvoice / getInvoice call the
-// top-level prisma client directly.
+// createInvoice / updateInvoice / voidInvoice / recordPayment /
+// markInvoiceSent / markInvoiceViewed run inside
+// prisma.$transaction(async (tx) => ...). We make $transaction invoke its
+// callback with a `tx` object whose model delegates are the same vi.fn()s
+// used for the non-transactional calls, so a single set of mocks covers both
+// styles. getInvoice (voidInvoice's post-commit re-read) calls the top-level
+// prisma client directly.
 
 const estimateFindFirst = vi.fn();
 const invoiceFindFirst = vi.fn();
@@ -19,6 +20,8 @@ const paymentCreate = vi.fn();
 const invoiceEventCreate = vi.fn();
 const orgFindUniqueOrThrow = vi.fn();
 const orgUpdate = vi.fn();
+// recordPayment's row lock (issue #206) — tagged-template $queryRaw.
+const queryRaw = vi.fn();
 
 const tx = {
   estimate: { findFirst: estimateFindFirst },
@@ -35,6 +38,7 @@ const tx = {
     findUniqueOrThrow: orgFindUniqueOrThrow,
     update: orgUpdate,
   },
+  $queryRaw: queryRaw,
 };
 
 // NOTE: this mock runs the callback inline and does NOT model rollback — calls
@@ -58,7 +62,12 @@ const {
   markInvoiceViewed,
 } = await import("@/lib/repositories/invoiceRepo");
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Default: the row-lock query finds the invoice. Tests for the "not
+  // found" path override this per-case.
+  queryRaw.mockResolvedValue([{ id: 1 }]);
+});
 
 /** A hydrated estimate whose computed view total is `total`. */
 function estimateFixture(opts: {
@@ -302,7 +311,7 @@ describe("updateInvoice", () => {
 });
 
 describe("voidInvoice", () => {
-  it("voids a non-void invoice, logs the event, and re-reads it", async () => {
+  it("voids a non-void invoice, logs the event atomically, and re-reads it", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 1 });
     invoiceEventCreate.mockResolvedValue({});
     invoiceFindFirst.mockResolvedValue({
@@ -317,6 +326,9 @@ describe("voidInvoice", () => {
 
     const result = await voidInvoice(1, "org1");
 
+    // Both writes happen inside the same $transaction (issue #160), not as
+    // two separate top-level prisma calls.
+    expect($transaction).toHaveBeenCalledTimes(1);
     expect(invoiceUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 1, orgId: "org1", status: { not: "void" } },
@@ -325,9 +337,16 @@ describe("voidInvoice", () => {
     );
     expect(invoiceEventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ type: "voided" }),
+        data: expect.objectContaining({ type: "voided", source: "builder" }),
       })
     );
+    // The event write must happen after the status update within the
+    // transaction (mock invokes calls synchronously in call order).
+    const updateOrder = invoiceUpdateMany.mock.invocationCallOrder[0];
+    const eventOrder = invoiceEventCreate.mock.invocationCallOrder[0];
+    expect(updateOrder).toBeLessThan(eventOrder);
+    // The post-commit re-read happens outside the transaction, after both
+    // writes landed.
     expect(result).toEqual({
       id: 1,
       status: "void",
@@ -335,10 +354,11 @@ describe("voidInvoice", () => {
     });
   });
 
-  it("returns null and does not log when the invoice was already void", async () => {
+  it("returns null and writes no event when the invoice was already void (no-op transaction)", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 0 });
 
     expect(await voidInvoice(1, "org1")).toBeNull();
+    expect($transaction).toHaveBeenCalledTimes(1);
     expect(invoiceEventCreate).not.toHaveBeenCalled();
     expect(invoiceFindFirst).not.toHaveBeenCalled();
   });
@@ -358,6 +378,51 @@ describe("recordPayment", () => {
       await recordPayment(99, "org1", { ...paymentInput, amount: 10 })
     ).toBeNull();
     expect(paymentCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns null when the row lock finds no matching invoice, without reading payments", async () => {
+    // Issue #206: an empty FOR UPDATE result (wrong org, or missing row) is
+    // treated the same as "not found" — and short-circuits before the
+    // payments read, not just before the write.
+    queryRaw.mockResolvedValue([]);
+    expect(
+      await recordPayment(1, "wrong-org", { ...paymentInput, amount: 10 })
+    ).toBeNull();
+    expect(invoiceFindFirst).not.toHaveBeenCalled();
+    expect(paymentCreate).not.toHaveBeenCalled();
+  });
+
+  it("row-locks the invoice via FOR UPDATE before reading its payments (issue #206)", async () => {
+    // Pins the fix for the lost-update race: two concurrent recordPayment
+    // calls must serialize on this lock instead of both reading the same
+    // stale `payments` sum. We can't spin up two real Postgres transactions
+    // in this mocked-Prisma unit test, so we assert the mechanism instead —
+    // the lock statement is issued, targets the right invoice/org, uses
+    // FOR UPDATE, and runs strictly before the payments-bearing findFirst.
+    const callOrder: string[] = [];
+    queryRaw.mockImplementation(async () => {
+      callOrder.push("lock");
+      return [{ id: 1 }];
+    });
+    invoiceFindFirst.mockImplementationOnce(async () => {
+      callOrder.push("read");
+      return { id: 1, status: "sent", amount: 100, payments: [] };
+    });
+    // Final re-read after the write; irrelevant to lock ordering.
+    invoiceFindFirst.mockResolvedValueOnce({ id: 1, status: "sent" });
+    paymentCreate.mockResolvedValue({});
+    invoiceUpdate.mockResolvedValue({});
+    invoiceEventCreate.mockResolvedValue({});
+
+    await recordPayment(1, "org1", { ...paymentInput, amount: 25 });
+
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    const [strings, ...values] = queryRaw.mock.calls[0];
+    expect(strings.join("")).toContain("FOR UPDATE");
+    expect(strings.join("")).toContain('"Invoice"');
+    expect(strings.join("")).toContain('"orgId"');
+    expect(values).toEqual([1, "org1"]);
+    expect(callOrder).toEqual(["lock", "read"]);
   });
 
   it("throws InvoiceLockedError when the invoice is void", async () => {

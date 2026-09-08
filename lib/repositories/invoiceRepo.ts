@@ -327,14 +327,18 @@ export async function updateInvoice(
 }
 
 export async function voidInvoice(id: number, orgId: string) {
-  const res = await prisma.invoice.updateMany({
-    where: { id, orgId, status: { not: "void" } },
-    data: { status: "void", voidedAt: new Date() },
+  const res = await prisma.$transaction(async (tx) => {
+    const updated = await tx.invoice.updateMany({
+      where: { id, orgId, status: { not: "void" } },
+      data: { status: "void", voidedAt: new Date() },
+    });
+    if (updated.count === 0) return updated;
+    await tx.invoiceEvent.create({
+      data: { invoiceId: id, type: "voided", source: "builder" },
+    });
+    return updated;
   });
   if (res.count === 0) return null;
-  await prisma.invoiceEvent.create({
-    data: { invoiceId: id, type: "voided", source: "builder" },
-  });
   return getInvoice(id, orgId);
 }
 
@@ -471,6 +475,17 @@ export async function recordPayment(
   input: RecordPaymentInput
 ) {
   return prisma.$transaction(async (tx) => {
+    // Row-lock the invoice before reading its payments so a concurrent
+    // recordPayment on the same invoice blocks here instead of both
+    // transactions computing a status from the same stale `payments` sum
+    // (lost update — issue #206). Postgres' default READ COMMITTED
+    // isolation doesn't protect this on its own; an explicit
+    // SELECT ... FOR UPDATE does.
+    const locked = await tx.$queryRaw<
+      { id: number }[]
+    >`SELECT id FROM "Invoice" WHERE id = ${invoiceId} AND "orgId" = ${orgId} FOR UPDATE`;
+    if (locked.length === 0) return null;
+
     const inv = await tx.invoice.findFirst({
       where: { id: invoiceId, orgId },
       include: { payments: { select: { amount: true } } },
