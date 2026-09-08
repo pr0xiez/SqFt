@@ -3,6 +3,7 @@ import {
   type PublicEstimate,
   PublicEstimateView,
 } from "@/components/estimates/PublicEstimateView";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import {
   estimateViewFromSnapshot,
   parseEstimateSnapshot,
@@ -34,7 +35,7 @@ export default async function PublicEstimatePage({ params }: Props) {
   if (!estimate) notFound();
 
   await trackPublicView(
-    estimate.status !== "approved" && estimate.status !== "declined",
+    !isEstimateLocked(estimate.status),
     (meta) => markEstimateViewed(estimate.id, meta)
   );
 

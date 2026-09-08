@@ -3,6 +3,7 @@ import {
   type SendEstimateEmailInput,
   sendEstimateEmail,
 } from "@/lib/email/sendEstimateEmail";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -26,11 +27,11 @@ function buildEstimateSendable(customerEmailResult: {
   return {
     load: getEstimateForSend,
 
-    guard(estimate) {
-      if (estimate.status === "approved" || estimate.status === "declined") {
-        throw new EstimateLockedError(estimate.status);
-      }
-    },
+  guard(estimate) {
+    if (isEstimateLocked(estimate.status)) {
+      throw new EstimateLockedError(estimate.status);
+    }
+  },
 
     currentToken: (estimate) => estimate.approvalToken,
     rotateToken: rotateApprovalToken,

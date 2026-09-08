@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import {
   estimateDeclineSchema,
   estimateTokenParams,
@@ -13,7 +14,7 @@ export const POST = publicRoute(
 
     const estimate = await getEstimateByToken(token);
     if (!estimate) throw new NotFoundError();
-    if (estimate.status === "approved" || estimate.status === "declined") {
+    if (isEstimateLocked(estimate.status)) {
       throw new ConflictError(`Estimate already ${estimate.status}`);
     }
 

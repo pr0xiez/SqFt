@@ -1,3 +1,4 @@
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import { ConflictError, EstimateLockedError, ValidationError } from "@/lib/api/errors";
@@ -525,7 +526,7 @@ export async function saveEstimate(
       select: { id: true, status: true },
     });
     if (!existing) return null;
-    if (existing.status === "approved" || existing.status === "declined") {
+    if (isEstimateLocked(existing.status)) {
       throw new EstimateLockedError(existing.status);
     }
 
@@ -634,7 +635,7 @@ export async function reviseEstimate(
       include: { lineItems: true },
     });
     if (!original) return null;
-    if (original.status !== "approved" && original.status !== "declined") {
+    if (!isEstimateLocked(original.status)) {
       throw new ConflictError(
         "Only approved or declined estimates can be revised"
       );
@@ -732,10 +733,7 @@ export async function markEstimateSent(
     await tx.estimate.updateMany({
       where: { id, orgId },
       data: {
-        status:
-          existing.status === "approved" || existing.status === "declined"
-            ? existing.status
-            : "sent",
+        status: isEstimateLocked(existing.status) ? existing.status : "sent",
         sentAt: new Date(),
         sentToEmail: input.to,
         sentByEmail: input.sentByEmail,
@@ -778,7 +776,7 @@ export async function markEstimateViewed(
       select: { status: true },
     });
     if (!q) return;
-    if (q.status === "approved" || q.status === "declined") return;
+    if (isEstimateLocked(q.status)) return;
 
     if (q.status === "sent") {
       await tx.estimate.updateMany({
