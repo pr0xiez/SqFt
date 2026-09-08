@@ -50,13 +50,25 @@ describe("buildInvoiceProrationSource", () => {
 });
 
 describe("nextInvoiceStatus", () => {
-  it("stays unpaid (sent/viewed) when nothing is paid", () => {
+  it("stays draft when nothing is paid", () => {
+    expect(nextInvoiceStatus({ current: "draft", amount: 100, paid: 0 })).toBe(
+      "draft"
+    );
+  });
+  it("stays sent when nothing is paid and it was never viewed", () => {
     expect(nextInvoiceStatus({ current: "sent", amount: 100, paid: 0 })).toBe(
       "sent"
     );
-    expect(nextInvoiceStatus({ current: "viewed", amount: 100, paid: 0 })).toBe(
-      "viewed"
-    );
+  });
+  it("stays viewed when nothing is paid and viewedAt is set", () => {
+    expect(
+      nextInvoiceStatus({
+        current: "viewed",
+        amount: 100,
+        paid: 0,
+        viewedAt: new Date(),
+      })
+    ).toBe("viewed");
   });
   it("becomes partial when some but not all is paid", () => {
     expect(nextInvoiceStatus({ current: "sent", amount: 100, paid: 40 })).toBe(
@@ -72,6 +84,39 @@ describe("nextInvoiceStatus", () => {
     expect(nextInvoiceStatus({ current: "void", amount: 100, paid: 100 })).toBe(
       "void"
     );
+  });
+
+  // Issue #240: a payment reversal/refund can bring `paid` back down to 0 on
+  // an invoice that had gone viewed -> partial. `current` at that point is
+  // "partial", not "viewed" — the fix reads "was this ever viewed" off the
+  // persisted `viewedAt` timestamp instead of the transient `current` string,
+  // so the prior "viewed" fact survives the reversal.
+  it("falls back to viewed (not sent) when a partial payment reverses to net 0 and the invoice was previously viewed", () => {
+    expect(
+      nextInvoiceStatus({
+        current: "partial",
+        amount: 100,
+        paid: 0,
+        viewedAt: new Date("2026-01-01"),
+      })
+    ).toBe("viewed");
+  });
+
+  // Pin today's monotonic-paid assumption: the only live caller of
+  // nextInvoiceStatus (recordPayment's append-only ledger) never produces a
+  // `paid` that decreases, so a `partial` invoice with no viewedAt (should
+  // be unreachable in practice — you can't be `partial` without having sent,
+  // and `partial` implies a payment was recorded, not that it was viewed)
+  // still degrades gracefully to "sent" rather than throwing or misreporting.
+  it("falls back to sent when paid reverses to net 0 and the invoice was never viewed", () => {
+    expect(
+      nextInvoiceStatus({
+        current: "partial",
+        amount: 100,
+        paid: 0,
+        viewedAt: null,
+      })
+    ).toBe("sent");
   });
 });
 

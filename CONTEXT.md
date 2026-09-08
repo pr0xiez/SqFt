@@ -308,7 +308,12 @@ while a new bucket or changed balance mints a fresh one. `Payment` carries
 `stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the charge's balance
 transaction on the connected account). Manual payment recording (cash, check,
 card, ACH) also remains via the builder's Record-payment dialog. Each payment
-recomputes the invoice status from the ledger. A `void` invoice is terminal and excluded from
+recomputes the invoice status from the ledger via `nextInvoiceStatus`
+(`lib/repositories/invoiceRepo.ts`), which reads "was this ever viewed" off
+the persisted `viewedAt` timestamp rather than the transient `current`
+status — so an invoice that went `viewed` → `partial` and then has its
+payment(s) reversed back to net 0 (e.g. a refund) falls back to `viewed`,
+not `sent`, preserving the fact that the customer opened it. A `void` invoice is terminal and excluded from
 all billing math; editing a sent invoice or paying a void one throws
 `INVOICE_LOCKED`. Its public link dies with it: the review page `notFound()`s a
 `void` invoice (and `PublicInvoiceView` never renders a pay CTA for one) so a

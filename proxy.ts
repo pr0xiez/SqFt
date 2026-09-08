@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { toErrorEnvelope, UnauthorizedError } from "@/lib/api/errors";
 import { auth } from "@/lib/auth";
+import { maskTokenPath } from "@/lib/logger";
 import { isPublicReviewPath } from "@/lib/publicRoutes";
 
 export default auth((req) => {
@@ -10,7 +11,11 @@ export default auth((req) => {
         type: "proxy_request",
         ts: new Date().toISOString(),
         method: req.method,
-        path: req.nextUrl.pathname,
+        // Masked: the raw pathname can carry a public estimate/invoice
+        // review token (the sole credential for those routes — see
+        // lib/publicRoutes.ts), evaluated here before the allowlist check
+        // below even knows the route is a public review route.
+        path: maskTokenPath(req.nextUrl.pathname),
         isAuthenticated: !!req.auth,
         env: process.env.NODE_ENV,
       })

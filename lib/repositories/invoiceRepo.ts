@@ -210,17 +210,30 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
   });
 }
 
-/** Derive the lifecycle status from the payment ledger. Void is terminal. */
+/**
+ * Derive the lifecycle status from the payment ledger. Void is terminal.
+ *
+ * When nothing is currently owed, "was this ever viewed by the customer" is
+ * read from the persisted `viewedAt` timestamp rather than the transient
+ * `current` status string. That matters because `current` can be `partial`
+ * on the way in (a payment was recorded after the customer opened the
+ * invoice) — keying off `current` alone would map a `partial` invoice whose
+ * payment(s) later net back to zero (a reversal/refund) to `sent`, losing
+ * the fact that it was already viewed. Deriving from `viewedAt` instead
+ * means that fact survives regardless of which status the payment ledger
+ * passed through on the way to zero.
+ */
 export function nextInvoiceStatus(args: {
   current: string;
   amount: number;
   paid: number;
+  viewedAt?: Date | null;
 }): string {
   if (args.current === "void") return "void";
   if (args.paid <= 0) {
     return args.current === "draft"
       ? "draft"
-      : args.current === "viewed"
+      : args.viewedAt
         ? "viewed"
         : "sent";
   }
@@ -251,12 +264,14 @@ export function classifyStripeCharge(args: {
   amount: number;
   priorPaid: number;
   chargeAmount: number;
+  viewedAt?: Date | null;
 }): StripeChargeClassification {
   const paidAfter = round2(args.priorPaid + args.chargeAmount);
   const nextStatus = nextInvoiceStatus({
     current: args.status,
     amount: args.amount,
     paid: paidAfter,
+    viewedAt: args.viewedAt,
   });
   return {
     nextStatus,
@@ -457,6 +472,7 @@ export async function recordPayment(
       current: inv.status,
       amount: inv.amount,
       paid,
+      viewedAt: inv.viewedAt,
     });
     await tx.invoice.update({
       where: { id: invoiceId },
@@ -568,6 +584,7 @@ export async function recordStripePayment(
         amount: inv.amount,
         priorPaid,
         chargeAmount: input.amount,
+        viewedAt: inv.viewedAt,
       });
       const refundReason = cls.orphaned
         ? "invoice_void"
