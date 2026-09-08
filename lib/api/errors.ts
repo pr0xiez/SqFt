@@ -120,6 +120,17 @@ export class InvoiceOverbillError extends ConflictError {
   }
 }
 
+export class InvoiceOverpayError extends ConflictError {
+  readonly outstanding: number;
+  constructor(outstanding: number) {
+    super(
+      `Payment exceeds the invoice's outstanding balance ($${outstanding.toFixed(2)}).`,
+      "INVOICE_OVERPAY"
+    );
+    this.outstanding = outstanding;
+  }
+}
+
 export class EmailFailedError extends ApiError {
   constructor(message: string) {
     super({ code: "EMAIL_FAILED", status: 502, message });

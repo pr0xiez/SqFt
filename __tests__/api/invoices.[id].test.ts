@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { InvoiceOverpayError } from "@/lib/api/errors";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/tenant", () => ({
@@ -9,7 +10,6 @@ vi.mock("@/lib/tenant", () => ({
 }));
 vi.mock("@/lib/repositories", () => ({
   getInvoice: vi.fn(async () => ({ id: 9, status: "draft" })),
-  updateInvoice: vi.fn(async () => ({ id: 9, status: "draft" })),
   voidInvoice: vi.fn(async () => ({ id: 9, status: "void" })),
   recordPayment: vi.fn(async () => ({ id: 9, status: "partial" })),
 }));
@@ -19,7 +19,7 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 import { POST as PAY } from "@/app/api/invoices/[id]/payments/route";
-import { GET, PATCH } from "@/app/api/invoices/[id]/route";
+import { GET } from "@/app/api/invoices/[id]/route";
 import { POST as VOID } from "@/app/api/invoices/[id]/void/route";
 import { recordPayment } from "@/lib/repositories";
 import { requireSession } from "@/lib/tenant";
@@ -34,16 +34,6 @@ describe("invoice detail routes", () => {
   it("GET returns the invoice", async () => {
     expect(
       (await GET(makeRequest("GET", "http://t/api/invoices/9"), ctx)).status
-    ).toBe(200);
-  });
-  it("PATCH updates a draft", async () => {
-    expect(
-      (
-        await PATCH(
-          makeRequest("PATCH", "http://t/api/invoices/9", { memo: "Deposit" }),
-          ctx
-        )
-      ).status
     ).toBe(200);
   });
   it("void marks the invoice void", async () => {
@@ -117,5 +107,19 @@ describe("invoice detail routes", () => {
     );
     expect(res.status).toBe(401);
     expect(recordPayment).not.toHaveBeenCalled();
+  });
+  it("payments returns 409 INVOICE_OVERPAY when the amount exceeds the outstanding balance", async () => {
+    vi.mocked(recordPayment).mockRejectedValueOnce(new InvoiceOverpayError(50));
+
+    const res = await PAY(
+      makeRequest("POST", "http://t/api/invoices/9/payments", {
+        amount: 100,
+        method: "check",
+      }),
+      ctx
+    );
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("INVOICE_OVERPAY");
   });
 });

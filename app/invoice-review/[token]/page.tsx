@@ -4,6 +4,7 @@ import {
   type PublicInvoice,
   PublicInvoiceView,
 } from "@/components/invoices/PublicInvoiceView";
+import { parseInvoiceSnapshot } from "@/lib/invoices/parseSnapshot";
 import { round2 } from "@/lib/money";
 import {
   getInvoiceByToken,
@@ -21,21 +22,6 @@ interface Props {
   params: Promise<{ token: string }>;
   searchParams: Promise<{ pay?: string; session_id?: string }>;
 }
-
-type SnapshotShape = {
-  memo: string | null;
-  terms: string;
-  paymentInstructions: string;
-  dueDate: string | null;
-  org: {
-    name: string;
-    phone: string | null;
-    address: string | null;
-    logoUrl: string | null;
-  };
-  customer: { name: string | null; address: string | null } | null;
-  lines: Array<{ name: string; description: string | null; amount: number }>;
-};
 
 export default async function PublicInvoicePage({
   params,
@@ -58,7 +44,11 @@ export default async function PublicInvoicePage({
     void markInvoiceViewed(invoice.id, { ip, userAgent });
   }
 
-  const snap = invoice.snapshot as unknown as SnapshotShape;
+  // Snapshots are frozen forever, even across later schema changes — validate
+  // the shape rather than casting, so a stale/malformed snapshot 404s cleanly
+  // instead of crashing this customer-facing page.
+  const snap = parseInvoiceSnapshot(invoice.snapshot);
+  if (!snap) notFound();
   // Balance due reflects the live payment ledger, not the frozen snapshot —
   // a partially-paid invoice must not show the full amount as still owed.
   const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));
