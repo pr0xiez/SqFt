@@ -33,7 +33,12 @@ Events link assigned users via the `Event.assignees` relation
 the caller's **own** org; there is no separate crew roster. A **super-admin**
 manages **any** org's members the same way from `/admin/orgs/[orgId]`, via the
 same `userRepo` functions with the target org taken from the URL instead of
-the caller's session.
+the caller's session. The self-org and super-admin user create/patch routes
+share one request-validation schema (`lib/users/schema.ts` —
+`userCreateSchema` / `userPatchSchema`) and one orchestration helper
+(`applyUserPatch` in `userRepo.ts`, role → profile → archived → re-fetch);
+only the self-demote/self-archive guards differ, injected into
+`applyUserPatch` as callback hooks.
 
 The editable **Schedule Manager** grid (`/schedule`, **lead+ only** — crew is
 redirected to `/my-schedule`) and the read-only, mobile-first **My Schedule**
@@ -232,6 +237,16 @@ skip the `EstimateApproval` consent row / supersede-siblings logic above.
 
 Estimate status values: `draft | sent | viewed | approved | declined`.
 
+An approved or declined estimate can be **revised**: `reviseEstimate`
+(`lib/repositories/estimateRepo.ts`) clones it (line items, markup/deposit
+pct) into a new `draft` estimate on the same site measure, linked back via
+`revisedFromId`. The `approved | declined` source-status guard is enforced
+**inside `reviseEstimate`'s transaction** (throws `ConflictError` — "Only
+approved or declined estimates can be revised") rather than only in the route
+— mirroring how `saveEstimate` throws `EstimateLockedError` in-repo for its
+own edit-lock guard, so the invariant holds for any caller, not just the
+`POST /api/estimates/[id]/revise` handler, which is a thin caller.
+
 ## Invoice
 
 A priced estimate can spawn **multiple** customer-facing invoices, each billing
@@ -248,8 +263,12 @@ amount without the ±cent distorting a free line. Creating or editing an
 invoice past the estimate's unbilled balance
 throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
 predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
-`OVERBILL_EPSILON` (0.005) tolerance used by both the repo guard and the create
-dialog.
+`OVERBILL_EPSILON` (0.005) tolerance. This is the one constant for every
+money-threshold comparison in the invoice domain — the create dialog's
+client-side guard, the repo's create/patch overbill check, the paid-in-full
+status transition (`nextInvoiceStatus`), and the Stripe overpayment flag
+(`classifyStripeCharge`), both in `lib/repositories/invoiceRepo.ts` — so no
+`0.005` literal is ever inlined a second time.
 
 Invoices are emailed via a public token page (`/invoice-review/[token]`),
 reusing the React-Email + Resend flow. On send, the invoice freezes a

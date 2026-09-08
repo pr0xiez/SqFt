@@ -237,7 +237,7 @@ export function nextInvoiceStatus(args: {
         ? "viewed"
         : "sent";
   }
-  if (args.paid + 0.005 >= args.amount) return "paid";
+  if (args.paid + OVERBILL_EPSILON >= args.amount) return "paid";
   return "partial";
 }
 
@@ -277,7 +277,7 @@ export function classifyStripeCharge(args: {
     nextStatus,
     paidAfter,
     orphaned: args.status === "void",
-    overpaid: paidAfter > args.amount + 0.005,
+    overpaid: paidAfter > args.amount + OVERBILL_EPSILON,
   };
 }
 

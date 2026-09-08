@@ -11,11 +11,15 @@ import { round2 } from "@/lib/money";
 export type InvoiceFormMode = "remaining" | "pct" | "flat";
 
 /**
- * Tolerance applied to the overbill comparison so floating-point cents drift
- * (e.g. 4000.0000000001 vs a 4000 balance) does not falsely trip the guard.
- * This is billing policy and the SINGLE definition shared by the dialog's
- * client-side guard and the server's create/patch overbill check
- * (`lib/repositories/invoiceRepo.ts`).
+ * Tolerance applied to money-threshold comparisons so floating-point cents
+ * drift (e.g. 4000.0000000001 vs a 4000 balance) does not falsely trip a
+ * guard or status transition. This is billing policy and the SINGLE
+ * definition shared by the dialog's client-side overbill guard and every
+ * server-side money-threshold check in `lib/repositories/invoiceRepo.ts`:
+ * the create/patch overbill check (`isOverbill`), the paid-in-full status
+ * transition (`nextInvoiceStatus`), and the Stripe overpayment flag
+ * (`classifyStripeCharge`). Do not inline `0.005` anywhere else — import
+ * this constant instead.
  */
 export const OVERBILL_EPSILON = 0.005;
 
