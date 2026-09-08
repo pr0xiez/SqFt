@@ -170,7 +170,10 @@ describe("snapshotEstimate", () => {
     const byId = new Map(snap.lineItems.map((li) => [li.id, li]));
     expect(byId.get(10)).toMatchObject({
       effectiveQty: 100,
-      subtotal: 100 * 4.85,
+      // 100 * 4.85 is 484.99999999999994 in IEEE-754; the computed view
+      // round2's every line subtotal, so the snapshot carries the exact
+      // cents value (485), not the raw float.
+      subtotal: 485,
     });
     expect(byId.get(20)).toMatchObject({ effectiveQty: 50, subtotal: 100 });
   });

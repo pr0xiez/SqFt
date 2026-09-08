@@ -72,6 +72,15 @@ export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }
 
+export type AuthState = { orgId: string; role: string; archived: boolean };
+
+export function findAuthState(id: string): Promise<AuthState | null> {
+  return prisma.user.findUnique({
+    where: { id },
+    select: { orgId: true, role: true, archived: true },
+  });
+}
+
 export function findUserRow(
   id: string,
   orgId: string

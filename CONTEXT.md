@@ -27,6 +27,11 @@ A user has a `role` (`admin | lead | crew`) and an optional free-text `title`
 to calendar Events; the schedule's crew picker and `/api/users/assignable` are
 sourced from active users. `User.archived` **deactivates** a person: they can't
 log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
+Sessions are JWT-strategy and re-validate `archived`/`role`/`orgId` against the
+DB on every request after sign-in (`lib/auth.ts`'s `jwt` callback, via
+`userRepo.findAuthState`): archiving a user or changing their role takes effect
+on their next request, not just their next login, and `session.maxAge` is 7
+days (not the NextAuth default of 30).
 Events link assigned users via the `Event.assignees` relation
 (`eventRepo` `assigneeIds: string[]`). People are managed on the admin
 **Members** page (`/settings/members`) — role, title, archive/restore — for
@@ -126,6 +131,18 @@ Single source of truth for estimate math. Produced by `computeEstimateView` in
 the send-email route, the estimate list endpoint, and the approval snapshot —
 derives its numbers from this one function so the labeled breakdown can never
 diverge across surfaces.
+
+Every money field it returns — each line's `subtotal`, plus `subtotal`,
+`markup`, `total`, `deposit` — is passed through `round2` (`lib/money.ts`)
+before being returned, and each is derived from already-rounded upstream
+values (e.g. `total` sums the rounded `subtotal` and `markup`, not raw
+products) rather than rounding a single accumulated float at the end. This
+matches the rounding convention `foldMarkupIntoLines` uses for line-level
+amounts. Callers that persist or sum this output (`syncEstimateTotal`, the
+dashboard revenue rollups) can rely on it already being cents-accurate; a
+caller that further sums multiple estimates' `total` should still `round2`
+the sum, since adding two already-rounded values can reintroduce binary
+float drift.
 
 Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
@@ -415,6 +432,15 @@ to audit rotation must say so with an explicit no-op, so silence is a visible
 decision rather than drift. The existing repo mark-sent transactions keep
 owning their atomic `sent`/`resent` event logging; the pipeline only
 sequences.
+
+`sendEstimate`'s opportunistic customer-email sync
+(`customerRepo.updateCustomerEmail`) never fails the send itself — a
+throw or a no-op update is caught and logged, same as any `afterSent` hook —
+but unlike a bare `afterSent`, `sendEstimate` tracks the outcome per call
+(building a fresh `Sendable` so the result isn't shared mutable state across
+concurrent sends) and returns `{ customerEmailSaved: boolean }`. The send
+route folds that into the response as `{ ok: true, customerEmailSaved }` so a
+failed persist is visible in the API contract, not only in logs.
 
 No Prisma crosses the pipeline's seam — persistence arrives through the
 adapter's functions — so the spine's ordering/error tests

@@ -286,6 +286,20 @@ export async function updateCustomer(
   return prisma.customer.findFirst({ where: { id, orgId } });
 }
 
+/** Best-effort email sync (e.g. from a send dialog). Returns whether a row
+ *  actually matched — callers decide how to surface a miss/throw. */
+export async function updateCustomerEmail(
+  id: number,
+  orgId: string,
+  email: string
+): Promise<boolean> {
+  const result = await prisma.customer.updateMany({
+    where: { id, orgId },
+    data: { email },
+  });
+  return result.count > 0;
+}
+
 /**
  * Delete a customer. The cascade reaches every descendant estimate via
  * Location→SiteMeasure→Estimate (and Estimate→Invoice→Payment is also

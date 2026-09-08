@@ -1,5 +1,7 @@
 // lib/dashboard/revenue.ts
 
+import { round2 } from "@/lib/money";
+
 import { getMtdApprovedEstimates } from "@/lib/dashboard/approvedRevenue";
 
 export interface WeekSummary {
@@ -32,7 +34,7 @@ export async function getDashboardRevenue(
 
   const acceptedMtd = await getMtdApprovedEstimates(orgId, monthStart);
 
-  const mtdTotal = acceptedMtd.reduce((sum, r) => sum + r.total, 0);
+  const mtdTotal = round2(acceptedMtd.reduce((sum, r) => sum + r.total, 0));
 
   // Build 4 fixed week buckets (day ranges within the month)
   const weekBoundaries = [
@@ -55,12 +57,12 @@ export async function getDashboardRevenue(
 
     const weekStart = new Date(year, month, start);
     const weekEnd = new Date(year, month, end, 23, 59, 59, 999);
-    const amount = acceptedMtd
+    const amount = round2(acceptedMtd
       .filter(
         (r) =>
           r.approvedAt && r.approvedAt >= weekStart && r.approvedAt <= weekEnd
       )
-      .reduce((sum, r) => sum + r.total, 0);
+      .reduce((sum, r) => sum + r.total, 0));
 
     return { label, amount, isCurrent, isFuture };
   });

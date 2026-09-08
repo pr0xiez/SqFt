@@ -6,6 +6,7 @@ vi.mock("@/lib/repositories", () => ({
   rotateApprovalToken: vi.fn(),
   markEstimateSent: vi.fn(),
   writeEstimateEvent: vi.fn(),
+  updateCustomerEmail: vi.fn().mockResolvedValue(true),
 }));
 vi.mock("@/lib/tenant", () => ({
   getOrgId: vi.fn().mockResolvedValue("org1"),
@@ -13,6 +14,11 @@ vi.mock("@/lib/tenant", () => ({
 }));
 vi.mock("@/lib/email/sendEstimateEmail", () => ({
   sendEstimateEmail: vi.fn(),
+}));
+vi.mock("@/lib/logger", () => ({
+  logError: vi.fn(),
+  logRequest: vi.fn(),
+  logMutation: vi.fn(),
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -22,9 +28,6 @@ vi.mock("@/lib/prisma", () => ({
         phone: "555-1212",
         logo: null,
       }),
-    },
-    customer: {
-      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
   },
 }));
@@ -38,17 +41,21 @@ const {
   rotateApprovalToken,
   markEstimateSent,
   writeEstimateEvent,
+  updateCustomerEmail,
 } = await import("@/lib/repositories");
 const { requireSession } = await import("@/lib/tenant");
 const { sendEstimateEmail } = await import("@/lib/email/sendEstimateEmail");
+const { logError } = await import("@/lib/logger");
 const { POST } = await import("@/app/api/estimates/[id]/send/route");
 
 const mockGetEstimate = vi.mocked(getEstimate);
 const mockRotate = vi.mocked(rotateApprovalToken);
 const mockMarkSent = vi.mocked(markEstimateSent);
 const mockWriteEvent = vi.mocked(writeEstimateEvent);
+const mockUpdateCustomerEmail = vi.mocked(updateCustomerEmail);
 const mockRequireSession = vi.mocked(requireSession);
 const mockSendEstimateEmail = vi.mocked(sendEstimateEmail);
+const mockLogError = vi.mocked(logError);
 
 const validBody = { to: "henderson@example.com", subject: "Q5001" };
 
@@ -228,5 +235,81 @@ describe("POST /api/estimates/[id]/send", () => {
     expect(res.status).toBe(502);
     expect((await res.json()).error.code).toBe("EMAIL_FAILED");
     expect(mockMarkSent).not.toHaveBeenCalled();
+  });
+
+  it("persists the send-to address onto the customer and reports customerEmailSaved: true", async () => {
+    mockGetEstimate.mockResolvedValue({
+      id: 1,
+      orgId: "org1",
+      status: "draft",
+      approvalToken: "t",
+      estimateNumber: 5001,
+      markupPct: 0,
+      depositPct: 0.5,
+      lineItems: [],
+      siteMeasure: {
+        items: [],
+        location: {
+          customer: { id: 42, name: "Janet", email: "old@example.com" },
+        },
+      },
+    } as never);
+    mockSendEstimateEmail.mockResolvedValue({ ok: true });
+    mockMarkSent.mockResolvedValue(true);
+    mockUpdateCustomerEmail.mockResolvedValueOnce(true);
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "new@example.com",
+        subject: "x",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: true });
+    expect(mockUpdateCustomerEmail).toHaveBeenCalledWith(
+      42,
+      "org1",
+      "new@example.com"
+    );
+  });
+
+  it("still returns ok when the customer-email save fails, with customerEmailSaved: false", async () => {
+    mockGetEstimate.mockResolvedValue({
+      id: 1,
+      orgId: "org1",
+      status: "draft",
+      approvalToken: "t",
+      estimateNumber: 5001,
+      markupPct: 0,
+      depositPct: 0.5,
+      lineItems: [],
+      siteMeasure: {
+        items: [],
+        location: {
+          customer: { id: 42, name: "Janet", email: "old@example.com" },
+        },
+      },
+    } as never);
+    mockSendEstimateEmail.mockResolvedValue({ ok: true });
+    mockMarkSent.mockResolvedValue(true);
+    mockUpdateCustomerEmail.mockRejectedValueOnce(new Error("db down"));
+
+    const res = await POST(
+      makeRequest("POST", "http://x/api/estimates/1/send", {
+        to: "new@example.com",
+        subject: "x",
+      }),
+      params({ id: "1" })
+    );
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, customerEmailSaved: false });
+    expect(mockSendEstimateEmail).toHaveBeenCalled();
+    expect(mockMarkSent).toHaveBeenCalledWith(1, "org1", expect.any(Object));
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.objectContaining({ errorMessage: "Failed to save customer email" })
+    );
   });
 });

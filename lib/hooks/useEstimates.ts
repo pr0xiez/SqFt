@@ -195,7 +195,7 @@ export function useSendEstimate(estimateId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: SendEstimateVariables) =>
-      apiFetch<{ ok: true }>(
+      apiFetch<{ ok: true; customerEmailSaved: boolean }>(
         `/api/estimates/${estimateId}/send`,
         {
           method: "POST",
