@@ -1,13 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
-import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
-import {
-  ConflictError,
-  EstimateHasEventsError,
-  EstimateLockedError,
-  HasInvoicesError,
-  ValidationError,
-} from "@/lib/api/errors";
+import { ConflictError, EstimateLockedError, ValidationError } from "@/lib/api/errors";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
@@ -15,7 +8,8 @@ import {
   type InvoiceableCandidate,
   toInvoiceableCandidates,
 } from "@/lib/quickCreate/candidates";
-import { searchableInt } from "@/lib/repositories/search";
+import { assertDeletable } from "@/lib/repositories/deleteGuards";
+import { buildSearchWhere, computeFacets } from "@/lib/repositories/search";
 import {
   type SchedulableCandidate,
   toSchedulableCandidates,
@@ -183,6 +177,13 @@ export type EstimateSortKey =
   | "status"
   | "date";
 
+export type EstimateStatusFilter =
+  | "all"
+  | "draft"
+  | "sent"
+  | "approved"
+  | "declined";
+
 export interface ListEstimatesParams {
   page: number;
   perPage: number;
@@ -212,20 +213,16 @@ function estimateOrderBy(
 }
 
 function estimateSearchWhere(q: string): Prisma.EstimateWhereInput | null {
-  const cleaned = q.trim().replace(/^#/, "");
-  if (cleaned.length === 0) return null;
-  const or: Prisma.EstimateWhereInput[] = [
-    {
+  return buildSearchWhere<Prisma.EstimateWhereInput>(q, {
+    customerName: (cleaned) => ({
       siteMeasure: {
         location: {
           customer: { name: { contains: cleaned, mode: "insensitive" } },
         },
       },
-    },
-  ];
-  const n = searchableInt(cleaned);
-  if (n !== null) or.push({ estimateNumber: n });
-  return { OR: or };
+    }),
+    number: (n) => ({ estimateNumber: n }),
+  });
 }
 
 const ESTIMATE_STATUSES = ["draft", "sent", "approved", "declined"] as const;
@@ -256,14 +253,7 @@ export async function listEstimates(
     }),
   ]);
 
-  const facets: Record<string, number> = { all: 0 };
-  for (const s of ESTIMATE_STATUSES) facets[s] = 0;
-  for (const row of grouped) {
-    const count = row._count;
-    const n = typeof count === "object" ? (count._all ?? 0) : 0;
-    facets.all += n;
-    if (row.status in facets) facets[row.status] = n;
-  }
+  const facets = computeFacets(grouped, ESTIMATE_STATUSES);
 
   return { items, total, facets };
 }
@@ -516,14 +506,7 @@ export async function deleteEstimate(
   orgId: string
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const eventCount = await tx.event.count({
-      where: { orgId, estimateId: id },
-    });
-    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
-    const invoiceCount = await tx.invoice.count({
-      where: { orgId, estimateId: id },
-    });
-    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
+    await assertDeletable(tx, orgId, { estimateId: id });
     const result = await tx.estimate.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });

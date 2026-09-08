@@ -16,7 +16,7 @@ import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
-import { searchableInt } from "@/lib/repositories/search";
+import { buildSearchWhere, computeFacets } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
@@ -786,11 +786,18 @@ function invoiceOrderBy(
   }
 }
 
+const INVOICE_STATUSES = [
+  "draft",
+  "sent",
+  "viewed",
+  "partial",
+  "paid",
+  "void",
+] as const;
+
 function invoiceSearchWhere(q: string): Prisma.InvoiceWhereInput | null {
-  const cleaned = q.trim().replace(/^#/, "");
-  if (cleaned.length === 0) return null;
-  const or: Prisma.InvoiceWhereInput[] = [
-    {
+  return buildSearchWhere<Prisma.InvoiceWhereInput>(q, {
+    customerName: (cleaned) => ({
       estimate: {
         siteMeasure: {
           location: {
@@ -798,11 +805,9 @@ function invoiceSearchWhere(q: string): Prisma.InvoiceWhereInput | null {
           },
         },
       },
-    },
-  ];
-  const n = searchableInt(cleaned);
-  if (n !== null) or.push({ invoiceNumber: n });
-  return { OR: or };
+    }),
+    number: (n) => ({ invoiceNumber: n }),
+  });
 }
 
 export async function listInvoices(
@@ -835,25 +840,10 @@ export async function listInvoices(
     }),
   ]);
 
-  const facets: Record<string, number> = {
-    all: 0,
-    open: 0,
-    draft: 0,
-    sent: 0,
-    viewed: 0,
-    partial: 0,
-    paid: 0,
-    void: 0,
-  };
-  for (const row of grouped) {
-    const count = row._count;
-    const n = typeof count === "object" ? (count._all ?? 0) : 0;
-    facets.all += n;
-    if (row.status in facets) facets[row.status] = n;
-    if ((OPEN_INVOICE_STATUSES as readonly string[]).includes(row.status)) {
-      facets.open += n;
-    }
-  }
+  const facets = computeFacets(grouped, INVOICE_STATUSES, {
+    open: (status) =>
+      (OPEN_INVOICE_STATUSES as readonly string[]).includes(status),
+  });
 
   const items = rows.map((inv) => ({
     id: inv.id,
