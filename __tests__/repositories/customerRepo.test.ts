@@ -172,7 +172,29 @@ describe("deleteCustomer", () => {
     expect(eventCount).toHaveBeenCalledWith({
       where: {
         orgId: "org1",
-        estimate: { siteMeasure: { location: { customerId: 1 } } },
+        OR: [
+          { customerId: 1 },
+          { estimate: { siteMeasure: { location: { customerId: 1 } } } },
+        ],
+      },
+    });
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses when an event links directly to the customer with no estimate chain", async () => {
+    // e.g. a "visit"/"other" type event, which has a nullable customerId FK
+    // and no estimateId at all.
+    eventCount.mockResolvedValue(1);
+    await expect(deleteCustomer(1, "org1")).rejects.toBeInstanceOf(
+      EstimateHasEventsError
+    );
+    expect(eventCount).toHaveBeenCalledWith({
+      where: {
+        orgId: "org1",
+        OR: [
+          { customerId: 1 },
+          { estimate: { siteMeasure: { location: { customerId: 1 } } } },
+        ],
       },
     });
     expect(deleteMany).not.toHaveBeenCalled();

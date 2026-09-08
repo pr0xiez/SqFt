@@ -29,17 +29,20 @@ export type DescendantEstimateScope =
  * measure, or a deeper relation path (e.g.
  * `{ estimate: { siteMeasure: { location: { customerId: id } } } }`) when
  * deleting a customer. `orgId` is applied directly on the Event/Invoice
- * count (not just transitively via the estimate relation), preserving the
+ * count. An optional `eventScope` also protects direct customer-linked events
+ * in addition to descendant jobs. Org scoping is enforced here
+ * (not just transitively via the estimate relation), preserving the
  * same org-isolation guarantee each call site enforced before this was
  * extracted.
  */
 export async function assertDeletable(
   tx: Prisma.TransactionClient,
   orgId: string,
-  estimateScope: DescendantEstimateScope
+  estimateScope: DescendantEstimateScope,
+  eventScope: Prisma.EventWhereInput = estimateScope
 ): Promise<void> {
   const eventCount = await tx.event.count({
-    where: { orgId, ...estimateScope },
+    where: { ...eventScope, orgId },
   });
   if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
 

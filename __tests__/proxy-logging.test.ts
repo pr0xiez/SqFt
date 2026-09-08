@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // `auth()` from next-auth wraps a callback into a middleware function. We
 // don't need real session verification here — only that proxy.ts's
-// console.log line (evaluated before the public-review allowlist check)
-// never leaks a raw token. Mocking `auth` to the identity function exposes
+// request handling never logs a raw token. Mocking `auth` to the identity function exposes
 // the inner callback directly as the module's default export.
 vi.mock("@/lib/auth", () => ({
   auth: (fn: unknown) => fn,
@@ -36,7 +35,7 @@ afterEach(() => {
 });
 
 describe("proxy.ts request logging", () => {
-  it("redacts the token segment for an estimate-review approve path", async () => {
+  it("does not log the token for an estimate-review approve path", async () => {
     const lines = captureOutput();
     const { default: middleware } = await import("../proxy");
 
@@ -45,14 +44,10 @@ describe("proxy.ts request logging", () => {
       makeReq("/api/estimate-review/SUPER_SECRET_TOKEN/approve", "POST")
     );
 
-    expect(lines).toHaveLength(1);
-    const entry = JSON.parse(lines[0]);
-    expect(entry.type).toBe("proxy_request");
-    expect(entry.path).toBe("/api/estimate-review/[REDACTED]/approve");
-    expect(JSON.stringify(entry)).not.toContain("SUPER_SECRET_TOKEN");
+    expect(lines).toHaveLength(0);
   });
 
-  it("redacts the token segment for an invoice-review checkout path", async () => {
+  it("does not log the token for an invoice-review checkout path", async () => {
     const lines = captureOutput();
     const { default: middleware } = await import("../proxy");
 
@@ -61,21 +56,17 @@ describe("proxy.ts request logging", () => {
       makeReq("/api/invoice-review/ANOTHER_SECRET_TOKEN/checkout", "POST")
     );
 
-    const entry = JSON.parse(lines[0]);
-    expect(entry.path).toBe("/api/invoice-review/[REDACTED]/checkout");
-    expect(JSON.stringify(entry)).not.toContain("ANOTHER_SECRET_TOKEN");
+    expect(lines).toHaveLength(0);
   });
 
-  it("leaves a non-review API path completely unchanged", async () => {
+  it("does not log non-review API requests", async () => {
     const lines = captureOutput();
     const { default: middleware } = await import("../proxy");
 
     // biome-ignore lint/suspicious/noExplicitAny: middleware typed via auth() wrapper
     (middleware as any)(makeReq("/api/estimates/5", "GET"));
 
-    expect(lines).toHaveLength(1);
-    const entry = JSON.parse(lines[0]);
-    expect(entry.path).toBe("/api/estimates/5");
+    expect(lines).toHaveLength(0);
   });
 
   it("does not log at all for non-API paths", async () => {
