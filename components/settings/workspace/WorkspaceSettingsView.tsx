@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useToast } from "@/components/ui/Toast";
 import { useUpdateWorkspaceSettings } from "@/lib/hooks/useUpdateWorkspaceSettings";
 import { BrandSection } from "./BrandSection";
 import { DefaultsSection } from "./DefaultsSection";
@@ -27,6 +28,7 @@ export function WorkspaceSettingsView({ initial }: Props) {
   );
 
   const update = useUpdateWorkspaceSettings();
+  const { showToast } = useToast();
 
   const onChange = useCallback((patch: Partial<WorkspaceSettingsForm>) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -43,15 +45,21 @@ export function WorkspaceSettingsView({ initial }: Props) {
       }
     });
     if (Object.keys(diff).length === 0) return;
-    const saved = await update.mutateAsync(diff);
-    const nextSnap = toForm({
-      ...initial,
-      ...saved,
-      tagline: saved.tagline,
-    });
-    setSnapshot(nextSnap);
-    setForm(nextSnap);
-  }, [form, snapshot, update, initial]);
+    try {
+      const saved = await update.mutateAsync(diff);
+      const nextSnap = toForm({
+        ...initial,
+        ...saved,
+        tagline: saved.tagline,
+      });
+      setSnapshot(nextSnap);
+      setForm(nextSnap);
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Failed to save workspace settings"
+      );
+    }
+  }, [form, snapshot, update, initial, showToast]);
 
   return (
     <>
