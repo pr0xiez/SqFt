@@ -1,6 +1,18 @@
+/**
+ * Round to `decimals` places (half-up, nudged past binary-float error at the
+ * half-way boundary — e.g. 1.005 → 1.01, not 1 — the same trick `round2`
+ * hard-codes for cents). Shared by `round2` and by any input mask that needs
+ * matching half-up semantics at an arbitrary precision (see
+ * `components/ui/DecimalInput.tsx`).
+ */
+export function roundToDecimals(n: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round((n + Number.EPSILON) * factor) / factor;
+}
+
 /** Round to cents (half-up, nudged past binary-float error at the .005 boundary). */
 export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+  return roundToDecimals(n, 2);
 }
 
 /**
