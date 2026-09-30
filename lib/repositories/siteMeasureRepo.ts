@@ -288,6 +288,30 @@ export async function saveSiteMeasure(
   });
 }
 
+export interface SiteMeasureCreationCounts {
+  total: number;
+  thisWeek: number;
+  lastWeek: number;
+}
+
+/** Site-measure creation counts for the dashboard's site-measures KPI. */
+export async function getSiteMeasureCreationCounts(
+  orgId: string,
+  weekAgo: Date,
+  twoWeeksAgo: Date
+): Promise<SiteMeasureCreationCounts> {
+  const [total, thisWeek, lastWeek] = await Promise.all([
+    prisma.siteMeasure.count({ where: { orgId } }),
+    prisma.siteMeasure.count({
+      where: { orgId, createdAt: { gte: weekAgo } },
+    }),
+    prisma.siteMeasure.count({
+      where: { orgId, createdAt: { gte: twoWeeksAgo, lt: weekAgo } },
+    }),
+  ]);
+  return { total, thisWeek, lastWeek };
+}
+
 /**
  * Delete a site measure. The cascade reaches every descendant estimate (and
  * Estimate→Invoice→Payment is also Cascade), so this refuses — like

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button, buttonClasses } from "@/components/ui/Button";
 import type { AddressSuggestion } from "@/lib/address/geoapify";
+import { useAddressAutocomplete } from "@/lib/hooks/useAddressAutocomplete";
 import type { CustomerLocationSummary } from "@/lib/hooks/useCustomers";
 
 export interface NewLocationInput {
@@ -54,24 +55,19 @@ export function LocationsCard({
   isStarting,
 }: Props) {
   const [form, setForm] = useState<NewLocationInput>(EMPTY);
-  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  // Cancel any scheduled-but-not-fired debounce and abort the in-flight fetch,
-  // so a stale response can't clobber newer suggestions and a pending timer
-  // can't re-open the dropdown after the user has moved on.
-  function cancelPending() {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    abortRef.current?.abort();
-  }
+  const {
+    suggestions,
+    showSuggestions,
+    query: queryAddress,
+    cancelPending,
+    clear: clearSuggestions,
+    openSuggestions,
+    closeSuggestions,
+  } = useAddressAutocomplete();
 
   function reset() {
-    cancelPending();
     setForm(EMPTY);
-    setSuggestions([]);
-    setShowSuggestions(false);
+    clearSuggestions();
   }
 
   // Hand-editing a structured field drops any lat/lon captured from a previous
@@ -81,34 +77,11 @@ export function LocationsCard({
     setForm((f) => ({ ...f, [field]: value, lat: undefined, lon: undefined }));
   }
 
-  // Debounced autocomplete keyed off the street field. The proxy returns [] on
-  // any failure, so a missing key / network error just yields no dropdown. A
-  // hand-edit also clears any previously-picked coordinates.
+  // A hand-edit to the street field also clears any previously-picked
+  // coordinates and kicks off a debounced autocomplete search.
   function onStreetChange(value: string) {
     setForm((f) => ({ ...f, street: value, lat: undefined, lon: undefined }));
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    abortRef.current?.abort();
-    if (value.trim().length < 3) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-    debounceRef.current = setTimeout(async () => {
-      const controller = new AbortController();
-      abortRef.current = controller;
-      try {
-        const res = await fetch(
-          `/api/address/autocomplete?q=${encodeURIComponent(value)}`,
-          { signal: controller.signal }
-        );
-        if (!res.ok) return;
-        const data = (await res.json()) as AddressSuggestion[];
-        setSuggestions(data);
-        setShowSuggestions(data.length > 0);
-      } catch {
-        // graceful (incl. AbortError): keep manual entry
-      }
-    }, 250);
+    queryAddress(value);
   }
 
   function pickSuggestion(s: AddressSuggestion) {
@@ -122,15 +95,8 @@ export function LocationsCard({
       lat: s.lat ?? undefined,
       lon: s.lon ?? undefined,
     }));
-    setShowSuggestions(false);
+    closeSuggestions();
   }
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      abortRef.current?.abort();
-    };
-  }, []);
 
   async function handleSave() {
     try {
@@ -235,7 +201,7 @@ export function LocationsCard({
               type="text"
               value={form.street}
               onChange={(e) => onStreetChange(e.target.value)}
-              onFocus={() => setShowSuggestions(suggestions.length > 0)}
+              onFocus={openSuggestions}
               placeholder="Start typing an address…"
               autoComplete="off"
               className={fieldInput}

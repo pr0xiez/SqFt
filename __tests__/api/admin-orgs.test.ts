@@ -1,12 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    organization: {
-      findMany: vi.fn(),
-    },
-  },
+vi.mock("@/lib/repositories/organizationRepo", () => ({
+  listAllOrgsForAdmin: vi.fn(),
 }));
 vi.mock("@/lib/onboarding/createOrganization", () => ({
   createOrganization: vi.fn(),
@@ -21,13 +17,13 @@ import { GET, POST } from "@/app/api/admin/orgs/route";
 import { EmailTakenError } from "@/lib/api/errors";
 import { auth } from "@/lib/auth";
 import { createOrganization } from "@/lib/onboarding/createOrganization";
-import { prisma } from "@/lib/prisma";
+import { listAllOrgsForAdmin } from "@/lib/repositories/organizationRepo";
 import { makeRequest, noParams } from "./_helpers";
 
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
-const mockFindMany = vi.mocked(prisma.organization.findMany);
+const mockListAllOrgsForAdmin = vi.mocked(listAllOrgsForAdmin);
 const mockCreate = vi.mocked(createOrganization);
 
 function asSuperAdmin() {
@@ -85,7 +81,7 @@ describe("GET /api/admin/orgs", () => {
         trialEndsAt: null,
         currentPeriodEndsAt: null,
         createdAt: new Date("2026-05-20T00:00:00Z"),
-        _count: { users: 3 },
+        userCount: 3,
       },
       {
         id: "o2",
@@ -95,11 +91,10 @@ describe("GET /api/admin/orgs", () => {
         trialEndsAt: new Date("2026-06-08T00:00:00Z"),
         currentPeriodEndsAt: new Date("2026-07-08T00:00:00Z"),
         createdAt: new Date("2026-05-25T00:00:00Z"),
-        _count: { users: 1 },
+        userCount: 1,
       },
     ];
-    // biome-ignore lint/suspicious/noExplicitAny: prisma row shape
-    mockFindMany.mockResolvedValueOnce(stub as any);
+    mockListAllOrgsForAdmin.mockResolvedValueOnce(stub);
 
     const res = await GET(makeRequest("GET"), noParams);
 
@@ -117,14 +112,7 @@ describe("GET /api/admin/orgs", () => {
       userCount: 3,
     });
     expect(body[1]?.userCount).toBe(1);
-    expect(mockFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        select: expect.objectContaining({
-          _count: { select: { users: true } },
-        }),
-        orderBy: { createdAt: "desc" },
-      })
-    );
+    expect(mockListAllOrgsForAdmin).toHaveBeenCalledWith();
   });
 });
 

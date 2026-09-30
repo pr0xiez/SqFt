@@ -611,3 +611,8 @@ the org/search join once; PostgreSQL sorts and pages ids before hydration.
 Total and summary follow search, source, and pipeline. Each facet relaxes its
 own filter and preserves the others. Event assignee writes validate active
 organization membership in the repository, including calls outside routes.
+
+Public view and consent audit metadata uses `lib/http/clientMeta.ts`, backed by
+`lib/request.ts`. Missing or blank addresses remain null; only required approval
+columns use the unknown fallback. Platform-specific headers are used only on
+Vercel. Other deployments need an ingress that appends or overwrites the client IP.

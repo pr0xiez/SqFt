@@ -110,6 +110,10 @@ with the file that owns it.
   status briefly (bounded window, see `PaymentsSettingsView`) instead of going
   silent. The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
+- `lib/request.ts` — low-level HTTP request helpers shared by public routes/
+  pages, currently `getClientIp` (prefers Vercel's platform-populated
+  `x-vercel-forwarded-for`/`x-real-ip` over the spoofable client-supplied
+  `X-Forwarded-For` for audit/view-tracking IPs).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/loginRepo.ts` — credentials lookup and atomic failed-login
   counters; `lib/auth/login.ts` owns lockout policy, called by `authorizeCredentials`.
@@ -120,6 +124,8 @@ with the file that owns it.
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
   `validateUserIds`, and `applyUserPatch` — the shared role/profile/archived
   orchestration used by both the self-org and super-admin PATCH routes).
+  `organizationRepo.ts` owns organization settings, Stripe fields, and gated
+  platform-wide admin reads. `approvedRevenueSelect.ts` owns the shared revenue projection.
 - `lib/users/schema.ts` — the shared `userCreateSchema` / `userPatchSchema`
   Zod schemas, used by both the self-org (`app/api/users/`) and super-admin
   (`app/api/admin/orgs/[orgId]/users/`) user create/patch routes.
@@ -130,12 +136,17 @@ with the file that owns it.
   surfaces the server's real `{code, message}` instead of a fixed generic
   string. New hooks should call it rather than hand-rolling the fetch dance.
   Shared dialog DOM hooks (`useFocusTrap`, `useScrollLock`) live here too.
+- `lib/env.ts` — validated server configuration for DB, email, Stripe, public URLs,
+  address lookup, and the admin allowlist. Blank optional values retain disabled
+  feature behavior; Auth.js reads `AUTH_SECRET` itself.
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
   `generateToken()` output) and `trackPublicView`, the shared status-gated
   view-tracking spine used by `estimate-review`/`invoice-review`; request
   metadata is read during render, and writes finish via Next's `after()` with
   failure logging. Do not use an untracked fire-and-forget promise here.
+- `lib/request.ts` — deployment-aware audited IP selection; platform headers
+  are trusted only on Vercel, with a best-effort rightmost XFF hop elsewhere.
 - `lib/http/clientMeta.ts` — shared audit metadata extraction for route
   handlers and public review pages; missing/empty values use null.
 - `lib/estimateStatus.ts` — canonical status vocabulary, display labels,

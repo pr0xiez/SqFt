@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
-import { prisma } from "@/lib/prisma";
+import { countOrgsForAdmin } from "@/lib/repositories/organizationRepo";
+import { countUsersForAdmin } from "@/lib/repositories/userRepo";
 import { requireSession } from "@/lib/tenant";
 
 export const metadata = { title: "Admin · SqFt" };
@@ -13,8 +14,8 @@ export default async function AdminDashboardPage() {
   if (!isSuperAdmin(session.user.email)) return null;
 
   const [orgCount, userCount] = await Promise.all([
-    prisma.organization.count(),
-    prisma.user.count(),
+    countOrgsForAdmin(),
+    countUsersForAdmin(),
   ]);
 
   return (

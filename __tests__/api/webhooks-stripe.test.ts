@@ -23,7 +23,7 @@ vi.mock("@/lib/repositories/invoiceRepo", () => ({
   recordStripeAnomaly: vi.fn(),
 }));
 
-vi.mock("@/lib/repositories/orgRepo", () => ({
+vi.mock("@/lib/repositories/organizationRepo", () => ({
   getOrgIdByConnectAccount: vi.fn(),
 }));
 

@@ -16,6 +16,18 @@ if (!connectionString) throw new Error("DATABASE_URL is not set");
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
+// Shape aliases for the values phase functions below pass to each other —
+// derived from the actual Prisma calls that produce them, so they track the
+// schema instead of hand-maintained field lists.
+type SeedOrg = Awaited<
+  ReturnType<typeof prisma.organization.findUniqueOrThrow>
+>;
+type SeedUser = Awaited<ReturnType<typeof prisma.user.findUniqueOrThrow>>;
+type SeedCustomer = Awaited<ReturnType<typeof prisma.customer.create>>;
+type SeedLocation = Awaited<ReturnType<typeof prisma.location.create>>;
+type SeedSiteMeasure = Awaited<ReturnType<typeof prisma.siteMeasure.create>>;
+type SeedEstimate = Awaited<ReturnType<typeof prisma.estimate.create>>;
+
 /** Populate the denormalized Estimate.total on a seeded estimate, mirroring
  *  syncEstimateTotal in lib/repositories/estimateRepo.ts — null when there are
  *  no line items, else computeEstimateView(fromPrismaEstimate(...)).total. */
@@ -36,17 +48,17 @@ async function setEstimateTotal(estimateId: number) {
   await prisma.estimate.update({ where: { id: estimateId }, data: { total } });
 }
 
-async function main() {
-  console.log("🌱 Seeding demo data…");
-
-  // ── Reset demo data so the seed is safely re-runnable ─────────────────────
-  // The seed populates demo orgs (johnson-flooring-demo, other-floors-demo)
-  // via `create`, not upsert, for child rows — estimates, line items, events,
-  // siteMeasures, etc. Without a wipe step, re-running duplicates everything and
-  // trips unique constraints (e.g. approvalToken). Clear the demo orgs' data
-  // first; deleting the customers cascades to Location → SiteMeasure →
-  // Estimate → LineItem/EstimateApproval/EstimateEvent and SiteMeasureItem
-  // rows automatically.
+// ── Reset demo data so the seed is safely re-runnable ───────────────────────
+// The seed populates demo orgs (johnson-flooring-demo, other-floors-demo)
+// via `create`, not upsert, for child rows — estimates, line items, events,
+// siteMeasures, etc. Without a wipe step, re-running duplicates everything and
+// trips unique constraints (e.g. approvalToken). Clear the demo orgs' data
+// first; deleting the customers cascades to Location → SiteMeasure →
+// Estimate → LineItem/EstimateApproval/EstimateEvent and SiteMeasureItem
+// rows automatically. This — not a `prisma.$transaction` wrapping the whole
+// run — is the deliberate mechanism that makes the script idempotent; a
+// single all-or-nothing transaction isn't needed on top of it.
+async function wipeDemoData(): Promise<void> {
   const demoOrgSlugs = ["johnson-flooring-demo", "other-floors-demo"];
   const demoOrgs = await prisma.organization.findMany({
     where: { slug: { in: demoOrgSlugs } },
@@ -71,12 +83,14 @@ async function main() {
     });
     console.log(`  ✓ Cleared prior demo data (${demoOrgs.length} org(s))`);
   }
+}
 
-  // ── Primary demo org ─────────────────────────────────────────────────────
-  // Create through the shared onboarding service so seed + production paths
-  // stay aligned. seed: "minimal" plants the 6 default line-item templates.
-  // Stripe Connect intentionally left unconfigured in seed data:
-  // stripeConnectAccountId/Status null → orgs show the "set up payments" CTA.
+// ── Primary demo org ─────────────────────────────────────────────────────
+// Create through the shared onboarding service so seed + production paths
+// stay aligned. seed: "minimal" plants the 6 default line-item templates.
+// Stripe Connect intentionally left unconfigured in seed data:
+// stripeConnectAccountId/Status null → orgs show the "set up payments" CTA.
+async function seedPrimaryOrg(): Promise<{ org: SeedOrg; user: SeedUser }> {
   const orgResult = await createOrganization({
     org: { name: "Johnson Flooring Co.", slug: "johnson-flooring-demo" },
     admin: {
@@ -96,14 +110,23 @@ async function main() {
   console.log(`  ✓ Org: ${org.name}`);
   console.log(`  ✓ User: ${user.email} / password: demo1234`);
   console.log("  ✓ 6 line item templates");
+  return { org, user };
+}
 
-  // ── Crew (installers as crew-role users) ──────────────────────────────────
+// ── Org-scoped users: crew (installers) + the fixed lead/crew/admin logins ──
+async function seedOrgUsers(org: SeedOrg): Promise<{
+  crewMike: SeedUser;
+  crewCarlos: SeedUser;
+  crewDave: SeedUser;
+  crewSarah: SeedUser;
+}> {
+  const orgId = org.id;
   const unlockedLogin = { failedLoginCount: 0, lockedUntil: null };
   const crewPwd = await bcrypt.hash("demo1234", 10);
   const [crewMike, crewCarlos, crewDave, crewSarah] = await Promise.all([
     prisma.user.create({
       data: {
-        orgId: org.id,
+        orgId,
         name: "Mike",
         email: "mike@sqft.dev",
         password: crewPwd,
@@ -114,7 +137,7 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        orgId: org.id,
+        orgId,
         name: "Carlos",
         email: "carlos@sqft.dev",
         password: crewPwd,
@@ -125,7 +148,7 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        orgId: org.id,
+        orgId,
         name: "Dave",
         email: "dave@sqft.dev",
         password: crewPwd,
@@ -136,7 +159,7 @@ async function main() {
     }),
     prisma.user.create({
       data: {
-        orgId: org.id,
+        orgId,
         name: "Sarah",
         email: "sarah@sqft.dev",
         password: crewPwd,
@@ -158,7 +181,7 @@ async function main() {
       email: "lead@sqft.dev",
       password: leadHash,
       role: "lead",
-      orgId: org.id,
+      orgId,
     },
   });
   console.log("  ✓ User: lead@sqft.dev / password: demo1234");
@@ -173,7 +196,7 @@ async function main() {
       email: "crew@sqft.dev",
       password: crewHash,
       role: "crew",
-      orgId: org.id,
+      orgId,
     },
   });
   console.log("  ✓ User: crew@sqft.dev / password: demo1234");
@@ -191,12 +214,16 @@ async function main() {
       email: "admin@sqft.dev",
       password: superAdminHash,
       role: "admin",
-      orgId: org.id,
+      orgId,
     },
   });
   console.log("  ✓ User: admin@sqft.dev / password: demo1234 (super-admin)");
 
-  // ── Second demo org (tenant-isolation tests) ─────────────────────────────
+  return { crewMike, crewCarlos, crewDave, crewSarah };
+}
+
+// ── Second demo org (tenant-isolation tests) ─────────────────────────────
+async function seedSecondaryOrg(): Promise<void> {
   const otherResult = await createOrganization({
     org: { name: "Other Floors Co.", slug: "other-floors-demo" },
     admin: {
@@ -215,8 +242,14 @@ async function main() {
   });
   console.log(`  ✓ Org: ${otherOrg.name}`);
   console.log(`  ✓ User: ${otherUser.email} / password: demo1234`);
+}
 
-  // ── Customers (matching prototype data) ───────────────────────────────────
+// ── Customers (matching prototype data) ───────────────────────────────────
+async function seedCustomersAndLocations(org: SeedOrg): Promise<{
+  customers: SeedCustomer[];
+  locations: SeedLocation[];
+}> {
+  const orgId = org.id;
   const customerData = [
     {
       name: "Henderson, J.",
@@ -286,21 +319,21 @@ async function main() {
     },
   ];
 
-  const customers: { id: number }[] = [];
+  const customers: SeedCustomer[] = [];
   // One Location per demo customer, created from the address string that used
   // to live on Customer. Site measures hang off these locations now.
-  const locations: { id: number }[] = [];
+  const locations: SeedLocation[] = [];
   for (const c of customerData) {
     const { street, city, state, postalCode, ...customerFields } = c;
     const customer = await prisma.customer.upsert({
       where: { id: customers.length + 1 },
       update: {},
-      create: { ...customerFields, orgId: org.id },
+      create: { ...customerFields, orgId },
     });
     customers.push(customer);
     const location = await prisma.location.create({
       data: {
-        orgId: org.id,
+        orgId,
         customerId: customer.id,
         ...locationAddressColumns({
           street,
@@ -315,17 +348,27 @@ async function main() {
   }
   console.log(`  ✓ ${customers.length} customers`);
   console.log(`  ✓ ${locations.length} locations`);
+  return { customers, locations };
+}
 
-  // ── SiteMeasures (rooms only) ────────────────────────────────────────────────
-
-  // Each siteMeasure gets its org-wide siteMeasureNumber allocated explicitly here
-  // (the repository allocates from Organization.nextSiteMeasureNumber in app
-  // code; the seed sets it directly for stable demo numbers).
-
+// ── SiteMeasures (rooms only) ────────────────────────────────────────────────
+// Each siteMeasure gets its org-wide siteMeasureNumber allocated explicitly here
+// (the repository allocates from Organization.nextSiteMeasureNumber in app
+// code; the seed sets it directly for stable demo numbers).
+async function seedBaseSiteMeasures(
+  org: SeedOrg,
+  locations: SeedLocation[]
+): Promise<{
+  est1042: SeedSiteMeasure;
+  est1043: SeedSiteMeasure;
+  est1040: SeedSiteMeasure;
+  est1041: SeedSiteMeasure;
+}> {
+  const orgId = org.id;
   // #1042 — Henderson — 3 rooms
   const est1042 = await prisma.siteMeasure.create({
     data: {
-      orgId: org.id,
+      orgId,
       locationId: locations[0].id,
       siteMeasureNumber: 1042,
       items: {
@@ -365,7 +408,7 @@ async function main() {
   // #1043 — Sharma — Tile, 2 rooms
   const est1043 = await prisma.siteMeasure.create({
     data: {
-      orgId: org.id,
+      orgId,
       locationId: locations[5].id,
       siteMeasureNumber: 1043,
       items: {
@@ -396,7 +439,7 @@ async function main() {
   // #1044 — Park — Living + Dining, L-shape
   const _est1044 = await prisma.siteMeasure.create({
     data: {
-      orgId: org.id,
+      orgId,
       locationId: locations[3].id,
       siteMeasureNumber: 1044,
       items: {
@@ -424,7 +467,7 @@ async function main() {
   // #1045 — Nguyen — empty (new lead)
   const _est1045 = await prisma.siteMeasure.create({
     data: {
-      orgId: org.id,
+      orgId,
       locationId: locations[4].id,
       siteMeasureNumber: 1045,
     },
@@ -433,7 +476,7 @@ async function main() {
   // #1040 — Chen — Staircase
   const est1040 = await prisma.siteMeasure.create({
     data: {
-      orgId: org.id,
+      orgId,
       locationId: locations[2].id,
       siteMeasureNumber: 1040,
       items: {
@@ -464,7 +507,7 @@ async function main() {
   // #1041 — Martinez — Hardwood, 3 rooms
   const est1041 = await prisma.siteMeasure.create({
     data: {
-      orgId: org.id,
+      orgId,
       locationId: locations[1].id,
       siteMeasureNumber: 1041,
       items: {
@@ -502,12 +545,32 @@ async function main() {
   });
   console.log("  ✓ 6 siteMeasures (base set)");
 
-  // ── Estimates ────────────────────────────────────────────────────────────────
+  return { est1042, est1043, est1040, est1041 };
+}
+
+// ── Estimates ────────────────────────────────────────────────────────────────
+async function seedCoreEstimates(
+  org: SeedOrg,
+  user: SeedUser,
+  siteMeasures: {
+    est1042: SeedSiteMeasure;
+    est1043: SeedSiteMeasure;
+    est1040: SeedSiteMeasure;
+    est1041: SeedSiteMeasure;
+  }
+): Promise<{
+  q5001: SeedEstimate;
+  q5002: SeedEstimate;
+  q5003: SeedEstimate;
+  q5004: SeedEstimate;
+}> {
+  const orgId = org.id;
+  const { est1042, est1043, est1040, est1041 } = siteMeasures;
 
   // #5001 — Henderson LVP (sent)
   const q5001 = await prisma.estimate.create({
     data: {
-      orgId: org.id,
+      orgId,
       siteMeasureId: est1042.id,
       estimateNumber: 5001,
       status: "sent",
@@ -577,7 +640,7 @@ async function main() {
   // #5002 — Martinez HW (approved) — winning estimate, drives the job event
   const q5002 = await prisma.estimate.create({
     data: {
-      orgId: org.id,
+      orgId,
       siteMeasureId: est1041.id,
       estimateNumber: 5002,
       status: "approved",
@@ -627,7 +690,7 @@ async function main() {
   // #5003 — Chen Staircase (accepted) — winning estimate, drives the job events
   const q5003 = await prisma.estimate.create({
     data: {
-      orgId: org.id,
+      orgId,
       siteMeasureId: est1040.id,
       estimateNumber: 5003,
       status: "approved",
@@ -791,7 +854,7 @@ async function main() {
   // #5004 — Sharma Tile (draft)
   const q5004 = await prisma.estimate.create({
     data: {
-      orgId: org.id,
+      orgId,
       siteMeasureId: est1043.id,
       estimateNumber: 5004,
       status: "draft",
@@ -816,7 +879,15 @@ async function main() {
   // Park (#1044) gets no estimate yet — demonstrates "no estimates yet" empty state
   // Nguyen (#1045) is a brand-new lead with no rooms and no estimate
 
-  // ── Sent estimate: emailed but not yet viewed ────────────────────────────────
+  return { q5001, q5002, q5003, q5004 };
+}
+
+// ── Sent estimate: emailed but not yet viewed ────────────────────────────────
+async function seedSentEstimate(
+  org: SeedOrg,
+  user: SeedUser,
+  est1042: SeedSiteMeasure
+): Promise<{ sentEstimate: SeedEstimate }> {
   const sentEstimate = await prisma.estimate.create({
     data: {
       orgId: org.id,
@@ -858,8 +929,15 @@ async function main() {
     },
   });
   console.log(`  ✓ Sent estimate: #${sentEstimate.estimateNumber}`);
+  return { sentEstimate };
+}
 
-  // ── Accepted estimate: signed by customer ────────────────────────────────────
+// ── Accepted estimate: signed by customer ────────────────────────────────────
+async function seedAcceptedEstimate(
+  org: SeedOrg,
+  user: SeedUser,
+  est1042: SeedSiteMeasure
+): Promise<{ acceptedEstimate: SeedEstimate }> {
   const acceptedEstimate = await prisma.estimate.create({
     data: {
       orgId: org.id,
@@ -953,10 +1031,17 @@ async function main() {
     });
   }
   console.log(`  ✓ Accepted estimate: #${acceptedEstimate.estimateNumber}`);
+  return { acceptedEstimate };
+}
 
-  // ── Invoices on the accepted estimate (#5006) ────────────────────────────
-  // Demonstrates staged billing: a paid 50% deposit, a partially-paid progress
-  // invoice, and one voided draft. amounts are illustrative dollar figures.
+// ── Invoices on the accepted estimate (#5006) ────────────────────────────
+// Demonstrates staged billing: a paid 50% deposit, a partially-paid progress
+// invoice, and one voided draft. amounts are illustrative dollar figures.
+async function seedInvoicesForAcceptedEstimate(
+  org: SeedOrg,
+  user: SeedUser,
+  acceptedEstimate: SeedEstimate
+): Promise<void> {
   const depositInvoice = await prisma.invoice.create({
     data: {
       orgId: org.id,
@@ -1045,10 +1130,16 @@ async function main() {
     },
   });
   console.log("  ✓ 3 invoices on #5006 (paid deposit, partial progress, void)");
+}
 
-  // ── Second location for Henderson (a customer with two locations) ─────────
-  // Demonstrates the Customer → Location → SiteMeasure hierarchy: one customer
-  // owns multiple physical sites.
+// ── Second location for Henderson (a customer with two locations) ─────────
+// Demonstrates the Customer → Location → SiteMeasure hierarchy: one customer
+// owns multiple physical sites.
+async function seedHendersonMultiSite(
+  org: SeedOrg,
+  customers: SeedCustomer[],
+  locations: SeedLocation[]
+): Promise<{ est1046: SeedSiteMeasure; est1047: SeedSiteMeasure }> {
   const rentalParts = {
     street: "456 Rental Rd",
     unit: "",
@@ -1111,8 +1202,15 @@ async function main() {
     },
   });
   console.log("  ✓ +1 location, +2 site measures (Henderson multi-site)");
+  return { est1046, est1047 };
+}
 
-  // ── Viewed estimate: opened by the customer, not yet approved or declined ──
+// ── Viewed estimate: opened by the customer, not yet approved or declined ──
+async function seedViewedEstimate(
+  org: SeedOrg,
+  user: SeedUser,
+  est1046: SeedSiteMeasure
+): Promise<{ viewedEstimate: SeedEstimate }> {
   const viewedEstimate = await prisma.estimate.create({
     data: {
       orgId: org.id,
@@ -1166,10 +1264,17 @@ async function main() {
     });
   }
   console.log(`  ✓ Viewed estimate: #${viewedEstimate.estimateNumber}`);
+  return { viewedEstimate };
+}
 
-  // ── Declined estimate + its revision (a revision chain) ───────────────────
-  // The customer declined #5008; the builder revised it into a fresh draft
-  // #5009 via `revisedFromId`, preserving the lineage.
+// ── Declined estimate + its revision (a revision chain) ───────────────────
+// The customer declined #5008; the builder revised it into a fresh draft
+// #5009 via `revisedFromId`, preserving the lineage.
+async function seedDeclinedAndRevisedEstimate(
+  org: SeedOrg,
+  user: SeedUser,
+  est1047: SeedSiteMeasure
+): Promise<{ declinedEstimate: SeedEstimate; revisedEstimate: SeedEstimate }> {
   const declinedEstimate = await prisma.estimate.create({
     data: {
       orgId: org.id,
@@ -1279,20 +1384,31 @@ async function main() {
   console.log(
     `  ✓ Declined estimate #${declinedEstimate.estimateNumber} → revised draft #${revisedEstimate.estimateNumber}`
   );
+  return { declinedEstimate, revisedEstimate };
+}
 
-  // ── Bulk pagination fixtures ──────────────────────────────────────────────
-  // The hand-authored records above (6 customers / 9 estimates / 8 site
-  // measures) all fit on a single page, so they can't exercise the server-side
-  // pagination, facet counts, or sorting added in this branch. Generate a large
-  // batch of additional records that:
-  //   • exceeds every PER_PAGE_OPTIONS value (25/50/100) so multiple pages exist
-  //     for all three list views at any page size,
-  //   • cycles customer `source` across all five values (facet: source:*),
-  //   • cycles estimate `status` across all five values (estimate status facet
-  //     + customer pipeline:open/accepted facet), and
-  //   • spreads site measures across the empty / measured / estimated buckets
-  //     (site-measure status facet).
-  // Continues the org-wide number sequences from where the base set left off.
+// ── Bulk pagination fixtures ──────────────────────────────────────────────
+// The hand-authored records above (6 customers / 9 estimates / 8 site
+// measures) all fit on a single page, so they can't exercise the server-side
+// pagination, facet counts, or sorting added in this branch. Generate a large
+// batch of additional records that:
+//   • exceeds every PER_PAGE_OPTIONS value (25/50/100) so multiple pages exist
+//     for all three list views at any page size,
+//   • cycles customer `source` across all five values (facet: source:*),
+//   • cycles estimate `status` across all five values (estimate status facet
+//     + customer pipeline:open/accepted facet), and
+//   • spreads site measures across the empty / measured / estimated buckets
+//     (site-measure status facet).
+// Continues the org-wide number sequences from where the base set left off.
+async function seedBulkFixtures(
+  org: SeedOrg,
+  user: SeedUser
+): Promise<{
+  nextSiteMeasureNumber: number;
+  nextEstimateNumber: number;
+  bulkEstimateIds: number[];
+}> {
+  const orgId = org.id;
   const SOURCES = ["phone", "online", "referral", "walkin", "website"] as const;
   const STATUSES = ["draft", "sent", "viewed", "approved", "declined"] as const;
   const BULK_COUNT = 120;
@@ -1312,7 +1428,7 @@ async function main() {
     const seq = String(i + 1).padStart(3, "0");
     const customer = await prisma.customer.create({
       data: {
-        orgId: org.id,
+        orgId,
         name: `Pagination Customer ${seq}`,
         phone: `(614) 700-${seq}0`,
         email: `pagination${seq}@example.com`,
@@ -1329,7 +1445,7 @@ async function main() {
     };
     const location = await prisma.location.create({
       data: {
-        orgId: org.id,
+        orgId,
         customerId: customer.id,
         ...locationAddressColumns(pgParts),
       },
@@ -1341,7 +1457,7 @@ async function main() {
       i % 6 === 0 ? "empty" : i % 6 === 1 ? "measured" : "estimated";
     const siteMeasure = await prisma.siteMeasure.create({
       data: {
-        orgId: org.id,
+        orgId,
         locationId: location.id,
         siteMeasureNumber: nextSiteMeasureNumber++,
         items:
@@ -1388,7 +1504,7 @@ async function main() {
 
     const estimate = await prisma.estimate.create({
       data: {
-        orgId: org.id,
+        orgId,
         siteMeasureId: siteMeasure.id,
         estimateNumber,
         status,
@@ -1454,35 +1570,67 @@ async function main() {
   );
   console.log(`  ✓ ${bulkEstimateIds.length} bulk estimates`);
 
-  // Populate the denormalized Estimate.total on every seeded estimate, so the
-  // list view's total column / sort has data without a separate backfill.
-  for (const est of [
-    q5001,
-    q5002,
-    q5003,
-    q5004,
-    sentEstimate,
-    acceptedEstimate,
-    viewedEstimate,
-    declinedEstimate,
-    revisedEstimate,
-  ]) {
-    await setEstimateTotal(est.id);
-  }
-  for (const id of bulkEstimateIds) {
-    await setEstimateTotal(id);
+  return { nextSiteMeasureNumber, nextEstimateNumber, bulkEstimateIds };
+}
+
+// Populate the denormalized Estimate.total on every seeded estimate, so the
+// list view's total column / sort has data without a separate backfill. Run
+// in bounded batches to avoid saturating the Postgres connection pool.
+async function backfillEstimateTotals(estimateIds: number[]): Promise<void> {
+  const batchSize = 4;
+  for (let offset = 0; offset < estimateIds.length; offset += batchSize) {
+    await Promise.all(
+      estimateIds
+        .slice(offset, offset + batchSize)
+        .map((id) => setEstimateTotal(id))
+    );
   }
   console.log("  ✓ Estimate.total populated");
+}
 
-  // Bump the org counters past every seeded value (base set + bulk fixtures) so
-  // newly created records start fresh sequences.
+// Bump the org counters past every seeded value (base set + bulk fixtures) so
+// newly created records start fresh sequences.
+async function bumpOrgCounters(
+  org: SeedOrg,
+  nextSiteMeasureNumber: number,
+  nextEstimateNumber: number,
+  totalEstimateCount: number
+): Promise<void> {
+  const latestInvoice = await prisma.invoice.aggregate({
+    where: { orgId: org.id },
+    _max: { invoiceNumber: true },
+  });
   await prisma.organization.update({
     where: { id: org.id },
-    data: { nextSiteMeasureNumber, nextEstimateNumber, nextInvoiceNumber: 4 },
+    data: {
+      nextSiteMeasureNumber,
+      nextEstimateNumber,
+      nextInvoiceNumber: (latestInvoice._max.invoiceNumber ?? 0) + 1,
+    },
   });
-  console.log(`  ✓ ${9 + bulkEstimateIds.length} estimates`);
+  console.log(`  ✓ ${totalEstimateCount} estimates`);
+}
 
-  // ── Calendar events ───────────────────────────────────────────────────────
+// ── Calendar events ───────────────────────────────────────────────────────
+async function seedCalendarEvents(
+  org: SeedOrg,
+  customers: SeedCustomer[],
+  crew: {
+    crewMike: SeedUser;
+    crewCarlos: SeedUser;
+    crewDave: SeedUser;
+    crewSarah: SeedUser;
+  },
+  estimates: {
+    q5001: SeedEstimate;
+    q5002: SeedEstimate;
+    q5003: SeedEstimate;
+    q5004: SeedEstimate;
+  }
+): Promise<void> {
+  const orgId = org.id;
+  const { crewMike, crewCarlos, crewDave, crewSarah } = crew;
+  const { q5001, q5002, q5003, q5004 } = estimates;
   const today = new Date();
   const d = (offsetDays: number) => {
     const date = new Date(today);
@@ -1493,7 +1641,7 @@ async function main() {
   await Promise.all([
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "job",
         title: "Chen Staircase · Day 2",
         customerId: customers[2].id,
@@ -1507,7 +1655,7 @@ async function main() {
     }),
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "job",
         title: "Williams Tile Bath · Day 1",
         customerId: customers[5].id,
@@ -1521,7 +1669,7 @@ async function main() {
     }),
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "visit",
         title: "Measure — Nguyen Residence",
         customerId: customers[4].id,
@@ -1534,7 +1682,7 @@ async function main() {
     }),
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "other",
         title: "Showroom — Park Family",
         customerId: customers[3].id,
@@ -1547,7 +1695,7 @@ async function main() {
     }),
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "job",
         title: "Chen Staircase · Day 3",
         customerId: customers[2].id,
@@ -1563,7 +1711,7 @@ async function main() {
     }),
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "job",
         title: "Martinez HW",
         customerId: customers[1].id,
@@ -1577,7 +1725,7 @@ async function main() {
     }),
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "visit",
         title: "Henderson follow-up",
         customerId: customers[0].id,
@@ -1590,7 +1738,7 @@ async function main() {
     }),
     prisma.event.create({
       data: {
-        orgId: org.id,
+        orgId,
         type: "job",
         title: "Henderson — Floor install",
         customerId: customers[0].id,
@@ -1604,6 +1752,80 @@ async function main() {
     }),
   ]);
   console.log("  ✓ 8 calendar events");
+}
+
+async function main() {
+  console.log("🌱 Seeding demo data…");
+
+  await wipeDemoData();
+
+  const { org, user } = await seedPrimaryOrg();
+  const crew = await seedOrgUsers(org);
+  await seedSecondaryOrg();
+
+  const { customers, locations } = await seedCustomersAndLocations(org);
+  const siteMeasures = await seedBaseSiteMeasures(org, locations);
+
+  const { q5001, q5002, q5003, q5004 } = await seedCoreEstimates(
+    org,
+    user,
+    siteMeasures
+  );
+  const { sentEstimate } = await seedSentEstimate(
+    org,
+    user,
+    siteMeasures.est1042
+  );
+  const { acceptedEstimate } = await seedAcceptedEstimate(
+    org,
+    user,
+    siteMeasures.est1042
+  );
+  await seedInvoicesForAcceptedEstimate(org, user, acceptedEstimate);
+
+  const { est1046, est1047 } = await seedHendersonMultiSite(
+    org,
+    customers,
+    locations
+  );
+  const { viewedEstimate } = await seedViewedEstimate(org, user, est1046);
+  const { declinedEstimate, revisedEstimate } =
+    await seedDeclinedAndRevisedEstimate(org, user, est1047);
+
+  const { nextSiteMeasureNumber, nextEstimateNumber, bulkEstimateIds } =
+    await seedBulkFixtures(org, user);
+
+  // The 9 hand-authored estimates whose Estimate.total needs backfilling,
+  // matching the order they were created in above.
+  const baseEstimates = [
+    q5001,
+    q5002,
+    q5003,
+    q5004,
+    sentEstimate,
+    acceptedEstimate,
+    viewedEstimate,
+    declinedEstimate,
+    revisedEstimate,
+  ];
+  await backfillEstimateTotals([
+    ...baseEstimates.map((est) => est.id),
+    ...bulkEstimateIds,
+  ]);
+
+  await bumpOrgCounters(
+    org,
+    nextSiteMeasureNumber,
+    nextEstimateNumber,
+    baseEstimates.length + bulkEstimateIds.length
+  );
+
+  await seedCalendarEvents(org, customers, crew, {
+    q5001,
+    q5002,
+    q5003,
+    q5004,
+  });
 
   console.log("\n✅ Seed complete!");
   console.log("   Login: demo@sqft.dev / demo1234");

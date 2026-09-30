@@ -1,3 +1,5 @@
+import { getEnv } from "@/lib/env";
+
 export interface AddressSuggestion {
   formatted: string;
   street: string;
@@ -49,7 +51,7 @@ export function mapGeoapifyResults(json: unknown): AddressSuggestion[] {
 export async function fetchAddressSuggestions(
   query: string
 ): Promise<AddressSuggestion[]> {
-  const apiKey = process.env.GEOAPIFY_API_KEY;
+  const apiKey = getEnv().GEOAPIFY_API_KEY;
   if (!apiKey || query.trim().length < 3) return [];
 
   const url = new URL("https://api.geoapify.com/v1/geocode/autocomplete");
