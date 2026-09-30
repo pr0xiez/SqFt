@@ -192,7 +192,8 @@ describe("fromPrismaEstimate — EstimateInput mapping", () => {
           {
             id: 20,
             type: "note",
-            // name, shape, w, l, segments, note, text all omitted/null
+            segments: null,
+            // name, shape, w, l, note, text omitted; segments explicitly null
           },
         ],
       },
@@ -260,6 +261,7 @@ describe("fromPrismaEstimate — EstimateInput mapping", () => {
             id: 30,
             type: "anything-else",
             shape: "circle",
+            segments: null,
           },
         ],
       },

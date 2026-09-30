@@ -1,4 +1,32 @@
-import type { EstimateStatus } from "@/lib/hooks/useCustomers";
+/**
+ * Canonical estimate status vocabulary — the single source of truth for the
+ * `Estimate.status` column (a bare `String` in `prisma/schema.prisma`; the
+ * vocabulary lives only here in code). Every other module that needs the
+ * status union derives it from `ESTIMATE_STATUSES` rather than hand-rolling
+ * its own literal list, so a dropped value can't drift silently.
+ */
+export const ESTIMATE_STATUSES = [
+  "draft",
+  "sent",
+  "viewed",
+  "approved",
+  "declined",
+] as const;
+
+export type EstimateStatus = (typeof ESTIMATE_STATUSES)[number];
+
+export const ESTIMATE_STATUS_FILTERS = ["all", ...ESTIMATE_STATUSES] as const;
+export const OPERATOR_SETTABLE_ESTIMATE_STATUSES = ["draft", "sent"] as const;
+export type OperatorEstimateStatus =
+  (typeof OPERATOR_SETTABLE_ESTIMATE_STATUSES)[number];
+export const OPEN_ESTIMATE_STATUSES = ["draft", "sent", "viewed"] as const;
+export const ESTIMATE_STATUS_LABELS = {
+  draft: "Draft",
+  sent: "Sent",
+  viewed: "Viewed",
+  approved: "Approved",
+  declined: "Declined",
+} satisfies Record<EstimateStatus, string>;
 
 interface EstimateTimestamps {
   status: EstimateStatus | string;

@@ -1,6 +1,8 @@
 import { NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
+import { ESTIMATE_STATUS_FILTERS } from "@/lib/estimateStatus";
 import { estimateCreateSchema } from "@/lib/estimates/schema";
+import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { parsePageParams } from "@/lib/pagination/params";
 import {
   createEstimate,
@@ -17,25 +19,16 @@ const ESTIMATE_SORT_KEYS = [
   "date",
 ] as const satisfies readonly EstimateSortKey[];
 
-const ESTIMATE_STATUS_FILTERS = [
-  "all",
-  "draft",
-  "sent",
-  "approved",
-  "declined",
-] as const;
-type EstimateStatusFilterValue = (typeof ESTIMATE_STATUS_FILTERS)[number];
-
 export const GET = apiRoute({ minRole: "lead" }, async ({ req, orgId }) => {
   const { page, perPage, sort, q } = parsePageParams(req.nextUrl, {
     validSortKeys: ESTIMATE_SORT_KEYS,
     defaultSort: { key: "date", direction: "desc" },
   });
   const statusParam = req.nextUrl.searchParams.get("status");
-  const status: EstimateStatusFilterValue =
+  const status: EstimateStatusFilter =
     statusParam &&
     (ESTIMATE_STATUS_FILTERS as readonly string[]).includes(statusParam)
-      ? (statusParam as EstimateStatusFilterValue)
+      ? (statusParam as EstimateStatusFilter)
       : "all";
 
   const { items, total, facets } = await listEstimates(orgId, {

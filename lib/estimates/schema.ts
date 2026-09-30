@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { OPERATOR_SETTABLE_ESTIMATE_STATUSES } from "@/lib/estimateStatus";
 import { QTY_MODE_VALUES, QtyMode } from "@/lib/utils";
 
 const lineItemSchema = z.object({
@@ -26,7 +27,7 @@ export const estimateCreateSchema = z.object({
 // statuses can't be forged through it — see saveEstimate for the matching
 // repo-layer guard.
 export const estimateUpdateSchema = z.object({
-  status: z.enum(["draft", "sent"]).optional(),
+  status: z.enum(OPERATOR_SETTABLE_ESTIMATE_STATUSES).optional(),
   markupPct: z.number().min(0).optional(),
   depositPct: z.number().min(0).max(1).optional(),
   lineItems: z.array(lineItemSchema).optional(),

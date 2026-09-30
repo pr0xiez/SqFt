@@ -10,10 +10,7 @@
 // copies.
 
 import { computeEstimateView } from "@/lib/estimateView/compute";
-import {
-  fromPrismaEstimate,
-  type PrismaEstimateForView,
-} from "@/lib/estimateView/fromPrisma";
+import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
 import { prisma } from "@/lib/prisma";
 
 /** Prisma `select` covering everything `computeEstimateView` needs, plus
@@ -46,6 +43,7 @@ export const approvedRevenueSelect = {
           shape: true,
           w: true,
           l: true,
+          segments: true,
           note: true,
           text: true,
         },
@@ -77,12 +75,10 @@ export async function getApprovedEstimateRevenueRows(
     select: approvedRevenueSelect,
   });
 
-  return (rows as (PrismaEstimateForView & { approvedAt: Date | null })[]).map(
-    (q) => ({
-      approvedAt: q.approvedAt,
-      total: computeEstimateView(fromPrismaEstimate(q)).total,
-    })
-  );
+  return rows.map((q) => ({
+    approvedAt: q.approvedAt,
+    total: computeEstimateView(fromPrismaEstimate(q)).total,
+  }));
 }
 
 /** Approved estimates from `monthStart` through now (month-to-date). */

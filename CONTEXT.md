@@ -259,7 +259,13 @@ itself re-checks this at the repo layer (the trust boundary) and throws
 looser schema or a rewired caller still can't forge an approval/decline and
 skip the `EstimateApproval` consent row / supersede-siblings logic above.
 
-Estimate status values: `draft | sent | viewed | approved | declined`.
+Estimate status values: `draft | sent | viewed | approved | declined`, owned
+by `lib/estimateStatus.ts`; filters include every status. Operator PATCH uses
+the separate `draft | sent` subset, so it cannot forge customer audit events.
+Sibling superseding uses a guarded UPDATE RETURNING in
+`lib/repositories/estimateApprovalRepo.ts`; only changed rows receive events.
+Missing client metadata becomes null in events and `unknown` only in the
+non-null approval columns. Historical event rows may still contain `unknown`.
 
 An approved or declined estimate can be **revised**: `reviseEstimate`
 (`lib/repositories/estimateRepo.ts`) clones it (line items, markup/deposit

@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
+import { type ClientMeta, clientMetaFromHeaders } from "@/lib/http/clientMeta";
 import { logError } from "@/lib/logger";
 
 /**
@@ -13,16 +14,10 @@ export function isValidTokenShape(token: string): boolean {
 }
 
 /** IP + user-agent pulled from request headers, for view-tracking events. */
-export interface ClientMeta {
-  ip: string | null;
-  userAgent: string | null;
-}
+export type { ClientMeta } from "@/lib/http/clientMeta";
 
 async function readClientMeta(): Promise<ClientMeta> {
-  const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const userAgent = h.get("user-agent") ?? null;
-  return { ip, userAgent };
+  return clientMetaFromHeaders(await headers());
 }
 
 /**

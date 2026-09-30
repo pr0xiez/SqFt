@@ -5,7 +5,11 @@ import {
   EstimateLockedError,
   ValidationError,
 } from "@/lib/api/errors";
-import { isEstimateLocked } from "@/lib/estimateStatus";
+import {
+  ESTIMATE_STATUSES,
+  isEstimateLocked,
+  type OperatorEstimateStatus,
+} from "@/lib/estimateStatus";
 import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
@@ -242,7 +246,7 @@ type LineItemInput = Omit<
 // approveEstimateByToken / declineEstimateByToken, which write the
 // EstimateApproval consent record and run the supersede-siblings logic.
 export type EstimatePatch = {
-  status?: "draft" | "sent";
+  status?: OperatorEstimateStatus;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemInput[];
@@ -296,8 +300,6 @@ function estimateSearchWhere(q: string): Prisma.EstimateWhereInput | null {
     number: (n) => ({ estimateNumber: n }),
   });
 }
-
-const ESTIMATE_STATUSES = ["draft", "sent", "approved", "declined"] as const;
 
 export async function listEstimates(
   orgId: string,

@@ -5,7 +5,7 @@ vi.mock("@/lib/prisma", () => {
   const tx = {
     estimate: {
       findFirst: vi.fn(),
-      findMany: vi.fn(),
+      updateManyAndReturn: vi.fn(),
       updateMany: vi.fn(),
     },
     estimateApproval: {
@@ -46,24 +46,24 @@ describe("approveEstimateByToken — sibling auto-decline", () => {
       siteMeasureId: 42,
       estimateNumber: 5002,
     });
-    tx.estimate.findMany.mockResolvedValueOnce([{ id: 8 }, { id: 9 }]);
+    tx.estimate.updateManyAndReturn.mockResolvedValueOnce([
+      { id: 8 },
+      { id: 9 },
+    ]);
 
     const result = await approveEstimateByToken(baseInput);
 
     expect(result).toBe("ok");
-    // sibling sweep updateMany
-    const siblingCall = tx.estimate.updateMany.mock.calls.find(
-      (c: unknown[]) =>
-        // biome-ignore lint/suspicious/noExplicitAny: test inspect
-        (c[0] as any).where?.id?.not === 7
-    );
-    expect(siblingCall).toBeTruthy();
-    // biome-ignore lint/suspicious/noExplicitAny: test inspect
-    const where = (siblingCall as any[])[0].where;
-    // biome-ignore lint/suspicious/noExplicitAny: test inspect
-    const data = (siblingCall as any[])[0].data;
-    expect(where.siteMeasureId).toBe(42);
-    expect(where.status).toEqual({ in: ["draft", "sent", "viewed"] });
+    expect(tx.estimate.updateManyAndReturn).toHaveBeenCalledWith({
+      where: {
+        siteMeasureId: 42,
+        id: { not: 7 },
+        status: { in: ["draft", "sent", "viewed"] },
+      },
+      data: expect.objectContaining({ status: "declined" }),
+      select: { id: true },
+    });
+    const data = tx.estimate.updateManyAndReturn.mock.calls[0][0].data;
     expect(data.status).toBe("declined");
     expect(data.declineReason).toMatch(
       /^Superseded — customer approved Estimate #5002/
@@ -92,17 +92,12 @@ describe("approveEstimateByToken — sibling auto-decline", () => {
       siteMeasureId: 42,
       estimateNumber: 5002,
     });
-    tx.estimate.findMany.mockResolvedValueOnce([]);
+    tx.estimate.updateManyAndReturn.mockResolvedValueOnce([]);
 
     await approveEstimateByToken(baseInput);
 
-    // updateMany still called, but with an empty in-scope set
-    const siblingCall = tx.estimate.updateMany.mock.calls.find(
-      (c: unknown[]) =>
-        // biome-ignore lint/suspicious/noExplicitAny: test inspect
-        (c[0] as any).where?.id?.not === 7
-    );
-    expect(siblingCall).toBeTruthy();
+    expect(tx.estimate.updateManyAndReturn).toHaveBeenCalledOnce();
+    expect(tx.estimate.updateMany).toHaveBeenCalledOnce(); // only the approved estimate
     expect(tx.estimateEvent.createMany).not.toHaveBeenCalled();
   });
 });
