@@ -6,30 +6,45 @@ import {
   setOrgConnectStatus,
 } from "@/lib/repositories/orgRepo";
 import {
-  type ConnectStatus,
   createConnectedAccount,
   createOnboardingLink,
-  readAccountStatus,
+  readAccountStatusDetail,
 } from "@/lib/stripe/connect";
+import type { StripeConnectStatus } from "@/lib/stripe/connectPhase";
 
-// GET — current connect status for the settings page.
+// GET — current connect status for the settings page, always read live from
+// Stripe when the org has an account.
+//
+// The cached `stripeConnectStatus` is a write-through copy for the public pay
+// path, not a source of truth for the admin. Skipping the read once it said
+// "active" latched this page to "payments are active" permanently: a later
+// Stripe restriction stayed invisible here while the public "Pay now" button —
+// which gates on that same cached value — kept sending customers to a checkout
+// that fails. Refreshing unconditionally is also what keeps the requirements
+// summary from being dropped on the poll that flips an account to active.
 export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
   const org = await getOrgStripe(orgId);
-  let status: ConnectStatus | null =
-    org.stripeConnectStatus as ConnectStatus | null;
-  // Refresh from Stripe when we have an account but it isn't active yet.
-  if (org.stripeConnectAccountId && status !== "active") {
-    status = await readAccountStatus(org.stripeConnectAccountId);
-    await setOrgConnectStatus(
-      orgId,
-      status,
-      status === "active" ? new Date() : undefined
-    );
+  if (!org.stripeConnectAccountId) {
+    const disconnected: StripeConnectStatus = {
+      connected: false,
+      status: null,
+      requirements: null,
+    };
+    return disconnected;
   }
-  return {
-    connected: Boolean(org.stripeConnectAccountId),
-    status: status ?? null,
+
+  const detail = await readAccountStatusDetail(org.stripeConnectAccountId);
+  await setOrgConnectStatus(
+    orgId,
+    detail.status,
+    detail.status === "active" ? new Date() : undefined
+  );
+  const body: StripeConnectStatus = {
+    connected: true,
+    status: detail.status,
+    requirements: detail.requirements,
   };
+  return body;
 });
 
 // POST — create the account if needed, then return a fresh onboarding link.

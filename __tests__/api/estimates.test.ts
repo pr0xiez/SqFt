@@ -38,7 +38,23 @@ beforeEach(() => {
 });
 
 describe("GET /api/estimates", () => {
-  it("401 for crew role", async () => {
+  it("preserves the viewed filter instead of silently falling back to all", async () => {
+    mockList.mockResolvedValue({ items: [], total: 0, facets: {} });
+    expect(
+      (
+        await GET(
+          makeRequest("GET", "http://x/api/estimates?status=viewed"),
+          noParams
+        )
+      ).status
+    ).toBe(200);
+    expect(mockList).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({ status: "viewed" })
+    );
+  });
+
+  it("403 for crew role", async () => {
     mockRequireSession.mockResolvedValue({
       user: { id: "u1", orgId: "org1", role: "crew" },
       // biome-ignore lint/suspicious/noExplicitAny: test stub session
@@ -47,7 +63,7 @@ describe("GET /api/estimates", () => {
       makeRequest("GET", "http://x/api/estimates"),
       noParams
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("passes parsed params and returns the paginated envelope", async () => {
@@ -57,8 +73,7 @@ describe("GET /api/estimates", () => {
           id: 1,
           total: 123,
           _count: { lineItems: 2 },
-          lineItems: [],
-          siteMeasure: { items: [], id: 9 },
+          siteMeasure: { id: 9 },
           // biome-ignore lint/suspicious/noExplicitAny: test stub row
         } as any,
       ],
@@ -79,6 +94,7 @@ describe("GET /api/estimates", () => {
     expect(body.items[0].total).toBe(123);
     expect(body.items[0].lineItems).toBeUndefined();
     expect(body.items[0].siteMeasure.items).toBeUndefined();
+    expect(body.items[0]).not.toHaveProperty("approvalToken");
     expect(mockList).toHaveBeenCalledWith(
       "org1",
       expect.objectContaining({

@@ -1,4 +1,9 @@
-import { computeEstimateView, foldMarkupIntoLines } from "@/lib/estimateView";
+import { isEstimateLocked } from "@/lib/estimateStatus";
+import {
+  computeEstimateView,
+  type EstimateView,
+  foldMarkupIntoLines,
+} from "@/lib/estimateView";
 import type {
   RoomItem as _RoomItem,
   LineItemCalc,
@@ -46,16 +51,23 @@ export interface PublicEstimate {
 interface Props {
   estimate: PublicEstimate;
   token: string;
+  /** Frozen view (per-line qty/subtotal + signed totals) reconstructed from
+   *  the approval snapshot. When present, rendering uses these stored numbers
+   *  instead of recomputing from `estimate.lineItems`, so an approved
+   *  document can never drift from what the customer signed. */
+  frozenView?: EstimateView;
 }
 
-export function PublicEstimateView({ estimate, token }: Props) {
+export function PublicEstimateView({ estimate, token, frozenView }: Props) {
   const rooms = estimate.items.filter((i): i is RoomItem => i.type === "room");
-  const view = computeEstimateView({
-    lineItems: estimate.lineItems,
-    items: estimate.items,
-    markupPct: estimate.markupPct,
-    depositPct: estimate.depositPct,
-  });
+  const view =
+    frozenView ??
+    computeEstimateView({
+      lineItems: estimate.lineItems,
+      items: estimate.items,
+      markupPct: estimate.markupPct,
+      depositPct: estimate.depositPct,
+    });
   const { total, deposit } = view;
   const foldedLineAmounts = foldMarkupIntoLines(view);
 
@@ -95,8 +107,7 @@ export function PublicEstimateView({ estimate, token }: Props) {
               deposit={deposit}
               depositPct={estimate.depositPct}
             />
-            {estimate.status === "approved" ||
-            estimate.status === "declined" ? null : (
+            {isEstimateLocked(estimate.status) ? null : (
               <PublicEstimateAcceptBlockWithDecline token={token} />
             )}
             {estimate.status === "declined" && (

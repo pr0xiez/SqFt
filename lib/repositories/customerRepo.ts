@@ -1,7 +1,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
-import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { assertDeletable } from "@/lib/repositories/deleteGuards";
 import type { SortDirection } from "@/lib/sort";
 
 const LIST_ESTIMATE_SELECT = {
@@ -97,28 +97,7 @@ function searchSql(q: string): Prisma.Sql {
   return Prisma.sql`(c."name" ILIKE ${like} OR c."phone" ILIKE ${like} OR c."email" ILIKE ${like})`;
 }
 
-type CustomerAggRow = {
-  id: number;
-  name: string;
-  source: string;
-  createdAt: Date;
-  site_measure_count: number;
-  open_count: number;
-  accepted_count: number;
-  estimate_count: number;
-};
-
-/**
- * The one expensive multi-table aggregation this module needs: per-customer
- * counts across Customer ⋈ Location ⋈ SiteMeasure ⋈ Estimate, scoped to the
- * org and the free-text search (`q`) only. `source` and `pipeline` are
- * deliberately *not* applied here in SQL — every downstream view (page rows,
- * total, both facet sets, and the summary rollup) filters/derives from this
- * single result set in JS (see `listCustomers`), so the join + GROUP BY runs
- * exactly once per request no matter how many of those views are needed, and
- * none of them can drift from what the others compute since they all read
- * the same rows.
- */
+/** Org/search-scoped aggregate; reused by the materialized page/facet query. */
 function aggregateBase(orgId: string, q: string): Prisma.Sql {
   return Prisma.sql`
     SELECT
@@ -139,119 +118,82 @@ function aggregateBase(orgId: string, q: string): Prisma.Sql {
   `;
 }
 
-function matchesSource(row: CustomerAggRow, source: string): boolean {
-  return source === "all" || row.source === source;
+function sourceSql(source: string): Prisma.Sql {
+  return source === "all" ? Prisma.sql`TRUE` : Prisma.sql`a.source = ${source}`;
 }
 
-function matchesPipeline(
-  row: CustomerAggRow,
-  pipeline: CustomerPipelineFilter
-): boolean {
+function pipelineSql(pipeline: CustomerPipelineFilter): Prisma.Sql {
   switch (pipeline) {
     case "open":
-      return row.open_count > 0;
+      return Prisma.sql`a.open_count > 0`;
     case "accepted":
-      return row.accepted_count > 0;
+      return Prisma.sql`a.accepted_count > 0`;
     case "cold":
-      return row.estimate_count === 0;
+      return Prisma.sql`a.estimate_count = 0`;
     default:
-      return true;
+      return Prisma.sql`TRUE`;
   }
 }
 
-const SORT_ACCESSOR: Record<
-  CustomerSortKey,
-  (r: CustomerAggRow) => number | string
-> = {
-  name: (r) => r.name,
-  source: (r) => r.source,
-  siteMeasures: (r) => r.site_measure_count,
-  open: (r) => r.open_count,
-  createdAt: (r) => r.createdAt.getTime(),
+const SORT_COLUMN: Record<CustomerSortKey, Prisma.Sql> = {
+  name: Prisma.sql`name`,
+  source: Prisma.sql`source`,
+  siteMeasures: Prisma.sql`site_measure_count`,
+  open: Prisma.sql`open_count`,
+  createdAt: Prisma.sql`"createdAt"`,
 };
 
-function compareRows(
-  a: CustomerAggRow,
-  b: CustomerAggRow,
-  key: CustomerSortKey,
-  direction: SortDirection
-): number {
-  const av = SORT_ACCESSOR[key](a);
-  const bv = SORT_ACCESSOR[key](b);
-  const primary =
-    typeof av === "string" && typeof bv === "string"
-      ? av.localeCompare(bv)
-      : (av as number) - (bv as number);
-  if (primary !== 0) return direction === "asc" ? primary : -primary;
-  return a.id - b.id; // stable tie-break, independent of sort direction
-}
+type CustomerPageAggregate = {
+  ids: number[];
+  total: number;
+  facets: Record<string, number>;
+  summary: CustomerListResult["summary"];
+};
 
 export async function listCustomers(
   orgId: string,
   params: ListCustomersParams
 ): Promise<CustomerListResult> {
   const { page, perPage, sort, q, source, pipeline } = params;
-  const offset = (page - 1) * perPage;
+  const direction =
+    sort.direction === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+  // Materialize the expensive join once. Postgres retains its native collation
+  // and pages before returning ids; counts/facets/summary reuse the same base.
+  const [aggregate] = await prisma.$queryRaw<
+    CustomerPageAggregate[]
+  >(Prisma.sql`
+    WITH base AS MATERIALIZED (${aggregateBase(orgId, q)}),
+    filtered AS (SELECT a.* FROM base a WHERE ${sourceSql(source)} AND ${pipelineSql(pipeline)}),
+    page_rows AS (
+      SELECT id FROM filtered
+      ORDER BY ${SORT_COLUMN[sort.key]} ${direction}, id ASC
+      LIMIT ${perPage} OFFSET ${(page - 1) * perPage}
+    ),
+    source_facets AS (
+      SELECT source, COUNT(*)::int AS count FROM base a
+      WHERE ${pipelineSql(pipeline)} GROUP BY source
+    ),
+    pipeline_facets AS (
+      SELECT 'any' AS key, COUNT(*)::int AS count FROM base a WHERE ${sourceSql(source)}
+      UNION ALL SELECT 'open', COUNT(*)::int FROM base a WHERE ${sourceSql(source)} AND open_count > 0
+      UNION ALL SELECT 'accepted', COUNT(*)::int FROM base a WHERE ${sourceSql(source)} AND accepted_count > 0
+      UNION ALL SELECT 'cold', COUNT(*)::int FROM base a WHERE ${sourceSql(source)} AND estimate_count = 0
+    )
+    SELECT ARRAY(SELECT id FROM page_rows) AS ids,
+      (SELECT COUNT(*)::int FROM filtered) AS total,
+      COALESCE((SELECT jsonb_object_agg('source:' || source, count) FROM source_facets), '{}'::jsonb)
+        || jsonb_build_object('source:all', (SELECT COALESCE(SUM(count), 0)::int FROM source_facets))
+        || COALESCE((SELECT jsonb_object_agg('pipeline:' || key, count) FROM pipeline_facets WHERE count > 0), '{}'::jsonb) AS facets,
+      (SELECT jsonb_build_object(
+        'openEstimates', COALESCE(SUM(open_count), 0)::int,
+        'won', COALESCE(SUM(accepted_count), 0)::int,
+        'withOpen', COUNT(*) FILTER (WHERE open_count > 0)::int
+      ) FROM filtered) AS summary
+  `);
 
-  // The single, shared aggregation. Everything below derives from `agg`.
-  const agg = await prisma.$queryRaw<CustomerAggRow[]>(aggregateBase(orgId, q));
-
-  // Page rows / total / summary all respect every active filter, matching
-  // what the customer previously saw applied via SQL WHERE + HAVING.
-  const filtered = agg.filter(
-    (r) => matchesSource(r, source) && matchesPipeline(r, pipeline)
-  );
-  // Facets relax exactly one filter at a time so each pill reports the count
-  // it would produce if selected while the other filter stays applied.
-  const sourceFacetCandidates = agg.filter((r) => matchesPipeline(r, pipeline));
-  const pipelineFacetCandidates = agg.filter((r) => matchesSource(r, source));
-
-  const sorted = [...filtered].sort((a, b) =>
-    compareRows(a, b, sort.key, sort.direction)
-  );
-  const total = sorted.length;
-  const ids = sorted.slice(offset, offset + perPage).map((r) => r.id);
-
-  const facets: Record<string, number> = {};
-  const sourceCounts = new Map<string, number>();
-  for (const r of sourceFacetCandidates) {
-    sourceCounts.set(r.source, (sourceCounts.get(r.source) ?? 0) + 1);
-  }
-  let sourceAll = 0;
-  for (const [key, count] of sourceCounts) {
-    facets[`source:${key}`] = count;
-    sourceAll += count;
-  }
-  facets["source:all"] = sourceAll;
-
-  const pipelineCounts: Record<string, number> = {
-    any: pipelineFacetCandidates.length,
-    open: pipelineFacetCandidates.filter((r) => r.open_count > 0).length,
-    accepted: pipelineFacetCandidates.filter((r) => r.accepted_count > 0)
-      .length,
-    cold: pipelineFacetCandidates.filter((r) => r.estimate_count === 0).length,
-  };
-  for (const [key, count] of Object.entries(pipelineCounts)) {
-    if (count > 0) facets[`pipeline:${key}`] = count;
-  }
-
-  // Fixes the drifted 5th copy: the summary now respects the same `q` and
-  // `source` filters as the page rows / total / facets above (it's read
-  // straight from `filtered`), instead of a hand-inlined join scoped only
-  // to orgId.
-  const summary = filtered.reduce(
-    (acc, r) => {
-      acc.openEstimates += r.open_count;
-      acc.won += r.accepted_count;
-      if (r.open_count > 0) acc.withOpen += 1;
-      return acc;
-    },
-    { openEstimates: 0, won: 0, withOpen: 0 }
-  );
-
-  const hydrated = ids.length
+  const hydrated = aggregate.ids.length
     ? await prisma.customer.findMany({
-        where: { id: { in: ids } },
+        where: { orgId, id: { in: aggregate.ids } },
         include: {
           _count: { select: { locations: true } },
           locations: {
@@ -264,12 +206,17 @@ export async function listCustomers(
         },
       })
     : [];
-  const byId = new Map(hydrated.map((c) => [c.id, c]));
-  const items = ids
-    .map((id) => byId.get(id))
-    .filter(Boolean) as CustomerWithCount[];
-
-  return { items, total, facets, summary };
+  const byId = new Map(hydrated.map((customer) => [customer.id, customer]));
+  const items = aggregate.ids.flatMap((id) => {
+    const customer = byId.get(id);
+    return customer ? [customer] : [];
+  });
+  return {
+    items,
+    total: aggregate.total,
+    facets: aggregate.facets,
+    summary: aggregate.summary,
+  };
 }
 
 export async function getCustomer(
@@ -318,12 +265,30 @@ export async function updateCustomer(
   return prisma.customer.findFirst({ where: { id, orgId } });
 }
 
+/** Best-effort email sync (e.g. from a send dialog). Returns whether a row
+ *  actually matched — callers decide how to surface a miss/throw. */
+export async function updateCustomerEmail(
+  id: number,
+  orgId: string,
+  email: string
+): Promise<boolean> {
+  const result = await prisma.customer.updateMany({
+    where: { id, orgId },
+    data: { email },
+  });
+  return result.count > 0;
+}
+
 /**
  * Delete a customer. The cascade reaches every descendant estimate via
  * Location→SiteMeasure→Estimate (and Estimate→Invoice→Payment is also
  * Cascade), so this refuses — like deleteEstimate — while a descendant
  * estimate has scheduled Events or any invoice. Otherwise deleting the
  * customer would bypass the guards that deleting the estimate itself enforces.
+ * Events can also link to a Customer directly (nullable `customerId`, used by
+ * non-`job` events with no estimate chain), so the Event guard checks both
+ * paths — otherwise Prisma's `SetNull` FK action would silently orphan a live
+ * scheduled event instead of blocking the delete.
  */
 export async function deleteCustomer(
   id: number,
@@ -333,14 +298,9 @@ export async function deleteCustomer(
     const descendantEstimates = {
       estimate: { siteMeasure: { location: { customerId: id } } },
     };
-    const eventCount = await tx.event.count({
-      where: { orgId, ...descendantEstimates },
+    await assertDeletable(tx, orgId, descendantEstimates, {
+      OR: [{ customerId: id }, descendantEstimates],
     });
-    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
-    const invoiceCount = await tx.invoice.count({
-      where: { orgId, ...descendantEstimates },
-    });
-    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
     const result = await tx.customer.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });

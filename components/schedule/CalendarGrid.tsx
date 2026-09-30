@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BacklogStrip } from "@/components/schedule/BacklogStrip";
 import { CrewFilterBar } from "@/components/schedule/CrewFilterBar";
 import {
   type CrewFilter,
   eventMatchesCrew,
 } from "@/components/schedule/crewFilters";
-import { EventFormPanel } from "@/components/schedule/EventFormPanel";
+import {
+  type EstimateOption,
+  type EventFormDefaults,
+  EventFormPanel,
+} from "@/components/schedule/EventFormPanel";
 import { Button } from "@/components/ui/Button";
 import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { useToast } from "@/components/ui/Toast";
@@ -22,23 +27,18 @@ import {
   useUpdateEvent,
 } from "@/lib/hooks/useEvents";
 import { useIsMobile } from "@/lib/hooks/useIsMobile";
+import { useSchedulableEstimates } from "@/lib/hooks/useSchedulableEstimates";
+import type { SchedulableCandidate } from "@/lib/schedule/backlog";
 import {
-  addDays,
-  dateStr,
-  getWeekStart,
-  timeToMinutes,
-  todayStr,
-} from "@/lib/utils";
-
-const START_HOUR = 7;
-const END_HOUR = 19;
-const PX_PER_HOUR = 52;
-const BODY_HEIGHT = (END_HOUR - START_HOUR) * PX_PER_HOUR;
-const PX_PER_MIN = PX_PER_HOUR / 60;
-const HOURS = Array.from(
-  { length: END_HOUR - START_HOUR + 1 },
-  (_, i) => i + START_HOUR
-);
+  BODY_HEIGHT,
+  GRID_HOURS,
+  layoutDayEvents,
+  nowLineTop,
+  PX_PER_HOUR,
+  START_HOUR,
+  slotFromOffsetY,
+} from "@/lib/schedule/grid";
+import { addDays, dateStr, getWeekStart, todayStr } from "@/lib/utils";
 
 const EVENT_BG: Record<string, string> = {
   job: "bg-[var(--accent)]",
@@ -46,64 +46,20 @@ const EVENT_BG: Record<string, string> = {
   other: "bg-[var(--sage)]",
 };
 
-interface PlacedEvent {
-  ev: CalEvent;
-  startMin: number;
-  endMin: number;
-  lane: number;
-  totalLanes: number;
-}
-
-function layoutEvents(dayEvents: CalEvent[]): PlacedEvent[] {
-  const mapped = dayEvents
-    .map((ev) => ({
-      ev,
-      startMin: timeToMinutes(ev.startTime) - START_HOUR * 60,
-      endMin: timeToMinutes(ev.endTime) - START_HOUR * 60,
-    }))
-    .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
-
-  const clusters: { items: typeof mapped; endMax: number }[] = [];
-  let cur: (typeof clusters)[0] | null = null;
-
-  for (const e of mapped) {
-    if (cur && e.startMin < cur.endMax) {
-      cur.items.push(e);
-      cur.endMax = Math.max(cur.endMax, e.endMin);
-    } else {
-      cur = { items: [e], endMax: e.endMin };
-      clusters.push(cur);
-    }
-  }
-
-  const placed: PlacedEvent[] = [];
-  for (const cl of clusters) {
-    const lanes: number[] = [];
-    for (const e of cl.items) {
-      let lane = lanes.findIndex((end) => end <= e.startMin);
-      if (lane === -1) {
-        lane = lanes.length;
-        lanes.push(e.endMin);
-      } else {
-        lanes[lane] = e.endMin;
-      }
-      placed.push({ ...e, lane, totalLanes: 0 });
-    }
-    const total = lanes.length;
-    for (const p of placed) {
-      if (cl.items.some((i) => i.ev.id === p.ev.id)) {
-        p.totalLanes = total;
-      }
-    }
-  }
-  return placed;
-}
+// Today-tint for the header cell. Layered as a gradient over the solid
+// surface color rather than a translucent background-color, so the cell stays
+// opaque against whatever sits behind it.
+const TODAY_HEADER_TINT =
+  "[background-image:linear-gradient(rgba(192,52,26,0.04),rgba(192,52,26,0.04))] [html[data-theme=dark]_&]:[background-image:linear-gradient(rgba(255,106,68,0.06),rgba(255,106,68,0.06))]";
 
 export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   const [weekStart, setWeekStart] = useState<Date | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [editingEvent, setEditingEvent] = useState<CalEvent | null>(null);
+  const [formDefaults, setFormDefaults] = useState<EventFormDefaults | null>(
+    null
+  );
   const [crewFilter, setCrewFilter] = useState<CrewFilter>("all");
 
   const isMobile = useIsMobile();
@@ -129,6 +85,11 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
     status: "all",
   });
   const estimates = estimatesData?.items ?? [];
+  const { data: schedulableData } = useSchedulableEstimates();
+  const backlog = useMemo(
+    () => (Array.isArray(schedulableData) ? schedulableData : []),
+    [schedulableData]
+  );
   const { data: crew = [] } = useAssignableUsers();
   const createEvent = useCreateEvent();
   const updateEvent = useUpdateEvent(editingEvent?.id ?? 0);
@@ -144,6 +105,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   );
 
   const [today, setToday] = useState("");
+  const [nowMin, setNowMin] = useState<number | null>(null);
 
   useEffect(() => {
     const t = todayStr();
@@ -152,9 +114,48 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
     setWeekStart(getWeekStart(new Date()));
   }, []);
 
-  function openNewEvent(date: string) {
+  // Current-time line, refreshed each minute (client-only, like `today`).
+  useEffect(() => {
+    const tick = () => {
+      const d = new Date();
+      setNowMin(d.getHours() * 60 + d.getMinutes());
+    };
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // A backlog estimate (or its customer) may be older than the 100-row picker
+  // fetches above — merge synthetic options so the pre-filled selects never
+  // show blank.
+  const customerOptions = useMemo(() => {
+    const opts: { id: number; name: string }[] = [...customers];
+    for (const c of backlog) {
+      if (c.customerId && !opts.some((o) => o.id === c.customerId)) {
+        opts.push({ id: c.customerId, name: c.customerName });
+      }
+    }
+    return opts;
+  }, [customers, backlog]);
+
+  const estimateOptions = useMemo(() => {
+    const opts: EstimateOption[] = [...estimates];
+    for (const c of backlog) {
+      if (c.customerId && !opts.some((o) => o.id === c.id)) {
+        opts.push({
+          id: c.id,
+          estimateNumber: c.estimateNumber,
+          siteMeasure: { location: { customer: { id: c.customerId } } },
+        });
+      }
+    }
+    return opts;
+  }, [estimates, backlog]);
+
+  function openNewEvent(date: string, defaults?: EventFormDefaults) {
     setSelectedDate(date);
     setEditingEvent(null);
+    setFormDefaults(defaults ?? null);
     setPanelOpen(true);
   }
 
@@ -162,6 +163,15 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
     setEditingEvent(ev);
     setSelectedDate(ev.date.slice(0, 10));
     setPanelOpen(true);
+  }
+
+  function scheduleCandidate(c: SchedulableCandidate) {
+    openNewEvent(today, {
+      type: "job",
+      title: `Install — ${c.customerName}`,
+      customerId: c.customerId ?? undefined,
+      estimateId: c.id,
+    });
   }
 
   const eventsByDate = useMemo(() => {
@@ -233,6 +243,11 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
         </div>
       </div>
 
+      {/* Unscheduled-jobs backlog */}
+      {canEdit && (
+        <BacklogStrip candidates={backlog} onSchedule={scheduleCandidate} />
+      )}
+
       {/* Crew filter bar */}
       <CrewFilterBar
         crew={crew.map((m) => ({ id: m.id, name: m.name }))}
@@ -243,22 +258,29 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
         onChange={setCrewFilter}
       />
 
-      {/* Calendar */}
+      {/* Calendar — the header row and the day columns are cells of ONE CSS
+          grid, so their column tracks are the same tracks and the dividers
+          cannot drift out of alignment. That is the whole fix: any scrollbar
+          (page or otherwise) now narrows header and body together, because it
+          narrows the single grid. Deliberately NOT its own scroll container —
+          the grid is a fixed BODY_HEIGHT that always fits, so an inner
+          `overflow-y: auto` would never scroll while still swallowing the
+          sticky context and reserving a permanently empty scrollbar gutter on
+          classic-scrollbar platforms. The page (`<main>`) does the scrolling. */}
       <div
         className={cn(
           "bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden",
           crewFilter !== "all" && "cal-crew-focus"
         )}
       >
-        {/* Day headers */}
         <div
-          className="grid border-b border-[var(--line)]"
+          className="grid pb-2"
           style={{
             gridTemplateColumns: `52px repeat(${daysToShow}, 1fr)`,
           }}
         >
-          {/* Month label in time gutter */}
-          <div className="bg-[var(--surface-2)] border-r border-[var(--line)] px-1.5 py-2 text-right">
+          {/* Header row */}
+          <div className="bg-[var(--surface-2)] border-b border-r border-[var(--line)] px-1.5 py-2 text-right">
             <span className="font-[var(--font-mono)] text-[9px] text-[var(--muted)] uppercase tracking-[.06em]">
               {days[0]?.toLocaleDateString("en-US", { month: "short" })}
             </span>
@@ -271,10 +293,9 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                 key={ds}
                 type="button"
                 className={cn(
-                  "px-2.5 py-2 text-center border-l border-[var(--line)] bg-[var(--surface)] transition-colors w-full",
+                  "px-2.5 py-2 text-center border-b border-l border-[var(--line)] bg-[var(--surface)] transition-colors w-full",
                   canEdit && "cursor-pointer hover:bg-[var(--surface-2)]",
-                  isToday &&
-                    "bg-[rgba(192,52,26,0.04)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.06)]"
+                  isToday && TODAY_HEADER_TINT
                 )}
                 onClick={() => canEdit && openNewEvent(ds)}
               >
@@ -292,19 +313,13 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
               </button>
             );
           })}
-        </div>
 
-        {/* Body: time gutter + day columns */}
-        <div
-          className="flex"
-          style={{ height: BODY_HEIGHT, overflowY: "auto" }}
-        >
           {/* Time gutter */}
           <div
-            className="relative shrink-0 border-r border-[var(--line)]"
-            style={{ width: 52, minHeight: BODY_HEIGHT }}
+            className="relative border-r border-[var(--line)]"
+            style={{ height: BODY_HEIGHT }}
           >
-            {HOURS.map((hour) => (
+            {GRID_HOURS.map((hour) => (
               <div
                 key={hour}
                 className="absolute right-2 font-[var(--font-mono)] text-[9px] text-[var(--muted)] -translate-y-1/2"
@@ -317,62 +332,75 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
           </div>
 
           {/* Day columns */}
-          <div
-            className="grid flex-1"
-            style={{
-              gridTemplateColumns: `repeat(${daysToShow}, 1fr)`,
-            }}
-          >
-            {days.map((d) => {
-              const ds = dateStr(d);
-              const isToday = ds === today;
-              const dayEvents = eventsByDate[ds] ?? [];
-              const placed = layoutEvents(dayEvents);
+          {days.map((d) => {
+            const ds = dateStr(d);
+            const isToday = ds === today;
+            const dayEvents = eventsByDate[ds] ?? [];
+            const placed = layoutDayEvents(dayEvents);
+            const nowTop =
+              isToday && nowMin !== null ? nowLineTop(nowMin) : null;
 
-              return (
-                // biome-ignore lint/a11y/useSemanticElements: contains inner <button> event chips — nested <button> is invalid HTML
-                <div
-                  key={ds}
-                  role="button"
-                  tabIndex={0}
-                  className={cn(
-                    "relative border-l border-[var(--line)]",
-                    canEdit && "cursor-pointer",
-                    isToday &&
-                      "bg-[rgba(192,52,26,0.02)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.04)]"
-                  )}
-                  style={{ minHeight: BODY_HEIGHT }}
-                  onClick={() => canEdit && openNewEvent(ds)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && canEdit && openNewEvent(ds)
-                  }
-                >
-                  {/* Hour lines */}
-                  {HOURS.map((hour) => (
-                    <div
-                      key={hour}
-                      className="absolute left-0 right-0 border-t border-[var(--line)] pointer-events-none"
-                      style={{ top: (hour - START_HOUR) * PX_PER_HOUR }}
-                    />
-                  ))}
-                  {/* Half-hour lines */}
-                  {HOURS.slice(0, -1).map((hour) => (
-                    <div
-                      key={`${hour}-half`}
-                      className="absolute left-0 right-0 border-t border-dashed border-[var(--line)] opacity-50 pointer-events-none"
-                      style={{
-                        top:
-                          (hour - START_HOUR) * PX_PER_HOUR + PX_PER_HOUR / 2,
-                      }}
-                    />
-                  ))}
-                  {/* Events */}
-                  {placed.map(({ ev, startMin, endMin, lane, totalLanes }) => {
-                    const top = startMin * PX_PER_MIN;
-                    const height = Math.max(
-                      (endMin - startMin) * PX_PER_MIN - 2,
-                      22
-                    );
+            return (
+              // biome-ignore lint/a11y/useSemanticElements: contains inner <button> event chips — nested <button> is invalid HTML
+              <div
+                key={ds}
+                role="button"
+                tabIndex={0}
+                className={cn(
+                  "relative border-l border-[var(--line)]",
+                  canEdit && "cursor-pointer",
+                  isToday &&
+                    "bg-[rgba(192,52,26,0.02)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.04)]"
+                )}
+                style={{ height: BODY_HEIGHT }}
+                onClick={(e) => {
+                  if (!canEdit) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  openNewEvent(ds, slotFromOffsetY(e.clientY - rect.top));
+                }}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && canEdit && openNewEvent(ds)
+                }
+              >
+                {/* Hour lines */}
+                {GRID_HOURS.map((hour) => (
+                  <div
+                    key={hour}
+                    className="absolute left-0 right-0 border-t border-[var(--line)] pointer-events-none"
+                    style={{ top: (hour - START_HOUR) * PX_PER_HOUR }}
+                  />
+                ))}
+                {/* Half-hour lines */}
+                {GRID_HOURS.slice(0, -1).map((hour) => (
+                  <div
+                    key={`${hour}-half`}
+                    className="absolute left-0 right-0 border-t border-dashed border-[var(--line)] opacity-50 pointer-events-none"
+                    style={{
+                      top: (hour - START_HOUR) * PX_PER_HOUR + PX_PER_HOUR / 2,
+                    }}
+                  />
+                ))}
+                {/* Current-time line */}
+                {nowTop !== null && (
+                  <div
+                    className="absolute left-0 right-0 z-10 pointer-events-none"
+                    style={{ top: nowTop }}
+                  >
+                    <div className="border-t-2 border-[var(--accent)]" />
+                    <div className="absolute left-0 -top-[3px] w-[6px] h-[6px] rounded-full bg-[var(--accent)]" />
+                  </div>
+                )}
+                {/* Events */}
+                {placed.map(
+                  ({
+                    ev,
+                    top,
+                    height,
+                    lane,
+                    totalLanes,
+                    clippedStart,
+                    clippedEnd,
+                  }) => {
                     const widthPct = 100 / totalLanes;
                     const leftPct = lane * widthPct;
                     const matches = eventMatchesCrew(ev, crewFilter);
@@ -381,6 +409,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                       <button
                         key={ev.id}
                         type="button"
+                        title={`${ev.title} · ${ev.startTime}–${ev.endTime}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (canEdit) openEditEvent(ev);
@@ -400,6 +429,8 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                         )}
                       >
                         <div className="text-[11px] font-[600] leading-[1.2] tracking-[-0.01em] truncate">
+                          {clippedStart && "↑ "}
+                          {clippedEnd && !clippedStart && "↓ "}
                           {ev.title}
                         </div>
                         {height > 30 && (
@@ -430,11 +461,11 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                         )}
                       </button>
                     );
-                  })}
-                </div>
-              );
-            })}
-          </div>
+                  }
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -443,9 +474,10 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
           open={panelOpen}
           onClose={() => setPanelOpen(false)}
           defaultDate={selectedDate}
+          defaults={formDefaults}
           editingEvent={editingEvent}
-          customers={customers}
-          estimates={estimates}
+          customers={customerOptions}
+          estimates={estimateOptions}
           onSave={async (data) => {
             try {
               if (editingEvent) {
@@ -464,8 +496,12 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
               await deleteEvent.mutateAsync(id);
               setPanelOpen(false);
               showToast("Event deleted");
-            } catch {
-              showToast("Failed to delete event");
+            } catch (error) {
+              showToast(
+                error instanceof Error
+                  ? error.message
+                  : "Failed to delete event"
+              );
             }
           }}
         />

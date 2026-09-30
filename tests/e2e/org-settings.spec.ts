@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
+import {
+  addUserToOrg,
+  createOrgWithAdmin,
+  loginAsTestUser,
+} from "./fixtures/users";
 
 test.describe("12.1 Org settings GET", () => {
   test("12.1.1 demo user GETs their org", async ({ browser }) => {
@@ -31,5 +36,75 @@ test.describe("12.1 Org settings GET", () => {
     expect(orgA.id).not.toBe(orgB.id);
     await ctxA.close();
     await ctxB.close();
+  });
+});
+
+test.describe("12.2 Workspace settings save flow", () => {
+  test("12.2.1 admin edits a default rate + an identity field, saves, and a reload shows it persisted", async ({
+    browser,
+  }) => {
+    const { org, admin } = await createOrgWithAdmin(browser);
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await loginAsTestUser(page, admin);
+
+    await page.goto("/settings/workspace");
+    await expect(
+      page.getByRole("heading", { name: "Workspace" })
+    ).toBeVisible();
+
+    // Identity field: company name.
+    const nameInput = page.locator("#identity input[type='text']");
+    const newName = `${org.orgName}-edited`;
+    await nameInput.fill(newName);
+
+    // Default rate: the deposit-percent slider that folds into
+    // computeEstimateView for every new estimate. Range inputs aren't
+    // fillable in Playwright, so drive it with real key presses.
+    const depositSlider = page.locator("#defaults input[type='range']");
+    const before = Number(await depositSlider.inputValue());
+    const target = Math.min(100, before + 15);
+    await depositSlider.focus();
+    for (let v = before; v < target; v++) {
+      await depositSlider.press("ArrowRight");
+    }
+    await expect(depositSlider).toHaveValue(String(target));
+
+    const [response] = await Promise.all([
+      page.waitForResponse(
+        (res) =>
+          res.url().endsWith("/api/org") && res.request().method() === "PATCH"
+      ),
+      page.getByRole("button", { name: "Save workspace" }).click(),
+    ]);
+    expect(response.ok()).toBe(true);
+
+    await page.reload();
+    await expect(page.locator("#identity input[type='text']")).toHaveValue(
+      newName
+    );
+    await expect(page.locator("#defaults input[type='range']")).toHaveValue(
+      String(target)
+    );
+
+    await ctx.close();
+  });
+
+  test("12.2.2 a non-admin (lead) is denied /settings/workspace", async ({
+    browser,
+  }) => {
+    const { org } = await createOrgWithAdmin(browser);
+    const lead = await addUserToOrg(browser, org, "lead");
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await loginAsTestUser(page, lead);
+
+    await page.goto("/settings/workspace");
+    await expect(page).toHaveURL("/settings");
+    await expect(page.getByRole("link", { name: /^Workspace$/ })).toHaveCount(
+      0
+    );
+
+    await ctx.close();
   });
 });

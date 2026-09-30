@@ -2,6 +2,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { ValidationError } from "@/lib/api/errors";
 import { resolveEventAddress } from "@/lib/events/serialize";
 import { prisma } from "@/lib/prisma";
+import { timeToMinutes } from "@/lib/utils";
 import { validateUserIds } from "./userRepo";
 
 export type EventWithRelations = Prisma.EventGetPayload<{
@@ -83,6 +84,48 @@ function assertJobHasEstimate(
 }
 
 /**
+ * Merge one field of a Prisma update payload over the stored value:
+ * `undefined` means the PATCH left the field alone, and Prisma accepts both a
+ * bare scalar and a `{ set }` wrapper for the ones it does send.
+ */
+function scalarOr<T>(incoming: unknown, stored: T): T {
+  if (incoming === undefined) return stored;
+  if (incoming !== null && typeof incoming === "object" && "set" in incoming) {
+    const { set } = incoming as { set?: T };
+    return set === undefined ? stored : set;
+  }
+  return incoming as T;
+}
+
+/** Day part of a Prisma date field, for comparing `date` against `endDate`. */
+function dayOf(value: Date | string | null): string | null {
+  if (value == null) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/**
+ * A same-day event must end after it starts. `eventCreateSchema` can enforce
+ * this on its own, but a PATCH may send only one of the four fields, so the
+ * zod refine on `eventUpdateSchema` can't see the merged result — this is the
+ * backstop that validates stored ∪ incoming. Multi-day events may wrap past
+ * midnight, so the rule only applies when the merged event is single-day.
+ */
+function assertSameDayTimesOrdered(
+  date: Date | string | null,
+  endDate: Date | string | null,
+  startTime: string,
+  endTime: string
+) {
+  const day = dayOf(date);
+  const endDay = dayOf(endDate);
+  const sameDay = endDay === null || day === null || endDay <= day;
+  if (sameDay && timeToMinutes(endTime) <= timeToMinutes(startTime)) {
+    throw new ValidationError("End time must be after start time");
+  }
+}
+
+/**
  * Event FKs are global autoincrement ids, so an unchecked customerId/estimateId
  * would let one org attach (and then read, via listEvents' include) another
  * org's customer or estimate. Pass `null`/`undefined` to skip a field — only
@@ -137,6 +180,12 @@ export type EventUpdateInput = Prisma.EventUncheckedUpdateInput & {
 
 export async function createEvent(orgId: string, data: EventCreateInput) {
   assertJobHasEstimate(data.type, data.estimateId ?? null);
+  assertSameDayTimesOrdered(
+    data.date,
+    data.endDate ?? null,
+    data.startTime,
+    data.endTime
+  );
   await assertFksInOrg(orgId, data.customerId, data.estimateId);
   await assertAssigneesInOrg(orgId, data.assigneeIds);
   const { assigneeIds, ...rest } = data;
@@ -159,20 +208,38 @@ export async function updateEvent(
 ) {
   const current = await prisma.event.findFirst({
     where: { id, orgId },
-    select: { type: true, estimateId: true },
+    select: {
+      type: true,
+      estimateId: true,
+      date: true,
+      endDate: true,
+      startTime: true,
+      endTime: true,
+    },
   });
   if (!current) return null;
 
   const nextType = typeof data.type === "string" ? data.type : current.type;
-  const nextEstimateId =
-    data.estimateId === undefined
-      ? current.estimateId
-      : (data.estimateId as number | null);
+  const nextEstimateId = scalarOr<number | null>(
+    data.estimateId,
+    current.estimateId
+  );
   assertJobHasEstimate(nextType, nextEstimateId);
+  assertSameDayTimesOrdered(
+    scalarOr(data.date, current.date),
+    scalarOr(data.endDate, current.endDate),
+    scalarOr(data.startTime, current.startTime),
+    scalarOr(data.endTime, current.endTime)
+  );
+  // Unwrap Prisma's `{ set }` shape the same way as above: assertFksInOrg
+  // only validates fields actually being written, so an untouched field
+  // must resolve to `null` (skip) rather than the already-valid stored
+  // value — unlike nextEstimateId's merge above, this must not fall back
+  // to `current.*`.
   await assertFksInOrg(
     orgId,
-    typeof data.customerId === "number" ? data.customerId : null,
-    typeof data.estimateId === "number" ? data.estimateId : null
+    scalarOr<number | null>(data.customerId, null),
+    scalarOr<number | null>(data.estimateId, null)
   );
   await assertAssigneesInOrg(orgId, data.assigneeIds);
 

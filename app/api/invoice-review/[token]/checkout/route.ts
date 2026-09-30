@@ -6,7 +6,7 @@ import {
 } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
 import { getPublicBaseUrl } from "@/lib/baseUrl";
-import { round2 } from "@/lib/money";
+import { invoiceOutstanding } from "@/lib/invoices/compute";
 import { getInvoiceByToken } from "@/lib/repositories/invoiceRepo";
 import { getOrgStripe, setOrgConnectStatus } from "@/lib/repositories/orgRepo";
 import {
@@ -31,8 +31,7 @@ export const POST = publicRoute<undefined, { token: string }>(
     }
     if (status !== "active") throw new StripeAccountRestrictedError();
 
-    const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));
-    const balanceDue = round2(invoice.amount - paid);
+    const balanceDue = invoiceOutstanding(invoice);
     if (balanceDue <= 0) throw new InvoiceAlreadyPaidError();
     const balanceDueCents = Math.round(balanceDue * 100);
 
@@ -70,11 +69,24 @@ export const POST = publicRoute<undefined, { token: string }>(
       // create failure may mean Stripe has since restricted the account. Verify
       // live: if it's no longer active, downgrade the cache and return the
       // documented STRIPE_ACCOUNT_RESTRICTED instead of a generic 500.
-      const live = await readAccountStatus(org.stripeConnectAccountId);
-      if (live !== "active") {
-        await setOrgConnectStatus(invoice.orgId, live);
-        throw new StripeAccountRestrictedError();
+      //
+      // This whole block exists to degrade gracefully, so it must not become a
+      // new way to fail: anything the diagnostic read itself throws (Stripe
+      // down, key revoked, account deauthorized) is swallowed in favour of the
+      // original error, which is the one that actually describes the failure.
+      let restricted = false;
+      try {
+        const live = await readAccountStatus(org.stripeConnectAccountId);
+        if (live !== "active") {
+          restricted = true;
+          await setOrgConnectStatus(invoice.orgId, live);
+        }
+      } catch {
+        // Diagnostic read (or its cache write) failed. Fall through: if we got
+        // far enough to know the account isn't active, still return the typed
+        // error below — a stale cache is not worth a 500 to the customer.
       }
+      if (restricted) throw new StripeAccountRestrictedError();
       throw err;
     }
   }

@@ -26,7 +26,11 @@ with the file that owns it.
   (`app/(app)/my-schedule`, `components/schedule/MyScheduleView` +
   `EventCard`/`JobCard`/`DayAgenda`, pure logic in `lib/schedule/agenda.ts`)
   lives alongside the editable **Schedule Manager** grid (`/schedule`, lead+
-  only; crew is redirected here); both read `useEvents`.
+  only; crew is redirected here); both read `useEvents`. The grid's geometry
+  (overlap lanes, 7a–7p clamping, click-to-time snap, now-line) is pure logic
+  in `lib/schedule/grid.ts`, and its **unscheduled-jobs backlog** (approved
+  estimates with no job event; `components/schedule/BacklogStrip`) projects
+  via `lib/schedule/backlog.ts` from `GET /api/estimates/schedulable`.
   The org-wide **Invoices** list (`app/(app)/invoices`,
   `components/invoices/InvoiceList`) defaults to the "All" filter, with an
   "Open" pill (sent + viewed + partial) second, and is lead+ only.
@@ -59,7 +63,10 @@ with the file that owns it.
   in `lib/api/errors.ts` (`ApiError`, `readApiError`).
 - `lib/estimateView/` — **estimate math, single source of truth**:
   `compute.ts` (`computeEstimateView`), `fromPrisma.ts` (Prisma→input adapter),
-  `markup.ts` (`foldMarkupIntoLines`), `snapshot.ts`.
+  `markup.ts` (`foldMarkupIntoLines`), `snapshot.ts` (write side of the
+  approval snapshot), `parseSnapshot.ts` (read side: zod-validates the stored
+  JSON and rebuilds the frozen view the public page renders for approved
+  estimates).
 - `lib/estimateDraft/` — **pure edit reducer** (`reduceEstimateDraft`); the
   save policy lives here, not in the React layer.
 - `lib/invoices/` — **billing math** (`computeEstimateBilling`,
@@ -69,6 +76,14 @@ with the file that owns it.
   adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin
   callers; ordering/error invariants live here (see *Send Pipeline* in
   `CONTEXT.md`).
+- `lib/dashboard/approvedRevenue.ts` — shared **approved-revenue query**
+  (`getApprovedEstimateRevenueRows`, `getMtdApprovedEstimates`): the one place
+  that queries approved estimates in a date range and reduces them via
+  `computeEstimateView`. Both `getDashboardKpis` (`lib/dashboard/kpis.ts`,
+  `bookedRevenueMtd`) and `getDashboardRevenue` (`lib/dashboard/revenue.ts`,
+  `mtdTotal` + weekly buckets) call it instead of each defining its own
+  "what counts as MTD approved revenue" — add any future MTD-revenue logic
+  here, not by re-deriving it in either dashboard function.
 - `lib/quickCreate/` — **pure quick-create logic** (`toInvoiceableCandidates`):
   projects estimates to billable candidates (`unbilled > 0`) for the
   quick-invoice search. The global **"+ New" launcher** UI lives in
@@ -77,20 +92,56 @@ with the file that owns it.
   `GET /api/estimates/invoiceable`. See *Quick Create* in `CONTEXT.md`.
 - `lib/stripe/` — **Stripe Connect integration**: `client.ts` (Stripe SDK
   singleton, API version pin), `connect.ts` (account create/retrieve,
-  `ConnectStatus` union, onboarding-link generation), `checkout.ts`
-  (`buildCheckoutParams`, `createInvoiceCheckoutSession` — creates the
-  Checkout Session on the connected account), `webhook.ts`
-  (`constructStripeEvent`, `handleStripeEvent` — signature-verified
-  event handler). The admin Stripe onboarding surface is `/settings/payments`
-  (`app/(app)/settings/payments`, admin-gated inline — `(app)` is the authed
-  builder route group, not `(admin)`). The raw-body webhook receiver is
+  `ConnectStatus` union, onboarding-link generation, plus
+  `summarizeRequirements`/`readAccountStatusDetail` — collapses v2 requirement
+  entries into `{actionDue, inReview, issues}` so the settings page can say
+  whether the user or Stripe is the one holding up onboarding, and *which*
+  requirements failed; `readAccountStatus` is the status-only read used on the
+  customer checkout path), `connectPhase.ts` (**client-safe, no SDK import** —
+  the `connectPhase`/`connectPollInterval` selector shared by
+  `PaymentsSettingsView` and `useStripeConnect`, plus the
+  `StripeConnectStatus` wire type), `checkout.ts` (`buildCheckoutParams`,
+  `createInvoiceCheckoutSession` — creates the Checkout Session on the
+  connected account), `webhook.ts` (`constructStripeEvent`,
+  `handleStripeEvent` — signature-verified event handler). The admin Stripe
+  onboarding surface is `/settings/payments` (`app/(app)/settings/payments`,
+  admin-gated inline — `(app)` is the authed builder route group, not
+  `(admin)`); after returning from Stripe onboarding it polls the connect
+  status briefly (bounded window, see `PaymentsSettingsView`) instead of going
+  silent. The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
+- `lib/repositories/loginRepo.ts` — credentials lookup and atomic failed-login
+  counters; `lib/auth/login.ts` owns lockout policy, called by `authorizeCredentials`.
+- `lib/queryCache.ts` — persisted react-query cache policy (localStorage key,
+  buster, the persistence allowlist, and the sign-out clear). Consumed by
+  `components/ui/Providers.tsx` and `AccountBlock`.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
-  `validateUserIds`).
-- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
+  `validateUserIds`, and `applyUserPatch` — the shared role/profile/archived
+  orchestration used by both the self-org and super-admin PATCH routes).
+- `lib/users/schema.ts` — the shared `userCreateSchema` / `userPatchSchema`
+  Zod schemas, used by both the self-org (`app/api/users/`) and super-admin
+  (`app/api/admin/orgs/[orgId]/users/`) user create/patch routes.
+- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …), all
+  built on the shared `apiFetch<T>(url, init?, fallbackMessage?)`
+  (`lib/hooks/apiFetch.ts`) — fetch + `res.ok` check + `readApiError` +
+  `res.json()` (204 → `undefined`) in one place, so every query/mutation
+  surfaces the server's real `{code, message}` instead of a fixed generic
+  string. New hooks should call it rather than hand-rolling the fetch dance.
+  Shared dialog DOM hooks (`useFocusTrap`, `useScrollLock`) live here too.
 - `lib/email/` — React-Email templates + Resend senders.
+- `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
+  `generateToken()` output) and `trackPublicView`, the shared status-gated
+  view-tracking spine used by `estimate-review`/`invoice-review`; request
+  metadata is read during render, and writes finish via Next's `after()` with
+  failure logging. Do not use an untracked fire-and-forget promise here.
+- `lib/http/clientMeta.ts` — shared audit metadata extraction for route
+  handlers and public review pages; missing/empty values use null.
+- `lib/estimateStatus.ts` — canonical status vocabulary, display labels,
+  filter values, and the narrower operator-editable status subset.
+- `next.config.ts` — global security headers/CSP; preview-only Vercel toolbar
+  allowances and `no-referrer` on public bearer-token review pages.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,
@@ -110,6 +161,8 @@ with the file that owns it.
   CI and avoid known parallel-contention flakiness.
 - `npm run migrate:dev` — apply migrations (`prisma migrate deploy`);
   `npm run seed:dev` — seed the dev DB.
+- `scripts/ignore-app-deploy.sh` — shared Vercel/CI app-change detection;
+  checks both merge parents so a no-op merge from main cannot hide PR changes.
 
 ## Gotchas
 
@@ -135,12 +188,19 @@ with the file that owns it.
   `onDelete: Cascade`.** Delete paths at every level must guard against
   cascading away financial records (`HAS_INVOICES`) and scheduled events
   (`ESTIMATE_HAS_EVENTS`) — don't add a new delete path without those checks.
+  The shared guard lives in `lib/repositories/deleteGuards.ts`; customer
+  deletion also checks Events linked directly by `customerId`.
 - **Stripe test/live modes are isolated.** The Stripe secret key mode must
   match the mode of the stored `stripeConnectAccountId` (an account created
   with a test-mode key cannot be used with a live-mode key and vice versa).
   This invariant holds by construction via the dev/prod DB split — test keys
   in dev, live keys in production. An org onboarded in production must
   re-onboard in any test environment (or seed a fresh test-mode account).
+- **React-query persistence is opt-in.** `lib/queryCache.ts` only permits the
+  reviewed `line-item-templates` configuration family in localStorage for 24
+  hours. New query families default to in-memory only; customer, financial,
+  identity, and verification payloads (including nested PII) must not persist.
+  Tightening the policy requires a cache-buster bump to evict old stored data.
 - **Super-admin routes (`/api/admin/orgs/[orgId]/...`) take the target org
   from the URL param, not the caller's session org** — the `orgId` on the
   gated session belongs to the operator, not the org being managed.

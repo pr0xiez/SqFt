@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export interface AssignableUser {
   id: string;
@@ -8,15 +9,14 @@ export interface AssignableUser {
   title: string | null;
 }
 
-async function fetchAssignableUsers(): Promise<AssignableUser[]> {
-  const res = await fetch("/api/users/assignable");
-  if (!res.ok) throw new Error("Failed to fetch assignable users");
-  return res.json();
-}
-
 export function useAssignableUsers() {
   return useQuery({
     queryKey: ["users", "assignable"],
-    queryFn: fetchAssignableUsers,
+    queryFn: () =>
+      apiFetch<AssignableUser[]>(
+        "/api/users/assignable",
+        undefined,
+        "Failed to fetch assignable users"
+      ),
   });
 }

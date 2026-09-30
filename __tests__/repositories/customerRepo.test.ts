@@ -35,6 +35,7 @@ const {
   getCustomer,
   createCustomer,
   updateCustomer,
+  updateCustomerEmail,
   deleteCustomer,
 } = await import("@/lib/repositories/customerRepo");
 
@@ -50,112 +51,49 @@ describe("listCustomers", () => {
     pipeline: "any" as const,
   };
 
-  // Three customers covering every source/pipeline bucket used below:
-  //   Alice — phone,  1 open estimate,     0 accepted, 1 estimate total
-  //   Bob   — online, 0 open,              1 accepted, 1 estimate total (won)
-  //   Carol — phone,  0 open,              0 accepted, 0 estimates      (cold)
-  const aggRows = [
-    {
-      id: 1,
-      name: "Alice",
-      source: "phone",
-      createdAt: new Date("2026-01-01"),
-      site_measure_count: 2,
-      open_count: 1,
-      accepted_count: 0,
-      estimate_count: 1,
-    },
-    {
-      id: 2,
-      name: "Bob",
-      source: "online",
-      createdAt: new Date("2026-01-02"),
-      site_measure_count: 1,
-      open_count: 0,
-      accepted_count: 1,
-      estimate_count: 1,
-    },
-    {
-      id: 3,
-      name: "Carol",
-      source: "phone",
-      createdAt: new Date("2026-01-03"),
-      site_measure_count: 0,
-      open_count: 0,
-      accepted_count: 0,
-      estimate_count: 0,
-    },
-  ];
-
-  it("runs the aggregation exactly once and hydrates page ids in sorted order", async () => {
-    queryRaw.mockResolvedValueOnce(aggRows);
-    findMany.mockResolvedValue([
-      { id: 3, name: "Carol" },
-      { id: 1, name: "Alice" },
-      { id: 2, name: "Bob" },
+  it("uses one materialized aggregation and hydrates only the database page in its order", async () => {
+    queryRaw.mockResolvedValueOnce([
+      {
+        ids: [2, 1],
+        total: 3,
+        facets: { "source:all": 3 },
+        summary: { openEstimates: 1, won: 1, withOpen: 1 },
+      },
     ]);
-
-    const res = await listCustomers("org1", base);
-
-    // Single round-trip for the aggregate — no more per-view re-runs of the
-    // 4-table join (#283).
-    expect(queryRaw).toHaveBeenCalledTimes(1);
-
-    expect(res.items.map((c) => c.id)).toEqual([1, 2, 3]); // name asc
-    expect(res.total).toBe(3);
-    expect(res.facets["source:phone"]).toBe(2);
-    expect(res.facets["source:online"]).toBe(1);
-    expect(res.facets["source:all"]).toBe(3);
-    expect(res.facets["pipeline:any"]).toBe(3);
-    expect(res.facets["pipeline:open"]).toBe(1);
-    expect(res.facets["pipeline:accepted"]).toBe(1);
-    expect(res.facets["pipeline:cold"]).toBe(1);
-    expect(res.summary).toEqual({ openEstimates: 1, won: 1, withOpen: 1 });
-  });
-
-  it("paginates and sorts the already-aggregated rows in JS", async () => {
-    queryRaw.mockResolvedValueOnce(aggRows);
-    findMany.mockResolvedValue([{ id: 2, name: "Bob" }]);
-
-    const res = await listCustomers("org1", {
+    findMany.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+    const result = await listCustomers("org1", {
       ...base,
-      perPage: 1,
       page: 2,
-      sort: { key: "name", direction: "asc" },
+      perPage: 2,
     });
-
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    const sql = queryRaw.mock.calls[0][0];
+    expect(sql.sql).toContain("AS MATERIALIZED");
+    expect(sql.sql.match(/LEFT JOIN "Estimate"/g)).toHaveLength(1);
+    expect(sql.sql).toMatch(/ORDER BY name ASC, id ASC/);
+    expect(sql.sql).toMatch(/LIMIT \? OFFSET \?/);
+    expect(sql.values).toEqual(expect.arrayContaining(["org1", 2]));
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: { in: [2] } } })
+      expect.objectContaining({ where: { orgId: "org1", id: { in: [2, 1] } } })
     );
-    expect(res.items.map((c) => c.id)).toEqual([2]);
-    expect(res.total).toBe(3); // total ignores pagination
+    expect(result.items.map((customer) => customer.id)).toEqual([2, 1]);
+    expect(result.total).toBe(3);
+    expect(result.summary).toEqual({ openEstimates: 1, won: 1, withOpen: 1 });
   });
 
-  // Regression for #283: the summary rollup used to be a hand-inlined join
-  // scoped only to orgId, ignoring the `q`/`source` filters the page rows,
-  // total, and facets all respected — so it could silently disagree with the
-  // filtered list on the same page. It must now derive from the same
-  // filtered rows as `total`.
-  it("summary respects the active source filter, matching the filtered total", async () => {
-    queryRaw.mockResolvedValueOnce(aggRows);
-    findMany.mockResolvedValue([{ id: 1, name: "Alice" }]);
-
-    const res = await listCustomers("org1", { ...base, source: "phone" });
-
-    // Only Alice + Carol are "phone"; Bob (the only accepted/won customer)
-    // must be excluded from both the total and the summary.
-    expect(res.total).toBe(2);
-    expect(res.summary).toEqual({ openEstimates: 1, won: 0, withOpen: 1 });
-  });
-
-  it("summary respects the active pipeline filter, matching the filtered total", async () => {
-    queryRaw.mockResolvedValueOnce(aggRows);
-    findMany.mockResolvedValue([{ id: 1, name: "Alice" }]);
-
-    const res = await listCustomers("org1", { ...base, pipeline: "open" });
-
-    expect(res.total).toBe(1);
-    expect(res.summary).toEqual({ openEstimates: 1, won: 0, withOpen: 1 });
+  it("does not hydrate an empty or out-of-range page", async () => {
+    queryRaw.mockResolvedValueOnce([
+      {
+        ids: [],
+        total: 3,
+        facets: { "source:all": 3 },
+        summary: { openEstimates: 0, won: 0, withOpen: 0 },
+      },
+    ]);
+    expect((await listCustomers("org1", { ...base, page: 99 })).items).toEqual(
+      []
+    );
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
 
@@ -200,6 +138,32 @@ describe("updateCustomer", () => {
   });
 });
 
+describe("updateCustomerEmail", () => {
+  it("scopes the update to id + orgId and returns true on a match", async () => {
+    updateMany.mockResolvedValue({ count: 1 });
+    const result = await updateCustomerEmail(1, "org1", "new@example.com");
+    expect(result).toBe(true);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      data: { email: "new@example.com" },
+    });
+  });
+
+  it("returns false when no row matches in the org", async () => {
+    updateMany.mockResolvedValue({ count: 0 });
+    expect(await updateCustomerEmail(99, "org1", "new@example.com")).toBe(
+      false
+    );
+  });
+
+  it("propagates a rejected prisma call", async () => {
+    updateMany.mockRejectedValue(new Error("db down"));
+    await expect(
+      updateCustomerEmail(1, "org1", "new@example.com")
+    ).rejects.toThrow("db down");
+  });
+});
+
 describe("deleteCustomer", () => {
   it("returns false when nothing was deleted", async () => {
     eventCount.mockResolvedValue(0);
@@ -223,7 +187,29 @@ describe("deleteCustomer", () => {
     expect(eventCount).toHaveBeenCalledWith({
       where: {
         orgId: "org1",
-        estimate: { siteMeasure: { location: { customerId: 1 } } },
+        OR: [
+          { customerId: 1 },
+          { estimate: { siteMeasure: { location: { customerId: 1 } } } },
+        ],
+      },
+    });
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses when an event links directly to the customer with no estimate chain", async () => {
+    // e.g. a "visit"/"other" type event, which has a nullable customerId FK
+    // and no estimateId at all.
+    eventCount.mockResolvedValue(1);
+    await expect(deleteCustomer(1, "org1")).rejects.toBeInstanceOf(
+      EstimateHasEventsError
+    );
+    expect(eventCount).toHaveBeenCalledWith({
+      where: {
+        orgId: "org1",
+        OR: [
+          { customerId: 1 },
+          { estimate: { siteMeasure: { location: { customerId: 1 } } } },
+        ],
       },
     });
     expect(deleteMany).not.toHaveBeenCalled();

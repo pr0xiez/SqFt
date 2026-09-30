@@ -45,7 +45,7 @@ model Organization {
   nextInvoiceNumber          Int      @default(1)
   defaultPaymentInstructions String   @default("")
   stripeConnectAccountId     String?
-  stripeConnectStatus        String?   // pending | active | restricted
+  stripeConnectStatus        String?   // pending | active | restricted | unsupported
   stripeConnectOnboardedAt   DateTime?
 
   users             User[]
@@ -69,6 +69,13 @@ model User {
   orgId     String
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   createdAt DateTime     @default(now())
+
+  // Brute-force / credential-stuffing protection (lib/auth/login.ts):
+  // consecutive failed password checks since the last success, and the
+  // timestamp until which login is locked out. Both reset to their defaults
+  // on a successful login.
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
 
   events Event[] // events this user is assigned to (Event.assignees)
 

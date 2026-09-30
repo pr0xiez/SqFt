@@ -1,6 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import type { InvoiceableCandidate } from "@/lib/quickCreate/candidates";
 
 export interface InvoiceableEstimatesResponse {
@@ -17,13 +18,12 @@ export interface InvoiceableEstimatesResponse {
 export function useInvoiceableEstimates(q: string) {
   return useQuery({
     queryKey: ["estimates", "invoiceable", q],
-    queryFn: async (): Promise<InvoiceableEstimatesResponse> => {
-      const res = await fetch(
-        `/api/estimates/invoiceable?q=${encodeURIComponent(q)}`
-      );
-      if (!res.ok) throw new Error("Failed to search estimates");
-      return res.json();
-    },
+    queryFn: () =>
+      apiFetch<InvoiceableEstimatesResponse>(
+        `/api/estimates/invoiceable?q=${encodeURIComponent(q)}`,
+        undefined,
+        "Failed to search estimates"
+      ),
     enabled: q.trim().length > 0,
     placeholderData: keepPreviousData,
   });

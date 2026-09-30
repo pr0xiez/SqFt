@@ -26,14 +26,31 @@ A user has a `role` (`admin | lead | crew`) and an optional free-text `title`
 (e.g. "Lead Installer"). Any non-archived user — of any role — is **assignable**
 to calendar Events; the schedule's crew picker and `/api/users/assignable` are
 sourced from active users. `User.archived` **deactivates** a person: they can't
-log in (`lib/auth.ts`) or be newly assigned, but their history is preserved.
+log in (`lib/auth/authorize.ts`, wired into `lib/auth.ts`) or be newly assigned, but their history is preserved.
+Sessions are JWT-strategy and re-validate `archived`/`role`/`orgId` against the
+DB on every request after sign-in (`lib/auth.ts`'s `jwt` callback, via
+`userRepo.findAuthState`): archiving a user or changing their role takes effect
+on their next request, not just their next login, and `session.maxAge` is 7
+days (not the NextAuth default of 30).
+Credential login (`lib/auth/authorize.ts` → `lib/auth/login.ts`) uses
+`loginRepo`'s atomic database statement to lock after five failed attempts
+for 15 minutes. An expired lock starts a fresh attempt budget, and attempts
+during a lock do not extend it. All failures return the same generic result;
+unknown, archived, and locked accounts pay a dummy bcrypt comparison to
+reduce timing differences (this is not a constant-time guarantee).
+
 Events link assigned users via the `Event.assignees` relation
 (`eventRepo` `assigneeIds: string[]`). People are managed on the admin
 **Members** page (`/settings/members`) — role, title, archive/restore — for
 the caller's **own** org; there is no separate crew roster. A **super-admin**
 manages **any** org's members the same way from `/admin/orgs/[orgId]`, via the
 same `userRepo` functions with the target org taken from the URL instead of
-the caller's session.
+the caller's session. The self-org and super-admin user create/patch routes
+share one request-validation schema (`lib/users/schema.ts` —
+`userCreateSchema` / `userPatchSchema`) and one orchestration helper
+(`applyUserPatch` in `userRepo.ts`, role → profile → archived → re-fetch);
+only the self-demote/self-archive guards differ, injected into
+`applyUserPatch` as callback hooks.
 
 The editable **Schedule Manager** grid (`/schedule`, **lead+ only** — crew is
 redirected to `/my-schedule`) and the read-only, mobile-first **My Schedule**
@@ -42,7 +59,31 @@ same events list. `eventRepo.listEvents` enriches that payload with a derived
 `address` (estimate's site-measure location → customer's first location;
 resolver in `lib/events/serialize.ts`) and `customer.phone`, so the agenda
 card and job-card detail sheet need no extra fetch. Agenda sectioning
-(My/Team × Day/Week) is pure logic in `lib/schedule/agenda.ts`.
+(My/Team × Day/Week) is pure logic in `lib/schedule/agenda.ts`; the grid's
+geometry (7a–7p window, overlap lanes, out-of-range clamping with ↑/↓ chip
+markers, click-to-time snapping, now-line) is pure logic in
+`lib/schedule/grid.ts`. The header row and the day columns are cells of **one
+CSS grid**, so they share column tracks and the day dividers can't drift out of
+alignment; the grid is a fixed height that always fits, so it deliberately has
+no scroll container of its own (the page scrolls). Chips are laned by their
+**clamped** rects, not their clock times — otherwise two events pinned to the
+same grid edge would be drawn on top of each other. Same-day events must end
+after they start (multi-day events may wrap past midnight): the form blocks it,
+zod refines what a payload can prove in `lib/events/schema.ts`, and
+`eventRepo.createEvent` / `updateEvent` are the backstop that checks the merged
+stored ∪ incoming state — a partial PATCH can otherwise invert times the refine
+never sees. A `job` event requires an estimate (server rule in `eventRepo`,
+mirrored client-side).
+
+The schedule page also shows the **unscheduled-jobs backlog**: approved
+estimates with **no linked `job` event**, oldest approval first. The rule is
+the pure projection `toSchedulableCandidates` in `lib/schedule/backlog.ts`
+(mirroring quick-invoice candidates), queried by
+`estimateRepo.listSchedulableEstimates` and served by
+`GET /api/estimates/schedulable` (lead+). The `BacklogStrip` renders the
+candidates above the grid; clicking one opens the event form pre-filled
+(type=job, customer, estimate), and event mutations invalidate the backlog
+query so scheduling removes the card immediately.
 
 ## Document Numbers
 
@@ -94,9 +135,21 @@ The fully-computed read model of an estimate: per-line `effectiveQty` and
 Single source of truth for estimate math. Produced by `computeEstimateView` in
 `lib/estimateView/` (`compute.ts`). Every caller — the editor
 (`LineItemSection`), the customer-facing public page (`PublicEstimateView`),
-the send-email route, the estimate list endpoint, and the approval snapshot —
+the send-email route and the approval snapshot —
 derives its numbers from this one function so the labeled breakdown can never
 diverge across surfaces.
+
+Every money field it returns — each line's `subtotal`, plus `subtotal`,
+`markup`, `total`, `deposit` — is passed through `round2` (`lib/money.ts`)
+before being returned, and each is derived from already-rounded upstream
+values (e.g. `total` sums the rounded `subtotal` and `markup`, not raw
+products) rather than rounding a single accumulated float at the end. This
+matches the rounding convention `foldMarkupIntoLines` uses for line-level
+amounts. Callers that persist or sum this output (`syncEstimateTotal`, the
+dashboard revenue rollups) can rely on it already being cents-accurate; a
+caller that further sums multiple estimates' `total` should still `round2`
+the sum, since adding two already-rounded values can reintroduce binary
+float drift.
 
 Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
@@ -156,7 +209,11 @@ steered onto the largest-priced resolved line by `residualTargetIndex`
 (`lib/money.ts`), so the ±cent never lands on a $0 (free) line or an
 unresolved line. `lib/money.ts` is the shared home for
 `round2` and `residualTargetIndex`, used by both the fold and invoice
-proration.
+proration. `round2` is itself `roundToDecimals(n, 2)` — the generic,
+epsilon-nudged half-up rounder also exported for non-2dp callers;
+`components/ui/DecimalInput` (the shared money/quantity input) commits through
+`roundToDecimals(n, maxDecimals)` so a value's on-blur commit can never
+diverge from what this SSOT math would round it to.
 
 Two customer surfaces consume the fold:
 
@@ -180,11 +237,52 @@ The approve transaction flips the estimate's status to `approved`, stamps
 `snapshot` (the Estimate View + identifying metadata such as `estimateNumber`,
 `date`, `customer`, and the location `address`). The snapshot is a plain JSON
 record of what the customer saw — there is **no** `snapshotHash` and no
-tamper-evidence hashing. Approving an estimate also supersedes any other open
+tamper-evidence hashing. **The public page renders an `approved` estimate from
+this snapshot, never from the live rows**: `parseEstimateSnapshot` /
+`estimateViewFromSnapshot` (`lib/estimateView/parseSnapshot.ts`) validate the
+stored JSON and rebuild the frozen `EstimateView` (per-line qty/subtotal +
+signed totals), which the page passes to `PublicEstimateView` as `frozenView`
+so no money is recomputed. A snapshot that fails validation logs and falls
+back to the live render. Pre-approval (`sent`/`viewed`) estimates still render
+live — they are editable, and the page is the authoritative thing the customer
+approves. Approving an estimate also supersedes any other open
 estimates under the same site measure (they're marked `declined` with a
 "Superseded" reason and a `system_supersede` event).
 
-Estimate status values: `draft | sent | viewed | approved | declined`.
+**`approved`/`declined` are reachable only through the token routes.** The
+general-purpose builder PATCH (`app/api/estimates/[id]/route.ts` →
+`saveEstimate`, `lib/repositories/estimateRepo.ts`) cannot set an estimate to
+either terminal status: `estimateUpdateSchema` (`lib/estimates/schema.ts`)
+restricts the settable `status` enum to `draft | sent`, and `saveEstimate`
+itself re-checks this at the repo layer (the trust boundary) and throws
+`ValidationError` (`VALIDATION_FAILED`) if asked to set anything else — so a
+looser schema or a rewired caller still can't forge an approval/decline and
+skip the `EstimateApproval` consent row / supersede-siblings logic above.
+
+Estimate status values: `draft | sent | viewed | approved | declined`, owned
+by `lib/estimateStatus.ts`; filters include every status. Operator PATCH uses
+the separate `draft | sent` subset, so it cannot forge customer audit events.
+Sibling superseding uses a guarded UPDATE RETURNING in
+`lib/repositories/estimateApprovalRepo.ts`; only changed rows receive events.
+Missing client metadata becomes null in events and `unknown` only in the
+non-null approval columns. Historical event rows may still contain `unknown`.
+
+Estimate lists read the denormalized `Estimate.total` written by
+`syncEstimateTotal` (`lib/repositories/estimateRepo.ts`); they do not load
+line items or measured-room geometry to recompute each row. Draft text and
+template unit labels remain round-trippable through `lineItemSchema`
+(`lib/estimates/schema.ts`), including blank names while editing. Numeric
+rate/quantity must be finite and nonnegative; waste is between 0 and 100.
+
+An approved or declined estimate can be **revised**: `reviseEstimate`
+(`lib/repositories/estimateRepo.ts`) clones it (line items, markup/deposit
+pct) into a new `draft` estimate on the same site measure, linked back via
+`revisedFromId`. The `approved | declined` source-status guard is enforced
+**inside `reviseEstimate`'s transaction** (throws `ConflictError` — "Only
+approved or declined estimates can be revised") rather than only in the route
+— mirroring how `saveEstimate` throws `EstimateLockedError` in-repo for its
+own edit-lock guard, so the invariant holds for any caller, not just the
+`POST /api/estimates/[id]/revise` handler, which is a thin caller.
 
 ## Invoice
 
@@ -198,12 +296,16 @@ Markup is folded into the line prices (via `foldMarkupIntoLines` — see
 **Markup**), so neither a "Markup" row nor a fee row is emitted. Unresolved
 lines are omitted rather than billed as $0, and the rounding residual
 reconciles onto the largest row so the displayed rows sum exactly to the billed
-amount without the ±cent distorting a free line. Creating or editing an
+amount without the ±cent distorting a free line. Creating an
 invoice past the estimate's unbilled balance
 throws `INVOICE_OVERBILL`; the overbill test is the shared `isOverbill`
-predicate (`lib/invoices/createInvoiceForm.ts`), which owns the single
-`OVERBILL_EPSILON` (0.005) tolerance used by both the repo guard and the create
-dialog.
+predicate (`lib/invoices/compute.ts`), which owns the single
+`OVERBILL_EPSILON` (0.005) tolerance. This is the one constant for every
+money-threshold comparison in the invoice domain — the create dialog's
+client-side guard, the repo's create overbill check, the paid-in-full
+status transition (`nextInvoiceStatus`), and the Stripe overpayment flag
+(`classifyStripeCharge`), both in `lib/repositories/invoiceRepo.ts` — so no
+`0.005` literal is ever inlined a second time.
 
 Invoices are emailed via a public token page (`/invoice-review/[token]`),
 reusing the React-Email + Resend flow. On send, the invoice freezes a
@@ -211,8 +313,14 @@ reusing the React-Email + Resend flow. On send, the invoice freezes a
 document can never drift from later estimate edits; the public page renders
 from that snapshot and flips `sent → viewed` on first open. **Balance due is
 the exception**: both the public page and the builder's `InvoiceDetail`
-compute it live from the payments ledger (`amount − Σ payments`) — a
-partially-paid invoice must never show the full amount as still owed.
+compute it live from the payments ledger via `paymentsPaidTotal` /
+`invoiceOutstanding` (`lib/invoices/compute.ts`, re-exported from
+`lib/invoices`) — `amount − Σ payments`, rounded with `round2` — the one
+place that sums a payments array and rounds the final outstanding balance once, so a
+partially-paid invoice never shows the full amount as still owed and no UI
+surface hand-rolls its own `Math.round`. The list view's overdue rule (open
+status + elapsed due date) is likewise centralized as `isInvoiceOverdue` in
+the same file.
 
 Homeowners pay the exact invoice balance via a Stripe-hosted **Checkout
 Session** created on the org's Stripe Connect account (direct charge; the
@@ -262,12 +370,39 @@ while a new bucket or changed balance mints a fresh one. `Payment` carries
 `stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the charge's balance
 transaction on the connected account). Manual payment recording (cash, check,
 card, ACH) also remains via the builder's Record-payment dialog. Each payment
-recomputes the invoice status from the ledger. A `void` invoice is terminal and excluded from
+recomputes the invoice status from the ledger via `nextInvoiceStatus`
+(`lib/repositories/invoiceRepo.ts`), which reads "was this ever viewed" off
+the persisted `viewedAt` timestamp rather than the transient `current`
+status — so an invoice that went `viewed` → `partial` and then has its
+payment(s) reversed back to net 0 (e.g. a refund) falls back to `viewed`,
+not `sent`, preserving the fact that the customer opened it. A `void` invoice is terminal and excluded from
 all billing math; editing a sent invoice or paying a void one throws
 `INVOICE_LOCKED`. Its public link dies with it: the review page `notFound()`s a
 `void` invoice (and `PublicInvoiceView` never renders a pay CTA for one) so a
 stale email link can't view or pay a cancelled document. Every lifecycle action
 appends an `InvoiceEvent`.
+
+**Connect onboarding status.** `Organization.stripeConnectStatus` is
+`pending | active | restricted | unsupported` (`ConnectStatus`,
+`lib/stripe/connect.ts`), derived from the merchant `card_payments` /
+`ach_debit_payments` capabilities by `aggregateConnectStatus` — **best-of**,
+since Checkout offers whichever method is live. `unsupported` is terminal
+(Stripe will never enable the capability for this business / country / entity
+type) and is deliberately *not* folded into `pending`, which the settings page
+presents as a retryable "Continue setup". The column is a **write-through cache
+for the public pay path only** — `/invoice-review/[token]` gates its Pay button
+on it — so both the admin settings route and the checkout route re-read Stripe
+live: a cached `active` that is never re-checked hides a later restriction from
+the contractor until a customer's payment fails. There is **no `account.updated`
+webhook** (Accounts-v2 status changes arrive as v2 core events, which SqFt does
+not subscribe to), so `/settings/payments` polls for a bounded window after
+onboarding returns. `connectPhase` (`lib/stripe/connectPhase.ts`) is the one
+selector both the page's card and the poller's stop condition read, so the copy
+and the polling cannot disagree. `summarizeRequirements` collapses Stripe's
+requirement entries to `{ actionDue, inReview, issues }`: `actionDue` keys on
+`minimum_deadline` (an `eventually_due` requirement is future work and blocks
+nothing), and `issues` carries *every* failure for the side that is actually
+holding things up — never a Stripe-side error attributed to the user.
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
@@ -277,8 +412,11 @@ Invoice status values: `draft | sent | viewed | partial | paid | void`.
 `all | open | draft | paid | void`, defaulting to **`all`**. The `open`
 group — `sent + viewed + partial` ("sent but not fully paid") — is the
 second pill and is defined once as `OPEN_INVOICE_STATUSES` in
-`components/invoices/filterInvoices.ts`. Each row carries a computed
-`balanceDue` (amount − recorded payments). Facet counts are org-wide and
+`lib/invoices/statusFilter.ts`. Each row carries a computed
+`balanceDue` (amount − recorded payments). The list's overdue rule (open
+status + a due date whose UTC calendar day has fully elapsed) is the shared
+`isInvoiceOverdue` (`lib/invoices/compute.ts`), so `InvoiceList` doesn't carry
+its own copy of the date-boundary logic. Facet counts are org-wide and
 ignore the active filter/search.
 
 **Builder UI.** The estimate page's `InvoicesSection`
@@ -289,8 +427,9 @@ each invoice opens its own page at `/invoices/[id]`
 Create / Send / Record-payment / Void are modals
 (`components/invoices/*Dialog.tsx`) built on the shared `components/ui/Modal.tsx`,
 all wired through react-query hooks in `lib/hooks/useInvoices.ts`. Invoices are
-**read-only** — there is no edit UI (the `PATCH` route is intentionally unused);
-to change billed lines, fix the estimate or create another invoice. The
+**read-only** — there is no edit UI and no update endpoint (`app/api/invoices/[id]/route.ts`
+exports only `GET`); to change billed lines, fix the estimate or create another
+invoice. The
 record-payment form defaults to the full outstanding balance but accepts
 partials, and its method dropdown excludes `stripe` (reserved for the future
 integration). The create dialog's three sizing modes (remaining / % of balance
@@ -323,11 +462,46 @@ decision rather than drift. The existing repo mark-sent transactions keep
 owning their atomic `sent`/`resent` event logging; the pipeline only
 sequences.
 
+`sendEstimate`'s opportunistic customer-email sync
+(`customerRepo.updateCustomerEmail`) never fails the send itself — a
+throw or a no-op update is caught and logged, same as any `afterSent` hook —
+but unlike a bare `afterSent`, `sendEstimate` tracks the outcome per call
+(building a fresh `Sendable` so the result isn't shared mutable state across
+concurrent sends) and returns `{ customerEmailSaved: boolean }`. The send
+route folds that into the response as `{ ok: true, customerEmailSaved }` so a
+failed persist is visible in the API contract, not only in logs.
+
 No Prisma crosses the pipeline's seam — persistence arrives through the
 adapter's functions — so the spine's ordering/error tests
 (`__tests__/lib/send/pipeline.test.ts`) run against an in-memory fake with no
 database. Routes are thin: parse input, resolve the sender (`requireSender`,
 `lib/send/sender.ts`), call `sendEstimate` / `sendInvoice`.
+
+### Public tokens
+
+`Estimate.approvalToken` and `Invoice.publicToken` are the **sole**
+authentication factor for the unauthenticated `/estimate-review/[token]` and
+`/invoice-review/[token]` pages — a live bearer credential capable of
+one-click approval / payment on the customer's behalf. They must never appear
+in a payload an authenticated API route returns to the browser: the repo
+`select` constants behind the authenticated reads (`ESTIMATE_LIST_SELECT`,
+`ESTIMATE_DETAILS_SELECT`, `INVOICE_SELECT`/`INVOICE_DETAIL_SELECT` in
+`lib/repositories/{estimate,invoice}Repo.ts`) deliberately enumerate every
+scalar column *except* the token, rather than `include`-ing it and stripping
+it back out downstream. The only sanctioned reads of the live value are:
+`rotateApprovalToken` / `rotateInvoiceToken` (always mint a fresh token — used
+internally by the send pipeline's mint-if-missing `currentToken`/`rotateToken`
+flow, `lib/send/pipeline.ts`), `getOrCreateInvoicePublicToken` (reuses the
+existing token if there is one, minting only if missing — mirrors that same
+pipeline semantics; backs `POST /api/invoices/[id]/public-token`, the
+"copy public link" action, so repeated clicks don't invalidate a link already
+shared with the customer) / the equivalent `POST /api/estimates/[id]/approval-token`
+route, and `getEstimateForSend` (`lib/repositories/estimateRepo.ts`, a
+server-only include used solely by `lib/send/sendEstimate.ts` — its result is
+never returned from an API route). A detail payload instead carries a
+`hasApprovalToken` / `hasPublicToken` boolean (`estimateHasApprovalToken` /
+`invoiceHasPublicToken`) for UI affordances that only need to know whether a
+link exists yet, not what it is.
 
 ## Quick Create
 
@@ -363,7 +537,12 @@ carries the full list of Zod issues.
 
 Standard codes:
 
-- `UNAUTHORIZED` (401) — no session, or session has no org.
+- `UNAUTHORIZED` (401) — no session; org-scoped routes using `getOrgId` also
+  reject a missing org. The auth proxy may return its own 401 body before the
+  route handler runs.
+- `FORBIDDEN` (403) — session exists but the caller doesn't meet the route's
+  `minRole` / `superAdmin` gate. Distinct from `UNAUTHORIZED`: the caller is
+  authenticated, just not permitted.
 - `VALIDATION_FAILED` (400) — request body failed Zod parse. `details` holds
   the issues array.
 - `NOT_FOUND` (404) — resource missing, or not visible to the caller's org.
@@ -388,13 +567,19 @@ Domain codes:
 - `EMAIL_FAILED` (502) — upstream email provider rejected the send. Minted by
   the send pipeline (`lib/send/pipeline.ts`) when the email port reports a
   non-OK result.
-- `INVOICE_LOCKED` (409) — caller tried to edit an invoice that has been sent
-  (status is no longer `draft`), or record a payment on a `void` invoice.
+- `INVOICE_LOCKED` (409) — caller tried to record a payment on a `void`
+  invoice.
 - `INVOICE_VOID` (409) — caller tried to send a `void` invoice. Distinct from
   `INVOICE_LOCKED`: void is terminal, and the remedy is creating a new
   invoice, not unlocking this one.
 - `INVOICE_OVERBILL` (409) — caller tried to invoice more than the estimate's
   unbilled balance (estimate total − Σ non-void invoice amounts).
+- `INVOICE_OVERPAY` (409) — caller tried to record a manual payment
+  (`recordPayment`) exceeding the invoice's outstanding balance (amount − Σ
+  prior payments), using the shared `OVERBILL_EPSILON` tolerance. Scoped to the
+  manual-payment path only — `classifyStripeCharge` (Stripe webhook charges)
+  keeps its own `overpaid` flag instead, since a captured real-money charge
+  must never be silently dropped.
 - `STRIPE_NOT_CONNECTED` (409) — the org has no Stripe Connect account
   configured; homeowner cannot pay via Stripe. Thrown by the checkout-session
   route (`app/api/invoice-review/[token]/checkout`).
@@ -415,4 +600,14 @@ Clients read the envelope via `readApiError(res, fallback)` from the same
 module. It returns `{ code, message, details }` with safe fallbacks if the
 body isn't JSON. Use it instead of inlining `res.json()` parsing — it keeps
 the wire contract in one place and gives the caller access to `code` for
-branching.
+branching. Every `lib/hooks/*` query/mutation goes through
+`apiFetch<T>(url, init?, fallbackMessage?)` (`lib/hooks/apiFetch.ts`), which
+wraps `fetch` + the `res.ok` check + `readApiError` + `res.json()` (204 → no
+body, resolves `undefined`) in one call — so hooks never re-hand-roll this and
+always surface the server's real message instead of a fixed generic string.
+
+Customer list aggregation in `lib/repositories/customerRepo.ts` materializes
+the org/search join once; PostgreSQL sorts and pages ids before hydration.
+Total and summary follow search, source, and pipeline. Each facet relaxes its
+own filter and preserves the others. Event assignee writes validate active
+organization membership in the repository, including calls outside routes.

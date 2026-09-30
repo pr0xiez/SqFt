@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,11 +15,16 @@ import { SideNav } from "@/components/ui/SideNav";
 
 beforeEach(() => localStorage.clear());
 
+// The nav hosts AccountBlock, which drops the query cache on sign-out — so it
+// needs the same QueryClient the app always has around it.
 function renderSideNav() {
+  const qc = new QueryClient();
   return render(
-    <QuickCreateProvider>
-      <SideNav />
-    </QuickCreateProvider>
+    <QueryClientProvider client={qc}>
+      <QuickCreateProvider>
+        <SideNav />
+      </QuickCreateProvider>
+    </QueryClientProvider>
   );
 }
 

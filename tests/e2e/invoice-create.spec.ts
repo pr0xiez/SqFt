@@ -1,5 +1,5 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
-import { loginAsWorkerOrg } from "./fixtures/org";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
   seedEstimateWithLineItem,
@@ -9,6 +9,7 @@ test.describe
   .serial("Invoice create", () => {
     let ctx: BrowserContext;
     let estimateId: number;
+    let invoiceId: number;
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
@@ -37,12 +38,21 @@ test.describe
       expect(res.status()).toBe(201);
       const inv = await res.json();
       expect(inv.status).toBe("draft");
+      invoiceId = inv.id;
 
       const list = await ctx.request.get(
         `/api/estimates/${estimateId}/invoices`
       );
       const rows = await list.json();
       expect(rows.some((r: { id: number }) => r.id === inv.id)).toBe(true);
+    });
+
+    test("cross-org GET returns 404", async ({ browser }) => {
+      const otherCtx = await browser.newContext();
+      await loginAsSecondaryOrg(browser, otherCtx);
+      const res = await otherCtx.request.get(`/api/invoices/${invoiceId}`);
+      expect(res.status()).toBe(404);
+      await otherCtx.close();
     });
 
     test("over-billing past the unbilled balance is rejected", async () => {

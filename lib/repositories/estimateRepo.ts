@@ -1,11 +1,16 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
-import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
 import {
-  EstimateHasEventsError,
+  ConflictError,
   EstimateLockedError,
-  HasInvoicesError,
+  ValidationError,
 } from "@/lib/api/errors";
+import {
+  ESTIMATE_STATUSES,
+  isEstimateLocked,
+  type OperatorEstimateStatus,
+} from "@/lib/estimateStatus";
+import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +18,12 @@ import {
   type InvoiceableCandidate,
   toInvoiceableCandidates,
 } from "@/lib/quickCreate/candidates";
-import { searchableInt } from "@/lib/repositories/search";
+import { assertDeletable } from "@/lib/repositories/deleteGuards";
+import { buildSearchWhere, computeFacets } from "@/lib/repositories/search";
+import {
+  type SchedulableCandidate,
+  toSchedulableCandidates,
+} from "@/lib/schedule/backlog";
 import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
@@ -56,9 +66,72 @@ const REVISED_PAIR_SELECT = {
   revisedBy: { select: { id: true, estimateNumber: true } },
 } satisfies Prisma.EstimateInclude;
 
-/** Full estimate-with-details include used by the builder reads
- *  (getEstimate / createEstimate / saveEstimate). */
-const ESTIMATE_DETAILS_INCLUDE = {
+/** Scalar fields of Estimate returned by the builder reads and the org-wide
+ *  list — every column EXCEPT `approvalToken`. `approvalToken` is a live
+ *  bearer credential for the unauthenticated `/estimate-review/[token]`
+ *  approval flow (one-click POST, no other auth factor); it must never ride
+ *  along in a payload an authenticated API route hands back to the browser.
+ *  The only sanctioned reads of it are `rotateApprovalToken` (returns a
+ *  freshly-minted token to the lead who explicitly requested one) and
+ *  `getEstimateForSend` (server-only, feeds the send pipeline, never
+ *  serialized to a client). See CONTEXT.md "Public tokens". */
+const ESTIMATE_SCALAR_SELECT = {
+  id: true,
+  orgId: true,
+  siteMeasureId: true,
+  estimateNumber: true,
+  status: true,
+  date: true,
+  markupPct: true,
+  depositPct: true,
+  terms: true,
+  validityDays: true,
+  sentAt: true,
+  sentToEmail: true,
+  sentByEmail: true,
+  sentByName: true,
+  viewedAt: true,
+  approvedAt: true,
+  declinedAt: true,
+  declineReason: true,
+  createdAt: true,
+  total: true,
+  revisedFromId: true,
+} satisfies Prisma.EstimateSelect;
+
+/** Full estimate-with-details select used by the builder reads
+ *  (getEstimate / createEstimate / saveEstimate) and returned directly by
+ *  their API routes — deliberately a `select`, not an `include`, so adding a
+ *  sensitive scalar (like `approvalToken`) to the model doesn't silently
+ *  start round-tripping it to the browser. */
+const ESTIMATE_DETAILS_SELECT = {
+  ...ESTIMATE_SCALAR_SELECT,
+  siteMeasure: {
+    include: {
+      location: { include: { customer: true } },
+      items: { orderBy: { sortOrder: "asc" } },
+    },
+  },
+  lineItems: { orderBy: { sortOrder: "asc" } },
+  org: { select: { name: true, defaultDepositPct: true } },
+  estimateEvents: {
+    where: { type: "declined" },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  },
+  ...REVISED_PAIR_SELECT,
+} satisfies Prisma.EstimateSelect;
+
+/**
+ * Include used internally by the send pipeline (`getEstimateForSend`), which
+ * needs the live `approvalToken` to decide whether to rotate before mailing
+ * a fresh review link. Shape mirrors `ESTIMATE_DETAILS_SELECT` but as a plain
+ * `include` (so it does carry the token) — safe ONLY because its one caller,
+ * `lib/send/sendEstimate.ts`, never returns the loaded doc to the client (the
+ * send route responds `{ ok: true }`). Do not reuse this include anywhere a
+ * result is returned from an API route.
+ */
+const ESTIMATE_SEND_INCLUDE = {
   siteMeasure: {
     include: {
       location: { include: { customer: true } },
@@ -102,7 +175,8 @@ const ESTIMATE_PUBLIC_INCLUDE = {
   approval: true,
 } satisfies Prisma.EstimateInclude;
 
-const ESTIMATE_LIST_INCLUDE = {
+const ESTIMATE_LIST_SELECT = {
+  ...ESTIMATE_SCALAR_SELECT,
   siteMeasure: {
     select: {
       id: true,
@@ -114,39 +188,23 @@ const ESTIMATE_LIST_INCLUDE = {
           customer: { select: { id: true, name: true } },
         },
       },
-      items: { orderBy: { sortOrder: "asc" } },
     },
   },
-  lineItems: { orderBy: { sortOrder: "asc" } },
   _count: { select: { lineItems: true } },
-} satisfies Prisma.EstimateInclude;
+} satisfies Prisma.EstimateSelect;
 
 export type EstimateWithSiteMeasureSummary = Prisma.EstimateGetPayload<{
-  include: typeof ESTIMATE_LIST_INCLUDE;
-}>;
-
-/** Narrower payload used by listEstimatesForSiteMeasure — no lineItems or siteMeasure.items needed there. */
-export type EstimateWithSiteMeasureSummaryNarrow = Prisma.EstimateGetPayload<{
-  include: {
-    siteMeasure: {
-      select: {
-        id: true;
-        siteMeasureNumber: true;
-        location: {
-          select: {
-            id: true;
-            address: true;
-            customer: { select: { id: true; name: true } };
-          };
-        };
-      };
-    };
-    _count: { select: { lineItems: true } };
-  };
+  select: typeof ESTIMATE_LIST_SELECT;
 }>;
 
 export type EstimateWithDetails = Prisma.EstimateGetPayload<{
-  include: typeof ESTIMATE_DETAILS_INCLUDE;
+  select: typeof ESTIMATE_DETAILS_SELECT;
+}>;
+
+/** Server-only payload for the send pipeline — carries `approvalToken`.
+ *  See {@link ESTIMATE_SEND_INCLUDE}; never return this from an API route. */
+export type EstimateForSend = Prisma.EstimateGetPayload<{
+  include: typeof ESTIMATE_SEND_INCLUDE;
 }>;
 
 export type EstimateWithPublicView = Prisma.EstimateGetPayload<{
@@ -158,8 +216,12 @@ type LineItemInput = Omit<
   "id" | "estimateId"
 > & { id?: number };
 
+// "approved"/"declined" are not settable via EstimatePatch/saveEstimate — see
+// the guard at the top of saveEstimate. Those transitions only happen through
+// approveEstimateByToken / declineEstimateByToken, which write the
+// EstimateApproval consent record and run the supersede-siblings logic.
 export type EstimatePatch = {
-  status?: "draft" | "sent" | "approved" | "declined";
+  status?: OperatorEstimateStatus;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemInput[];
@@ -202,23 +264,17 @@ function estimateOrderBy(
 }
 
 function estimateSearchWhere(q: string): Prisma.EstimateWhereInput | null {
-  const cleaned = q.trim().replace(/^#/, "");
-  if (cleaned.length === 0) return null;
-  const or: Prisma.EstimateWhereInput[] = [
-    {
+  return buildSearchWhere<Prisma.EstimateWhereInput>(q, {
+    customerName: (cleaned) => ({
       siteMeasure: {
         location: {
           customer: { name: { contains: cleaned, mode: "insensitive" } },
         },
       },
-    },
-  ];
-  const n = searchableInt(cleaned);
-  if (n !== null) or.push({ estimateNumber: n });
-  return { OR: or };
+    }),
+    number: (n) => ({ estimateNumber: n }),
+  });
 }
-
-const ESTIMATE_STATUSES = ["draft", "sent", "approved", "declined"] as const;
 
 export async function listEstimates(
   orgId: string,
@@ -235,7 +291,7 @@ export async function listEstimates(
       orderBy: estimateOrderBy(params.sort),
       skip: (params.page - 1) * params.perPage,
       take: params.perPage,
-      include: ESTIMATE_LIST_INCLUDE,
+      select: ESTIMATE_LIST_SELECT,
     }),
     prisma.estimate.count({ where }),
     prisma.estimate.groupBy({
@@ -246,14 +302,7 @@ export async function listEstimates(
     }),
   ]);
 
-  const facets: Record<string, number> = { all: 0 };
-  for (const s of ESTIMATE_STATUSES) facets[s] = 0;
-  for (const row of grouped) {
-    const count = row._count;
-    const n = typeof count === "object" ? (count._all ?? 0) : 0;
-    facets.all += n;
-    if (row.status in facets) facets[row.status] = n;
-  }
+  const facets = computeFacets(grouped, ESTIMATE_STATUSES);
 
   return { items, total, facets };
 }
@@ -306,29 +355,50 @@ export async function listInvoiceableEstimates(
   };
 }
 
-export async function listEstimatesForSiteMeasure(
-  siteMeasureId: number,
-  orgId: string
-): Promise<EstimateWithSiteMeasureSummaryNarrow[]> {
-  return prisma.estimate.findMany({
-    where: { orgId, siteMeasureId },
-    orderBy: { createdAt: "desc" },
-    include: {
+/**
+ * Unscheduled-jobs backlog for the Schedule Manager: approved estimates with
+ * no linked `job` event, oldest approval first (longest-waiting on top). The
+ * where clause narrows in SQL; {@link toSchedulableCandidates} re-applies the
+ * rule in pure code.
+ */
+export async function listSchedulableEstimates(
+  orgId: string,
+  limit = 50
+): Promise<SchedulableCandidate[]> {
+  const rows = await prisma.estimate.findMany({
+    where: { orgId, status: "approved", events: { none: { type: "job" } } },
+    orderBy: { approvedAt: "asc" },
+    take: limit,
+    select: {
+      id: true,
+      estimateNumber: true,
+      status: true,
+      total: true,
+      approvedAt: true,
       siteMeasure: {
         select: {
-          id: true,
-          siteMeasureNumber: true,
           location: {
             select: {
-              id: true,
               address: true,
               customer: { select: { id: true, name: true } },
             },
           },
         },
       },
-      _count: { select: { lineItems: true } },
+      events: { where: { type: "job" }, select: { id: true }, take: 1 },
     },
+  });
+  return toSchedulableCandidates(rows);
+}
+
+export async function listEstimatesForSiteMeasure(
+  siteMeasureId: number,
+  orgId: string
+): Promise<EstimateWithSiteMeasureSummary[]> {
+  return prisma.estimate.findMany({
+    where: { orgId, siteMeasureId },
+    orderBy: { createdAt: "desc" },
+    select: ESTIMATE_LIST_SELECT,
   });
 }
 
@@ -338,7 +408,19 @@ export async function getEstimate(
 ): Promise<EstimateWithDetails | null> {
   return prisma.estimate.findFirst({
     where: { id, orgId },
-    include: ESTIMATE_DETAILS_INCLUDE,
+    select: ESTIMATE_DETAILS_SELECT,
+  });
+}
+
+/** Server-only load for the send pipeline — see {@link ESTIMATE_SEND_INCLUDE}.
+ *  Do not return this value from an API route (it carries `approvalToken`). */
+export async function getEstimateForSend(
+  id: number,
+  orgId: string
+): Promise<EstimateForSend | null> {
+  return prisma.estimate.findFirst({
+    where: { id, orgId },
+    include: ESTIMATE_SEND_INCLUDE,
   });
 }
 
@@ -383,7 +465,7 @@ export async function createEstimate(
 
     return tx.estimate.findFirst({
       where: { id: created.id, orgId },
-      include: ESTIMATE_DETAILS_INCLUDE,
+      select: ESTIMATE_DETAILS_SELECT,
     });
   });
 }
@@ -393,6 +475,24 @@ export async function saveEstimate(
   orgId: string,
   patch: EstimatePatch
 ): Promise<EstimateWithDetails | null> {
+  // Defense in depth: EstimatePatch's type already excludes "approved" /
+  // "declined", but this repo function is the trust boundary, so it must not
+  // rely solely on the caller's TS types (a route could be re-wired, or the
+  // zod schema loosened, without touching this file). Approval/decline must
+  // go exclusively through approveEstimateByToken / declineEstimateByToken —
+  // those write the EstimateApproval consent row (ip/userAgent/snapshot) and
+  // run the supersede-siblings logic that a plain status flip would skip.
+  const requestedStatus = patch.status as string | undefined;
+  if (
+    requestedStatus !== undefined &&
+    requestedStatus !== "draft" &&
+    requestedStatus !== "sent"
+  ) {
+    throw new ValidationError(
+      `Cannot set estimate status to "${requestedStatus}" directly. Approval and decline must go through the customer-facing token flow.`
+    );
+  }
+
   const { lineItems, ...topLevel } = patch;
 
   return prisma.$transaction(async (tx) => {
@@ -401,7 +501,7 @@ export async function saveEstimate(
       select: { id: true, status: true },
     });
     if (!existing) return null;
-    if (existing.status === "approved" || existing.status === "declined") {
+    if (isEstimateLocked(existing.status)) {
       throw new EstimateLockedError(existing.status);
     }
 
@@ -430,7 +530,7 @@ export async function saveEstimate(
 
     const result = await tx.estimate.findFirst({
       where: { id, orgId },
-      include: ESTIMATE_DETAILS_INCLUDE,
+      select: ESTIMATE_DETAILS_SELECT,
     });
     if (!result) return null;
 
@@ -452,14 +552,7 @@ export async function deleteEstimate(
   orgId: string
 ): Promise<boolean> {
   return prisma.$transaction(async (tx) => {
-    const eventCount = await tx.event.count({
-      where: { orgId, estimateId: id },
-    });
-    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
-    const invoiceCount = await tx.invoice.count({
-      where: { orgId, estimateId: id },
-    });
-    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
+    await assertDeletable(tx, orgId, { estimateId: id });
     const result = await tx.estimate.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });
@@ -482,9 +575,30 @@ export async function rotateApprovalToken(
 }
 
 /**
- * Clone an accepted or declined estimate into a new draft estimate on the
+ * Whether the estimate currently has a live approval token — collapsed to a
+ * boolean before it ever leaves the server, so the "regenerate link" UI
+ * affordance doesn't require exposing `approvalToken` itself. Returns false
+ * for an estimate outside the org (matches the null-object pattern other
+ * reads use rather than throwing).
+ */
+export async function estimateHasApprovalToken(
+  id: number,
+  orgId: string
+): Promise<boolean> {
+  const row = await prisma.estimate.findFirst({
+    where: { id, orgId },
+    select: { approvalToken: true },
+  });
+  return Boolean(row?.approvalToken);
+}
+
+/**
+ * Clone an approved or declined estimate into a new draft estimate on the
  * same siteMeasure. The new estimate is linked back via `revisedFromId`.
- * Returns null if the source estimate isn't found / not in the org.
+ * Returns null if the source estimate isn't found / not in the org. Throws
+ * ConflictError if the source estimate isn't approved or declined — the
+ * lifecycle guard lives here (not just in the route) so any caller, not only
+ * the HTTP handler, is protected from cloning a draft/sent/viewed estimate.
  */
 export async function reviseEstimate(
   estimateId: number,
@@ -496,6 +610,11 @@ export async function reviseEstimate(
       include: { lineItems: true },
     });
     if (!original) return null;
+    if (!isEstimateLocked(original.status)) {
+      throw new ConflictError(
+        "Only approved or declined estimates can be revised"
+      );
+    }
 
     const org = await tx.organization.update({
       where: { id: orgId },
@@ -589,10 +708,7 @@ export async function markEstimateSent(
     await tx.estimate.updateMany({
       where: { id, orgId },
       data: {
-        status:
-          existing.status === "approved" || existing.status === "declined"
-            ? existing.status
-            : "sent",
+        status: isEstimateLocked(existing.status) ? existing.status : "sent",
         sentAt: new Date(),
         sentToEmail: input.to,
         sentByEmail: input.sentByEmail,
@@ -627,19 +743,20 @@ export interface MarkEstimateViewedInput {
  */
 export async function markEstimateViewed(
   estimateId: number,
+  orgId: string,
   input: MarkEstimateViewedInput
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const q = await tx.estimate.findFirst({
-      where: { id: estimateId },
+      where: { id: estimateId, orgId },
       select: { status: true },
     });
     if (!q) return;
-    if (q.status === "approved" || q.status === "declined") return;
+    if (isEstimateLocked(q.status)) return;
 
     if (q.status === "sent") {
       await tx.estimate.updateMany({
-        where: { id: estimateId, status: "sent" },
+        where: { id: estimateId, orgId, status: "sent" },
         data: { status: "viewed", viewedAt: new Date() },
       });
     }

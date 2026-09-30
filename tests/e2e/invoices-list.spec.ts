@@ -1,5 +1,5 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { loginAsWorkerOrg } from "./fixtures/org";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
   seedEstimateWithLineItem,
@@ -83,10 +83,10 @@ test.describe
     test("Open pill excludes drafts", async () => {
       const page = await ctx.newPage();
       await page.goto("/invoices");
-      // Exact match: the dev-tools button "Open Next.js Dev Tools" also
-      // starts with "Open". Generous timeout for Vercel preview cold starts.
+      // Include the optional count while excluding "Open Next.js Dev Tools".
+      // Allow time for Vercel preview cold starts.
       await page
-        .getByRole("button", { name: "Open", exact: true })
+        .getByRole("button", { name: /^Open(?: \d+)?$/ })
         .click({ timeout: 30_000 });
 
       const search = page.locator('input[placeholder^="Search invoice"]');
@@ -120,3 +120,45 @@ test.describe
       await page.close();
     });
   });
+
+// ── Invoices list — cross-org isolation ─────────────────────────────────────
+//
+// Invoice numbers are per-org sequential (`@@unique([orgId, invoiceNumber])`),
+// so they collide across orgs and can't distinguish tenants on their own —
+// isolation is asserted via the record's global `id` instead, which is
+// exactly what `GET /api/invoices` returns per row.
+
+test.describe("Invoices list — cross-org isolation", () => {
+  test("other org's invoice list excludes this org's invoice", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    await loginAsWorkerOrg(browser, ctx);
+    const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
+    const { estimateId } = await seedEstimateWithLineItem(
+      ctx.request,
+      siteMeasureId
+    );
+    const est = await (
+      await ctx.request.get(`/api/estimates/${estimateId}`)
+    ).json();
+    await ctx.request.patch(`/api/estimates/${estimateId}`, {
+      data: { lineItems: [{ ...est.lineItems[0], qty: 100 }] },
+    });
+    const { invoiceId } = await seedInvoice(ctx.request, estimateId, {
+      amount: 100,
+    });
+    await ctx.close();
+
+    // No pagination params needed: the org filter excludes org A's invoice
+    // from every page of org B's results, not just page 1.
+    const otherCtx = await browser.newContext();
+    await loginAsSecondaryOrg(browser, otherCtx);
+    const list = await otherCtx.request.get("/api/invoices");
+    expect(list.ok()).toBeTruthy();
+    const body = await list.json();
+    const ids = (body.items as Array<{ id: number }>).map((row) => row.id);
+    expect(ids).not.toContain(invoiceId);
+    await otherCtx.close();
+  });
+});

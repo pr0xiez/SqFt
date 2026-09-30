@@ -30,7 +30,8 @@ export const DELETE = apiRoute(
   { minRole: "lead" },
   async ({ orgId, params }) => {
     const { id } = eventIdParams.parse(params);
-    await deleteEvent(id, orgId);
+    const deleted = await deleteEvent(id, orgId);
+    if (!deleted) throw new NotFoundError();
     return null;
   }
 );
