@@ -21,6 +21,7 @@ import { type BrowserContext, expect, test } from "@playwright/test";
 import { loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
+  getInvoicePublicToken,
   seedEstimateWithLineItem,
   seedInvoice,
 } from "./fixtures/seed";
@@ -58,10 +59,7 @@ test.describe
         data: { to: "customer@example.com", subject: "Pay now test" },
       });
 
-      const inv = await (
-        await ctx.request.get(`/api/invoices/${invoiceId}`)
-      ).json();
-      token = inv.publicToken;
+      token = await getInvoicePublicToken(ctx.request, invoiceId);
     });
 
     test.afterAll(async () => {

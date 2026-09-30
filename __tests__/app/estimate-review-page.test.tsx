@@ -26,7 +26,9 @@ const { getEstimateByToken, markEstimateViewed } = await import(
   "@/lib/repositories"
 );
 
-const TOKEN = "tok_0123456789abcdef";
+// Shaped like a real token (`generateToken` in `lib/repositories/estimateRepo.ts`):
+// unpadded base64url of 32 random bytes, always 43 chars.
+const TOKEN = "tok_0123456789abcdefghijklmnopqrstuvwxyzABC";
 
 /** A live estimate row as `getEstimateByToken` returns it. The line item is
  *  priced so live and snapshot renders are visibly different in each test. */

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { fmtDollar } from "@/lib/utils";
 import type { WorkspaceSettingsForm } from "./types";
 
 type Props = {
@@ -60,7 +61,7 @@ export function BrandPreview({ form, licenseNumber }: Props) {
             <div className="flex items-baseline justify-between text-[12px] text-[var(--muted)]">
               <span>Deposit · {Math.round(form.defaultDepositPct * 100)}%</span>
               <span className="font-mono tabular-nums">
-                ${(7145 * form.defaultDepositPct).toFixed(2)}
+                {fmtDollar(7145 * form.defaultDepositPct)}
               </span>
             </div>
           </div>

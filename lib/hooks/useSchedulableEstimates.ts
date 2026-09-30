@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import type { SchedulableCandidate } from "@/lib/schedule/backlog";
 
 /**
@@ -9,15 +10,14 @@ import type { SchedulableCandidate } from "@/lib/schedule/backlog";
  */
 export const SCHEDULABLE_ESTIMATES_KEY = ["estimates", "schedulable"] as const;
 
-async function fetchSchedulableEstimates(): Promise<SchedulableCandidate[]> {
-  const res = await fetch("/api/estimates/schedulable");
-  if (!res.ok) throw new Error("Failed to fetch schedulable estimates");
-  return res.json();
-}
-
 export function useSchedulableEstimates() {
   return useQuery({
     queryKey: SCHEDULABLE_ESTIMATES_KEY,
-    queryFn: fetchSchedulableEstimates,
+    queryFn: () =>
+      apiFetch<SchedulableCandidate[]>(
+        "/api/estimates/schedulable",
+        undefined,
+        "Failed to fetch schedulable estimates"
+      ),
   });
 }

@@ -6,7 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { readApiError } from "@/lib/api/errors";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import type { SortDirection } from "@/lib/sort";
 import type { RoomItem } from "@/lib/utils";
 
@@ -74,24 +74,15 @@ function siteMeasuresQueryString(p: SiteMeasureListParams): string {
   return sp.toString();
 }
 
-async function fetchSiteMeasures(
-  p: SiteMeasureListParams
-): Promise<SiteMeasureListResponse> {
-  const res = await fetch(`/api/site-measures?${siteMeasuresQueryString(p)}`);
-  if (!res.ok) throw new Error("Failed to fetch siteMeasures");
-  return res.json();
-}
-
-async function fetchSiteMeasure(id: number): Promise<SiteMeasure> {
-  const res = await fetch(`/api/site-measures/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch siteMeasure");
-  return res.json();
-}
-
 export function useSiteMeasures(params: SiteMeasureListParams) {
   return useQuery({
     queryKey: ["siteMeasures", params],
-    queryFn: () => fetchSiteMeasures(params),
+    queryFn: () =>
+      apiFetch<SiteMeasureListResponse>(
+        `/api/site-measures?${siteMeasuresQueryString(params)}`,
+        undefined,
+        "Failed to fetch siteMeasures"
+      ),
     placeholderData: keepPreviousData,
   });
 }
@@ -99,7 +90,12 @@ export function useSiteMeasures(params: SiteMeasureListParams) {
 export function useSiteMeasure(id: number) {
   return useQuery({
     queryKey: ["siteMeasures", id],
-    queryFn: () => fetchSiteMeasure(id),
+    queryFn: () =>
+      apiFetch<SiteMeasure>(
+        `/api/site-measures/${id}`,
+        undefined,
+        "Failed to fetch siteMeasure"
+      ),
     enabled: !!id,
   });
 }
@@ -107,15 +103,16 @@ export function useSiteMeasure(id: number) {
 export function useCreateSiteMeasure() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateSiteMeasureInput) => {
-      const res = await fetch("/api/site-measures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error("Failed to create siteMeasure");
-      return res.json() as Promise<SiteMeasure>;
-    },
+    mutationFn: (input: CreateSiteMeasureInput) =>
+      apiFetch<SiteMeasure>(
+        "/api/site-measures",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        "Failed to create siteMeasure"
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["siteMeasures"] });
       qc.invalidateQueries({ queryKey: ["customers"] });
@@ -126,14 +123,16 @@ export function useCreateSiteMeasure() {
 export function useUpdateSiteMeasure(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: UpdateSiteMeasureInput) => {
-      const res = await fetch(`/api/site-measures/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to save siteMeasure");
-    },
+    mutationFn: (data: UpdateSiteMeasureInput) =>
+      apiFetch<SiteMeasure>(
+        `/api/site-measures/${id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        },
+        "Failed to save siteMeasure"
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["siteMeasures"] });
       qc.invalidateQueries({ queryKey: ["siteMeasures", id] });
@@ -145,18 +144,12 @@ export function useUpdateSiteMeasure(id: number) {
 export function useDeleteSiteMeasure() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/site-measures/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const { message } = await readApiError(
-          res,
-          "Failed to delete site measure"
-        );
-        throw new Error(message);
-      }
-    },
+    mutationFn: (id: number) =>
+      apiFetch<void>(
+        `/api/site-measures/${id}`,
+        { method: "DELETE" },
+        "Failed to delete site measure"
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["siteMeasures"] });
       qc.invalidateQueries({ queryKey: ["customers"] });

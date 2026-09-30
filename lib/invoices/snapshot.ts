@@ -1,3 +1,4 @@
+import type { Prisma } from "@/app/generated/prisma/client";
 import { prorateInvoice } from "./compute";
 import type {
   InvoiceSnapshot,
@@ -38,3 +39,10 @@ export function snapshotInvoice(
     },
   };
 }
+
+// Compile-time proof that `InvoiceSnapshot` is JSON-safe: if a future field
+// stops being assignable to `Prisma.InputJsonValue` (e.g. a `Date` or a class
+// instance sneaks in), this line fails to compile — the whole point of
+// dropping the `as never` cast at the persistence call site.
+type AssertJsonSafe<T extends Prisma.InputJsonValue> = T;
+type _InvoiceSnapshotIsJsonSafe = AssertJsonSafe<InvoiceSnapshot>;

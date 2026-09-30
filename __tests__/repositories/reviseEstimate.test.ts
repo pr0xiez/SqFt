@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConflictError } from "@/lib/api/errors";
 import { reviseEstimate } from "@/lib/repositories/estimateRepo";
 
 vi.mock("@/lib/prisma", () => {
@@ -43,6 +44,7 @@ describe("reviseEstimate", () => {
       orgId: "org_1",
       siteMeasureId: 42,
       estimateNumber: 5001,
+      status: "approved",
       markupPct: 35,
       depositPct: 0.5,
       items: [{ id: "r1", type: "room", name: "Kitchen", area: 200 }],
@@ -90,6 +92,56 @@ describe("reviseEstimate", () => {
         }),
       })
     );
+  });
+
+  it("clones a declined estimate too", async () => {
+    tx.estimate.findFirst.mockResolvedValueOnce({
+      id: 8,
+      orgId: "org_1",
+      siteMeasureId: 42,
+      estimateNumber: 5003,
+      status: "declined",
+      markupPct: 35,
+      depositPct: 0.5,
+      lineItems: [],
+    });
+    tx.estimate.findFirst.mockResolvedValueOnce({
+      id: 100,
+      markupPct: 35,
+      depositPct: 0.5,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
+    tx.organization.update.mockResolvedValue({ nextEstimateNumber: 5004 });
+    tx.estimate.create.mockResolvedValue({ id: 100 });
+
+    const result = await reviseEstimate(8, "org_1");
+
+    expect(result).toEqual({ id: 100 });
+    expect(tx.estimate.create).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    "draft",
+    "sent",
+    "viewed",
+  ] as const)("rejects revising a %s-status estimate with ConflictError, even called directly (bypassing the route)", async (status) => {
+    tx.estimate.findFirst.mockResolvedValueOnce({
+      id: 9,
+      orgId: "org_1",
+      siteMeasureId: 42,
+      estimateNumber: 5005,
+      status,
+      markupPct: 35,
+      depositPct: 0.5,
+      lineItems: [],
+    });
+
+    await expect(reviseEstimate(9, "org_1")).rejects.toBeInstanceOf(
+      ConflictError
+    );
+    expect(tx.organization.update).not.toHaveBeenCalled();
+    expect(tx.estimate.create).not.toHaveBeenCalled();
   });
 
   it("returns null when the original estimate is missing or wrong org", async () => {
