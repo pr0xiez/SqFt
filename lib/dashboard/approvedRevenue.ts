@@ -11,46 +11,9 @@
 
 import { computeEstimateView } from "@/lib/estimateView/compute";
 import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
-import { prisma } from "@/lib/prisma";
+import { listApprovedEstimatesForRevenue } from "@/lib/repositories/estimateRepo";
 
-/** Prisma `select` covering everything `computeEstimateView` needs, plus
- *  `approvedAt` for callers that bucket by week/day within the range. */
-export const approvedRevenueSelect = {
-  markupPct: true,
-  depositPct: true,
-  approvedAt: true,
-  lineItems: {
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      rate: true,
-      qtyMode: true,
-      qty: true,
-      wastePct: true,
-      unitLabel: true,
-      linkedRoomIds: true,
-      sortOrder: true,
-    },
-  },
-  siteMeasure: {
-    select: {
-      items: {
-        select: {
-          id: true,
-          type: true,
-          name: true,
-          shape: true,
-          w: true,
-          l: true,
-          segments: true,
-          note: true,
-          text: true,
-        },
-      },
-    },
-  },
-} as const;
+export { approvedRevenueSelect } from "@/lib/repositories/approvedRevenueSelect";
 
 export interface ApprovedRevenueRow {
   approvedAt: Date | null;
@@ -64,16 +27,7 @@ export async function getApprovedEstimateRevenueRows(
   orgId: string,
   range: { gte: Date; lte?: Date }
 ): Promise<ApprovedRevenueRow[]> {
-  const rows = await prisma.estimate.findMany({
-    where: {
-      orgId,
-      status: "approved",
-      approvedAt: range.lte
-        ? { gte: range.gte, lte: range.lte }
-        : { gte: range.gte },
-    },
-    select: approvedRevenueSelect,
-  });
+  const rows = await listApprovedEstimatesForRevenue(orgId, range);
 
   return rows.map((q) => ({
     approvedAt: q.approvedAt,

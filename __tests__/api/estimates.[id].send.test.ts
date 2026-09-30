@@ -3,6 +3,11 @@ import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
   getEstimateForSend: vi.fn(),
+  getOrgSendInfo: vi.fn().mockResolvedValue({
+    name: "Acme Flooring",
+    phone: "555-1212",
+    logo: null,
+  }),
   rotateApprovalToken: vi.fn(),
   markEstimateSent: vi.fn(),
   writeEstimateEvent: vi.fn(),

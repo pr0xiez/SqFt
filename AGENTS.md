@@ -120,6 +120,8 @@ with the file that owns it.
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
   `validateUserIds`, and `applyUserPatch` — the shared role/profile/archived
   orchestration used by both the self-org and super-admin PATCH routes).
+  `organizationRepo.ts` owns organization settings, Stripe fields, and gated
+  platform-wide admin reads. `approvedRevenueSelect.ts` owns the shared revenue projection.
 - `lib/users/schema.ts` — the shared `userCreateSchema` / `userPatchSchema`
   Zod schemas, used by both the self-org (`app/api/users/`) and super-admin
   (`app/api/admin/orgs/[orgId]/users/`) user create/patch routes.
@@ -130,6 +132,9 @@ with the file that owns it.
   surfaces the server's real `{code, message}` instead of a fixed generic
   string. New hooks should call it rather than hand-rolling the fetch dance.
   Shared dialog DOM hooks (`useFocusTrap`, `useScrollLock`) live here too.
+- `lib/env.ts` — validated server configuration for DB, email, Stripe, public URLs,
+  address lookup, and the admin allowlist. Blank optional values retain disabled
+  feature behavior; Auth.js reads `AUTH_SECRET` itself.
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
   `generateToken()` output) and `trackPublicView`, the shared status-gated

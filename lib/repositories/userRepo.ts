@@ -76,6 +76,12 @@ export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }
 
+/** Platform-wide user count for the super-admin dashboard. Not org-scoped —
+ *  the caller must already be gated by `isSuperAdmin`. */
+export function countUsersForAdmin(): Promise<number> {
+  return prisma.user.count();
+}
+
 export type AuthState = { orgId: string; role: string; archived: boolean };
 
 export function findAuthState(id: string): Promise<AuthState | null> {

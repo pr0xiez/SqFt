@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { Resend } from "resend";
+import { getEnv } from "@/lib/env";
 import { logError } from "@/lib/logger";
 import { recordEmail } from "./test-helpers";
 
@@ -16,8 +17,6 @@ export interface SendEmailResult {
   error?: string;
 }
 
-const FROM = process.env.EMAIL_FROM ?? "SqFt Estimates <estimates@sqft.dev>";
-
 // RFC 2606 reserved-for-testing domains. Never resolve to real mailboxes,
 // so e2e tests can use them to exercise the send flow without burning Resend
 // quota on a real send.
@@ -33,7 +32,7 @@ function isTestRecipient(to: string | string[]): boolean {
 
 let _client: Resend | null = null;
 function getClient(): Resend | null {
-  const key = process.env.RESEND_API_KEY;
+  const key = getEnv().RESEND_API_KEY;
   if (!key) return null;
   if (!_client) _client = new Resend(key);
   return _client;
@@ -48,6 +47,7 @@ export async function sendEmail(
   input: SendEmailInput
 ): Promise<SendEmailResult> {
   const client = getClient();
+  const FROM = getEnv().EMAIL_FROM;
   if (!client || process.env.NODE_ENV === "test" || isTestRecipient(input.to)) {
     recordEmail({
       to: input.to,

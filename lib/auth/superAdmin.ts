@@ -1,3 +1,5 @@
+import { getEnv } from "@/lib/env";
+
 /**
  * Super-admin allowlist gate.
  *
@@ -9,7 +11,7 @@
  */
 export function isSuperAdmin(email: string | null | undefined): boolean {
   if (!email) return false;
-  const raw = process.env.SUPER_ADMIN_EMAILS ?? "";
+  const raw = getEnv().SUPER_ADMIN_EMAILS;
   const target = email.toLowerCase();
   for (const entry of raw.split(",")) {
     const trimmed = entry.trim().toLowerCase();

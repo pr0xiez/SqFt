@@ -1,13 +1,13 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/app/generated/prisma/client";
+import { getEnv } from "@/lib/env";
 
 // Prisma v7 uses driver adapters instead of a URL in PrismaClient constructor.
 // The DATABASE_URL is passed to the PrismaPg adapter.
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("DATABASE_URL is not set");
-  const adapter = new PrismaPg({ connectionString });
+  const { DATABASE_URL } = getEnv();
+  const adapter = new PrismaPg({ connectionString: DATABASE_URL });
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],

@@ -6,9 +6,9 @@ import {
 import { isEstimateLocked } from "@/lib/estimateStatus";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import { logError } from "@/lib/logger";
-import { prisma } from "@/lib/prisma";
 import {
   getEstimateForSend,
+  getOrgSendInfo,
   markEstimateSent,
   rotateApprovalToken,
   updateCustomerEmail,
@@ -47,10 +47,7 @@ function buildEstimateSendable(customerEmailResult: {
     publicPath: (token) => `/estimate-review/${token}`,
 
     async prepare(estimate, publicUrl, req) {
-      const org = await prisma.organization.findUniqueOrThrow({
-        where: { id: estimate.orgId },
-        select: { name: true, phone: true, logo: true },
-      });
+      const org = await getOrgSendInfo(estimate.orgId);
       // The emailed total is the live Estimate View — single source of truth.
       const total =
         estimate.lineItems.length === 0

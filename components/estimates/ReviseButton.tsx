@@ -1,38 +1,30 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { readApiError } from "@/lib/api/errors";
+import { useReviseEstimate } from "@/lib/hooks/useEstimates";
 
 export function ReviseButton({ estimateId }: { estimateId: number }) {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
+  const revise = useReviseEstimate();
+
   async function onClick() {
-    if (pending) return;
-    setPending(true);
+    if (revise.isPending || revise.isSuccess) return;
     try {
-      const res = await fetch(`/api/estimates/${estimateId}/revise`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const { message } = await readApiError(res, `Failed (${res.status})`);
-        throw new Error(message);
-      }
-      const body = (await res.json()) as { id: number };
-      router.push(`/estimates/${body.id}`);
+      const { id } = await revise.mutateAsync(estimateId);
+      router.push(`/estimates/${id}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to revise");
-      setPending(false);
     }
   }
+
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={pending}
+      disabled={revise.isPending || revise.isSuccess}
       className="py-2.5 px-4 bg-[var(--accent)] text-white border-0 rounded-md text-[13px] font-[600] inline-flex items-center gap-1.5 disabled:opacity-60"
     >
-      {pending ? "Revising…" : "Revise"}
+      {revise.isPending ? "Revising…" : "Revise"}
     </button>
   );
 }
