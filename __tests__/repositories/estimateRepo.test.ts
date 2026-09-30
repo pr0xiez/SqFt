@@ -156,6 +156,11 @@ describe("listEstimates (paginated)", () => {
       select: Record<string, unknown>;
     };
     expect(call.select).not.toHaveProperty("approvalToken");
+    expect(call.select).not.toHaveProperty("lineItems");
+    expect(call.select.siteMeasure).toHaveProperty("select");
+    expect(
+      (call.select.siteMeasure as { select: object }).select
+    ).not.toHaveProperty("items");
   });
 
   it("filters by status when not 'all'", async () => {

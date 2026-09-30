@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { approveEstimateByToken } from "@/lib/repositories/estimateApprovalRepo";
+import {
+  approveEstimateByToken,
+  getEstimateApproval,
+} from "@/lib/repositories/estimateApprovalRepo";
 
 async function makeSentEstimate() {
   const org = await prisma.organization.create({
@@ -198,3 +201,40 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)(
     });
   }
 );
+
+describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("getEstimateApproval", () => {
+  it("returns the approval when scoped to the owning org", async () => {
+    const { orgId, estimateId } = await makeSentEstimate();
+    const res = await approveEstimateByToken({
+      estimateId,
+      ip: "1.2.3.4",
+      userAgent: "jest",
+      snapshot: { totals: { total: 100 } },
+    });
+    expect(res).toBe("ok");
+
+    const approval = await getEstimateApproval(estimateId, orgId);
+    expect(approval?.estimateId).toBe(estimateId);
+    expect(approval?.ip).toBe("1.2.3.4");
+  });
+
+  it("returns null when scoped to a different org (cross-tenant read blocked)", async () => {
+    const { estimateId } = await makeSentEstimate();
+    await approveEstimateByToken({
+      estimateId,
+      ip: "1.2.3.4",
+      userAgent: "jest",
+      snapshot: {},
+    });
+
+    const otherOrg = await prisma.organization.create({
+      data: {
+        name: "Other Co",
+        slug: `other-${Date.now()}-${Math.round(performance.now())}`,
+      },
+    });
+
+    const approval = await getEstimateApproval(estimateId, otherOrg.id);
+    expect(approval).toBeNull();
+  });
+});

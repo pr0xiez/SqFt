@@ -188,38 +188,13 @@ const ESTIMATE_LIST_SELECT = {
           customer: { select: { id: true, name: true } },
         },
       },
-      items: { orderBy: { sortOrder: "asc" } },
     },
   },
-  lineItems: { orderBy: { sortOrder: "asc" } },
   _count: { select: { lineItems: true } },
 } satisfies Prisma.EstimateSelect;
 
 export type EstimateWithSiteMeasureSummary = Prisma.EstimateGetPayload<{
   select: typeof ESTIMATE_LIST_SELECT;
-}>;
-
-const ESTIMATE_SITE_MEASURE_SUMMARY_NARROW_SELECT = {
-  ...ESTIMATE_SCALAR_SELECT,
-  siteMeasure: {
-    select: {
-      id: true,
-      siteMeasureNumber: true,
-      location: {
-        select: {
-          id: true,
-          address: true,
-          customer: { select: { id: true, name: true } },
-        },
-      },
-    },
-  },
-  _count: { select: { lineItems: true } },
-} satisfies Prisma.EstimateSelect;
-
-/** Narrower payload used by listEstimatesForSiteMeasure — no lineItems or siteMeasure.items needed there. */
-export type EstimateWithSiteMeasureSummaryNarrow = Prisma.EstimateGetPayload<{
-  select: typeof ESTIMATE_SITE_MEASURE_SUMMARY_NARROW_SELECT;
 }>;
 
 export type EstimateWithDetails = Prisma.EstimateGetPayload<{
@@ -419,11 +394,11 @@ export async function listSchedulableEstimates(
 export async function listEstimatesForSiteMeasure(
   siteMeasureId: number,
   orgId: string
-): Promise<EstimateWithSiteMeasureSummaryNarrow[]> {
+): Promise<EstimateWithSiteMeasureSummary[]> {
   return prisma.estimate.findMany({
     where: { orgId, siteMeasureId },
     orderBy: { createdAt: "desc" },
-    select: ESTIMATE_SITE_MEASURE_SUMMARY_NARROW_SELECT,
+    select: ESTIMATE_LIST_SELECT,
   });
 }
 

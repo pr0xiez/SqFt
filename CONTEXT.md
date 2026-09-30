@@ -135,7 +135,7 @@ The fully-computed read model of an estimate: per-line `effectiveQty` and
 Single source of truth for estimate math. Produced by `computeEstimateView` in
 `lib/estimateView/` (`compute.ts`). Every caller — the editor
 (`LineItemSection`), the customer-facing public page (`PublicEstimateView`),
-the send-email route, the estimate list endpoint, and the approval snapshot —
+the send-email route and the approval snapshot —
 derives its numbers from this one function so the labeled breakdown can never
 diverge across surfaces.
 
@@ -266,6 +266,13 @@ Sibling superseding uses a guarded UPDATE RETURNING in
 `lib/repositories/estimateApprovalRepo.ts`; only changed rows receive events.
 Missing client metadata becomes null in events and `unknown` only in the
 non-null approval columns. Historical event rows may still contain `unknown`.
+
+Estimate lists read the denormalized `Estimate.total` written by
+`syncEstimateTotal` (`lib/repositories/estimateRepo.ts`); they do not load
+line items or measured-room geometry to recompute each row. Draft text and
+template unit labels remain round-trippable through `lineItemSchema`
+(`lib/estimates/schema.ts`), including blank names while editing. Numeric
+rate/quantity must be finite and nonnegative; waste is between 0 and 100.
 
 An approved or declined estimate can be **revised**: `reviseEstimate`
 (`lib/repositories/estimateRepo.ts`) clones it (line items, markup/deposit
