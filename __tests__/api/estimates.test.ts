@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/estimates", () => {
-  it("401 for crew role", async () => {
+  it("403 for crew role", async () => {
     mockRequireSession.mockResolvedValue({
       user: { id: "u1", orgId: "org1", role: "crew" },
       // biome-ignore lint/suspicious/noExplicitAny: test stub session
@@ -47,7 +47,7 @@ describe("GET /api/estimates", () => {
       makeRequest("GET", "http://x/api/estimates"),
       noParams
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("passes parsed params and returns the paginated envelope", async () => {

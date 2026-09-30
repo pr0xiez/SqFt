@@ -18,7 +18,6 @@ import {
   ApiError,
   ForbiddenError,
   toErrorEnvelope,
-  UnauthorizedError,
   ValidationError,
 } from "@/lib/api/errors";
 import { hasMinRole } from "@/lib/auth/permissions";
@@ -92,7 +91,7 @@ export function apiRoute<TInput, TParams>(
     } else if (options.minRole) {
       const session = await requireSession();
       if (!hasMinRole(session.user.role, options.minRole)) {
-        throw new UnauthorizedError();
+        throw new ForbiddenError();
       }
       orgId = session.user.orgId;
     } else {

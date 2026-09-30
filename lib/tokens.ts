@@ -1,4 +1,6 @@
 import { headers } from "next/headers";
+import { after } from "next/server";
+import { logError } from "@/lib/logger";
 
 /**
  * Public-review token shape guard. Tokens are `randomBytes(32).toString("base64url")`
@@ -25,16 +27,28 @@ async function readClientMeta(): Promise<ClientMeta> {
 
 /**
  * Shared spine for public-review-page view tracking: when `shouldTrack` is
- * true, pulls the client meta from request headers and fires `markViewed`
- * (deliberately not awaited — the page render must not block on the write).
+ * true, reads request metadata during render and schedules `markViewed` with
+ * Next's after() so the serverless response lifecycle keeps the write alive.
+ * Failures are logged without preventing the customer from reading the page.
  * Each public page passes its own model-specific `markEstimateViewed` /
  * `markInvoiceViewed` call plus its own status gate.
  */
 export async function trackPublicView(
   shouldTrack: boolean,
-  markViewed: (meta: ClientMeta) => Promise<void> | void
+  markViewed: (meta: ClientMeta) => Promise<void> | void,
+  document: { type: "estimate" | "invoice"; id: number }
 ): Promise<void> {
   if (!shouldTrack) return;
   const meta = await readClientMeta();
-  void markViewed(meta);
+  after(async () => {
+    try {
+      await markViewed(meta);
+    } catch (err) {
+      logError({
+        path: `/${document.type}-review`,
+        errorMessage: `mark-viewed write failed for ${document.type} ${document.id}`,
+        err,
+      });
+    }
+  });
 }

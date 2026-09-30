@@ -37,8 +37,10 @@ export default async function PublicInvoicePage({
   // open — or pay — a cancelled invoice from a stale email.
   if (invoice.status === "void") notFound();
 
-  await trackPublicView(invoice.status === "sent", (meta) =>
-    markInvoiceViewed(invoice.id, meta)
+  await trackPublicView(
+    invoice.status === "sent",
+    (meta) => markInvoiceViewed(invoice.id, meta),
+    { type: "invoice", id: invoice.id }
   );
 
   // Snapshots are frozen forever, even across later schema changes — validate

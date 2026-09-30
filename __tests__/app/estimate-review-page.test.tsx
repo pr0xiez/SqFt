@@ -10,6 +10,10 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "user-agent": "vitest" }),
 }));
 
+vi.mock("next/server", () => ({
+  after: vi.fn((run: () => Promise<void>) => void run()),
+}));
+
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -271,5 +275,31 @@ describe("PublicEstimatePage — pre-approval estimates still render live", () =
 
     expect(screen.getAllByText("$2000.00").length).toBeGreaterThan(0);
     expect(markEstimateViewed).toHaveBeenCalledWith(42, expect.any(Object));
+  });
+
+  it("still renders when markEstimateViewed rejects, and logs the failure instead of dropping it", async () => {
+    const errorSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    vi.mocked(markEstimateViewed).mockRejectedValueOnce(
+      new Error("pool exhausted")
+    );
+    vi.mocked(getEstimateByToken).mockResolvedValue(liveEstimate() as never);
+
+    await renderPage();
+    // Let the fire-and-forget rejection's microtask settle.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.getAllByText("$2000.00").length).toBeGreaterThan(0);
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("mark-viewed write failed for estimate 42")
+    );
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
   });
 });

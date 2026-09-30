@@ -133,7 +133,11 @@ with the file that owns it.
 - `lib/email/` — React-Email templates + Resend senders.
 - `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
   `generateToken()` output) and `trackPublicView`, the shared status-gated
-  view-tracking spine used by `estimate-review`/`invoice-review`.
+  view-tracking spine used by `estimate-review`/`invoice-review`; request
+  metadata is read during render, and writes finish via Next's `after()` with
+  failure logging. Do not use an untracked fire-and-forget promise here.
+- `next.config.ts` — global security headers/CSP; preview-only Vercel toolbar
+  allowances and `no-referrer` on public bearer-token review pages.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,
@@ -153,6 +157,8 @@ with the file that owns it.
   CI and avoid known parallel-contention flakiness.
 - `npm run migrate:dev` — apply migrations (`prisma migrate deploy`);
   `npm run seed:dev` — seed the dev DB.
+- `scripts/ignore-app-deploy.sh` — shared Vercel/CI app-change detection;
+  checks both merge parents so a no-op merge from main cannot hide PR changes.
 
 ## Gotchas
 

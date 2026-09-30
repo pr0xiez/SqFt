@@ -515,7 +515,12 @@ carries the full list of Zod issues.
 
 Standard codes:
 
-- `UNAUTHORIZED` (401) — no session, or session has no org.
+- `UNAUTHORIZED` (401) — no session; org-scoped routes using `getOrgId` also
+  reject a missing org. The auth proxy may return its own 401 body before the
+  route handler runs.
+- `FORBIDDEN` (403) — session exists but the caller doesn't meet the route's
+  `minRole` / `superAdmin` gate. Distinct from `UNAUTHORIZED`: the caller is
+  authenticated, just not permitted.
 - `VALIDATION_FAILED` (400) — request body failed Zod parse. `details` holds
   the issues array.
 - `NOT_FOUND` (404) — resource missing, or not visible to the caller's org.

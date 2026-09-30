@@ -71,16 +71,16 @@ describe("GET /api/users", () => {
     expect(res.status).toBe(401);
   });
 
-  it("401 for non-admin (lead)", async () => {
+  it("403 for non-admin (lead)", async () => {
     asRole("lead");
     const res = await GET(makeRequest("GET"), noParams);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
-  it("401 for non-admin (crew)", async () => {
+  it("403 for non-admin (crew)", async () => {
     asRole("crew");
     const res = await GET(makeRequest("GET"), noParams);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("returns users in the org for admin", async () => {
@@ -135,7 +135,7 @@ describe("POST /api/users", () => {
     return req as any as NextRequest;
   }
 
-  it("401 for non-admin", async () => {
+  it("403 for non-admin", async () => {
     asRole("lead");
     const res = await POST(
       makePost({
@@ -146,7 +146,7 @@ describe("POST /api/users", () => {
       }),
       noParams
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("201 creates a user; lowercases email; password is hashed and not returned", async () => {
