@@ -3,6 +3,7 @@ import {
   type PublicInvoice,
   PublicInvoiceView,
 } from "@/components/invoices/PublicInvoiceView";
+import { invoiceOutstanding, paymentsPaidTotal } from "@/lib/invoices/compute";
 import { parseInvoiceSnapshot } from "@/lib/invoices/parseSnapshot";
 import { round2 } from "@/lib/money";
 import {
@@ -50,8 +51,8 @@ export default async function PublicInvoicePage({
   if (!snap) notFound();
   // Balance due reflects the live payment ledger, not the frozen snapshot —
   // a partially-paid invoice must not show the full amount as still owed.
-  const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));
-  const balanceDue = round2(invoice.amount - paid);
+  const paid = round2(paymentsPaidTotal(invoice.payments));
+  const balanceDue = invoiceOutstanding(invoice);
 
   // Check whether this org has an active Stripe Connect account so we can
   // surface the Pay now button. We already know the invoice isn't void.

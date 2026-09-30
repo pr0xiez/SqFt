@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   computeEstimateBilling,
+  invoiceOutstanding,
+  isInvoiceOverdue,
   isOverbill,
   OVERBILL_EPSILON,
+  paymentsPaidTotal,
   prorateInvoice,
 } from "@/lib/invoices/compute";
 import type { ProrationSource } from "@/lib/invoices/types";
@@ -244,5 +247,78 @@ describe("isOverbill", () => {
     expect(isOverbill(4000 + OVERBILL_EPSILON + 0.001, 4000)).toBe(true);
     expect(isOverbill(9999, 4000)).toBe(true);
     expect(isOverbill(4000.01, 4000)).toBe(true);
+  });
+});
+
+describe("paymentsPaidTotal", () => {
+  it("sums payment amounts", () => {
+    expect(paymentsPaidTotal([{ amount: 100 }, { amount: 50.5 }])).toBe(150.5);
+  });
+
+  it("returns 0 for no payments", () => {
+    expect(paymentsPaidTotal([])).toBe(0);
+  });
+});
+
+describe("invoiceOutstanding", () => {
+  it("rounds the final balance once, including fractional-cent ledger amounts", () => {
+    expect(
+      invoiceOutstanding({ amount: 1.5, payments: [{ amount: 0.495 }] })
+    ).toBe(1.01);
+  });
+
+  it("subtracts paid total from the invoice amount, rounded to cents", () => {
+    expect(
+      invoiceOutstanding({
+        amount: 1000,
+        payments: [{ amount: 250 }, { amount: 100 }],
+      })
+    ).toBe(650);
+  });
+
+  it("equals the full amount when there are no payments", () => {
+    expect(invoiceOutstanding({ amount: 1000, payments: [] })).toBe(1000);
+  });
+});
+
+describe("isInvoiceOverdue", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    "UTC",
+    "America/New_York",
+    "America/Los_Angeles",
+    "Europe/Berlin",
+  ])("uses the stored UTC calendar date in %s", (timezone) => {
+    vi.stubEnv("TZ", timezone);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-16T23:59:59.999Z"));
+    for (const status of ["sent", "viewed", "partial"]) {
+      expect(isInvoiceOverdue({ status, dueDate: "2026-08-16" })).toBe(false);
+      expect(
+        isInvoiceOverdue({ status, dueDate: new Date("2026-08-16T00:00:00Z") })
+      ).toBe(false);
+    }
+    vi.setSystemTime(new Date("2026-08-17T00:00:00Z"));
+    for (const status of ["sent", "viewed", "partial"]) {
+      expect(
+        isInvoiceOverdue({ status, dueDate: "2026-08-16T00:00:00.000Z" })
+      ).toBe(true);
+    }
+  });
+
+  it("excludes closed invoices and missing or invalid due dates", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-17T12:00:00Z"));
+    for (const status of ["draft", "paid", "void"]) {
+      expect(isInvoiceOverdue({ status, dueDate: "2000-01-01" })).toBe(false);
+    }
+    expect(isInvoiceOverdue({ status: "sent", dueDate: null })).toBe(false);
+    expect(isInvoiceOverdue({ status: "sent", dueDate: "invalid" })).toBe(
+      false
+    );
   });
 });

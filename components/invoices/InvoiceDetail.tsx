@@ -12,11 +12,8 @@ import {
   useInvoice,
   useInvoicePublicToken,
 } from "@/lib/hooks/useInvoices";
+import { invoiceOutstanding, paymentsPaidTotal } from "@/lib/invoices";
 import { fmtDollar } from "@/lib/utils";
-
-function paidTotal(inv: Invoice): number {
-  return inv.payments.reduce((s, p) => s + p.amount, 0);
-}
 
 function fmtDate(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("en-US") : "—";
@@ -49,8 +46,8 @@ export function InvoiceDetail({
       </p>
     );
 
-  const paid = paidTotal(inv);
-  const outstanding = Math.round((inv.amount - paid) * 100) / 100;
+  const paid = paymentsPaidTotal(inv.payments);
+  const outstanding = invoiceOutstanding(inv);
   const lines = inv.snapshot?.lines ?? [];
   const isVoid = inv.status === "void";
   const isDraft = inv.status === "draft";

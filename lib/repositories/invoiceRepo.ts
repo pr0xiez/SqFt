@@ -8,8 +8,10 @@ import {
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
 import {
   computeEstimateBilling,
+  invoiceOutstanding,
   isOverbill,
   OVERBILL_EPSILON,
+  paymentsPaidTotal,
 } from "@/lib/invoices/compute";
 import {
   type InvoiceStatusFilter,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/invoices/statusFilter";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
+import { round2 } from "@/lib/money";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { buildSearchWhere, computeFacets } from "@/lib/repositories/search";
@@ -24,10 +27,6 @@ import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
-}
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 /** Hydrated estimate shape the proration source needs (matches fromPrismaEstimate input). */
@@ -136,7 +135,7 @@ function toInvoiceLike(inv: {
   return {
     amount: inv.amount,
     status: inv.status,
-    paidAmount: inv.payments.reduce((s, p) => s + p.amount, 0),
+    paidAmount: paymentsPaidTotal(inv.payments),
   };
 }
 
@@ -525,8 +524,8 @@ export async function recordPayment(
     if (!inv) return null;
     if (inv.status === "void") throw new InvoiceLockedError();
 
-    const priorPaid = inv.payments.reduce((s, p) => s + p.amount, 0);
-    const outstanding = round2(inv.amount - priorPaid);
+    const priorPaid = paymentsPaidTotal(inv.payments);
+    const outstanding = invoiceOutstanding(inv);
     if (input.amount > outstanding + OVERBILL_EPSILON) {
       throw new InvoiceOverpayError(outstanding);
     }
@@ -544,7 +543,7 @@ export async function recordPayment(
       },
     });
 
-    const paid = inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+    const paid = paymentsPaidTotal(inv.payments) + input.amount;
     const status = nextInvoiceStatus({
       current: inv.status,
       amount: inv.amount,
@@ -655,7 +654,7 @@ export async function recordStripePayment(
       // A captured charge is real money. Record it even when the invoice was
       // voided or already covered — dropping it would leave an untracked charge
       // with no ledger row and no signal to refund. Surface the anomaly instead.
-      const priorPaid = inv.payments.reduce((s, p) => s + p.amount, 0);
+      const priorPaid = paymentsPaidTotal(inv.payments);
       const cls = classifyStripeCharge({
         status: inv.status,
         amount: inv.amount,
@@ -930,9 +929,7 @@ export async function listInvoices(
     invoiceNumber: inv.invoiceNumber,
     status: inv.status,
     amount: inv.amount,
-    balanceDue: round2(
-      inv.amount - inv.payments.reduce((s, p) => s + p.amount, 0)
-    ),
+    balanceDue: invoiceOutstanding(inv),
     dueDate: inv.dueDate,
     sentAt: inv.sentAt,
     estimateId: inv.estimateId,
