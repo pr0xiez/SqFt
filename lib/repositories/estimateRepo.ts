@@ -744,11 +744,12 @@ export interface MarkEstimateViewedInput {
  */
 export async function markEstimateViewed(
   estimateId: number,
+  orgId: string,
   input: MarkEstimateViewedInput
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const q = await tx.estimate.findFirst({
-      where: { id: estimateId },
+      where: { id: estimateId, orgId },
       select: { status: true },
     });
     if (!q) return;
@@ -756,7 +757,7 @@ export async function markEstimateViewed(
 
     if (q.status === "sent") {
       await tx.estimate.updateMany({
-        where: { id: estimateId, status: "sent" },
+        where: { id: estimateId, orgId, status: "sent" },
         data: { status: "viewed", viewedAt: new Date() },
       });
     }

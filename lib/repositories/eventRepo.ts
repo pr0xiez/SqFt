@@ -3,6 +3,7 @@ import { ValidationError } from "@/lib/api/errors";
 import { resolveEventAddress } from "@/lib/events/serialize";
 import { prisma } from "@/lib/prisma";
 import { timeToMinutes } from "@/lib/utils";
+import { validateUserIds } from "./userRepo";
 
 export type EventWithRelations = Prisma.EventGetPayload<{
   include: {
@@ -151,6 +152,21 @@ async function assertFksInOrg(
   }
 }
 
+/**
+ * Assignee ids are also global ids (User.id), so — same hazard as
+ * assertFksInOrg above — an unchecked assigneeIds write would let one org
+ * connect (and then read, via listEvents'/includeRelations' assignees
+ * include) another org's User. Skipped when no ids are being written.
+ */
+async function assertAssigneesInOrg(
+  orgId: string,
+  assigneeIds: string[] | undefined
+) {
+  if (!assigneeIds || assigneeIds.length === 0) return;
+  const ok = await validateUserIds(orgId, assigneeIds);
+  if (!ok) throw new ValidationError("Invalid assignee");
+}
+
 export type EventCreateInput = Omit<
   Prisma.EventUncheckedCreateInput,
   "orgId" | "assignees"
@@ -171,6 +187,7 @@ export async function createEvent(orgId: string, data: EventCreateInput) {
     data.endTime
   );
   await assertFksInOrg(orgId, data.customerId, data.estimateId);
+  await assertAssigneesInOrg(orgId, data.assigneeIds);
   const { assigneeIds, ...rest } = data;
   return prisma.event.create({
     data: {
@@ -224,6 +241,7 @@ export async function updateEvent(
     scalarOr<number | null>(data.customerId, null),
     scalarOr<number | null>(data.estimateId, null)
   );
+  await assertAssigneesInOrg(orgId, data.assigneeIds);
 
   const { assigneeIds, ...rest } = data;
 

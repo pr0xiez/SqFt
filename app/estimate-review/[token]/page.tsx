@@ -36,7 +36,7 @@ export default async function PublicEstimatePage({ params }: Props) {
 
   await trackPublicView(
     !isEstimateLocked(estimate.status),
-    (meta) => markEstimateViewed(estimate.id, meta),
+    (meta) => markEstimateViewed(estimate.id, estimate.orgId, meta),
     { type: "estimate", id: estimate.id }
   );
 

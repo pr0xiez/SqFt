@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ValidationError } from "@/lib/api/errors";
 
+const userCount = vi.fn();
 const eventFindMany = vi.fn();
 const eventFindFirst = vi.fn();
 const eventCreate = vi.fn();
@@ -18,6 +19,7 @@ vi.mock("@/lib/prisma", () => ({
       update: eventUpdate,
       deleteMany: eventDeleteMany,
     },
+    user: { count: userCount },
     customer: { findFirst: customerFindFirst },
     estimate: { findFirst: estimateFindFirst },
   },
@@ -29,6 +31,7 @@ const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
 
 beforeEach(() => {
   vi.clearAllMocks();
+  userCount.mockImplementation(async ({ where }) => where.id.in.length);
   // In-org FKs resolve by default; org-validation tests override with null.
   customerFindFirst.mockResolvedValue({ id: 1 });
   estimateFindFirst.mockResolvedValue({ id: 1 });
@@ -380,5 +383,44 @@ describe("deleteEvent", () => {
   it("returns true when something was deleted", async () => {
     eventDeleteMany.mockResolvedValue({ count: 1 });
     expect(await deleteEvent(1, "org1")).toBe(true);
+  });
+});
+
+describe("assignee write boundaries", () => {
+  it("rejects a partially valid assignee batch before creating anything", async () => {
+    userCount.mockResolvedValueOnce(1);
+    await expect(
+      createEvent("org1", {
+        type: "visit",
+        title: "Measure",
+        date: new Date(),
+        startTime: "09:00",
+        endTime: "10:00",
+        assigneeIds: ["valid", "foreign-or-archived"],
+      })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(eventCreate).not.toHaveBeenCalled();
+    expect(userCount).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["valid", "foreign-or-archived"] },
+        orgId: "org1",
+        archived: false,
+      },
+    });
+  });
+  it("rejects invalid new assignees on an existing event", async () => {
+    eventFindFirst.mockResolvedValue(storedEvent());
+    userCount.mockResolvedValueOnce(0);
+    await expect(
+      updateEvent(1, "org1", { assigneeIds: ["archived"] })
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(eventUpdate).not.toHaveBeenCalled();
+  });
+  it("returns not found before examining new assignees on a foreign event", async () => {
+    eventFindFirst.mockResolvedValue(null);
+    expect(
+      await updateEvent(99, "org1", { assigneeIds: ["foreign"] })
+    ).toBeNull();
+    expect(userCount).not.toHaveBeenCalled();
   });
 });

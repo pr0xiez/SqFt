@@ -40,7 +40,7 @@ export default async function PublicInvoicePage({
 
   await trackPublicView(
     invoice.status === "sent",
-    (meta) => markInvoiceViewed(invoice.id, meta),
+    (meta) => markInvoiceViewed(invoice.id, invoice.orgId, meta),
     { type: "invoice", id: invoice.id }
   );
 

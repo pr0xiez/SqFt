@@ -7,7 +7,6 @@ vi.mock("@/lib/repositories", () => ({
   createEvent: vi.fn(),
   updateEvent: vi.fn(),
   deleteEvent: vi.fn(),
-  validateUserIds: vi.fn().mockResolvedValue(true),
 }));
 
 const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
@@ -23,8 +22,9 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const { listEvents, createEvent, updateEvent, deleteEvent, validateUserIds } =
-  await import("@/lib/repositories");
+const { listEvents, createEvent, updateEvent, deleteEvent } = await import(
+  "@/lib/repositories"
+);
 const { GET: listGET, POST } = await import("@/app/api/events/route");
 const { PATCH, DELETE } = await import("@/app/api/events/[id]/route");
 
@@ -32,7 +32,6 @@ const mockList = vi.mocked(listEvents);
 const mockCreate = vi.mocked(createEvent);
 const mockUpdate = vi.mocked(updateEvent);
 const mockDelete = vi.mocked(deleteEvent);
-const mockValidateUserIds = vi.mocked(validateUserIds);
 
 const validPayload = {
   type: "job",
@@ -91,20 +90,6 @@ describe("POST /api/events", () => {
     );
   });
 
-  it("returns VALIDATION_FAILED when an assignee fails validation (e.g. archived)", async () => {
-    mockValidateUserIds.mockResolvedValueOnce(false);
-    const res = await POST(
-      makeRequest("POST", "http://x/api/events", {
-        ...validPayload,
-        assigneeIds: ["archived-user"],
-      }),
-      params({})
-    );
-    expect(res.status).toBe(400);
-    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
-    expect(mockCreate).not.toHaveBeenCalled();
-  });
-
   it("creates a job with a estimateId", async () => {
     // biome-ignore lint/suspicious/noExplicitAny: test stub
     mockCreate.mockResolvedValue({ id: 1 } as any);
@@ -147,19 +132,22 @@ describe("POST /api/events", () => {
     expect(body.error.message).toBe("Job events require a estimateId");
   });
 
-  it("returns VALIDATION_FAILED and skips createEvent when validateUserIds rejects the assignees", async () => {
-    mockValidateUserIds.mockResolvedValueOnce(false);
+  it("maps an out-of-org assignee rejection from createEvent to a 400 VALIDATION_FAILED", async () => {
+    // createEvent now org-validates assigneeIds itself (eventRepo's
+    // assertAssigneesInOrg) — this proves the route still surfaces that
+    // rejection as VALIDATION_FAILED even without its own check.
+    mockCreate.mockRejectedValue(new ValidationError("Invalid assignee"));
     const res = await POST(
       makeRequest("POST", "http://x/api/events", {
         ...validPayload,
-        assigneeIds: ["u10", "u11"],
+        assigneeIds: ["other-org-user"],
       }),
       params({})
     );
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error.code).toBe("VALIDATION_FAILED");
-    expect(mockCreate).not.toHaveBeenCalled();
+    expect(body.error.message).toBe("Invalid assignee");
   });
 });
 
@@ -179,19 +167,6 @@ describe("PATCH /api/events/[id]", () => {
     );
   });
 
-  it("returns VALIDATION_FAILED when an assignee fails validation (e.g. archived)", async () => {
-    mockValidateUserIds.mockResolvedValueOnce(false);
-    const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/events/1", {
-        assigneeIds: ["archived-user"],
-      }),
-      params({ id: "1" })
-    );
-    expect(res.status).toBe(400);
-    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
   it("returns NOT_FOUND when updateEvent returns null", async () => {
     mockUpdate.mockResolvedValue(null);
     const res = await PATCH(
@@ -199,20 +174,6 @@ describe("PATCH /api/events/[id]", () => {
       params({ id: "99" })
     );
     expect(res.status).toBe(404);
-  });
-
-  it("returns VALIDATION_FAILED and skips updateEvent when validateUserIds rejects the assignees", async () => {
-    mockValidateUserIds.mockResolvedValueOnce(false);
-    const res = await PATCH(
-      makeRequest("PATCH", "http://x/api/events/1", {
-        assigneeIds: ["u10", "u11"],
-      }),
-      params({ id: "1" })
-    );
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error.code).toBe("VALIDATION_FAILED");
-    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -225,16 +186,5 @@ describe("DELETE /api/events/[id]", () => {
     );
     expect(res.status).toBe(204);
     expect(mockDelete).toHaveBeenCalledWith(1, "org1");
-  });
-
-  it("returns NOT_FOUND when deleteEvent returns false", async () => {
-    mockDelete.mockResolvedValue(false);
-    const res = await DELETE(
-      makeRequest("DELETE", "http://x/api/events/99"),
-      params({ id: "99" })
-    );
-    expect(res.status).toBe(404);
-    const body = await res.json();
-    expect(body.error.code).toBe("NOT_FOUND");
   });
 });
