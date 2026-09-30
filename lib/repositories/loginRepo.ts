@@ -30,17 +30,17 @@ export function recordFailedLogin(
   return prisma.$executeRaw`
     UPDATE "User"
     SET "failedLoginCount" = CASE
-          WHEN "lockedUntil" <= ${now} THEN 1
+          WHEN "lockedUntil" <= ${now}::timestamp THEN 1
           ELSE "failedLoginCount" + 1
         END,
         "lockedUntil" = CASE
-          WHEN (CASE WHEN "lockedUntil" <= ${now} THEN 1
+          WHEN (CASE WHEN "lockedUntil" <= ${now}::timestamp THEN 1
                      ELSE "failedLoginCount" + 1 END) >= ${maxAttempts}
-          THEN ${until}
+          THEN ${until}::timestamp
           ELSE NULL
         END
     WHERE id = ${userId} AND archived = false
-      AND ("lockedUntil" IS NULL OR "lockedUntil" <= ${now})
+      AND ("lockedUntil" IS NULL OR "lockedUntil" <= ${now}::timestamp)
   `;
 }
 
