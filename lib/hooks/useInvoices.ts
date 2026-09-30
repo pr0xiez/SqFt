@@ -106,6 +106,11 @@ export interface InvoiceDetail {
   snapshot: InvoiceSnapshot | null;
   payments: InvoicePayment[];
   invoiceEvents: InvoiceEvent[];
+  /** QBO sync badge state; null hides the badge (no connection / draft). */
+  qboSync: {
+    state: "synced" | "pending" | "failed" | "auth_required" | "void_synced";
+    lastError: string | null;
+  } | null;
 }
 
 export function useInvoices(estimateId: number) {

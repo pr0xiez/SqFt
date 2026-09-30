@@ -1,6 +1,8 @@
 /**
  * Seed script — populates the database with demo data matching the SqFt prototype
  * Run with: npx prisma db seed
+ * QBO links/tasks cascade with demo org resets. Connections and their runner
+ * leases remain absent until OAuth connects a demo org.
  */
 
 import "dotenv/config";

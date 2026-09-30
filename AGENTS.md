@@ -90,6 +90,20 @@ with the file that owns it.
   `components/quick-create/` (`QuickCreateProvider` mounts the slide-overs;
   `NewMenu` is the trigger), candidates come from
   `GET /api/estimates/invoiceable`. See *Quick Create* in `CONTEXT.md`.
+- `lib/qbo/` — **QuickBooks Online sync** (one-way push; see *QuickBooks
+  Sync* in `CONTEXT.md`): `config.ts` (env + endpoints incl. the `mock`
+  environment), `crypto.ts` (AES-256-GCM token encryption), `client.ts`
+  (`qboFetch`, typed `QboApiError`, minorversion pin), `connect.ts` (OAuth,
+  signed state, token exchange), `mapping.ts` (pure snapshot→QBO builders),
+  `sync.ts` (port-based ensure-op engine + task runner), `port.ts` (real
+  `QboPort` over qboFetch), `runner.ts` (after()/cron glue),
+  `mockRealm.ts` (test-only mock realm logic). Prisma side lives in
+  `lib/repositories/qboRepo.ts` (connection lifecycle, single-flight token
+  refresh, links, task outbox). Routes: `app/api/qbo/*` (connect / callback /
+  disconnect / status / sync-run cron) + `app/api/invoices/[id]/qbo-sync`
+  (manual retry) + `app/api/qbo-mock/*` (mock realm,
+  `QBO_ENVIRONMENT=mock` only). Admin UI: `/settings/integrations`
+  (`QuickBooksCard`, `SyncHealthPanel`); per-invoice `QboSyncBadge`.
 - `lib/stripe/` — **Stripe Connect integration**: `client.ts` (Stripe SDK
   singleton, API version pin), `connect.ts` (account create/retrieve,
   `ConnectStatus` union, onboarding-link generation, plus
@@ -215,6 +229,24 @@ with the file that owns it.
 - **Super-admin routes (`/api/admin/orgs/[orgId]/...`) take the target org
   from the URL param, not the caller's session org** — the `orgId` on the
   gated session belongs to the operator, not the org being managed.
+- **QBO refresh tokens rotate (~24h) — never call Intuit's token endpoint
+  outside `getFreshAccessContext`** (`lib/repositories/qboRepo.ts`): it
+  single-flights the refresh under a row lock; a second concurrent refresh
+  would brick the org's connection. Likewise, any NEW invoice/payment
+  mutation path must enqueue its QBO sync intent via `enqueueQboTaskTx`
+  **inside the same transaction** (see invariant 3 in `CONTEXT.md`).
+  Runners also claim a six-minute connection lease before processing and
+  release it with a matching timestamp. Never bypass this per-org lease or
+  the realm guards on link writes; payment application reads a live balance.
+- **QBO e2e specs (`tests/e2e/qbo-*.spec.ts`) need the mock realm**:
+  `QBO_ENVIRONMENT=mock` + `QBO_CLIENT_ID/SECRET` + `QBO_TOKEN_ENC_KEY` in
+  the target environment (local `.env` or Vercel Preview). They skip
+  cleanly when the deployment doesn't serve `/api/qbo-mock/`, so CI stays
+  green until the preview env is configured.
+  Protected Vercel previews use `VERCEL_AUTOMATION_BYPASS_SECRET` only on
+  same-origin `/api/qbo-mock/` server requests; never send it to Intuit.
+  Mock OAuth callbacks/return links use the requesting deployment's origin
+  to preserve its session cookie; real Intuit uses the registered public URL.
 
 ## Keeping these docs current
 

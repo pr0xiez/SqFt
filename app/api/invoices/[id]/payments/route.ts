@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { invoiceIdParams, invoicePaymentSchema } from "@/lib/invoices/schema";
+import { runQboSyncForOrg } from "@/lib/qbo/runner";
 import { recordPayment } from "@/lib/repositories";
 import { requireSession } from "@/lib/tenant";
 
@@ -21,6 +23,7 @@ export const POST = apiRoute(
       recordedByName: u.name,
     });
     if (!invoice) throw new NotFoundError();
+    after(() => runQboSyncForOrg(orgId));
     return invoice;
   }
 );

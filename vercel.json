@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "DATABASE_URL=\"$(printf '%s' \"$DATABASE_URL\" | sed 's/-pooler//')\" npx prisma migrate deploy && next build --webpack",
-  "ignoreCommand": "bash scripts/ignore-app-deploy.sh"
+  "ignoreCommand": "bash scripts/ignore-app-deploy.sh",
+  "crons": [
+    {
+      "path": "/api/qbo/sync/run",
+      "schedule": "*/5 * * * *"
+    }
+  ]
 }

@@ -14,6 +14,11 @@ const PUBLIC_REVIEW_PREFIXES = [
   "/invoice-review/",
   "/api/invoice-review/",
   "/api/webhooks/stripe",
+  // QBO cron sweeper (CRON_SECRET bearer auth inside the handler).
+  "/api/qbo/sync/run",
+  // Test-only mock QBO realm — every route in it 404s unless
+  // QBO_ENVIRONMENT=mock (and never mounts in production).
+  "/api/qbo-mock/",
 ];
 
 export function isPublicReviewPath(pathname: string): boolean {

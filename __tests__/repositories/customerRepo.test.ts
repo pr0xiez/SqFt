@@ -10,10 +10,18 @@ const queryRaw = vi.fn();
 const eventCount = vi.fn();
 const invoiceCount = vi.fn();
 
+const qboLinkFindUnique = vi.fn().mockResolvedValue(null);
+const qboSyncTaskUpsert = vi.fn();
+
 const txMock = {
-  customer: { deleteMany },
+  customer: { deleteMany, updateMany },
   event: { count: eventCount },
   invoice: { count: invoiceCount },
+  // QBO enqueue path (updateCustomer): no link → no enqueue.
+  // hasCustomerLink runs on the ambient tx, so qboLink lives here too.
+  qboConnection: { findUnique: vi.fn().mockResolvedValue(null) },
+  qboLink: { findUnique: qboLinkFindUnique },
+  qboSyncTask: { upsert: qboSyncTaskUpsert },
 };
 
 const $transaction = vi.fn(
@@ -25,6 +33,7 @@ const $transaction = vi.fn(
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     customer: { findMany, findFirst, create, updateMany, deleteMany },
+    qboLink: { findUnique: qboLinkFindUnique },
     $queryRaw: queryRaw,
     $transaction,
   },

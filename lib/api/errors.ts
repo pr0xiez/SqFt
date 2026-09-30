@@ -181,6 +181,29 @@ export class InvoiceAlreadyPaidError extends ConflictError {
   }
 }
 
+export class QboNotConnectedError extends ConflictError {
+  constructor() {
+    super(
+      "QuickBooks isn't connected for this organization.",
+      "QBO_NOT_CONNECTED"
+    );
+  }
+}
+
+/**
+ * The org HAS a QBO connection but its authorization is dead (disconnected
+ * from Intuit's side, or the rotating refresh token was lost). Distinct from
+ * QBO_NOT_CONNECTED: the remedy is reconnecting in Settings → Integrations.
+ */
+export class QboAuthExpiredError extends ConflictError {
+  constructor() {
+    super(
+      "The QuickBooks connection needs to be reauthorized.",
+      "QBO_AUTH_EXPIRED"
+    );
+  }
+}
+
 export class StripeWebhookInvalidError extends ApiError {
   constructor() {
     super({

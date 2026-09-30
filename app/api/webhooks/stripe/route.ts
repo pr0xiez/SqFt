@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getEnv } from "@/lib/env";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { runQboSyncForOrg } from "@/lib/qbo/runner";
 import {
   recordStripeAnomaly,
   recordStripePayment,
@@ -50,7 +51,13 @@ export async function POST(req: Request) {
         }
         return orgId;
       },
-      record: (input) => recordStripePayment(input),
+      record: async (input) => {
+        const result = await recordStripePayment(input);
+        // A card payment is the "did it sync?" moment for the contractor —
+        // run the enqueued QBO task now instead of waiting for the sweeper.
+        after(() => runQboSyncForOrg(input.orgId));
+        return result;
+      },
       recordFailure: (input) => recordStripePaymentFailure(input),
       recordAnomaly: (input) => recordStripeAnomaly(input),
       retrieveCharge: async (accountId, paymentIntentId) => {

@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { z } from "zod";
 import { NotFoundError } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
 import { round2 } from "@/lib/money";
+import { runQboSyncForOrg } from "@/lib/qbo/runner";
 import {
   getInvoiceByToken,
   recordStripePayment,
@@ -77,6 +79,9 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
       feeAmount: bt ? bt.fee / 100 : null,
       netAmount: bt ? bt.net / 100 : null,
     });
+    // Mirror the payment into QBO now rather than at the next sweep — this is
+    // the moment the contractor checks whether the card payment synced.
+    after(() => runQboSyncForOrg(invoice.orgId));
     // A stale session completed after the balance was already covered: the money
     // is recorded and flagged for refund, but the customer must not see a plain
     // "Payment received" — tell them the difference will be refunded.

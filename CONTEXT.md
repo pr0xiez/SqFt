@@ -440,6 +440,105 @@ always submits a flat `amount`, never `pct`. (The backend's `pct` means "% of
 estimate *total*", not "% of the remaining balance", so "% of balance" is
 resolved client-side rather than sent as `pct`.)
 
+## QuickBooks Sync
+
+**One-way push: SqFt is the source of truth, QBO is the bookkeeping mirror.**
+Customers, **sent** invoices (built from the frozen snapshot — never
+recomputed), payments (manual + Stripe, gross), and voids are pushed into the
+org's connected QBO company. Nothing is ever pulled back, and no user action
+ever blocks on QBO being reachable. Plan/spec:
+`specs/2026-07-23-qbo-sync-plan.md`.
+
+The engine (`lib/qbo/sync.ts`) is **port-based** — `QboPort` (API),
+`SyncStore`/`TaskStore` (Prisma impls in `lib/repositories/qboRepo.ts`) — and
+its reliability invariants are pinned one-to-one by tests in
+`__tests__/lib/qbo/` (FakeQbo realm):
+
+1. Tasks are idempotent **ensure-ops** (`ensureInvoiceSynced` ensures its
+   customer + item first) — any execution order converges.
+2. **Query-before-create** by natural key (Customer `DisplayName` always
+   includes a stable `(SqFt #{id})` suffix so namesakes stay separate; a
+   unique remote-identity index prevents two local records adopting one
+   remote customer. Invoice
+   `DocNumber` — plain number first, `SQFT-{n}` fallback past foreign
+   occupants, adopt only on customer+total match — Payment `PaymentRefNum`
+   `SQFT-P{id}`): a lost create response is adopted on retry, never
+   duplicated.
+3. **Enqueue-in-transaction**: `enqueueQboTaskTx` runs INSIDE the domain
+   write (markInvoiceSent / recordPayment / recordStripePayment /
+   voidInvoice / updateCustomer-with-link) so a connected org can never have
+   a domain write with no sync intent — **including while the connection is
+   auth-dead**: the task lands `paused_auth` and re-arms on reconnect. No-op
+   when the org has never connected or intentionally disconnected. First
+   send also re-arms payments recorded before a frozen snapshot existed.
+   Both Stripe payment paths (webhook
+   + checkout confirm) also kick an `after()` run like the manual paths.
+4. Sync executes via `after()` attempts (latency) + the cron sweeper
+   `GET /api/qbo/sync/run` (guarantee; `CRON_SECRET` bearer, every 5 min in
+   `vercel.json`, most-overdue org first, `maxDuration` pinned) +
+   opportunistic sweeps on the status endpoint. Tasks are **lease-claimed**
+   (`claimDue` advances `nextAttemptAt` atomically) so racing runners can't
+   double-run one task, and the terminal writes (`markDone`/`markFailed`)
+   are **fenced on the claim identity** — a task re-enqueued while a run is
+   in flight stays pending instead of being swallowed by the stale runner.
+   A database lease on the connection serializes runners across instances;
+   tasks are claimed one at a time immediately before processing. Both
+   leases last six minutes, beyond the 300-second function limit. Backoff
+   `2^attempts` min capped at 6h; terminal `failed` after 10 non-transient
+   failures. Throttling, server outages and transport timeouts retain their
+   retry budget and remain visible until recovered or manually retried.
+5. **Auth death pauses, never drops**: `invalid_grant` marks the connection
+   `disconnected` and flips pending tasks to `paused_auth`; reconnecting the
+   SAME realm re-arms them (see invariant 3 for writes made during the
+   outage). Connecting a DIFFERENT realm wipes the org's `QboLink`s (foreign
+   ids must never be written to) and discards old tasks. An intentional
+   disconnect uses `revoked`, ignores subsequent mutations, and discards
+   held tasks on reconnect. API contexts and link writes are fenced to the
+   runner's realm so an in-flight run cannot attach old-company identities.
+   **No backfill on connect or realm
+   switch**: records that predate the connection (or lost their links to a
+   realm switch) are only pushed when something re-touches them (an edit,
+   a payment, a manual Sync now).
+6. **Token rotation is single-flight**: Intuit rotates refresh tokens
+   (~24h); `getFreshAccessContext` refreshes under `SELECT … FOR UPDATE` on
+   `QboConnection` and persists the pair atomically — the token fetch is
+   capped at 10s so it can never outlive the transaction, and a
+   post-exchange commit failure salvages the rotated pair out-of-band
+   with a compare-and-set guard on the previous encrypted tokens, active
+   status and realm; a newer grant or disconnect cannot be overwritten.
+   Never call the token endpoint outside
+   it. Accounting API calls are capped at 15s (`qboFetch`). Tokens are
+   AES-256-GCM encrypted at rest (`lib/qbo/crypto.ts`, key
+   `QBO_TOKEN_ENC_KEY`).
+
+Payments retain their gross `TotalAmt`, but apply only up to the current QBO
+invoice `Balance`; any excess is an unapplied customer credit. Missing
+balance fails visibly. Voiding a mirror does not refund or remove prior
+payments; bookkeeping cleanup of the resulting credit is manual. Tax is
+taken from the frozen snapshot; this does not configure a company's tax
+codes or replace its tax reconciliation.
+
+Surfaces: admin **Settings → Integrations** (`/settings/integrations`,
+`QuickBooksCard` + `SyncHealthPanel` — connect/disconnect/reconnect, health
+counts, failed rows linking to their retry surface and completed warning
+notes (including DocNumber fallback) requiring bookkeeping review);
+per-invoice badge (`QboSyncBadge`, fed by `qboSync` on the invoice detail
+payload — synced / pending (bounded polling) / failed with Retry →
+`POST /api/invoices/[id]/qbo-sync` (re-queues the invoice AND its payments;
+failed payment syncs surface on the invoice badge too) / reconnect
+(`auth_required`) / voided (`void_synced`)).
+
+Environments: `QBO_ENVIRONMENT` = `sandbox | production | mock`; integration
+is invisible when env is absent. `mock` serves the app's own test-only realm
+(`app/api/qbo-mock`, state in `QboMockRealm`) used by the `qbo-*.spec.ts`
+Playwright suites — refused in production, and specs skip when the target
+deployment doesn't serve it. Mock OAuth callbacks and settings redirects
+stay on the requesting deployment's origin so its admin session survives;
+real Intuit flows use the configured public URL registered with Intuit.
+Tax: the invoice mapping emits QBO's
+`TxnTaxDetail` override only when the (future, P0) tax contract fields are
+present in the snapshot (`totals.taxAmount` et al).
+
 ## Send Pipeline
 
 Emailing a customer-facing document (estimate, invoice) is one spine, owned
@@ -592,6 +691,11 @@ Domain codes:
 - `STRIPE_WEBHOOK_INVALID` (400) — the `stripe-signature` header failed
   verification; the webhook payload was rejected. Thrown by
   `app/api/webhooks/stripe/route.ts`.
+- `QBO_NOT_CONNECTED` (409) — a manual QBO sync was requested but the org has
+  no QuickBooks connection. Thrown by `/api/invoices/[id]/qbo-sync`.
+- `QBO_AUTH_EXPIRED` (409) — the org's QBO connection exists but its
+  authorization is dead; the remedy is reconnecting in
+  Settings → Integrations (distinct from `QBO_NOT_CONNECTED`). Same route.
 
 Codes are produced by throwing an `ApiError` subclass from `lib/api/errors.ts`.
 Routes throw; the `apiRoute` wrapper translates to the envelope.

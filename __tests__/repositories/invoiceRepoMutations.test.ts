@@ -27,6 +27,9 @@ const orgUpdate = vi.fn();
 // recordPayment's row lock (issue #206) — tagged-template $queryRaw.
 const queryRaw = vi.fn();
 
+const qboConnectionFindUnique = vi.fn().mockResolvedValue(null);
+const qboSyncTaskUpsert = vi.fn();
+
 const tx = {
   estimate: { findFirst: estimateFindFirst },
   invoice: {
@@ -36,12 +39,15 @@ const tx = {
     update: invoiceUpdate,
     updateMany: invoiceUpdateMany,
   },
-  payment: { create: paymentCreate },
+  payment: { create: paymentCreate, findMany: vi.fn().mockResolvedValue([]) },
   invoiceEvent: { create: invoiceEventCreate },
   organization: {
     findUniqueOrThrow: orgFindUniqueOrThrow,
     update: orgUpdate,
   },
+  // QBO enqueue-in-transaction (enqueueQboTaskTx): no connection → no-op.
+  qboConnection: { findUnique: qboConnectionFindUnique },
+  qboSyncTask: { upsert: qboSyncTaskUpsert },
   $queryRaw: queryRaw,
 };
 

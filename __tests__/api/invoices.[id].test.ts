@@ -15,6 +15,14 @@ vi.mock("@/lib/repositories", () => ({
   invoiceHasPublicToken: vi.fn(async () => false),
   getOrCreateInvoicePublicToken: vi.fn(),
 }));
+// GET reads the QBO badge state; without this mock the call would reach a
+// real Prisma client (no DB in the CI unit job → 500).
+vi.mock("@/lib/repositories/qboRepo", () => ({
+  getInvoiceQboState: vi.fn(async () => null),
+}));
+vi.mock("@/lib/qbo/runner", () => ({
+  runQboSyncForOrg: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("next/server", async (importOriginal) => {
   const mod = await importOriginal<typeof import("next/server")>();
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
