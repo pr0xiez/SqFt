@@ -24,6 +24,7 @@ export interface QboStatus {
       invoiceId: number | null;
       lastError: string | null;
       updatedAt: string;
+      status?: string;
     }>;
   } | null;
 }

@@ -86,9 +86,12 @@ export async function upsertQboConnection(args: {
   await prisma.$transaction(async (tx) => {
     const existing = await tx.qboConnection.findUnique({
       where: { orgId: args.orgId },
-      select: { realmId: true },
+      select: { realmId: true, status: true },
     });
     const realmChanged = existing !== null && existing.realmId !== args.realmId;
+    if (realmChanged || existing?.status === "revoked") {
+      await tx.qboSyncTask.deleteMany({ where: { orgId: args.orgId } });
+    }
     if (realmChanged) {
       await tx.qboLink.deleteMany({ where: { orgId: args.orgId } });
     }
@@ -130,14 +133,16 @@ export async function readRefreshToken(orgId: string): Promise<string | null> {
   }
 }
 
-/** Disconnect (user-initiated or auth death): connection → disconnected,
- *  pending tasks → paused_auth. Nothing is deleted — reconnecting to the
- *  same realm resumes exactly where sync stopped. */
-export async function markQboDisconnected(orgId: string): Promise<void> {
+/** Auth outage pauses pending tasks for resumption. Intentional disconnect
+ * stops new enqueueing; reconnect discards the opt-out backlog. */
+export async function markQboDisconnected(
+  orgId: string,
+  intentional = false
+): Promise<void> {
   await prisma.$transaction([
     prisma.qboConnection.updateMany({
       where: { orgId },
-      data: { status: "disconnected" },
+      data: { status: intentional ? "revoked" : "disconnected" },
     }),
     prisma.qboSyncTask.updateMany({
       where: { orgId, status: "pending" },
@@ -206,6 +211,8 @@ export async function getFreshAccessContext(
       connectionId: string;
       realmId: string;
       at: Date;
+      priorAccessTokenEnc: string;
+      priorRefreshTokenEnc: string;
     } | null;
   } = { current: null };
 
@@ -244,6 +251,8 @@ export async function getFreshAccessContext(
           connectionId: locked.id,
           realmId: locked.realmId,
           at: lockedAt,
+          priorAccessTokenEnc: locked.accessTokenEnc,
+          priorRefreshTokenEnc: locked.refreshTokenEnc,
         };
         await tx.qboConnection.update({
           where: { id: locked.id },
@@ -270,10 +279,17 @@ export async function getFreshAccessContext(
     const salvage = rotated.current;
     if (salvage) {
       try {
-        await prisma.qboConnection.update({
-          where: { id: salvage.connectionId },
+        const saved = await prisma.qboConnection.updateMany({
+          where: {
+            id: salvage.connectionId,
+            status: "active",
+            realmId: salvage.realmId,
+            accessTokenEnc: salvage.priorAccessTokenEnc,
+            refreshTokenEnc: salvage.priorRefreshTokenEnc,
+          },
           data: tokenColumns(salvage.tokens, salvage.at),
         });
+        if (saved.count === 0) return getFreshAccessContext(orgId);
         return {
           accessToken: salvage.tokens.accessToken,
           realmId: salvage.realmId,
@@ -291,9 +307,9 @@ export async function getFreshAccessContext(
 
 /**
  * Invariant 3: enqueue a sync intent INSIDE the domain-write transaction.
- * No-op only when the org has never connected QBO (no mirror to maintain).
+ * No-op when the org has never connected QBO or intentionally opted out.
  * While the connection is dead (`disconnected` after an auth death or a
- * user disconnect) the intent is captured as `paused_auth` — reconnecting
+ * token failure) the intent is captured as `paused_auth` — reconnecting
  * re-arms it, so an auth outage never loses a domain write. Re-enqueueing an
  * existing task (resend, re-edit, manual retry) resets it.
  */
@@ -307,7 +323,7 @@ export async function enqueueQboTaskTx(
     where: { orgId },
     select: { status: true },
   });
-  if (!conn) return;
+  if (!conn || conn.status === "revoked") return;
   const status = conn.status === "active" ? "pending" : "paused_auth";
   const now = new Date();
   await tx.qboSyncTask.upsert({
@@ -345,7 +361,22 @@ export async function requeueInvoiceSync(
 
 // ── Port implementations ────────────────────────────────────────────────────
 
-export function makeSyncStore(): SyncStore {
+export function makeSyncStore(realmId: string): SyncStore {
+  async function writeForRealm(
+    orgId: string,
+    write: (tx: Prisma.TransactionClient) => Promise<unknown>
+  ) {
+    return prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        Array<{ realmId: string; status: string }>
+      >`
+        SELECT "realmId", "status" FROM "QboConnection"
+        WHERE "orgId" = ${orgId} FOR UPDATE`;
+      if (rows[0]?.realmId !== realmId || rows[0]?.status !== "active")
+        throw new Error("QuickBooks connection changed during sync");
+      await write(tx);
+    });
+  }
   return {
     async getLink(orgId, entityType, entityId) {
       const link = await prisma.qboLink.findUnique({
@@ -355,17 +386,26 @@ export function makeSyncStore(): SyncStore {
       return link;
     },
     async saveLink(orgId, entityType, entityId, ref) {
-      await prisma.qboLink.upsert({
-        where: { orgId_entityType_entityId: { orgId, entityType, entityId } },
-        create: {
-          orgId,
-          entityType,
-          entityId,
-          qboId: ref.id,
-          syncToken: ref.syncToken,
-        },
-        update: { qboId: ref.id, syncToken: ref.syncToken },
+      await writeForRealm(orgId, (tx) =>
+        tx.qboLink.upsert({
+          where: { orgId_entityType_entityId: { orgId, entityType, entityId } },
+          create: {
+            orgId,
+            entityType,
+            entityId,
+            qboId: ref.id,
+            syncToken: ref.syncToken,
+          },
+          update: { qboId: ref.id, syncToken: ref.syncToken },
+        })
+      );
+    },
+    async findLinkedEntity(orgId, entityType, qboId) {
+      const link = await prisma.qboLink.findFirst({
+        where: { orgId, entityType, qboId },
+        select: { entityId: true },
       });
+      return link?.entityId ?? null;
     },
     async getItem(orgId) {
       const conn = await prisma.qboConnection.findUnique({
@@ -378,10 +418,12 @@ export function makeSyncStore(): SyncStore {
       };
     },
     async saveItemId(orgId, itemId) {
-      await prisma.qboConnection.update({
-        where: { orgId },
-        data: { qboItemId: itemId },
-      });
+      await writeForRealm(orgId, (tx) =>
+        tx.qboConnection.update({
+          where: { orgId },
+          data: { qboItemId: itemId },
+        })
+      );
     },
     async getCustomerSource(orgId, customerId) {
       const customer = await prisma.customer.findFirst({
@@ -464,7 +506,29 @@ export function makeSyncStore(): SyncStore {
  *  runners (an after() attempt racing the cron sweep) can't double-run it;
  *  a runner that dies mid-task leaves it to re-become due when the lease
  *  expires. */
-export const CLAIM_LEASE_MS = 2 * 60_000;
+export const CLAIM_LEASE_MS = 6 * 60_000;
+
+/** Serialize runners across serverless instances, including different tasks
+ * that apply payments to the same invoice. The lease outlasts maxDuration. */
+export async function claimQboRunner(orgId: string, now = new Date()) {
+  const leaseUntil = new Date(now.getTime() + CLAIM_LEASE_MS);
+  const claimed = await prisma.qboConnection.updateMany({
+    where: {
+      orgId,
+      status: "active",
+      OR: [{ runnerLeaseUntil: null }, { runnerLeaseUntil: { lte: now } }],
+    },
+    data: { runnerLeaseUntil: leaseUntil },
+  });
+  return claimed.count === 1 ? leaseUntil : null;
+}
+
+export async function releaseQboRunner(orgId: string, leaseUntil: Date) {
+  await prisma.qboConnection.updateMany({
+    where: { orgId, runnerLeaseUntil: leaseUntil },
+    data: { runnerLeaseUntil: null },
+  });
+}
 
 export function makeTaskStore(): TaskStore {
   return {
@@ -553,9 +617,9 @@ export async function getInvoiceQboState(
 ): Promise<InvoiceQboState | null> {
   const conn = await prisma.qboConnection.findUnique({
     where: { orgId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
-  if (!conn) return null;
+  if (!conn || conn.status === "revoked") return null;
 
   const [link, paymentIds] = await Promise.all([
     prisma.qboLink.findUnique({
@@ -591,25 +655,25 @@ export async function getInvoiceQboState(
     select: { kind: true, status: true, lastError: true },
   });
 
-  // Any task carrying an error shows as failed — a pending retry with a
-  // lastError still deserves the error + Retry affordance, not a silent
-  // spinner until the 10th attempt goes terminal.
+  if (tasks.some((t) => t.status === "paused_auth"))
+    return { state: "auth_required", lastError: null };
   const failed = tasks.find(
     (t) => t.status === "failed" || (t.status !== "done" && t.lastError)
   );
   if (failed) return { state: "failed", lastError: failed.lastError };
-  // A dead connection is not "syncing" — nothing progresses until an admin
-  // reconnects, and the badge should say so instead of spinning forever.
-  if (tasks.some((t) => t.status === "paused_auth")) {
-    return { state: "auth_required", lastError: null };
-  }
   if (tasks.some((t) => t.status === "pending")) {
     return { state: "pending", lastError: null };
   }
   if (tasks.some((t) => t.kind === "void_invoice" && t.status === "done")) {
     return { state: "void_synced", lastError: null };
   }
-  if (link) return { state: "synced", lastError: null };
+  if (link)
+    return {
+      state: "synced",
+      lastError:
+        tasks.find((t) => t.status === "done" && t.lastError)?.lastError ??
+        null,
+    };
   return null;
 }
 
@@ -628,6 +692,7 @@ export interface QboSyncHealth {
     invoiceId: number | null;
     lastError: string | null;
     updatedAt: Date;
+    status: string;
   }>;
 }
 
@@ -644,7 +709,13 @@ export async function getQboSyncHealth(orgId: string): Promise<QboSyncHealth> {
       select: { lastSyncedAt: true },
     }),
     prisma.qboSyncTask.findMany({
-      where: { orgId, status: "failed" },
+      where: {
+        orgId,
+        OR: [
+          { status: "failed" },
+          { status: "done", lastError: { not: null } },
+        ],
+      },
       orderBy: { updatedAt: "desc" },
       take: 10,
       select: {
@@ -653,6 +724,7 @@ export async function getQboSyncHealth(orgId: string): Promise<QboSyncHealth> {
         entityId: true,
         lastError: true,
         updatedAt: true,
+        status: true,
       },
     }),
   ]);

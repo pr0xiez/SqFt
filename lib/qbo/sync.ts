@@ -51,6 +51,7 @@ export interface QboPort {
   ): Promise<(QboEntityRef & { customerId: string; totalAmt: number }) | null>;
   createInvoice(body: QboInvoiceBody): Promise<QboEntityRef>;
   readInvoice(id: string): Promise<QboEntityRef | null>;
+  readInvoiceBalance(id: string): Promise<number>;
   voidInvoice(id: string, syncToken: string): Promise<QboEntityRef>;
   findPaymentByRefNum(refNum: string): Promise<QboEntityRef | null>;
   createPayment(body: QboPaymentBody): Promise<QboEntityRef>;
@@ -80,6 +81,11 @@ export interface SyncStore {
     entityId: number,
     ref: QboEntityRef
   ): Promise<void>;
+  findLinkedEntity(
+    orgId: string,
+    entityType: QboEntityType,
+    qboId: string
+  ): Promise<number | null>;
   getItem(orgId: string): Promise<{ itemId: string | null; itemName: string }>;
   saveItemId(orgId: string, itemId: string): Promise<void>;
   getCustomerSource(
@@ -102,10 +108,10 @@ export interface SyncDeps {
   store: SyncStore;
 }
 
-/** Suffix used when a DisplayName collides with an unrelated QBO
- *  customer/vendor/employee. */
-function suffixedName(name: string): string {
-  return `${name} (SqFt)`;
+/** Stable identity keeps namesakes and unrelated existing customers separate. */
+export function customerDisplayName(name: string, customerId: number): string {
+  const suffix = ` (SqFt #${customerId})`;
+  return `${name.slice(0, 100 - suffix.length)}${suffix}`;
 }
 
 /** Invariant 7: on a stale SyncToken, re-read the entity once and retry. */
@@ -139,8 +145,8 @@ export async function ensureItem(deps: SyncDeps): Promise<string> {
 /**
  * Dependency-semantics customer sync: an existing link is trusted as-is
  * (updates flow through syncCustomerTask). Adopts an exact DisplayName match
- * before creating; on a duplicate-name rejection, re-queries (create race)
- * then falls back to a suffixed name. Returns null when the customer no
+ * before creating; on a duplicate-name rejection, re-queries (create race).
+ * An unresolved collision fails visibly. Returns null when the customer no
  * longer exists (nothing to sync).
  */
 export async function ensureCustomerSynced(
@@ -154,28 +160,35 @@ export async function ensureCustomerSynced(
   if (!source) return null;
 
   const adopt = async (ref: QboEntityRef) => {
+    const owner = await deps.store.findLinkedEntity(
+      deps.orgId,
+      "customer",
+      ref.id
+    );
+    if (owner !== null && owner !== customerId)
+      throw new Error(
+        "QuickBooks customer is already linked to another SqFt customer"
+      );
     await deps.store.saveLink(deps.orgId, "customer", customerId, ref);
     return ref;
   };
 
-  const found = await deps.qbo.findCustomerByName(source.name);
+  const displayName = customerDisplayName(source.name, customerId);
+  const found = await deps.qbo.findCustomerByName(displayName);
   if (found) return adopt(found);
 
   try {
-    return await adopt(await deps.qbo.createCustomer(buildQboCustomer(source)));
+    return await adopt(
+      await deps.qbo.createCustomer(buildQboCustomer(source, displayName))
+    );
   } catch (err) {
     if (!(err instanceof QboApiError) || err.kind !== "duplicate_name") {
       throw err;
     }
     // Raced a concurrent create of the same customer name — adopt it…
-    const raced = await deps.qbo.findCustomerByName(source.name);
+    const raced = await deps.qbo.findCustomerByName(displayName);
     if (raced) return adopt(raced);
-    // …or the name belongs to a vendor/employee: create under a suffix.
-    return adopt(
-      await deps.qbo.createCustomer(
-        buildQboCustomer(source, suffixedName(source.name))
-      )
-    );
+    throw err;
   }
 }
 
@@ -196,7 +209,10 @@ export async function syncCustomerTask(
   const updated = await withStaleRetry(
     (syncToken) =>
       deps.qbo.updateCustomer({
-        ...buildQboCustomer(source),
+        ...buildQboCustomer(
+          source,
+          customerDisplayName(source.name, customerId)
+        ),
         Id: link.qboId,
         SyncToken: syncToken,
         sparse: true,
@@ -346,12 +362,14 @@ export async function ensurePaymentSynced(
   const found = await deps.qbo.findPaymentByRefNum(paymentRefNum(paymentId));
   if (found) return adopt(found);
 
+  const openBalance = await deps.qbo.readInvoiceBalance(invoice.id);
   return adopt(
     await deps.qbo.createPayment(
       buildQboPayment({
         source: payment.source,
         customerQboId: customer.qboId,
         invoiceQboId: invoice.id,
+        openBalance,
       })
     )
   );
@@ -474,9 +492,10 @@ export async function runDueTasksForOrg(
 ): Promise<RunResult> {
   const now = opts.now ?? new Date();
   const result: RunResult = { done: 0, failed: 0, paused: false };
-  const due = await tasks.claimDue(deps.orgId, now, opts.limit ?? 25);
-
-  for (const task of due) {
+  for (let processed = 0; processed < (opts.limit ?? 25); processed++) {
+    const claimedAt = opts.now ?? new Date();
+    const [task] = await tasks.claimDue(deps.orgId, claimedAt, 1);
+    if (!task) break;
     try {
       const note = await runTask(deps, task);
       await tasks.markDone(task, note);
@@ -488,13 +507,18 @@ export async function runDueTasksForOrg(
         result.paused = true;
         return result;
       }
-      const attempts = task.attempts + 1;
+      const transient =
+        (err instanceof QboApiError &&
+          (err.kind === "throttle" || err.status >= 500)) ||
+        (err instanceof Error &&
+          ["TimeoutError", "AbortError"].includes(err.name));
+      const attempts = task.attempts + (transient ? 0 : 1);
       await tasks.markFailed({
         task,
         error: err instanceof Error ? err.message : String(err),
         attempts,
         nextAttemptAt: new Date(
-          now.getTime() + backoffMinutes(attempts) * 60_000
+          claimedAt.getTime() + backoffMinutes(Math.max(1, attempts)) * 60_000
         ),
         terminal: attempts >= MAX_TASK_ATTEMPTS,
       });

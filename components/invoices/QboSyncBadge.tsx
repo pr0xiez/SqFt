@@ -61,9 +61,11 @@ export function QboSyncBadge({
     return (
       <span
         className={`${base} bg-[var(--surface-2)] text-[var(--sage)]`}
-        title="This invoice is synced to QuickBooks"
+        title={qboSync.lastError ?? "This invoice is synced to QuickBooks"}
       >
-        QuickBooks ✓
+        {qboSync.lastError
+          ? "QuickBooks · synced with warning"
+          : "QuickBooks ✓"}
       </span>
     );
   }

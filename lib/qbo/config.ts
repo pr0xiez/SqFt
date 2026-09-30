@@ -46,6 +46,9 @@ export function getQboConfig(): QboConfig | null {
   const environment = process.env.QBO_ENVIRONMENT as QboEnvironment | undefined;
   if (!clientId || !clientSecret || !environment) return null;
 
+  if (!["sandbox", "production", "mock"].includes(environment))
+    throw new Error("Invalid QBO_ENVIRONMENT");
+
   if (environment === "mock") {
     if (process.env.VERCEL_ENV === "production") {
       throw new Error("QBO_ENVIRONMENT=mock is not allowed in production");

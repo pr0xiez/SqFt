@@ -1,27 +1,33 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
+  InvoiceLockedError,
+  InvoiceOverbillError,
+  InvoiceOverpayError,
+} from "@/lib/api/errors";
+import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import {
+  computeEstimateBilling,
+  invoiceOutstanding,
+  isOverbill,
+  OVERBILL_EPSILON,
+  paymentsPaidTotal,
+} from "@/lib/invoices/compute";
+import {
   type InvoiceStatusFilter,
   OPEN_INVOICE_STATUSES,
-} from "@/components/invoices/filterInvoices";
-import { InvoiceLockedError, InvoiceOverbillError } from "@/lib/api/errors";
-import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
-import { computeEstimateBilling } from "@/lib/invoices/compute";
-import { isOverbill } from "@/lib/invoices/createInvoiceForm";
+} from "@/lib/invoices/statusFilter";
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
+import { round2 } from "@/lib/money";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { enqueueQboTaskTx } from "@/lib/repositories/qboRepo";
-import { searchableInt } from "@/lib/repositories/search";
+import { buildSearchWhere, computeFacets } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
 function generateToken(): string {
   return randomBytes(32).toString("base64url");
-}
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 /** Hydrated estimate shape the proration source needs (matches fromPrismaEstimate input). */
@@ -56,14 +62,51 @@ export function computeInvoiceAmount(args: {
   return { amount: round2(args.estimateTotal * pct), pct };
 }
 
-const INVOICE_INCLUDE = {
+/** Scalar fields of Invoice returned by every authenticated read/write below
+ *  — every column EXCEPT `publicToken`. `publicToken` is a live bearer
+ *  credential for the unauthenticated `/invoice-review/[token]` payment flow;
+ *  it must never ride along in a payload an authenticated API route hands
+ *  back to the browser. The only sanctioned read of it is
+ *  `rotateInvoiceToken` (returns a freshly-minted token to the lead who
+ *  explicitly requested one, via the `/api/invoices/[id]/public-token`
+ *  route). See CONTEXT.md "Public tokens". */
+const INVOICE_SCALAR_SELECT = {
+  id: true,
+  orgId: true,
+  estimateId: true,
+  invoiceNumber: true,
+  status: true,
+  amount: true,
+  pct: true,
+  memo: true,
+  coverNote: true,
+  terms: true,
+  paymentInstructions: true,
+  date: true,
+  dueDate: true,
+  sentAt: true,
+  sentToEmail: true,
+  sentByEmail: true,
+  sentByName: true,
+  viewedAt: true,
+  paidAt: true,
+  voidedAt: true,
+  stripePaymentLinkUrl: true,
+  stripePaymentIntentId: true,
+  snapshot: true,
+  createdAt: true,
+} satisfies Prisma.InvoiceSelect;
+
+/** Deliberately a `select`, not an `include` — see {@link INVOICE_SCALAR_SELECT}. */
+const INVOICE_SELECT = {
+  ...INVOICE_SCALAR_SELECT,
   payments: { orderBy: { paidAt: "asc" } },
   invoiceEvents: { orderBy: { createdAt: "desc" } },
-} satisfies Prisma.InvoiceInclude;
+} satisfies Prisma.InvoiceSelect;
 
-/** Detail include also pulls the customer email so the send form can prefill it. */
-const INVOICE_DETAIL_INCLUDE = {
-  ...INVOICE_INCLUDE,
+/** Detail select also pulls the customer email so the send form can prefill it. */
+const INVOICE_DETAIL_SELECT = {
+  ...INVOICE_SELECT,
   estimate: {
     select: {
       siteMeasure: {
@@ -73,10 +116,10 @@ const INVOICE_DETAIL_INCLUDE = {
       },
     },
   },
-} satisfies Prisma.InvoiceInclude;
+} satisfies Prisma.InvoiceSelect;
 
 export type InvoiceWithDetails = Prisma.InvoiceGetPayload<{
-  include: typeof INVOICE_INCLUDE;
+  select: typeof INVOICE_SELECT;
 }>;
 
 /** A single invoice plus the customer email derived from its estimate chain. */
@@ -93,7 +136,7 @@ function toInvoiceLike(inv: {
   return {
     amount: inv.amount,
     status: inv.status,
-    paidAmount: inv.payments.reduce((s, p) => s + p.amount, 0),
+    paidAmount: paymentsPaidTotal(inv.payments),
   };
 }
 
@@ -104,7 +147,7 @@ export async function listInvoicesForEstimate(
   return prisma.invoice.findMany({
     where: { orgId, estimateId },
     orderBy: { createdAt: "asc" },
-    include: INVOICE_INCLUDE,
+    select: INVOICE_SELECT,
   });
 }
 
@@ -114,7 +157,7 @@ export async function getInvoice(
 ): Promise<InvoiceDetailRecord | null> {
   const invoice = await prisma.invoice.findFirst({
     where: { id, orgId },
-    include: INVOICE_DETAIL_INCLUDE,
+    select: INVOICE_DETAIL_SELECT,
   });
   if (!invoice) return null;
   const { estimate, ...rest } = invoice;
@@ -136,6 +179,15 @@ export interface CreateInvoiceInput {
 
 export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
   return prisma.$transaction(async (tx) => {
+    // Lock the Estimate row before reading it (and its invoices) so the
+    // overbill decision below is serialized across concurrent creates for the
+    // same estimate — a plain read does not lock under READ COMMITTED, so two
+    // concurrent requests could both read the same stale `unbilled` balance,
+    // both pass the check, and both commit past the estimate total (issue
+    // #298). This mirrors the nextInvoiceNumber lock further down, just
+    // applied to the estimate row instead of the org row.
+    await tx.$queryRaw`SELECT id FROM "Estimate" WHERE id = ${input.estimateId} AND "orgId" = ${orgId} FOR UPDATE`;
+
     const estimate = await tx.estimate.findFirst({
       where: { id: input.estimateId, orgId },
       include: {
@@ -193,26 +245,39 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
         paymentInstructions: org.defaultPaymentInstructions,
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
       },
-      include: INVOICE_INCLUDE,
+      select: INVOICE_SELECT,
     });
   });
 }
 
-/** Derive the lifecycle status from the payment ledger. Void is terminal. */
+/**
+ * Derive the lifecycle status from the payment ledger. Void is terminal.
+ *
+ * When nothing is currently owed, "was this ever viewed by the customer" is
+ * read from the persisted `viewedAt` timestamp rather than the transient
+ * `current` status string. That matters because `current` can be `partial`
+ * on the way in (a payment was recorded after the customer opened the
+ * invoice) — keying off `current` alone would map a `partial` invoice whose
+ * payment(s) later net back to zero (a reversal/refund) to `sent`, losing
+ * the fact that it was already viewed. Deriving from `viewedAt` instead
+ * means that fact survives regardless of which status the payment ledger
+ * passed through on the way to zero.
+ */
 export function nextInvoiceStatus(args: {
   current: string;
   amount: number;
   paid: number;
+  viewedAt?: Date | null;
 }): string {
   if (args.current === "void") return "void";
   if (args.paid <= 0) {
     return args.current === "draft"
       ? "draft"
-      : args.current === "viewed"
+      : args.viewedAt
         ? "viewed"
         : "sent";
   }
-  if (args.paid + 0.005 >= args.amount) return "paid";
+  if (args.paid + OVERBILL_EPSILON >= args.amount) return "paid";
   return "partial";
 }
 
@@ -239,108 +304,38 @@ export function classifyStripeCharge(args: {
   amount: number;
   priorPaid: number;
   chargeAmount: number;
+  viewedAt?: Date | null;
 }): StripeChargeClassification {
   const paidAfter = round2(args.priorPaid + args.chargeAmount);
   const nextStatus = nextInvoiceStatus({
     current: args.status,
     amount: args.amount,
     paid: paidAfter,
+    viewedAt: args.viewedAt,
   });
   return {
     nextStatus,
     paidAfter,
     orphaned: args.status === "void",
-    overpaid: paidAfter > args.amount + 0.005,
+    overpaid: paidAfter > args.amount + OVERBILL_EPSILON,
   };
 }
 
-export interface UpdateInvoiceInput {
-  amount?: number;
-  pct?: number;
-  memo?: string | null;
-  terms?: string;
-  coverNote?: string;
-  paymentInstructions?: string;
-  dueDate?: string | null;
-}
-
-/** Edit a DRAFT invoice. Throws InvoiceLockedError once sent. */
-export async function updateInvoice(
-  id: number,
-  orgId: string,
-  patch: UpdateInvoiceInput
-) {
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.invoice.findFirst({
-      where: { id, orgId },
-      include: {
-        estimate: {
-          include: {
-            lineItems: { orderBy: { sortOrder: "asc" } },
-            siteMeasure: {
-              select: { items: { orderBy: { sortOrder: "asc" } } },
-            },
-            invoices: {
-              select: {
-                id: true,
-                amount: true,
-                status: true,
-                payments: { select: { amount: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-    if (!existing) return null;
-    if (existing.status !== "draft") throw new InvoiceLockedError();
-
-    const data: Prisma.InvoiceUpdateInput = {};
-    if (patch.memo !== undefined) data.memo = patch.memo;
-    if (patch.terms !== undefined) data.terms = patch.terms;
-    if (patch.coverNote !== undefined) data.coverNote = patch.coverNote;
-    if (patch.paymentInstructions !== undefined)
-      data.paymentInstructions = patch.paymentInstructions;
-    if (patch.dueDate !== undefined) {
-      data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
-    }
-
-    if (patch.amount !== undefined || patch.pct !== undefined) {
-      const view = computeEstimateView(fromPrismaEstimate(existing.estimate));
-      const { amount, pct } = computeInvoiceAmount({
-        estimateTotal: view.total,
-        amount: patch.amount,
-        pct: patch.pct,
-      });
-      const others = existing.estimate.invoices
-        .filter((i) => i.id !== id)
-        .map(toInvoiceLike);
-      const billing = computeEstimateBilling(view.total, others);
-      if (isOverbill(amount, billing.unbilled)) {
-        throw new InvoiceOverbillError(billing.unbilled);
-      }
-      data.amount = amount;
-      data.pct = pct;
-    }
-
-    return tx.invoice.update({ where: { id }, data, include: INVOICE_INCLUDE });
-  });
-}
-
 export async function voidInvoice(id: number, orgId: string) {
-  const voided = await prisma.$transaction(async (tx) => {
-    const res = await tx.invoice.updateMany({
+  const res = await prisma.$transaction(async (tx) => {
+    const updated = await tx.invoice.updateMany({
       where: { id, orgId, status: { not: "void" } },
       data: { status: "void", voidedAt: new Date() },
     });
-    if (res.count === 0) return false;
+    if (updated.count === 0) return updated;
     await tx.invoiceEvent.create({
       data: { invoiceId: id, type: "voided", source: "builder" },
     });
-    await enqueueQboTaskTx(tx, orgId, "void_invoice", id);
-    return true;
+    if (updated.count > 0)
+      await enqueueQboTaskTx(tx, orgId, "void_invoice", id);
+    return updated;
   });
-  if (!voided) return null;
+  if (res.count === 0) return null;
   return getInvoice(id, orgId);
 }
 
@@ -351,6 +346,43 @@ export async function rotateInvoiceToken(id: number, orgId: string) {
     data: { publicToken: token },
   });
   return res.count > 0 ? token : null;
+}
+
+/**
+ * Read the invoice's existing public review token, minting one only if it
+ * doesn't already have one — mirrors the send pipeline's `currentToken` /
+ * `rotateToken` reuse semantics (`lib/send/pipeline.ts`). Backs the "copy
+ * public link" UI action: repeated clicks must return the same link rather
+ * than invalidating one already shared with the customer.
+ */
+export async function getOrCreateInvoicePublicToken(
+  id: number,
+  orgId: string
+): Promise<string | null> {
+  const row = await prisma.invoice.findFirst({
+    where: { id, orgId },
+    select: { publicToken: true },
+  });
+  if (!row) return null;
+  return row.publicToken ?? rotateInvoiceToken(id, orgId);
+}
+
+/**
+ * Whether the invoice currently has a live public review token — collapsed
+ * to a boolean before it ever leaves the server, so the "copy public link"
+ * UI affordance doesn't require exposing `publicToken` itself. Returns false
+ * for an invoice outside the org (matches the null-object pattern other
+ * reads use rather than throwing).
+ */
+export async function invoiceHasPublicToken(
+  id: number,
+  orgId: string
+): Promise<boolean> {
+  const row = await prisma.invoice.findFirst({
+    where: { id, orgId },
+    select: { publicToken: true },
+  });
+  return Boolean(row?.publicToken);
 }
 
 export interface WriteInvoiceEventInput {
@@ -423,6 +455,14 @@ export async function markInvoiceSent(
       },
     });
     await enqueueQboTaskTx(tx, orgId, "sync_invoice", id);
+    // Payments recorded before the first send had no frozen invoice to
+    // mirror. Re-arm them now that its snapshot exists.
+    const payments = await tx.payment.findMany({
+      where: { invoiceId: id, invoice: { orgId } },
+      select: { id: true },
+    });
+    for (const payment of payments)
+      await enqueueQboTaskTx(tx, orgId, "sync_payment", payment.id);
     return true;
   });
 }
@@ -478,12 +518,28 @@ export async function recordPayment(
   input: RecordPaymentInput
 ) {
   return prisma.$transaction(async (tx) => {
+    // Row-lock the invoice before reading its payments so a concurrent
+    // recordPayment on the same invoice blocks here instead of both
+    // transactions computing a status from the same stale `payments` sum
+    // (lost update — issue #206). Postgres' default READ COMMITTED
+    // isolation doesn't protect this on its own; an explicit
+    // SELECT ... FOR UPDATE does.
+    const locked = await tx.$queryRaw<
+      { id: number }[]
+    >`SELECT id FROM "Invoice" WHERE id = ${invoiceId} AND "orgId" = ${orgId} FOR UPDATE`;
+    if (locked.length === 0) return null;
+
     const inv = await tx.invoice.findFirst({
       where: { id: invoiceId, orgId },
       include: { payments: { select: { amount: true } } },
     });
     if (!inv) return null;
     if (inv.status === "void") throw new InvoiceLockedError();
+
+    const outstanding = invoiceOutstanding(inv);
+    if (input.amount > outstanding + OVERBILL_EPSILON) {
+      throw new InvoiceOverpayError(outstanding);
+    }
 
     const payment = await tx.payment.create({
       data: {
@@ -499,11 +555,12 @@ export async function recordPayment(
     });
     await enqueueQboTaskTx(tx, orgId, "sync_payment", payment.id);
 
-    const paid = inv.payments.reduce((s, p) => s + p.amount, 0) + input.amount;
+    const paid = paymentsPaidTotal(inv.payments) + input.amount;
     const status = nextInvoiceStatus({
       current: inv.status,
       amount: inv.amount,
       paid,
+      viewedAt: inv.viewedAt,
     });
     await tx.invoice.update({
       where: { id: invoiceId },
@@ -522,7 +579,7 @@ export async function recordPayment(
 
     return tx.invoice.findFirst({
       where: { id: invoiceId },
-      include: INVOICE_INCLUDE,
+      select: INVOICE_SELECT,
     });
   });
 }
@@ -609,12 +666,13 @@ export async function recordStripePayment(
       // A captured charge is real money. Record it even when the invoice was
       // voided or already covered — dropping it would leave an untracked charge
       // with no ledger row and no signal to refund. Surface the anomaly instead.
-      const priorPaid = inv.payments.reduce((s, p) => s + p.amount, 0);
+      const priorPaid = paymentsPaidTotal(inv.payments);
       const cls = classifyStripeCharge({
         status: inv.status,
         amount: inv.amount,
         priorPaid,
         chargeAmount: input.amount,
+        viewedAt: inv.viewedAt,
       });
       const refundReason = cls.orphaned
         ? "invoice_void"
@@ -721,11 +779,14 @@ export async function recordStripeAnomaly(input: {
   });
 }
 
-/** Public token lookup (no org scope — the token authorizes). */
+/** Public token lookup (no org scope — the token authorizes). The caller
+ *  already holds the token (it's in the URL), so the response doesn't need
+ *  to carry `publicToken` back — same `INVOICE_SELECT` as the authenticated
+ *  reads. */
 export async function getInvoiceByToken(token: string) {
   return prisma.invoice.findUnique({
     where: { publicToken: token },
-    include: INVOICE_INCLUDE,
+    select: INVOICE_SELECT,
   });
 }
 
@@ -819,11 +880,18 @@ function invoiceOrderBy(
   }
 }
 
+const INVOICE_STATUSES = [
+  "draft",
+  "sent",
+  "viewed",
+  "partial",
+  "paid",
+  "void",
+] as const;
+
 function invoiceSearchWhere(q: string): Prisma.InvoiceWhereInput | null {
-  const cleaned = q.trim().replace(/^#/, "");
-  if (cleaned.length === 0) return null;
-  const or: Prisma.InvoiceWhereInput[] = [
-    {
+  return buildSearchWhere<Prisma.InvoiceWhereInput>(q, {
+    customerName: (cleaned) => ({
       estimate: {
         siteMeasure: {
           location: {
@@ -831,11 +899,9 @@ function invoiceSearchWhere(q: string): Prisma.InvoiceWhereInput | null {
           },
         },
       },
-    },
-  ];
-  const n = searchableInt(cleaned);
-  if (n !== null) or.push({ invoiceNumber: n });
-  return { OR: or };
+    }),
+    number: (n) => ({ invoiceNumber: n }),
+  });
 }
 
 export async function listInvoices(
@@ -868,34 +934,17 @@ export async function listInvoices(
     }),
   ]);
 
-  const facets: Record<string, number> = {
-    all: 0,
-    open: 0,
-    draft: 0,
-    sent: 0,
-    viewed: 0,
-    partial: 0,
-    paid: 0,
-    void: 0,
-  };
-  for (const row of grouped) {
-    const count = row._count;
-    const n = typeof count === "object" ? (count._all ?? 0) : 0;
-    facets.all += n;
-    if (row.status in facets) facets[row.status] = n;
-    if ((OPEN_INVOICE_STATUSES as readonly string[]).includes(row.status)) {
-      facets.open += n;
-    }
-  }
+  const facets = computeFacets(grouped, INVOICE_STATUSES, {
+    open: (status) =>
+      (OPEN_INVOICE_STATUSES as readonly string[]).includes(status),
+  });
 
   const items = rows.map((inv) => ({
     id: inv.id,
     invoiceNumber: inv.invoiceNumber,
     status: inv.status,
     amount: inv.amount,
-    balanceDue: round2(
-      inv.amount - inv.payments.reduce((s, p) => s + p.amount, 0)
-    ),
+    balanceDue: invoiceOutstanding(inv),
     dueDate: inv.dueDate,
     sentAt: inv.sentAt,
     estimateId: inv.estimateId,

@@ -11,12 +11,10 @@ import { useToast } from "@/components/ui/Toast";
 import {
   type InvoiceDetail as Invoice,
   useInvoice,
+  useInvoicePublicToken,
 } from "@/lib/hooks/useInvoices";
+import { invoiceOutstanding, paymentsPaidTotal } from "@/lib/invoices";
 import { fmtDollar } from "@/lib/utils";
-
-function paidTotal(inv: Invoice): number {
-  return inv.payments.reduce((s, p) => s + p.amount, 0);
-}
 
 function fmtDate(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("en-US") : "—";
@@ -36,6 +34,7 @@ export function InvoiceDetail({
 }) {
   const { data: inv, isLoading, error } = useInvoice(invoiceId);
   const { showToast } = useToast();
+  const publicToken = useInvoicePublicToken(invoiceId);
   const [sendOpen, setSendOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
@@ -48,8 +47,8 @@ export function InvoiceDetail({
       </p>
     );
 
-  const paid = paidTotal(inv);
-  const outstanding = Math.round((inv.amount - paid) * 100) / 100;
+  const paid = paymentsPaidTotal(inv.payments);
+  const outstanding = invoiceOutstanding(inv);
   const lines = inv.snapshot?.lines ?? [];
   const isVoid = inv.status === "void";
   const isDraft = inv.status === "draft";
@@ -57,10 +56,14 @@ export function InvoiceDetail({
   const canPay = !isDraft && !isVoid && !isPaid;
 
   async function copyLink() {
-    if (!inv?.publicToken) return;
-    const url = `${window.location.origin}/invoice-review/${inv.publicToken}`;
-    await navigator.clipboard.writeText(url);
-    showToast("Public link copied");
+    try {
+      const { publicToken: token } = await publicToken.mutateAsync();
+      const url = `${window.location.origin}/invoice-review/${token}`;
+      await navigator.clipboard.writeText(url);
+      showToast("Public link copied");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to copy link");
+    }
   }
 
   return (
@@ -92,11 +95,12 @@ export function InvoiceDetail({
 
       <div className="text-[12px] text-[var(--muted)] mb-5">
         {inv.sentToEmail ? <>Sent to {inv.sentToEmail} · </> : null}
-        {inv.publicToken ? (
+        {inv.hasPublicToken ? (
           <button
             type="button"
             onClick={copyLink}
-            className="text-[var(--accent)] underline"
+            disabled={publicToken.isPending}
+            className="text-[var(--accent)] underline disabled:opacity-50"
           >
             copy public link
           </button>

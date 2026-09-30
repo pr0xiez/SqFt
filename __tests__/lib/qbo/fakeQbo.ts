@@ -187,6 +187,23 @@ export class FakeQbo implements QboPort {
     return inv ? { id: inv.Id, syncToken: inv.SyncToken } : null;
   }
 
+  async readInvoiceBalance(id: string) {
+    const invoice = this.invoices.find((x) => x.Id === id);
+    if (!invoice) throw new Error("Invoice not found");
+    const applied = this.payments.reduce(
+      (sum, payment) =>
+        sum +
+        payment.body.Line.reduce(
+          (lineSum, line) =>
+            lineSum +
+            (line.LinkedTxn.some((txn) => txn.TxnId === id) ? line.Amount : 0),
+          0
+        ),
+      0
+    );
+    return Math.max(0, invoice.TotalAmt - applied);
+  }
+
   async voidInvoice(id: string, syncToken: string): Promise<QboEntityRef> {
     this.gate("voidInvoice");
     const inv = this.invoices.find((x) => x.Id === id);
@@ -275,10 +292,19 @@ export class FakeStores implements SyncStore, TaskStore {
     id: number,
     ref: QboEntityRef
   ) {
+    const owner = await this.findLinkedEntity(orgId, type, ref.id);
+    if (owner !== null && owner !== id) throw new Error("Duplicate QBO link");
     this.links.set(this.key(orgId, type, id), {
       qboId: ref.id,
       syncToken: ref.syncToken,
     });
+  }
+
+  async findLinkedEntity(orgId: string, type: QboEntityType, qboId: string) {
+    for (const [key, link] of this.links)
+      if (key.startsWith(`${orgId}:${type}:`) && link.qboId === qboId)
+        return Number(key.split(":").at(-1));
+    return null;
   }
 
   async getItem() {
@@ -331,7 +357,7 @@ export class FakeStores implements SyncStore, TaskStore {
   async claimDue(orgId: string, now: Date, limit: number) {
     // Mirrors the real store's lease semantics: claiming advances
     // nextAttemptAt so a concurrent claimer skips the same task.
-    const lease = new Date(now.getTime() + 2 * 60_000);
+    const lease = new Date(now.getTime() + 6 * 60_000);
     const due = this.tasks
       .filter(
         (t) =>

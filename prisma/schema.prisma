@@ -73,6 +73,13 @@ model User {
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   createdAt DateTime     @default(now())
 
+  // Brute-force / credential-stuffing protection (lib/auth/login.ts):
+  // consecutive failed password checks since the last success, and the
+  // timestamp until which login is locked out. Both reset to their defaults
+  // on a successful login.
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+
   events Event[] // events this user is assigned to (Event.assignees)
 
   @@index([orgId, archived])
@@ -397,12 +404,13 @@ model QboConnection {
   refreshTokenEnc       String
   accessTokenExpiresAt  DateTime
   refreshTokenExpiresAt DateTime
-  status                String       @default("active") // active | disconnected
+  status                String       @default("active") // active | disconnected (auth outage) | revoked (intentional)
   companyName           String?
   qboItemId             String? // the single Service item invoice lines bill against
   qboItemName           String       @default("Flooring services")
   connectedAt           DateTime     @default(now())
   lastSyncedAt          DateTime?
+  runnerLeaseUntil      DateTime?
 }
 
 /// SqFt record ↔ QBO entity link; one row per synced record. Links survive
@@ -420,6 +428,7 @@ model QboLink {
   updatedAt  DateTime     @updatedAt
 
   @@unique([orgId, entityType, entityId])
+  @@unique([orgId, entityType, qboId])
   @@index([orgId])
 }
 
@@ -471,4 +480,3 @@ model Event {
   createdAt DateTime     @default(now())
   assignees User[]
 }
-

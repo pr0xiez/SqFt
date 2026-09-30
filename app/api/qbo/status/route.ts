@@ -25,6 +25,7 @@ export interface QboStatusPayload {
       invoiceId: number | null;
       lastError: string | null;
       updatedAt: string;
+      status?: string;
     }>;
   } | null;
 }
@@ -41,7 +42,7 @@ export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
     } satisfies QboStatusPayload;
   }
   const connection = await getQboConnection(orgId);
-  if (!connection) {
+  if (!connection || connection.status === "revoked") {
     return {
       configured,
       connection: null,

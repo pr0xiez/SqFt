@@ -100,6 +100,7 @@ describe("buildQboPayment", () => {
       },
       customerQboId: "55",
       invoiceQboId: "77",
+      openBalance: 450,
     });
     expect(body).toEqual({
       TotalAmt: 200,

@@ -4,7 +4,7 @@ import { DecimalInput } from "@/components/ui/DecimalInput";
 import { cn } from "@/lib/cn";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
-import { isLinkedQtyMode, QtyMode, roomSqft } from "@/lib/utils";
+import { fmtDollar, isLinkedQtyMode, QtyMode, roomSqft } from "@/lib/utils";
 
 /** Normalize legacy "ft²" unit label to "sqft" for toggle UI. */
 function normalizeUnit(label: string): "sqft" | "lf" | "other" {
@@ -223,7 +223,7 @@ export function LineItemRow({
                 sub && sub > 0 ? "text-[var(--accent)]" : ""
               )}
             >
-              ${(sub ?? 0).toFixed(2)}
+              {fmtDollar(sub ?? 0)}
             </span>
           )}
         </div>

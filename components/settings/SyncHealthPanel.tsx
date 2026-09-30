@@ -30,7 +30,12 @@ export function SyncHealthPanel({ status }: { status: QboStatus }) {
               {" — "}
               {e.lastError ?? "Unknown error"}
             </span>
-            {e.invoiceId !== null ? (
+            {e.status === "done" ? (
+              <span className="text-[var(--muted)]">
+                {" "}
+                · sync completed; review this note in QuickBooks
+              </span>
+            ) : e.invoiceId !== null ? (
               // Covers payment tasks too: the invoice-page Retry re-queues
               // the invoice AND all of its payments.
               <span className="text-[var(--muted)]">

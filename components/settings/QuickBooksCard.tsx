@@ -18,7 +18,8 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
   if (!status.configured) return null;
 
   const { connection, health } = status;
-  const needsReauth = connection !== null && connection.status !== "active";
+  const needsReauth =
+    connection !== null && connection.status === "disconnected";
 
   return (
     <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] px-5 py-5">
@@ -29,7 +30,8 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
             <p className="text-[13px] text-[var(--muted)]">
               Push customers, sent invoices, and payments into your QuickBooks
               company — included, no extra fee. SqFt stays the source of truth;
-              nothing in QuickBooks is ever pulled back or overwritten.
+              changes in QuickBooks never change SqFt records. Linked customers
+              receive updates when you save them here.
             </p>
           ) : (
             <p className="text-[13px] text-[var(--muted)]">

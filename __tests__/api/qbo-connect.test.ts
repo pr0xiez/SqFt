@@ -65,11 +65,11 @@ afterEach(() => {
 });
 
 describe("POST /api/qbo/connect", () => {
-  it("401s without a session and for non-admin roles", async () => {
+  it("returns 401 without a session and 403 for non-admin roles", async () => {
     mockAuth.mockResolvedValueOnce(null);
     expect((await connectPost(makeRequest("POST"), noParams)).status).toBe(401);
     asRole("lead");
-    expect((await connectPost(makeRequest("POST"), noParams)).status).toBe(401);
+    expect((await connectPost(makeRequest("POST"), noParams)).status).toBe(403);
   });
 
   it("404s when QBO env is not configured", async () => {
@@ -143,6 +143,20 @@ describe("GET /api/qbo/status", () => {
     const res = await statusGet(makeRequest("GET"), noParams);
     const body = (await res.json()) as { connection: null };
     expect(body.connection).toBeNull();
+    expect(vi.mocked(runQboSyncForOrg)).not.toHaveBeenCalled();
+  });
+  it("intentional disconnect exposes no reconnect nag or held backlog", async () => {
+    asRole("admin");
+    mockGetConnection.mockResolvedValueOnce({ status: "revoked" } as Awaited<
+      ReturnType<typeof getQboConnection>
+    >);
+    const res = await statusGet(makeRequest("GET"), noParams);
+    expect(await res.json()).toEqual({
+      configured: true,
+      connection: null,
+      health: null,
+    });
+    expect(mockGetHealth).not.toHaveBeenCalled();
     expect(vi.mocked(runQboSyncForOrg)).not.toHaveBeenCalled();
   });
 });

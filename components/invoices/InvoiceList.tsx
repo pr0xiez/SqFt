@@ -2,10 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import {
-  type InvoiceStatusFilter,
-  OPEN_INVOICE_STATUSES,
-} from "@/components/invoices/filterInvoices";
+import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
+import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -14,8 +12,9 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { cn } from "@/lib/cn";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { type InvoiceListRow, useInvoiceList } from "@/lib/hooks/useInvoices";
+import { useInvoiceList } from "@/lib/hooks/useInvoices";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
+import { isInvoiceOverdue } from "@/lib/invoices";
 import { cycleSort } from "@/lib/sort";
 import { fmtDollar } from "@/lib/utils";
 
@@ -36,20 +35,7 @@ const STATUS_PILL_COLOR: Record<string, string> = {
   void: "text-[var(--accent)]",
 };
 
-const OPEN_SET = new Set<string>(OPEN_INVOICE_STATUSES);
-
 type SortKey = "number" | "customer" | "amount" | "dueDate" | "sentAt";
-
-function isOverdue(row: InvoiceListRow): boolean {
-  if (!OPEN_SET.has(row.status) || row.dueDate === null) return false;
-  const due = new Date(row.dueDate);
-  const endOfDueDay = new Date(
-    due.getFullYear(),
-    due.getMonth(),
-    due.getDate() + 1
-  );
-  return Date.now() >= endOfDueDay.getTime();
-}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -92,7 +78,7 @@ export function InvoiceListView() {
   const debouncedQuery = useDebouncedValue(query, 300);
   const sortKey = sort?.key ?? "sentAt";
   const sortDir = sort?.direction ?? "desc";
-  const { data, isLoading } = useInvoiceList({
+  const { data, isLoading, isError, refetch } = useInvoiceList({
     page,
     perPage,
     sort: sortKey,
@@ -207,6 +193,15 @@ export function InvoiceListView() {
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Loading…
           </div>
+        ) : isError ? (
+          <div className="p-6 flex flex-col items-start gap-2.5">
+            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
+              Something went wrong loading invoices.
+            </div>
+            <Button variant="default" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </div>
         ) : allCount === 0 ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             No invoices yet.
@@ -224,7 +219,7 @@ export function InvoiceListView() {
             {invoices.map((row) => {
               const pillColor =
                 STATUS_PILL_COLOR[row.status] ?? "text-[var(--muted)]";
-              const overdue = isOverdue(row);
+              const overdue = isInvoiceOverdue(row);
 
               return (
                 <button

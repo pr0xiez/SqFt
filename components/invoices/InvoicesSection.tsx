@@ -4,13 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { CreateInvoiceDialog } from "@/components/invoices/CreateInvoiceDialog";
 import { Button } from "@/components/ui/Button";
-import { type InvoiceListItem, useInvoices } from "@/lib/hooks/useInvoices";
-import { computeEstimateBilling } from "@/lib/invoices";
+import { useInvoices } from "@/lib/hooks/useInvoices";
+import { computeEstimateBilling, paymentsPaidTotal } from "@/lib/invoices";
 import { fmtDollar } from "@/lib/utils";
-
-function paidTotal(row: InvoiceListItem): number {
-  return row.payments.reduce((s, p) => s + p.amount, 0);
-}
 
 function SummaryCell({ label, value }: { label: string; value: string }) {
   return (
@@ -41,7 +37,7 @@ export function InvoicesSection({
     invoices.map((i) => ({
       amount: i.amount,
       status: i.status,
-      paidAmount: paidTotal(i),
+      paidAmount: paymentsPaidTotal(i.payments),
     }))
   );
 
@@ -100,7 +96,9 @@ export function InvoicesSection({
                 <td className="py-2">{row.memo ?? "—"}</td>
                 <td className="py-2">{row.status}</td>
                 <td className="py-2 text-right">{fmtDollar(row.amount)}</td>
-                <td className="py-2 text-right">{fmtDollar(paidTotal(row))}</td>
+                <td className="py-2 text-right">
+                  {fmtDollar(paymentsPaidTotal(row.payments))}
+                </td>
                 <td className="py-2 text-right">
                   <Link
                     href={`/invoices/${row.id}`}

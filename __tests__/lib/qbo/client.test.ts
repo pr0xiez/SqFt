@@ -12,7 +12,11 @@ function fault(code: string, message = "msg", detail = "detail") {
 describe("classifyFault", () => {
   it("maps Intuit fault codes to kinds", () => {
     expect(classifyFault(401, null)).toBe("auth");
-    expect(classifyFault(403, null)).toBe("auth");
+    expect(classifyFault(403, null)).toBe("other");
+    expect(classifyFault(403, fault("3200"))).toBe("auth");
+    expect(
+      classifyFault(403, fault("003100", "ApplicationAuthorizationFailed"))
+    ).toBe("other");
     expect(classifyFault(429, null)).toBe("throttle");
     expect(classifyFault(400, fault("6240"))).toBe("duplicate_name");
     expect(classifyFault(400, fault("6140"))).toBe("duplicate_docnum");

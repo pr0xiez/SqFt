@@ -6,9 +6,11 @@
  * come back.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   backoffMinutes,
+  customerDisplayName,
+  ensureCustomerSynced,
   ensureInvoiceSynced,
   ensureInvoiceVoided,
   ensurePaymentSynced,
@@ -82,6 +84,84 @@ describe("invariant 1 — ensure-ops converge in any order", () => {
   });
 });
 
+describe("review regressions — identity, balance and transient failures", () => {
+  it("does not adopt a bare namesake and keeps two identical SqFt names separate", async () => {
+    const { qbo, stores, deps } = setup();
+    await qbo.createCustomer({ DisplayName: "Sam Waters" });
+    stores.customers.set(8, { ...stores.customers.get(7)! });
+    const a = await ensureCustomerSynced(deps, 7);
+    const b = await ensureCustomerSynced(deps, 8);
+    expect(a?.id).not.toBe(b?.id);
+    expect(qbo.customers.map((c) => c.DisplayName)).toEqual([
+      "Sam Waters",
+      "Sam Waters (SqFt #7)",
+      "Sam Waters (SqFt #8)",
+    ]);
+    expect(customerDisplayName("x".repeat(150), 8)).toHaveLength(100);
+  });
+
+  it("refuses an already-linked remote customer before assigning another local identity", async () => {
+    const { qbo, stores, deps } = setup();
+    const remote = await qbo.createCustomer({
+      DisplayName: customerDisplayName("Sam Waters", 7),
+    });
+    await stores.saveLink(ORG, "customer", 8, remote);
+    await expect(ensureCustomerSynced(deps, 7)).rejects.toThrow(
+      "already linked"
+    );
+    expect(await stores.getLink(ORG, "customer", 7)).toBeNull();
+  });
+
+  it("retains gross payments while limiting application to the remaining QBO balance", async () => {
+    const { qbo, stores, deps } = setup();
+    await ensurePaymentSynced(deps, 9); // first 200 of 450
+    stores.payments.set(10, {
+      invoiceId: 42,
+      source: { ...stores.payments.get(9)!.source, paymentId: 10, amount: 400 },
+    });
+    await ensurePaymentSynced(deps, 10);
+    expect(qbo.payments[1].body.TotalAmt).toBe(400);
+    expect(qbo.payments[1].body.Line[0].Amount).toBe(250);
+    stores.payments.set(11, {
+      invoiceId: 42,
+      source: { ...stores.payments.get(9)!.source, paymentId: 11, amount: 50 },
+    });
+    await ensurePaymentSynced(deps, 11);
+    expect(qbo.payments[2].body).toMatchObject({ TotalAmt: 50, Line: [] });
+    stores.links.delete(`${ORG}:payment:10`);
+    await ensurePaymentSynced(deps, 10);
+    expect(qbo.payments).toHaveLength(3); // adopts a lost response
+  });
+
+  it("prolonged throttling does not exhaust the permanent failure budget", async () => {
+    const { qbo, stores, deps } = setup();
+    const row = stores.enqueue(ORG, "sync_invoice", 42);
+    let now = new Date();
+    for (let i = 0; i < 12; i++) {
+      qbo.failNext("throttle", "findCustomerByName");
+      await runDueTasksForOrg(deps, stores, { now });
+      expect(row.attempts).toBe(0);
+      expect(row.status).toBe("pending");
+      now = new Date(row.nextAttemptAt.getTime() + 1);
+    }
+    await runDueTasksForOrg(deps, stores, { now });
+    expect(row.status).toBe("done");
+  });
+
+  it("claims each task only immediately before processing it", async () => {
+    const { stores, deps } = setup();
+    stores.enqueue(ORG, "sync_invoice", 42);
+    stores.enqueue(ORG, "sync_payment", 9);
+    const claim = vi.spyOn(stores, "claimDue");
+    const done = vi.spyOn(stores, "markDone");
+    await runDueTasksForOrg(deps, stores);
+    expect(claim.mock.calls.every((call) => call[2] === 1)).toBe(true);
+    expect(done.mock.invocationCallOrder[0]).toBeLessThan(
+      claim.mock.invocationCallOrder[1]
+    );
+  });
+});
+
 describe("invariant 2 — query-before-create, never a duplicate", () => {
   it("timeout after the create POST → the retry adopts, realm has exactly one invoice", async () => {
     const { qbo, stores, deps } = setup();
@@ -106,23 +186,20 @@ describe("invariant 2 — query-before-create, never a duplicate", () => {
 
   it("adopts an existing QBO customer by exact DisplayName instead of creating", async () => {
     const { qbo, deps } = setup();
-    await qbo.createCustomer({ DisplayName: "Sam Waters" });
+    await qbo.createCustomer({ DisplayName: "Sam Waters (SqFt #7)" });
     qbo.calls.length = 0;
     await ensureInvoiceSynced(deps, 42);
     expect(qbo.customers).toHaveLength(1);
     expect(qbo.calls).not.toContain("createCustomer");
   });
 
-  it("duplicate DisplayName owned by a vendor → creates under a suffixed name", async () => {
+  it("an unresolved stable-name collision fails visibly", async () => {
     const { qbo, deps } = setup();
     // No customer named Sam Waters exists, but create rejects (vendor owns it).
     qbo.failNext("duplicate_name", "createCustomer");
     const { ensureCustomerSynced } = await import("@/lib/qbo/sync");
-    const ref = await ensureCustomerSynced(deps, 7);
-    expect(ref).not.toBeNull();
-    expect(qbo.customers.map((c) => c.DisplayName)).toEqual([
-      "Sam Waters (SqFt)",
-    ]);
+    await expect(ensureCustomerSynced(deps, 7)).rejects.toThrow();
+    expect(qbo.customers).toHaveLength(0);
   });
 
   it("a foreign invoice occupying our DocNumber is skipped, not adopted", async () => {
@@ -227,7 +304,10 @@ describe("invariant 3 — a re-enqueue during an in-flight run is never swallowe
       return origCreate(body);
     };
 
-    const result = await runDueTasksForOrg(deps, stores, { now: new Date() });
+    const result = await runDueTasksForOrg(deps, stores, {
+      now: new Date(),
+      limit: 1,
+    });
     expect(result.done).toBe(1); // the QBO write itself succeeded
     expect(row.status).toBe("pending"); // …but the fresh intent survives
     expect(row.attempts).toBe(0);
@@ -334,7 +414,7 @@ describe("invariant 7 — stale SyncToken re-reads once and retries", () => {
     await syncCustomerTask(deps, 7);
 
     const updated = qbo.customers.find((c) => c.Id === ref.id);
-    expect(updated?.DisplayName).toBe("Sam W. Waters");
+    expect(updated?.DisplayName).toBe("Sam W. Waters (SqFt #7)");
     expect(stores.links.get(`${ORG}:customer:7`)?.syncToken).toBe(
       updated?.SyncToken
     );

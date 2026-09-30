@@ -6,8 +6,9 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
-import { readApiError } from "@/lib/api/errors";
+import { apiFetch } from "@/lib/hooks/apiFetch";
+import type { InvoiceStatusFilter } from "@/lib/invoices/statusFilter";
+import type { InvoiceSnapshot } from "@/lib/invoices/types";
 import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
 import type { SortDirection } from "@/lib/sort";
 
@@ -30,12 +31,6 @@ export interface InvoiceEvent {
   actorName: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
-}
-
-export interface InvoiceLine {
-  name: string;
-  description: string | null;
-  amount: number;
 }
 
 export interface InvoiceListItem {
@@ -97,14 +92,18 @@ export interface InvoiceDetail {
   paymentInstructions: string;
   date: string;
   dueDate: string | null;
-  publicToken: string | null;
+  /** The public review token is never sent to the client (CWE-201/522: it's
+   *  a bearer credential for the unauthenticated invoice-review payment
+   *  flow). Use `useInvoicePublicToken` to mint/read one when actually
+   *  needed (the "copy public link" action). */
+  hasPublicToken: boolean;
   sentAt: string | null;
   sentToEmail: string | null;
   customerEmail: string | null;
   viewedAt: string | null;
   paidAt: string | null;
   voidedAt: string | null;
-  snapshot: { lines?: InvoiceLine[] } | null;
+  snapshot: InvoiceSnapshot | null;
   payments: InvoicePayment[];
   invoiceEvents: InvoiceEvent[];
   /** QBO sync badge state; null hides the badge (no connection / draft). */
@@ -114,20 +113,13 @@ export interface InvoiceDetail {
   } | null;
 }
 
-async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
-  if (!res.ok) {
-    const { message } = await readApiError(res, fallback);
-    throw new Error(message);
-  }
-  return res.json();
-}
-
 export function useInvoices(estimateId: number) {
   return useQuery({
     queryKey: ["invoices", "estimate", estimateId],
-    queryFn: async () =>
-      jsonOrThrow<InvoiceListItem[]>(
-        await fetch(`/api/estimates/${estimateId}/invoices`),
+    queryFn: () =>
+      apiFetch<InvoiceListItem[]>(
+        `/api/estimates/${estimateId}/invoices`,
+        undefined,
         "Failed to load invoices"
       ),
     enabled: !!estimateId,
@@ -137,9 +129,10 @@ export function useInvoices(estimateId: number) {
 export function useInvoiceList(params: InvoiceListParams) {
   return useQuery({
     queryKey: ["invoices", "list", params],
-    queryFn: async () =>
-      jsonOrThrow<InvoiceListResponse>(
-        await fetch(`/api/invoices?${invoiceListQueryString(params)}`),
+    queryFn: () =>
+      apiFetch<InvoiceListResponse>(
+        `/api/invoices?${invoiceListQueryString(params)}`,
+        undefined,
         "Failed to load invoices"
       ),
     placeholderData: keepPreviousData,
@@ -149,9 +142,10 @@ export function useInvoiceList(params: InvoiceListParams) {
 export function useInvoice(id: number) {
   return useQuery({
     queryKey: ["invoices", id],
-    queryFn: async () =>
-      jsonOrThrow<InvoiceDetail>(
-        await fetch(`/api/invoices/${id}`),
+    queryFn: () =>
+      apiFetch<InvoiceDetail>(
+        `/api/invoices/${id}`,
+        undefined,
         "Failed to load invoice"
       ),
     enabled: !!id,
@@ -169,19 +163,38 @@ export interface CreateInvoiceVariables {
 export function useCreateInvoice(estimateId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: CreateInvoiceVariables): Promise<InvoiceDetail> =>
-      jsonOrThrow<InvoiceDetail>(
-        await fetch(`/api/estimates/${estimateId}/invoices`, {
+    mutationFn: (vars: CreateInvoiceVariables) =>
+      apiFetch<InvoiceDetail>(
+        `/api/estimates/${estimateId}/invoices`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(vars),
-        }),
+        },
         "Failed to create invoice"
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
       qc.invalidateQueries({ queryKey: ["estimates", estimateId] });
       qc.invalidateQueries({ queryKey: ["invoices", "list"] });
+    },
+  });
+}
+
+/** Reuse (or mint, if none exists) the invoice's public review token — the
+ *  one sanctioned way to read a live token value, since the invoice detail
+ *  payload never carries it. Used by the "copy public link" action. */
+export function useInvoicePublicToken(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<{ publicToken: string }> =>
+      apiFetch<{ publicToken: string }>(
+        `/api/invoices/${id}/public-token`,
+        { method: "POST" },
+        "Failed to generate link"
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices", id] });
     },
   });
 }
@@ -194,13 +207,14 @@ export interface SendInvoiceVariables {
 export function useSendInvoice(id: number, estimateId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: SendInvoiceVariables): Promise<{ ok: true }> =>
-      jsonOrThrow<{ ok: true }>(
-        await fetch(`/api/invoices/${id}/send`, {
+    mutationFn: (vars: SendInvoiceVariables) =>
+      apiFetch<{ ok: true }>(
+        `/api/invoices/${id}/send`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(vars),
-        }),
+        },
         "Send failed"
       ),
     onSuccess: () => {
@@ -222,13 +236,14 @@ export interface RecordPaymentVariables {
 export function useRecordPayment(id: number, estimateId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: RecordPaymentVariables): Promise<InvoiceDetail> =>
-      jsonOrThrow<InvoiceDetail>(
-        await fetch(`/api/invoices/${id}/payments`, {
+    mutationFn: (vars: RecordPaymentVariables) =>
+      apiFetch<InvoiceDetail>(
+        `/api/invoices/${id}/payments`,
+        {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(vars),
-        }),
+        },
         "Failed to record payment"
       ),
     onSuccess: () => {
@@ -242,9 +257,10 @@ export function useRecordPayment(id: number, estimateId: number) {
 export function useVoidInvoice(id: number, estimateId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (): Promise<InvoiceDetail> =>
-      jsonOrThrow<InvoiceDetail>(
-        await fetch(`/api/invoices/${id}/void`, { method: "POST" }),
+    mutationFn: () =>
+      apiFetch<InvoiceDetail>(
+        `/api/invoices/${id}/void`,
+        { method: "POST" },
         "Failed to void invoice"
       ),
     onSuccess: () => {

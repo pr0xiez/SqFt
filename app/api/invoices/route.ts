@@ -1,5 +1,5 @@
-import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
 import { apiRoute } from "@/lib/api/route";
+import type { InvoiceStatusFilter } from "@/lib/invoices/statusFilter";
 import { parsePageParams } from "@/lib/pagination/params";
 import { type InvoiceSortKey, listInvoices } from "@/lib/repositories";
 

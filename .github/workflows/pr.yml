@@ -98,14 +98,13 @@ jobs:
           fetch-depth: 2
       - name: Detect app (non-www) changes
         id: changes
-        # Mirror the root vercel.json ignoreCommand
-        # (git diff --quiet HEAD^ HEAD -- . ':(exclude)www'). When the head
+        # Run the same parent-aware check as root vercel.json. When the head
         # commit only touches www/, Vercel skips the app deploy — so there is
         # no preview for Playwright to wait on and the job would otherwise hang
         # until the 10-min timeout. Short-circuit to a green E2E job instead.
         run: |
-          if git diff --quiet HEAD^ HEAD -- . ':(exclude)www'; then
-            echo "Only www/ changed on the head commit — Vercel skips the app deploy; skipping E2E."
+          if bash scripts/ignore-app-deploy.sh; then
+            echo "No app changes across commit parents — skipping app deployment and E2E."
             echo "app=false" >> "$GITHUB_OUTPUT"
           else
             echo "App (non-www) changes detected — running E2E."

@@ -16,11 +16,14 @@ import {
   voidInvoice,
 } from "@/lib/repositories/invoiceRepo";
 import {
+  claimQboRunner,
   enqueueQboTaskTx,
   getFreshAccessContext,
   getInvoiceQboState,
+  makeSyncStore,
   makeTaskStore,
   markQboDisconnected,
+  releaseQboRunner,
   requeueInvoiceSync,
   upsertQboConnection,
 } from "@/lib/repositories/qboRepo";
@@ -470,5 +473,105 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("qboRepo", () => {
     expect(conn?.refreshTokenEnc).not.toContain("refresh-seed");
     expect(decryptToken(conn?.accessTokenEnc ?? "")).toBe("access-seed");
     expect(encryptToken("x")).not.toBe(encryptToken("x"));
+  });
+
+  it("intentional disconnect ignores new writes and discards held tasks on reconnect", async () => {
+    const { org, invoice, realmId } = await seed();
+    await requeueInvoiceSync(org.id, invoice.id);
+    await markQboDisconnected(org.id, true);
+    const count = (await taskRows(org.id)).length;
+    await prisma.$transaction((tx) =>
+      enqueueQboTaskTx(tx, org.id, "sync_customer", 999)
+    );
+    expect((await taskRows(org.id)).length).toBe(count);
+    expect(await getInvoiceQboState(org.id, invoice.id)).toBeNull();
+    await upsertQboConnection({
+      orgId: org.id,
+      realmId,
+      tokens: tokens("opt-in"),
+      companyName: "Seed Co",
+    });
+    expect(await taskRows(org.id)).toHaveLength(0);
+  });
+
+  it("realm switches clear old tasks and fence stale link writes", async () => {
+    const { org, invoice, realmId } = await seed();
+    await requeueInvoiceSync(org.id, invoice.id);
+    const store = makeSyncStore(realmId);
+    await upsertQboConnection({
+      orgId: org.id,
+      realmId: `new-${org.id}`,
+      tokens: tokens("new"),
+      companyName: "New Co",
+    });
+    expect(await taskRows(org.id)).toHaveLength(0);
+    await expect(
+      store.saveLink(org.id, "invoice", invoice.id, {
+        id: "old-realm-id",
+        syncToken: "0",
+      })
+    ).rejects.toThrow("changed during sync");
+    expect(await prisma.qboLink.count({ where: { orgId: org.id } })).toBe(0);
+  });
+
+  it("runner lease serializes tasks across instances and releases only its own claim", async () => {
+    const { org } = await seed();
+    const now = new Date();
+    const claims = await Promise.all([
+      claimQboRunner(org.id, now),
+      claimQboRunner(org.id, now),
+    ]);
+    expect(claims.filter(Boolean)).toHaveLength(1);
+    const lease = claims.find(Boolean)!;
+    await releaseQboRunner(org.id, new Date(lease.getTime() - 1));
+    expect(await claimQboRunner(org.id, now)).toBeNull();
+    await releaseQboRunner(org.id, lease);
+    expect(await claimQboRunner(org.id, now)).not.toBeNull();
+  });
+
+  it("first send re-arms payments previously skipped on a draft", async () => {
+    const { org, invoice } = await seed();
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { status: "draft" },
+    });
+    const payment = await prisma.payment.create({
+      data: { invoiceId: invoice.id, amount: 100, method: "check" },
+    });
+    await prisma.qboSyncTask.create({
+      data: {
+        orgId: org.id,
+        kind: "sync_payment",
+        entityId: payment.id,
+        status: "done",
+      },
+    });
+    await markInvoiceSent(invoice.id, org.id, {
+      to: "sam@example.test",
+      subject: "Invoice",
+      sentByEmail: "admin@example.test",
+      sentByName: "Admin",
+      snapshot: {},
+    });
+    expect(
+      (await taskRows(org.id)).find((t) => t.kind === "sync_payment")?.status
+    ).toBe("pending");
+  });
+
+  it("auth recovery takes precedence over the last transient failure in the badge", async () => {
+    const { org, invoice } = await seed();
+    await prisma.qboSyncTask.create({
+      data: {
+        orgId: org.id,
+        kind: "sync_invoice",
+        entityId: invoice.id,
+        status: "paused_auth",
+        lastError: "network error",
+      },
+    });
+    expect(await getInvoiceQboState(org.id, invoice.id)).toEqual({
+      state: "auth_required",
+      lastError: null,
+    });
   });
 });

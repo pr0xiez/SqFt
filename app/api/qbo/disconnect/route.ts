@@ -8,9 +8,8 @@ import {
   readRefreshToken,
 } from "@/lib/repositories/qboRepo";
 
-/** User-initiated disconnect: best-effort revoke at Intuit, then mark the
- *  connection disconnected (pending tasks pause; nothing is deleted, so
- *  reconnecting to the same company resumes cleanly). */
+/** User-initiated disconnect: revoke at Intuit and opt out of enqueueing.
+ * Reconnect keeps same-company links but discards held opt-out tasks. */
 export const POST = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
   const config = getQboConfig();
   const connection = await getQboConnection(orgId);
@@ -18,6 +17,6 @@ export const POST = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
 
   const refreshToken = await readRefreshToken(orgId);
   if (refreshToken) await revokeToken(config, refreshToken);
-  await markQboDisconnected(orgId);
+  await markQboDisconnected(orgId, true);
   return { ok: true };
 });

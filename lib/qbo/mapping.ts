@@ -158,8 +158,10 @@ export function buildQboPayment(args: {
   source: PaymentSyncSource;
   customerQboId: string;
   invoiceQboId: string;
+  openBalance: number;
 }): QboPaymentBody {
   const { source } = args;
+  const applied = Math.max(0, Math.min(source.amount, args.openBalance));
   const note = [source.method, source.reference].filter(Boolean).join(" ");
   return {
     TotalAmt: source.amount,
@@ -167,11 +169,14 @@ export function buildQboPayment(args: {
     CustomerRef: { value: args.customerQboId },
     PaymentRefNum: paymentRefNum(source.paymentId),
     ...(note ? { PrivateNote: note } : {}),
-    Line: [
-      {
-        Amount: source.amount,
-        LinkedTxn: [{ TxnId: args.invoiceQboId, TxnType: "Invoice" }],
-      },
-    ],
+    Line:
+      applied > 0
+        ? [
+            {
+              Amount: applied,
+              LinkedTxn: [{ TxnId: args.invoiceQboId, TxnType: "Invoice" }],
+            },
+          ]
+        : [],
   };
 }

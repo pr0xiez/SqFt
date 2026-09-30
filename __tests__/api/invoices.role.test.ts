@@ -49,12 +49,12 @@ beforeEach(() => {
 });
 
 describe("GET /api/invoices/[id] — role gate", () => {
-  it("401 for crew", async () => {
+  it("403 for crew", async () => {
     asRole("crew");
     const res = await GET_INVOICE(makeGet("http://localhost/api/invoices/1"), {
       params: Promise.resolve({ id: "1" }),
     });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
     expect(getInvoice).not.toHaveBeenCalled();
   });
 
@@ -63,18 +63,18 @@ describe("GET /api/invoices/[id] — role gate", () => {
     const res = await GET_INVOICE(makeGet("http://localhost/api/invoices/1"), {
       params: Promise.resolve({ id: "1" }),
     });
-    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
   });
 });
 
 describe("GET /api/estimates/[id]/invoices — role gate", () => {
-  it("401 for crew", async () => {
+  it("403 for crew", async () => {
     asRole("crew");
     const res = await GET_ESTIMATE_INVOICES(
       makeGet("http://localhost/api/estimates/1/invoices"),
       { params: Promise.resolve({ id: "1" }) }
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
     expect(listInvoicesForEstimate).not.toHaveBeenCalled();
   });
 
@@ -84,6 +84,6 @@ describe("GET /api/estimates/[id]/invoices — role gate", () => {
       makeGet("http://localhost/api/estimates/1/invoices"),
       { params: Promise.resolve({ id: "1" }) }
     );
-    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
   });
 });

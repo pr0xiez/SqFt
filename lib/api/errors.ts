@@ -7,6 +7,8 @@
  * Codes are documented in CONTEXT.md.
  */
 
+import { fmtDollar } from "@/lib/utils";
+
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
@@ -113,10 +115,21 @@ export class InvoiceOverbillError extends ConflictError {
   readonly unbilled: number;
   constructor(unbilled: number) {
     super(
-      `Amount exceeds the estimate's unbilled balance ($${unbilled.toFixed(2)}).`,
+      `Amount exceeds the estimate's unbilled balance (${fmtDollar(unbilled)}).`,
       "INVOICE_OVERBILL"
     );
     this.unbilled = unbilled;
+  }
+}
+
+export class InvoiceOverpayError extends ConflictError {
+  readonly outstanding: number;
+  constructor(outstanding: number) {
+    super(
+      `Payment exceeds the invoice's outstanding balance ($${outstanding.toFixed(2)}).`,
+      "INVOICE_OVERPAY"
+    );
+    this.outstanding = outstanding;
   }
 }
 
@@ -213,6 +226,23 @@ export type ApiErrorEnvelope = {
     details?: unknown;
   };
 };
+
+/**
+ * Serialize an `ApiError` into the wire envelope. Shared by `apiRoute` /
+ * `publicRoute` (lib/api/route.ts) and `proxy.ts` — the middleware's 401
+ * short-circuit happens before a route handler ever runs, but it still needs
+ * to emit the same shape, so it builds an `UnauthorizedError` and serializes
+ * it through this helper rather than hand-rolling a parallel literal.
+ */
+export function toErrorEnvelope(err: ApiError): ApiErrorEnvelope {
+  return {
+    error: {
+      code: err.code,
+      message: err.message,
+      ...(err.details !== undefined ? { details: err.details } : {}),
+    },
+  };
+}
 
 /**
  * Read the standard error envelope from a non-OK fetch Response. Returns the

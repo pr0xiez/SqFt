@@ -1,5 +1,5 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
-import { loginAsWorkerOrg } from "./fixtures/org";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
   seedEstimateWithLineItem,
@@ -64,5 +64,50 @@ test.describe
         await ctx.request.get(`/api/invoices/${invoiceId}`)
       ).json();
       expect(inv.status).toBe("void");
+    });
+
+    test("cross-org POST payments returns 404", async ({ browser }) => {
+      const { invoiceId: crossOrgInvoiceId } = await seedInvoice(
+        ctx.request,
+        estimateId,
+        { amount: 10 }
+      );
+      const otherCtx = await browser.newContext();
+      await loginAsSecondaryOrg(browser, otherCtx);
+      const res = await otherCtx.request.post(
+        `/api/invoices/${crossOrgInvoiceId}/payments`,
+        { data: { amount: 5, method: "check" } }
+      );
+      expect(res.status()).toBe(404);
+      await otherCtx.close();
+
+      // Confirm the cross-org attempt did not sneak a payment in: the invoice
+      // is still unpaid from the worker org's own point of view.
+      const inv = await (
+        await ctx.request.get(`/api/invoices/${crossOrgInvoiceId}`)
+      ).json();
+      expect(inv.status).toBe("draft");
+    });
+
+    test("cross-org POST void returns 404", async ({ browser }) => {
+      const { invoiceId: crossOrgInvoiceId } = await seedInvoice(
+        ctx.request,
+        estimateId,
+        { amount: 10 }
+      );
+      const otherCtx = await browser.newContext();
+      await loginAsSecondaryOrg(browser, otherCtx);
+      const res = await otherCtx.request.post(
+        `/api/invoices/${crossOrgInvoiceId}/void`
+      );
+      expect(res.status()).toBe(404);
+      await otherCtx.close();
+
+      // Confirm the cross-org attempt did not void it out from under the
+      // worker org.
+      const inv = await (
+        await ctx.request.get(`/api/invoices/${crossOrgInvoiceId}`)
+      ).json();
+      expect(inv.status).toBe("draft");
     });
   });

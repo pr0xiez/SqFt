@@ -32,10 +32,10 @@ test.describe
 
       await page.getByRole("button", { name: "Disconnect" }).click();
       await expect(
-        page.getByText("QuickBooks needs to be reconnected")
+        page.getByRole("button", { name: "Connect to QuickBooks" })
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Reconnect" })
-      ).toBeVisible();
+        page.getByText("QuickBooks needs to be reconnected")
+      ).toHaveCount(0);
     });
   });

@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { logError, logMutation, logRequest } from "../../lib/logger";
+import {
+  logError,
+  logMutation,
+  logRequest,
+  maskTokenPath,
+} from "../../lib/logger";
 
 function captureOutput() {
   const lines: string[] = [];
@@ -137,5 +142,50 @@ describe("logError", () => {
     const entry = JSON.parse(lines[0]);
     expect(entry.type).toBe("error");
     expect(entry.errorMessage).toBe("signup failed");
+  });
+});
+
+describe("maskTokenPath", () => {
+  it("redacts the token segment on an estimate-review API path", () => {
+    expect(maskTokenPath("/api/estimate-review/SECRET_TOKEN_123/approve")).toBe(
+      "/api/estimate-review/[REDACTED]/approve"
+    );
+  });
+
+  it("redacts the token segment on an invoice-review API path", () => {
+    expect(maskTokenPath("/api/invoice-review/SECRET_TOKEN_456/checkout")).toBe(
+      "/api/invoice-review/[REDACTED]/checkout"
+    );
+  });
+
+  it("redacts the token on the public page path (no /api prefix)", () => {
+    expect(maskTokenPath("/estimate-review/SECRET_TOKEN_789")).toBe(
+      "/estimate-review/[REDACTED]"
+    );
+  });
+
+  it("redacts the token on an invoice-review confirm path", () => {
+    expect(maskTokenPath("/api/invoice-review/SECRET_TOKEN_ABC/confirm")).toBe(
+      "/api/invoice-review/[REDACTED]/confirm"
+    );
+  });
+
+  it("never includes the raw token value in the masked output", () => {
+    const masked = maskTokenPath(
+      "/api/estimate-review/super-secret-token-xyz/decline"
+    );
+    expect(masked).not.toContain("super-secret-token-xyz");
+  });
+
+  it("leaves ordinary org-scoped API paths completely unchanged", () => {
+    expect(maskTokenPath("/api/estimates/5")).toBe("/api/estimates/5");
+    expect(maskTokenPath("/api/customers")).toBe("/api/customers");
+    expect(maskTokenPath("/api/site-measures/42")).toBe(
+      "/api/site-measures/42"
+    );
+  });
+
+  it("leaves an estimate-review path with no trailing token segment unchanged", () => {
+    expect(maskTokenPath("/api/estimate-review")).toBe("/api/estimate-review");
   });
 });

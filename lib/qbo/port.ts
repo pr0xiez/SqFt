@@ -25,6 +25,7 @@ interface QboEntityJson {
   DisplayName?: string;
   DocNumber?: string;
   TotalAmt?: number;
+  Balance?: number;
   CustomerRef?: { value: string };
   Name?: string;
   AccountType?: string;
@@ -130,6 +131,19 @@ export function makeQboPort(getContext: ContextProvider): QboPort {
     },
     createInvoice: (body) => create("/invoice", "Invoice", body),
     readInvoice: (id) => readEntity("invoice", id),
+    async readInvoiceBalance(id) {
+      const body = (await call("GET", `/invoice/${id}`)) as {
+        Invoice?: QboEntityJson;
+      };
+      const balance = body.Invoice?.Balance;
+      if (
+        typeof balance !== "number" ||
+        !Number.isFinite(balance) ||
+        balance < 0
+      )
+        throw new Error("QuickBooks invoice balance is unavailable");
+      return balance;
+    },
     voidInvoice: (id, syncToken) =>
       create(
         "/invoice",

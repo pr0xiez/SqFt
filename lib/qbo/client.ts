@@ -59,7 +59,14 @@ export function readFault(body: unknown): QboFaultError | null {
 }
 
 export function classifyFault(status: number, body: unknown): QboFaultKind {
-  if (status === 401 || status === 403) return "auth";
+  const authFault = readFault(body);
+  if (
+    status === 401 ||
+    (status === 403 &&
+      (authFault?.code === "3200" ||
+        /AuthenticationFailed/.test(authFault?.Message ?? "")))
+  )
+    return "auth";
   if (status === 429) return "throttle";
   const fault = readFault(body);
   switch (fault?.code) {
@@ -113,8 +120,14 @@ export async function qboFetch(req: QboRequest): Promise<unknown> {
     body: req.body !== undefined ? JSON.stringify(req.body) : undefined,
     // A hung Intuit connection must not stall the serial per-org runner (an
     // after() callback or the cron sweep) indefinitely. A timeout throws a
-    // plain (non-QboApiError) error → retryable, the task backs off.
+    // transport error → retryable 503, without consuming the retry budget.
     signal: AbortSignal.timeout(QBO_FETCH_TIMEOUT_MS),
+  }).catch(() => {
+    throw new QboApiError({
+      kind: "other",
+      status: 503,
+      message: "QuickBooks connection timed out or failed",
+    });
   });
 
   const body: unknown = await res.json().catch(() => null);

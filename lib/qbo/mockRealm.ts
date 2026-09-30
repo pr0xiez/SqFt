@@ -127,6 +127,32 @@ function invoiceTotal(body: Record<string, unknown>): number {
   return lines.reduce((s, l) => s + (l.Amount ?? 0), 0) + tax;
 }
 
+function withBalance(entity: MockEntity, data: MockRealmData): MockEntity {
+  const applied = data.payments.reduce(
+    (sum, payment) =>
+      sum +
+      (Array.isArray(payment.Line)
+        ? (payment.Line as Array<{
+            Amount: number;
+            LinkedTxn: Array<{ TxnId: string }>;
+          }>)
+        : []
+      ).reduce(
+        (amount, line) =>
+          amount +
+          (line.LinkedTxn?.some((txn) => txn.TxnId === entity.Id)
+            ? line.Amount
+            : 0),
+        0
+      ),
+    0
+  );
+  return {
+    ...entity,
+    Balance: entity.voided ? 0 : Math.max(0, Number(entity.TotalAmt) - applied),
+  };
+}
+
 /** POST /v3/company/{realm}/{entity} — create, sparse update, or void. */
 export async function handleEntityWrite(
   realmId: string,
@@ -201,7 +227,9 @@ export async function handleEntityRead(
   const data = await loadRealm(realmId);
   const existing = collection(data, entity).find((e) => e.Id === id);
   if (!existing) return fault(400, "610", "Object Not Found");
-  return json({ [entity]: existing });
+  return json({
+    [entity]: entity === "Invoice" ? withBalance(existing, data) : existing,
+  });
 }
 
 /** GET /v3/company/{realm}/query?query=select * from X where F = 'v' */

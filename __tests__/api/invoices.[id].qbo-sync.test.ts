@@ -51,13 +51,13 @@ async function errorCode(res: Response): Promise<string> {
 }
 
 describe("POST /api/invoices/[id]/qbo-sync", () => {
-  it("401s for crew", async () => {
+  it("403s for crew", async () => {
     mockAuth.mockResolvedValue(
       // biome-ignore lint/suspicious/noExplicitAny: test stub session
       { user: { id: "u1", orgId: "org1", role: "crew" } } as any
     );
     const res = await POST(makeRequest("POST"), params({ id: "5" }));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("QBO_NOT_CONNECTED when the org has no connection", async () => {

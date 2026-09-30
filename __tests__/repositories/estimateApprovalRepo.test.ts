@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { approveEstimateByToken } from "@/lib/repositories/estimateApprovalRepo";
+import {
+  approveEstimateByToken,
+  getEstimateApproval,
+} from "@/lib/repositories/estimateApprovalRepo";
 
 async function makeSentEstimate() {
   const org = await prisma.organization.create({
@@ -115,6 +118,61 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)(
       ).toBe("already_approved");
     });
 
+    it("keeps concurrent sibling approvals and their supersede events consistent", async () => {
+      const { orgId, siteMeasureId, estimateId } = await makeSentEstimate();
+      try {
+        const sibling = await prisma.estimate.create({
+          data: {
+            orgId,
+            siteMeasureId,
+            estimateNumber: 2,
+            status: "sent",
+          },
+        });
+        const outcomes = await Promise.allSettled(
+          [estimateId, sibling.id].map((id) =>
+            approveEstimateByToken({
+              estimateId: id,
+              ip: null,
+              userAgent: null,
+              snapshot: {},
+            })
+          )
+        );
+        expect(
+          outcomes.some(
+            (result) => result.status === "fulfilled" && result.value === "ok"
+          )
+        ).toBe(true);
+        const rows = await prisma.estimate.findMany({
+          where: { orgId },
+          include: { approval: true, estimateEvents: true },
+        });
+        expect(rows.filter((row) => row.status === "approved")).toHaveLength(1);
+        expect(rows.filter((row) => row.status === "declined")).toHaveLength(1);
+        for (const row of rows) {
+          if (row.status === "approved") {
+            expect(row.approval).not.toBeNull();
+            expect(row.declinedAt).toBeNull();
+            expect(
+              row.estimateEvents.some(
+                (event) => event.source === "system_supersede"
+              )
+            ).toBe(false);
+          } else {
+            expect(row.approval).toBeNull();
+            expect(
+              row.estimateEvents.filter(
+                (event) => event.source === "system_supersede"
+              )
+            ).toHaveLength(1);
+          }
+        }
+      } finally {
+        await prisma.organization.delete({ where: { id: orgId } });
+      }
+    });
+
     it("returns 'declined' when the estimate is already declined", async () => {
       const { estimateId } = await makeSentEstimate();
       await prisma.estimate.update({
@@ -143,3 +201,40 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)(
     });
   }
 );
+
+describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("getEstimateApproval", () => {
+  it("returns the approval when scoped to the owning org", async () => {
+    const { orgId, estimateId } = await makeSentEstimate();
+    const res = await approveEstimateByToken({
+      estimateId,
+      ip: "1.2.3.4",
+      userAgent: "jest",
+      snapshot: { totals: { total: 100 } },
+    });
+    expect(res).toBe("ok");
+
+    const approval = await getEstimateApproval(estimateId, orgId);
+    expect(approval?.estimateId).toBe(estimateId);
+    expect(approval?.ip).toBe("1.2.3.4");
+  });
+
+  it("returns null when scoped to a different org (cross-tenant read blocked)", async () => {
+    const { estimateId } = await makeSentEstimate();
+    await approveEstimateByToken({
+      estimateId,
+      ip: "1.2.3.4",
+      userAgent: "jest",
+      snapshot: {},
+    });
+
+    const otherOrg = await prisma.organization.create({
+      data: {
+        name: "Other Co",
+        slug: `other-${Date.now()}-${Math.round(performance.now())}`,
+      },
+    });
+
+    const approval = await getEstimateApproval(estimateId, otherOrg.id);
+    expect(approval).toBeNull();
+  });
+});
