@@ -141,6 +141,7 @@ describe("listEstimates (paginated)", () => {
       all: 5,
       draft: 2,
       sent: 0,
+      viewed: 0,
       approved: 3,
       declined: 0,
     });
@@ -172,6 +173,25 @@ describe("listEstimates (paginated)", () => {
         where: { orgId: "org1", status: "approved" },
       })
     );
+  });
+
+  it("filters viewed rows and includes them in the named facet and all count", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(2);
+    estimateGroupBy.mockResolvedValue([
+      { status: "viewed", _count: { _all: 2 } },
+      { status: "sent", _count: { _all: 1 } },
+    ]);
+    const result = await listEstimates("org1", {
+      ...baseParams,
+      status: "viewed",
+    });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { orgId: "org1", status: "viewed" },
+      })
+    );
+    expect(result.facets).toMatchObject({ all: 3, viewed: 2, sent: 1 });
   });
 
   it("maps the customer sort key to the nested relation orderBy", async () => {

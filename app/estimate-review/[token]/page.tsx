@@ -34,8 +34,10 @@ export default async function PublicEstimatePage({ params }: Props) {
   const estimate = await getEstimateByToken(token);
   if (!estimate) notFound();
 
-  await trackPublicView(!isEstimateLocked(estimate.status), (meta) =>
-    markEstimateViewed(estimate.id, meta)
+  await trackPublicView(
+    !isEstimateLocked(estimate.status),
+    (meta) => markEstimateViewed(estimate.id, meta),
+    { type: "estimate", id: estimate.id }
   );
 
   // An approved estimate renders from the approval snapshot — the frozen

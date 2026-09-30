@@ -51,7 +51,11 @@ describe("estimateUpdateSchema", () => {
     }
   });
 
-  it.each(["approved", "declined"])("rejects forged %s status", (status) => {
+  it.each([
+    "viewed",
+    "approved",
+    "declined",
+  ])("rejects forged %s status", (status) => {
     expect(estimateUpdateSchema.safeParse({ status }).success).toBe(false);
   });
 

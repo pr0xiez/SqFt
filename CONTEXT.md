@@ -259,7 +259,13 @@ itself re-checks this at the repo layer (the trust boundary) and throws
 looser schema or a rewired caller still can't forge an approval/decline and
 skip the `EstimateApproval` consent row / supersede-siblings logic above.
 
-Estimate status values: `draft | sent | viewed | approved | declined`.
+Estimate status values: `draft | sent | viewed | approved | declined`, owned
+by `lib/estimateStatus.ts`; filters include every status. Operator PATCH uses
+the separate `draft | sent` subset, so it cannot forge customer audit events.
+Sibling superseding uses a guarded UPDATE RETURNING in
+`lib/repositories/estimateApprovalRepo.ts`; only changed rows receive events.
+Missing client metadata becomes null in events and `unknown` only in the
+non-null approval columns. Historical event rows may still contain `unknown`.
 
 Estimate lists read the denormalized `Estimate.total` written by
 `syncEstimateTotal` (`lib/repositories/estimateRepo.ts`); they do not load
@@ -522,7 +528,12 @@ carries the full list of Zod issues.
 
 Standard codes:
 
-- `UNAUTHORIZED` (401) — no session, or session has no org.
+- `UNAUTHORIZED` (401) — no session; org-scoped routes using `getOrgId` also
+  reject a missing org. The auth proxy may return its own 401 body before the
+  route handler runs.
+- `FORBIDDEN` (403) — session exists but the caller doesn't meet the route's
+  `minRole` / `superAdmin` gate. Distinct from `UNAUTHORIZED`: the caller is
+  authenticated, just not permitted.
 - `VALIDATION_FAILED` (400) — request body failed Zod parse. `details` holds
   the issues array.
 - `NOT_FOUND` (404) — resource missing, or not visible to the caller's org.

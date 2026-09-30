@@ -4,6 +4,7 @@ import { isEstimateLocked } from "@/lib/estimateStatus";
 import { estimateTokenParams } from "@/lib/estimates/schema";
 import { fromPrismaEstimate } from "@/lib/estimateView";
 import { snapshotEstimate } from "@/lib/estimateView/snapshot";
+import { clientMeta } from "@/lib/http/clientMeta";
 import { approveEstimateByToken, getEstimateByToken } from "@/lib/repositories";
 
 export const POST = publicRoute({}, async ({ req, params }) => {
@@ -28,9 +29,7 @@ export const POST = publicRoute({}, async ({ req, params }) => {
     org: estimate.org,
   });
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  const userAgent = req.headers.get("user-agent") ?? "unknown";
+  const { ip, userAgent } = clientMeta(req);
 
   const result = await approveEstimateByToken({
     estimateId: estimate.id,

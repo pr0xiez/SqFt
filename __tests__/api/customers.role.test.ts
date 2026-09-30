@@ -69,13 +69,13 @@ beforeEach(() => {
 });
 
 describe("GET /api/customers — role gate", () => {
-  it("401 for crew", async () => {
+  it("403 for crew", async () => {
     asRole("crew");
     const res = await GET(makeGet("http://localhost/api/customers"), {
       params: Promise.resolve({}),
     });
-    expect(res.status).toBe(401);
-    expect((await res.json()).error.code).toBe("UNAUTHORIZED");
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe("FORBIDDEN");
     expect(listCustomers).not.toHaveBeenCalled();
   });
 
@@ -84,22 +84,22 @@ describe("GET /api/customers — role gate", () => {
     const res = await GET(makeGet("http://localhost/api/customers"), {
       params: Promise.resolve({}),
     });
-    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
   });
 });
 
 describe("POST /api/customers — role gate", () => {
-  it("401 for crew", async () => {
+  it("403 for crew", async () => {
     asRole("crew");
     const res = await POST(makePost(), { params: Promise.resolve({}) });
-    expect(res.status).toBe(401);
-    expect((await res.json()).error.code).toBe("UNAUTHORIZED");
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe("FORBIDDEN");
     expect(createCustomer).not.toHaveBeenCalled();
   });
 
   it("passes the gate for lead", async () => {
     asRole("lead");
     const res = await POST(makePost(), { params: Promise.resolve({}) });
-    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
   });
 });

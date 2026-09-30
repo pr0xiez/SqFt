@@ -6,6 +6,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { OperatorEstimateStatus } from "@/lib/estimateStatus";
 import { apiFetch } from "@/lib/hooks/apiFetch";
 import type { SortDirection } from "@/lib/sort";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
@@ -89,7 +90,7 @@ export interface EstimateDetail {
 // "approved"/"declined" are not settable here — see CONTEXT.md "Estimate
 // Approval" and the guard in lib/repositories/estimateRepo.ts saveEstimate.
 export interface UpdateEstimateInput {
-  status?: "draft" | "sent";
+  status?: OperatorEstimateStatus;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemCalc[];

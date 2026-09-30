@@ -58,12 +58,12 @@ beforeEach(() => {
 });
 
 describe("PATCH /api/users/[id]", () => {
-  it("401 for non-admin", async () => {
+  it("403 for non-admin", async () => {
     asRole("lead");
     const res = await PATCH(makePatch({ role: "lead" }), {
       params: Promise.resolve({ id: "target" }),
     });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("200 updates another user's role", async () => {

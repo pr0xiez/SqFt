@@ -81,6 +81,47 @@ describe("getApprovedEstimateRevenueRows", () => {
       select: expect.any(Object),
     });
   });
+
+  it("includes multi-box area in booked revenue instead of treating null w/l as zero", async () => {
+    const approvedAt = new Date("2026-08-10T12:00:00Z");
+    const row = estimateRow({ approvedAt, qty: 0, rate: 2 });
+    estimateFindMany.mockResolvedValue([
+      {
+        ...row,
+        lineItems: [
+          {
+            ...row.lineItems[0],
+            qtyMode: "linked_area",
+            qty: null,
+            linkedRoomIds: [10],
+          },
+        ],
+        siteMeasure: {
+          items: [
+            {
+              id: 10,
+              type: "room",
+              w: null,
+              l: null,
+              segments: [
+                { w: 10, l: 12 },
+                { w: 4, l: 3 },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    expect(
+      await getApprovedEstimateRevenueRows("org1", {
+        gte: new Date("2026-08-01"),
+      })
+    ).toEqual([{ approvedAt, total: 264 }]);
+    expect(
+      estimateFindMany.mock.calls[0][0].select.siteMeasure.select.items.select
+        .segments
+    ).toBe(true);
+  });
 });
 
 describe("getMtdApprovedEstimates", () => {
