@@ -1,13 +1,19 @@
 import { NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import { estimateIdParams, estimateUpdateSchema } from "@/lib/estimates/schema";
-import { deleteEstimate, getEstimate, saveEstimate } from "@/lib/repositories";
+import {
+  deleteEstimate,
+  estimateHasApprovalToken,
+  getEstimate,
+  saveEstimate,
+} from "@/lib/repositories";
 
 export const GET = apiRoute({ minRole: "lead" }, async ({ orgId, params }) => {
   const { id } = estimateIdParams.parse(params);
   const estimate = await getEstimate(id, orgId);
   if (!estimate) throw new NotFoundError();
-  return estimate;
+  const hasApprovalToken = await estimateHasApprovalToken(id, orgId);
+  return { ...estimate, hasApprovalToken };
 });
 
 export const PATCH = apiRoute(
@@ -16,7 +22,8 @@ export const PATCH = apiRoute(
     const { id } = estimateIdParams.parse(params);
     const estimate = await saveEstimate(id, orgId, input);
     if (!estimate) throw new NotFoundError();
-    return estimate;
+    const hasApprovalToken = await estimateHasApprovalToken(id, orgId);
+    return { ...estimate, hasApprovalToken };
   }
 );
 
@@ -24,7 +31,8 @@ export const DELETE = apiRoute(
   { minRole: "lead" },
   async ({ orgId, params }) => {
     const { id } = estimateIdParams.parse(params);
-    await deleteEstimate(id, orgId);
+    const deleted = await deleteEstimate(id, orgId);
+    if (!deleted) throw new NotFoundError();
     return null;
   }
 );

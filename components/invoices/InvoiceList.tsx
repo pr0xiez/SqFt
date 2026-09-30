@@ -6,6 +6,7 @@ import {
   type InvoiceStatusFilter,
   OPEN_INVOICE_STATUSES,
 } from "@/components/invoices/filterInvoices";
+import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -92,7 +93,7 @@ export function InvoiceListView() {
   const debouncedQuery = useDebouncedValue(query, 300);
   const sortKey = sort?.key ?? "sentAt";
   const sortDir = sort?.direction ?? "desc";
-  const { data, isLoading } = useInvoiceList({
+  const { data, isLoading, isError, refetch } = useInvoiceList({
     page,
     perPage,
     sort: sortKey,
@@ -206,6 +207,15 @@ export function InvoiceListView() {
         {isLoading ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Loading…
+          </div>
+        ) : isError ? (
+          <div className="p-6 flex flex-col items-start gap-2.5">
+            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
+              Something went wrong loading invoices.
+            </div>
+            <Button variant="default" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
           </div>
         ) : allCount === 0 ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">

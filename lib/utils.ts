@@ -12,10 +12,18 @@ export function parsef(v: string | number | undefined | null): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+/** Whole-dollar figure with thousands separators, no cents and no currency
+ *  symbol (e.g. 4250.4 → "4,250") — for KPI tiles that render the "$" as a
+ *  separately styled glyph rather than part of the string. Shares its
+ *  locale/rounding with `fmtBig`, which layers the "$" back on. */
+export function fmtWholeDollar(n: number): string {
+  return Math.round(n).toLocaleString("en-US");
+}
+
 /** Format a large number as a compact currency string (e.g. 4250 → "$4,250") */
 export function fmtBig(n: number): string {
   if (n === null || n === undefined) return "—";
-  return `$${Math.round(n).toLocaleString("en-US")}`;
+  return `$${fmtWholeDollar(n)}`;
 }
 
 /** Format a number as a currency string with cents (e.g. 42.5 → "$42.50") */

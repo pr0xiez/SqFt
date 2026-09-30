@@ -8,6 +8,26 @@ import type {
   ProrationSource,
 } from "./types";
 
+/**
+ * Tolerance applied to the overbill comparison so floating-point cents drift
+ * (e.g. 4000.0000000001 vs a 4000 balance) does not falsely trip the guard.
+ * This is billing policy and the SINGLE definition shared by the
+ * Create-Invoice dialog's client-side guard (`lib/invoices/createInvoiceForm`)
+ * and the server's create, paid-in-full, and Stripe overpayment checks
+ * (`lib/repositories/invoiceRepo.ts`).
+ */
+export const OVERBILL_EPSILON = 0.005;
+
+/**
+ * Whether `amount` bills past the `unbilled` balance, with the shared
+ * floating-point tolerance. Matches the server's overbill rule so the
+ * dialog's guard and the persisted result never disagree (the server throws
+ * `INVOICE_OVERBILL` on the same condition).
+ */
+export function isOverbill(amount: number, unbilled: number): boolean {
+  return amount > unbilled + OVERBILL_EPSILON;
+}
+
 /** Estimate-level billing rollup. Voided invoices are ignored. */
 export function computeEstimateBilling(
   estimateTotal: number | null,

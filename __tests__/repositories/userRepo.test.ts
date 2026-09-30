@@ -7,6 +7,7 @@ import {
   listUsers,
   setArchived,
   updateProfile,
+  updateRole,
   validateUserIds,
 } from "@/lib/repositories/userRepo";
 
@@ -16,6 +17,7 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("userRepo", () => {
   let otherOrgId: string;
   let adminId: string;
   let crewId: string;
+  let otherOrgCrewId: string;
 
   beforeAll(async () => {
     const org = await prisma.organization.create({
@@ -41,6 +43,13 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("userRepo", () => {
       password: hash,
     });
     crewId = crew.id;
+    const otherCrew = await createUser(otherOrgId, {
+      name: "Otto",
+      email: `otto-${Date.now()}@x.dev`,
+      role: "crew",
+      password: hash,
+    });
+    otherOrgCrewId = otherCrew.id;
   });
   afterAll(async () => {
     await prisma.organization.delete({ where: { id: orgId } });
@@ -71,6 +80,14 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("userRepo", () => {
     expect(await validateUserIds(orgId, [])).toBe(true);
   });
 
+  it("validateUserIds rejects archived users", async () => {
+    await setArchived(crewId, orgId, true);
+    expect(await validateUserIds(orgId, [crewId])).toBe(false);
+    expect(await validateUserIds(orgId, [adminId, crewId])).toBe(false);
+    expect(await validateUserIds(orgId, [adminId])).toBe(true);
+    await setArchived(crewId, orgId, false); // restore for later assertions
+  });
+
   it("updateProfile sets name and title", async () => {
     const updated = await updateProfile(crewId, orgId, {
       title: "Lead Installer",
@@ -80,5 +97,22 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("userRepo", () => {
 
   it("setArchived refuses to archive the last active admin", async () => {
     await expect(setArchived(adminId, orgId, true)).rejects.toThrow(/admin/i);
+  });
+
+  it("updateRole changes the role of a user in the caller's own org", async () => {
+    const updated = await updateRole(crewId, orgId, "lead");
+    expect(updated?.role).toBe("lead");
+    const reread = await prisma.user.findUnique({ where: { id: crewId } });
+    expect(reread?.role).toBe("lead");
+    await updateRole(crewId, orgId, "crew"); // restore for later assertions
+  });
+
+  it("updateRole is a no-op across orgs: an org cannot change another org's member's role", async () => {
+    const result = await updateRole(otherOrgCrewId, orgId, "lead");
+    expect(result).toBeNull();
+    const unchanged = await prisma.user.findUnique({
+      where: { id: otherOrgCrewId },
+    });
+    expect(unchanged?.role).toBe("crew");
   });
 });

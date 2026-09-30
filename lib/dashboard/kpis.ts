@@ -1,10 +1,7 @@
 // lib/dashboard/kpis.ts
 
-import { computeEstimateView } from "@/lib/estimateView/compute";
-import {
-  fromPrismaEstimate,
-  type PrismaEstimateForView,
-} from "@/lib/estimateView/fromPrisma";
+import { getApprovedEstimateRevenueRows } from "@/lib/dashboard/approvedRevenue";
+import { round2 } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 
 export interface DashboardKpis {
@@ -19,41 +16,6 @@ export interface DashboardKpis {
   bookedRevenueMtd: number;
   bookedRevenueDelta: number;
 }
-
-const revenueSelect = {
-  markupPct: true,
-  depositPct: true,
-  lineItems: {
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      rate: true,
-      qtyMode: true,
-      qty: true,
-      wastePct: true,
-      unitLabel: true,
-      linkedRoomIds: true,
-      sortOrder: true,
-    },
-  },
-  siteMeasure: {
-    select: {
-      items: {
-        select: {
-          id: true,
-          type: true,
-          name: true,
-          shape: true,
-          w: true,
-          l: true,
-          note: true,
-          text: true,
-        },
-      },
-    },
-  },
-} as const;
 
 export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
   const now = new Date();
@@ -85,8 +47,8 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
     lost30d,
     won60to30d,
     lost60to30d,
-    acceptedMtd,
-    acceptedLastMonthSamePeriod,
+    acceptedMtdRows,
+    acceptedLastMonthSamePeriodRows,
   ] = await Promise.all([
     prisma.siteMeasure.count({ where: { orgId } }),
     prisma.siteMeasure.count({ where: { orgId, createdAt: { gte: weekAgo } } }),
@@ -128,31 +90,20 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
         declinedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
       },
     }),
-    prisma.estimate.findMany({
-      where: { orgId, status: "approved", approvedAt: { gte: monthStart } },
-      select: revenueSelect,
-    }),
-    prisma.estimate.findMany({
-      where: {
-        orgId,
-        status: "approved",
-        approvedAt: { gte: lastMonthStart, lte: lastMonthSamePeriodEnd },
-      },
-      select: revenueSelect,
+    getApprovedEstimateRevenueRows(orgId, { gte: monthStart }),
+    getApprovedEstimateRevenueRows(orgId, {
+      gte: lastMonthStart,
+      lte: lastMonthSamePeriodEnd,
     }),
   ]);
 
-  const bookedRevenueMtd = (acceptedMtd as PrismaEstimateForView[]).reduce(
-    (sum: number, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-    0
+  const bookedRevenueMtd = round2(
+    acceptedMtdRows.reduce((sum, r) => sum + r.total, 0)
   );
-  const bookedRevenueDelta =
+  const bookedRevenueDelta = round2(
     bookedRevenueMtd -
-    (acceptedLastMonthSamePeriod as PrismaEstimateForView[]).reduce(
-      (sum: number, q) =>
-        sum + computeEstimateView(fromPrismaEstimate(q)).total,
-      0
-    );
+      acceptedLastMonthSamePeriodRows.reduce((sum, r) => sum + r.total, 0)
+  );
 
   const expiringSoonCount = awaitingEstimates.filter((q) => {
     if (!q.sentAt) return false;

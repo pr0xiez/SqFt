@@ -10,6 +10,10 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ "user-agent": "vitest" }),
 }));
 
+vi.mock("next/server", () => ({
+  after: vi.fn((run: () => Promise<void>) => void run()),
+}));
+
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -26,7 +30,9 @@ const { getEstimateByToken, markEstimateViewed } = await import(
   "@/lib/repositories"
 );
 
-const TOKEN = "tok_0123456789abcdef";
+// Shaped like a real token (`generateToken` in `lib/repositories/estimateRepo.ts`):
+// unpadded base64url of 32 random bytes, always 43 chars.
+const TOKEN = "tok_0123456789abcdefghijklmnopqrstuvwxyzABC";
 
 /** A live estimate row as `getEstimateByToken` returns it. The line item is
  *  priced so live and snapshot renders are visibly different in each test. */
@@ -289,7 +295,7 @@ describe("PublicEstimatePage — pre-approval estimates still render live", () =
 
     expect(screen.getAllByText("$2000.00").length).toBeGreaterThan(0);
     expect(errorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("markEstimateViewed failed for estimate 42")
+      expect.stringContaining("mark-viewed write failed for estimate 42")
     );
     expect(consoleErrorSpy).toHaveBeenCalled();
 

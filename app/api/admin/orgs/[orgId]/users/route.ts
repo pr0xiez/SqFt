@@ -8,7 +8,6 @@
  * (from the URL), NOT the caller's session org.
  */
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 import { EmailTakenError, NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import {
@@ -17,6 +16,7 @@ import {
   getOrgById,
   listUsers,
 } from "@/lib/repositories";
+import { userCreateSchema } from "@/lib/users/schema";
 
 export const GET = apiRoute({ superAdmin: true }, async ({ params }) => {
   const { orgId } = params as { orgId: string };
@@ -25,17 +25,8 @@ export const GET = apiRoute({ superAdmin: true }, async ({ params }) => {
   return listUsers(orgId, { includeArchived: true });
 });
 
-const CreateBody = z
-  .object({
-    name: z.string().trim().min(1).max(100),
-    email: z.string().email().toLowerCase().max(254),
-    role: z.enum(["admin", "lead", "crew"]),
-    password: z.string().min(8).max(200),
-  })
-  .strict();
-
 export const POST = apiRoute(
-  { superAdmin: true, input: CreateBody, status: 201 },
+  { superAdmin: true, input: userCreateSchema, status: 201 },
   async ({ input, params }) => {
     const { orgId } = params as { orgId: string };
     if (!(await getOrgById(orgId)))

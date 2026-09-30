@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-vi.mock("../../../lib/logger", () => ({
-  logRequest: vi.fn(),
-  logMutation: vi.fn(),
-  logError: vi.fn(),
-}));
+vi.mock("../../../lib/logger", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../lib/logger")>();
+  return {
+    ...actual, // keep the real maskTokenPath
+    logRequest: vi.fn(),
+    logMutation: vi.fn(),
+    logError: vi.fn(),
+  };
+});
 
 vi.mock("../../../lib/tenant", () => ({
   getOrgId: vi.fn(),
@@ -323,6 +327,70 @@ describe("apiRoute — logging", () => {
 
     expect(mockLogRequest).toHaveBeenCalledWith(
       expect.objectContaining({ orgId: "unauthenticated", status: 401 })
+    );
+  });
+
+  it("redacts the token segment from logRequest/logMutation for a public review path", async () => {
+    mockGetOrgId.mockRejectedValue(new UnauthorizedError());
+    const handler = publicRoute(async () => ({ ok: true }));
+
+    await handler(
+      makeRequest(
+        "POST",
+        "http://localhost/api/estimate-review/SUPER_SECRET_TOKEN/approve"
+      ),
+      ctx
+    );
+
+    expect(mockLogRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/api/estimate-review/[REDACTED]/approve",
+      })
+    );
+    expect(mockLogMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/api/estimate-review/[REDACTED]/approve",
+      })
+    );
+    // Assert the raw token never appears in any logged call, on either fn.
+    for (const call of [
+      ...mockLogRequest.mock.calls,
+      ...mockLogMutation.mock.calls,
+    ]) {
+      expect(JSON.stringify(call[0])).not.toContain("SUPER_SECRET_TOKEN");
+    }
+  });
+
+  it("redacts the token segment from logRequest for an invoice-review path", async () => {
+    mockGetOrgId.mockRejectedValue(new UnauthorizedError());
+    const handler = publicRoute(async () => ({ ok: true }));
+
+    await handler(
+      makeRequest(
+        "GET",
+        "http://localhost/api/invoice-review/ANOTHER_SECRET/confirm"
+      ),
+      ctx
+    );
+
+    expect(mockLogRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: "/api/invoice-review/[REDACTED]/confirm",
+      })
+    );
+  });
+
+  it("leaves a non-review path unchanged in logRequest/logMutation", async () => {
+    mockGetOrgId.mockResolvedValue("org1");
+    const handler = apiRoute({ status: 201 }, async () => ({ id: 5 }));
+
+    await handler(makeRequest("POST", "http://localhost/api/estimates/5"), ctx);
+
+    expect(mockLogRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/api/estimates/5" })
+    );
+    expect(mockLogMutation).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "/api/estimates/5" })
     );
   });
 });

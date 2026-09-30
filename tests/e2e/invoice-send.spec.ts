@@ -1,5 +1,5 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
-import { loginAsWorkerOrg } from "./fixtures/org";
+import { loginAsSecondaryOrg, loginAsWorkerOrg } from "./fixtures/org";
 import {
   createCustomerAndEstimate,
   seedEstimateWithLineItem,
@@ -49,5 +49,16 @@ test.describe
         data: { to: "nope", subject: "x" },
       });
       expect(res.status()).toBe(400);
+    });
+
+    test("cross-org POST send returns 404", async ({ browser }) => {
+      const otherCtx = await browser.newContext();
+      await loginAsSecondaryOrg(browser, otherCtx);
+      const res = await otherCtx.request.post(
+        `/api/invoices/${invoiceId}/send`,
+        { data: { to: "customer@example.com", subject: "Invoice" } }
+      );
+      expect(res.status()).toBe(404);
+      await otherCtx.close();
     });
   });
