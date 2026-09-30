@@ -65,7 +65,10 @@ export function getOrgSettingsOrThrow(orgId: string): Promise<OrgSettings> {
 }
 
 export type OrgSettingsPatch = Partial<
-  Omit<Prisma.OrganizationUncheckedUpdateInput, "id">
+  Pick<
+    Prisma.OrganizationUncheckedUpdateInput,
+    Exclude<keyof typeof ORG_SETTINGS_SELECT, "id">
+  >
 >;
 
 /** `PATCH /api/org` — org-scoped by construction: the caller's own orgId is

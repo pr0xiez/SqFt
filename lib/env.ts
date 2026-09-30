@@ -22,23 +22,32 @@ import { z } from "zod";
  * `lib/prisma.ts`) call `getEnv()` at module load, so a misconfigured
  * deploy throws immediately on first import rather than lazily mid-request.
  */
+const optionalString = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().min(1).optional()
+);
 const envSchema = z.object({
   /** The Postgres connection string (`lib/prisma.ts`, Prisma driver adapter). Required — nothing works without a DB. */
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
 
   /** Resend API key (`lib/email/client.ts`). Optional — unset means email sends no-op into an in-memory test record instead of hitting the network (dev/test default). */
-  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_API_KEY: optionalString,
   /** From address for outgoing email (`lib/email/client.ts`). Optional, falls back to a sensible default. */
-  EMAIL_FROM: z.string().min(1).default("SqFt Estimates <estimates@sqft.dev>"),
+  EMAIL_FROM: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().min(1).default("SqFt Estimates <estimates@sqft.dev>")
+  ),
 
   /** Geoapify address-autocomplete key (`lib/address/geoapify.ts`). Optional — unset just disables autocomplete suggestions; manual address entry still works. */
-  GEOAPIFY_API_KEY: z.string().min(1).optional(),
+  GEOAPIFY_API_KEY: optionalString,
 
   /** Comma-separated super-admin allowlist (`lib/auth/superAdmin.ts`). Optional, defaults to empty (no super admins). */
   SUPER_ADMIN_EMAILS: z.string().default(""),
 
   /** Explicit override for the app's public base URL (`lib/baseUrl.ts`). Optional — falls back to Vercel-provided URL vars, then localhost. */
-  PUBLIC_BASE_URL: z.string().min(1).optional(),
+  PUBLIC_BASE_URL: optionalString,
   /** Vercel deployment target (`preview` | `production` | …), used to pick which Vercel URL var wins in `lib/baseUrl.ts`. */
   VERCEL_ENV: z.string().optional(),
   /** Stable per-branch preview URL, set by Vercel (`lib/baseUrl.ts`). */
@@ -49,9 +58,9 @@ const envSchema = z.object({
   VERCEL_PROJECT_PRODUCTION_URL: z.string().optional(),
 
   /** Stripe secret key (`lib/stripe/client.ts`). Optional — orgs use Stripe Connect opt-in; unconfigured just means Stripe features are unavailable (`isStripeConfigured()`). */
-  STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  STRIPE_SECRET_KEY: optionalString,
   /** Stripe webhook signing secret (`app/api/webhooks/stripe/route.ts`). Optional at the schema level; the webhook route itself 500s if it's missing when a webhook arrives. */
-  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  STRIPE_WEBHOOK_SECRET: optionalString,
 });
 
 export type Env = z.infer<typeof envSchema>;

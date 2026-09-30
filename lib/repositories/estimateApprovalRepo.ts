@@ -1,10 +1,16 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import { OPEN_ESTIMATE_STATUSES } from "@/lib/estimateStatus";
 import { prisma } from "@/lib/prisma";
 
 export interface ApproveEstimateInput {
   estimateId: number;
-  ip: string;
-  userAgent: string;
+  // Client metadata is nullable (see lib/http/clientMeta.ts) to match the
+  // nullable EstimateEvent.ip/userAgent columns. EstimateApproval.ip/
+  // userAgent are NOT NULL, so a missing value is coerced to a fallback
+  // string only at that write below — the EstimateEvent write keeps the
+  // real null so approve/decline log identically when metadata is absent.
+  ip: string | null;
+  userAgent: string | null;
   snapshot: Prisma.InputJsonValue;
 }
 
@@ -42,8 +48,10 @@ export async function approveEstimateByToken(
       await tx.estimateApproval.create({
         data: {
           estimateId: input.estimateId,
-          ip: input.ip,
-          userAgent: input.userAgent,
+          // NOT NULL columns: fall back to a sentinel when the caller has no
+          // client metadata rather than storing null end-to-end.
+          ip: input.ip ?? "unknown",
+          userAgent: input.userAgent ?? "unknown",
           snapshot: input.snapshot,
         },
       });
@@ -74,32 +82,28 @@ export async function approveEstimateByToken(
         estimateId: input.estimateId,
         type: "approved",
         source: "customer",
-        ip: input.ip,
-        userAgent: input.userAgent,
+        ip: input.ip ?? undefined,
+        userAgent: input.userAgent ?? undefined,
       },
     });
 
-    const openSiblings = await tx.estimate.findMany({
-      where: {
-        siteMeasureId: e.siteMeasureId,
-        id: { not: e.id },
-        status: { in: ["draft", "sent", "viewed"] },
-      },
-      select: { id: true },
-    });
     const declineReason = `Superseded — customer approved Estimate #${e.estimateNumber}`;
-    await tx.estimate.updateMany({
+    // PostgreSQL rechecks the status guard while updating each locked row.
+    // RETURNING supplies only changed ids, so concurrent terminal transitions
+    // cannot be overwritten or receive a false supersede event.
+    const superseded = await tx.estimate.updateManyAndReturn({
       where: {
         siteMeasureId: e.siteMeasureId,
         id: { not: e.id },
-        status: { in: ["draft", "sent", "viewed"] },
+        status: { in: [...OPEN_ESTIMATE_STATUSES] },
       },
       data: { status: "declined", declinedAt: new Date(), declineReason },
+      select: { id: true },
     });
-    if (openSiblings.length > 0) {
+    if (superseded.length > 0) {
       await tx.estimateEvent.createMany({
-        data: openSiblings.map((s) => ({
-          estimateId: s.id,
+        data: superseded.map(({ id }) => ({
+          estimateId: id,
           type: "declined",
           source: "system_supersede",
           metadata: {

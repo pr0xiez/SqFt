@@ -1,21 +1,9 @@
 import { NextResponse } from "next/server";
+import { toErrorEnvelope, UnauthorizedError } from "@/lib/api/errors";
 import { auth } from "@/lib/auth";
 import { isPublicReviewPath } from "@/lib/publicRoutes";
 
 export default auth((req) => {
-  if (req.nextUrl.pathname.startsWith("/api/")) {
-    console.log(
-      JSON.stringify({
-        type: "proxy_request",
-        ts: new Date().toISOString(),
-        method: req.method,
-        path: req.nextUrl.pathname,
-        isAuthenticated: !!req.auth,
-        env: process.env.NODE_ENV,
-      })
-    );
-  }
-
   const isAuth = !!req.auth;
   const isAuthRoute = req.nextUrl.pathname.startsWith("/login");
   const isApiAuth = req.nextUrl.pathname.startsWith("/api/auth");
@@ -30,9 +18,12 @@ export default auth((req) => {
   const isApiRoute = req.nextUrl.pathname.startsWith("/api/");
 
   // API routes: return 401 rather than redirecting (non-browser clients
-  // cannot follow a login redirect).
+  // cannot follow a login redirect). Matches the standard error envelope
+  // (`{ error: { code, message } }`) that `apiRoute` emits — see
+  // lib/api/errors.ts.
   if (!isAuth && isApiRoute) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const err = new UnauthorizedError();
+    return NextResponse.json(toErrorEnvelope(err), { status: err.status });
   }
 
   // Page routes: redirect unauthenticated users to login

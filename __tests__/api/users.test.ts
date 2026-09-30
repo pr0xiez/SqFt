@@ -71,16 +71,16 @@ describe("GET /api/users", () => {
     expect(res.status).toBe(401);
   });
 
-  it("401 for non-admin (lead)", async () => {
+  it("403 for non-admin (lead)", async () => {
     asRole("lead");
     const res = await GET(makeRequest("GET"), noParams);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
-  it("401 for non-admin (crew)", async () => {
+  it("403 for non-admin (crew)", async () => {
     asRole("crew");
     const res = await GET(makeRequest("GET"), noParams);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("returns users in the org for admin", async () => {
@@ -135,7 +135,7 @@ describe("POST /api/users", () => {
     return req as any as NextRequest;
   }
 
-  it("401 for non-admin", async () => {
+  it("403 for non-admin", async () => {
     asRole("lead");
     const res = await POST(
       makePost({
@@ -146,7 +146,7 @@ describe("POST /api/users", () => {
       }),
       noParams
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
   });
 
   it("201 creates a user; lowercases email; password is hashed and not returned", async () => {
@@ -220,5 +220,36 @@ describe("POST /api/users", () => {
       noParams
     );
     expect(res.status).toBe(400);
+  });
+
+  // Issue #230: the pre-flight findByEmail check above is racy under
+  // concurrency — two requests can both pass it and race to insert, and the
+  // loser hits the User.email unique index (Prisma P2002). Simulate that
+  // race directly (no real DB concurrency) by having the pre-flight check
+  // pass but the create call reject with P2002, and assert it still comes
+  // back as 409 EMAIL_TAKEN rather than a 500.
+  it("409 EMAIL_TAKEN when create races past the pre-flight check (P2002)", async () => {
+    asRole("admin");
+    mockFindUnique.mockResolvedValueOnce(null);
+    const p2002 = Object.assign(new Error("Unique constraint failed"), {
+      code: "P2002",
+      meta: { target: ["email"] },
+    });
+    mockCreate.mockRejectedValueOnce(p2002);
+
+    const res = await POST(
+      makePost({
+        name: "Jane",
+        email: "race@test.dev",
+        role: "crew",
+        password: "abcd1234",
+      }),
+      noParams
+    );
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("EMAIL_TAKEN");
+    expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 });

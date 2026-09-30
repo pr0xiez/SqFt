@@ -29,7 +29,7 @@ interface PrismaEstimateItemRow {
   w?: number | null;
   l?: number | null;
   /** Prisma JsonValue; box decomposition [{w,l}]. Narrowed in toRoomItem. */
-  segments?: unknown;
+  segments: unknown;
   note?: string | null;
   text?: string | null;
 }

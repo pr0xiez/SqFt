@@ -3,90 +3,117 @@ import {
   type SendEstimateEmailInput,
   sendEstimateEmail,
 } from "@/lib/email/sendEstimateEmail";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { logError } from "@/lib/logger";
 import {
-  getEstimate,
+  getEstimateForSend,
   getOrgSendInfo,
   markEstimateSent,
   rotateApprovalToken,
   updateCustomerEmail,
   writeEstimateEvent,
 } from "@/lib/repositories";
-import type { EstimateWithDetails } from "@/lib/repositories/estimateRepo";
+import type { EstimateForSend } from "@/lib/repositories/estimateRepo";
 import { runSendPipeline, type Sendable, type SendRequest } from "./pipeline";
 
 export type EstimateSendRequest = SendRequest & { message?: string };
 
-const estimateSendable: Sendable<
-  EstimateWithDetails,
-  SendEstimateEmailInput,
-  EstimateSendRequest
-> = {
-  load: getEstimate,
+/** Builds a fresh Sendable per call so `customerEmailSaved` isn't shared
+ *  mutable state across concurrent sends. */
+function buildEstimateSendable(customerEmailResult: {
+  saved: boolean;
+}): Sendable<EstimateForSend, SendEstimateEmailInput, EstimateSendRequest> {
+  return {
+    load: getEstimateForSend,
 
-  guard(estimate) {
-    if (estimate.status === "approved" || estimate.status === "declined") {
-      throw new EstimateLockedError(estimate.status);
-    }
-  },
+    guard(estimate) {
+      if (isEstimateLocked(estimate.status)) {
+        throw new EstimateLockedError(estimate.status);
+      }
+    },
 
-  currentToken: (estimate) => estimate.approvalToken,
-  rotateToken: rotateApprovalToken,
+    currentToken: (estimate) => estimate.approvalToken,
+    rotateToken: rotateApprovalToken,
 
-  onTokenRotated: (id, req) =>
-    writeEstimateEvent({
-      estimateId: id,
-      type: "link_rotated",
-      actorEmail: req.sender.email,
-      actorName: req.sender.name,
-    }),
+    onTokenRotated: (id, req) =>
+      writeEstimateEvent({
+        estimateId: id,
+        type: "link_rotated",
+        actorEmail: req.sender.email,
+        actorName: req.sender.name,
+      }),
 
-  publicPath: (token) => `/estimate-review/${token}`,
+    publicPath: (token) => `/estimate-review/${token}`,
 
-  async prepare(estimate, publicUrl, req) {
-    const org = await getOrgSendInfo(estimate.orgId);
-    // The emailed total is the live Estimate View — single source of truth.
-    const total =
-      estimate.lineItems.length === 0
-        ? 0
-        : computeEstimateView(fromPrismaEstimate(estimate)).total;
-    return {
-      to: req.to,
-      subject: req.subject,
-      message: req.message,
-      publicUrl,
-      customerName: estimate.siteMeasure.location.customer?.name ?? "there",
-      org,
-      estimateNumber: estimate.estimateNumber,
-      totalDollars: total,
-      replyTo: req.sender.email,
-    };
-  },
+    async prepare(estimate, publicUrl, req) {
+      const org = await getOrgSendInfo(estimate.orgId);
+      // The emailed total is the live Estimate View — single source of truth.
+      const total =
+        estimate.lineItems.length === 0
+          ? 0
+          : computeEstimateView(fromPrismaEstimate(estimate)).total;
+      return {
+        to: req.to,
+        subject: req.subject,
+        message: req.message,
+        publicUrl,
+        customerName: estimate.siteMeasure.location.customer?.name ?? "there",
+        org,
+        estimateNumber: estimate.estimateNumber,
+        totalDollars: total,
+        replyTo: req.sender.email,
+      };
+    },
 
-  sendEmail: sendEstimateEmail,
+    sendEmail: sendEstimateEmail,
 
-  markSent: (id, orgId, req) =>
-    markEstimateSent(id, orgId, {
-      to: req.to,
-      subject: req.subject,
-      sentByEmail: req.sender.email,
-      sentByName: req.sender.name,
-    }),
+    markSent: (id, orgId, req) =>
+      markEstimateSent(id, orgId, {
+        to: req.to,
+        subject: req.subject,
+        sentByEmail: req.sender.email,
+        sentByName: req.sender.name,
+      }),
 
-  // Opportunistically keep the customer's email current with where the
-  // estimate was actually sent. The pipeline swallows and logs failures.
-  async afterSent(estimate, req) {
-    const customer = estimate.siteMeasure.location.customer;
-    if (!customer || customer.email === req.to) return;
-    await updateCustomerEmail(customer.id, estimate.orgId, req.to);
-  },
-};
+    // Opportunistically keep the customer's email current with where the
+    // estimate was actually sent. Best-effort: a failure here never fails the
+    // send itself, but it's surfaced to the caller via customerEmailResult
+    // instead of only living in the logs.
+    async afterSent(estimate, req) {
+      const customer = estimate.siteMeasure.location.customer;
+      if (!customer || customer.email === req.to) return;
+      try {
+        const saved = await updateCustomerEmail(
+          customer.id,
+          estimate.orgId,
+          req.to
+        );
+        if (!saved) customerEmailResult.saved = false;
+      } catch (err) {
+        logError({ errorMessage: "Failed to save customer email", err });
+        customerEmailResult.saved = false;
+      }
+    },
+  };
+}
+
+export interface SendEstimateResult {
+  customerEmailSaved: boolean;
+}
 
 /** Email the customer their estimate-review link and mark the estimate sent. */
-export function sendEstimate(
+export async function sendEstimate(
   id: number,
   orgId: string,
   req: EstimateSendRequest
-): Promise<void> {
-  return runSendPipeline(estimateSendable, id, orgId, req);
+): Promise<SendEstimateResult> {
+  const customerEmailResult = { saved: true };
+  await runSendPipeline(
+    buildEstimateSendable(customerEmailResult),
+    id,
+    orgId,
+    req
+  );
+  return { customerEmailSaved: customerEmailResult.saved };
 }

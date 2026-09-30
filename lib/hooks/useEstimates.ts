@@ -6,7 +6,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { readApiError } from "@/lib/api/errors";
+import type { OperatorEstimateStatus } from "@/lib/estimateStatus";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import type { SortDirection } from "@/lib/sort";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 
@@ -54,7 +55,12 @@ export interface EstimateDetail {
   date: string;
   markupPct: number;
   depositPct: number;
-  approvalToken?: string | null;
+  /** Whether the estimate has a live approval token — the token itself is
+   *  never sent to the client (CWE-201/522: it's a bearer credential for the
+   *  unauthenticated estimate-review approval flow). Use
+   *  `useRotateApprovalToken` to mint/read one when actually needed (e.g. a
+   *  copy-link action). */
+  hasApprovalToken: boolean;
   approvedAt?: string | null;
   declinedAt?: string | null;
   declineReason?: string | null;
@@ -81,8 +87,10 @@ export interface EstimateDetail {
   revisedBy?: { id: number; estimateNumber: number }[];
 }
 
+// "approved"/"declined" are not settable here — see CONTEXT.md "Estimate
+// Approval" and the guard in lib/repositories/estimateRepo.ts saveEstimate.
 export interface UpdateEstimateInput {
-  status?: "draft" | "sent" | "approved" | "declined";
+  status?: OperatorEstimateStatus;
   markupPct?: number;
   depositPct?: number;
   lineItems?: LineItemCalc[];
@@ -114,24 +122,15 @@ function estimatesQueryString(p: EstimateListParams): string {
   return sp.toString();
 }
 
-async function fetchEstimates(
-  p: EstimateListParams
-): Promise<EstimateListResponse> {
-  const res = await fetch(`/api/estimates?${estimatesQueryString(p)}`);
-  if (!res.ok) throw new Error("Failed to fetch estimates");
-  return res.json();
-}
-
-async function fetchEstimate(id: number): Promise<EstimateDetail> {
-  const res = await fetch(`/api/estimates/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch estimate");
-  return res.json();
-}
-
 export function useEstimates(params: EstimateListParams) {
   return useQuery({
     queryKey: ["estimates", params],
-    queryFn: () => fetchEstimates(params),
+    queryFn: () =>
+      apiFetch<EstimateListResponse>(
+        `/api/estimates?${estimatesQueryString(params)}`,
+        undefined,
+        "Failed to fetch estimates"
+      ),
     placeholderData: keepPreviousData,
   });
 }
@@ -139,7 +138,12 @@ export function useEstimates(params: EstimateListParams) {
 export function useEstimate(id: number) {
   return useQuery({
     queryKey: ["estimates", id],
-    queryFn: () => fetchEstimate(id),
+    queryFn: () =>
+      apiFetch<EstimateDetail>(
+        `/api/estimates/${id}`,
+        undefined,
+        "Failed to fetch estimate"
+      ),
     enabled: !!id,
   });
 }
@@ -147,17 +151,16 @@ export function useEstimate(id: number) {
 export function useCreateEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      siteMeasureId: number;
-    }): Promise<EstimateDetail> => {
-      const res = await fetch("/api/estimates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error("Failed to create estimate");
-      return res.json();
-    },
+    mutationFn: (input: { siteMeasureId: number }) =>
+      apiFetch<EstimateDetail>(
+        "/api/estimates",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        "Failed to create estimate"
+      ),
     onSuccess: (q) => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["siteMeasures", q.siteMeasureId] });
@@ -169,14 +172,16 @@ export function useCreateEstimate() {
 export function useUpdateEstimate(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: UpdateEstimateInput) => {
-      const res = await fetch(`/api/estimates/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to save estimate");
-    },
+    mutationFn: (data: UpdateEstimateInput) =>
+      apiFetch<EstimateDetail>(
+        `/api/estimates/${id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        },
+        "Failed to save estimate"
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["estimates", id] });
@@ -195,21 +200,16 @@ export interface SendEstimateVariables {
 export function useSendEstimate(estimateId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (vars: SendEstimateVariables): Promise<{ ok: true }> => {
-      const res = await fetch(`/api/estimates/${estimateId}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(vars),
-      });
-      if (!res.ok) {
-        const { message } = await readApiError(
-          res,
-          `Send failed (${res.status})`
-        );
-        throw new Error(message);
-      }
-      return res.json();
-    },
+    mutationFn: (vars: SendEstimateVariables) =>
+      apiFetch<{ ok: true; customerEmailSaved: boolean }>(
+        `/api/estimates/${estimateId}/send`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(vars),
+        },
+        "Send failed"
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["estimates", estimateId] });
@@ -226,19 +226,14 @@ export interface ReviseEstimateResult {
 export function useReviseEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number): Promise<ReviseEstimateResult> => {
-      const res = await fetch(`/api/estimates/${id}/revise`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const { message } = await readApiError(res, `Failed (${res.status})`);
-        throw new Error(message);
-      }
-      return res.json();
-    },
-    onSuccess: (_result, id) => {
+    mutationFn: (id: number) =>
+      apiFetch<ReviseEstimateResult>(
+        `/api/estimates/${id}/revise`,
+        { method: "POST" },
+        "Failed to revise"
+      ),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
-      qc.invalidateQueries({ queryKey: ["estimates", id] });
       qc.invalidateQueries({ queryKey: ["customers"] });
     },
   });
@@ -247,21 +242,12 @@ export function useReviseEstimate() {
 export function useDeleteEstimate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (
-      id: number
-    ): Promise<{ ok?: boolean; error?: string }> => {
-      const res = await fetch(`/api/estimates/${id}`, { method: "DELETE" });
-      if (res.status === 409) {
-        const { message } = await readApiError(
-          res,
-          "Estimate has scheduled events"
-        );
-        throw new Error(message);
-      }
-      if (!res.ok) throw new Error("Failed to delete estimate");
-      if (res.status === 204) return { ok: true };
-      return res.json();
-    },
+    mutationFn: (id: number) =>
+      apiFetch<void>(
+        `/api/estimates/${id}`,
+        { method: "DELETE" },
+        "Estimate has scheduled events"
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["estimates"] });
       qc.invalidateQueries({ queryKey: ["customers"] });

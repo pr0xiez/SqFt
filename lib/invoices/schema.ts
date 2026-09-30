@@ -24,17 +24,6 @@ export const invoiceCreateSchema = z
     path: ["amount"],
   });
 
-/** Patch (draft only): editable fields. */
-export const invoiceUpdateSchema = z.object({
-  amount: z.number().positive().optional(),
-  pct: z.number().gt(0).max(1).optional(),
-  memo: z.string().max(120).nullish(),
-  terms: z.string().max(2000).optional(),
-  coverNote: z.string().max(2000).optional(),
-  paymentInstructions: z.string().max(2000).optional(),
-  dueDate: z.string().datetime().nullish(),
-});
-
 export const invoiceSendSchema = z.object({
   to: z.string().email(),
   subject: z.string().min(1).max(200),
@@ -58,6 +47,5 @@ export const invoiceTokenParams = z.object({
 });
 
 export type InvoiceCreateInput = z.infer<typeof invoiceCreateSchema>;
-export type InvoiceUpdateInput = z.infer<typeof invoiceUpdateSchema>;
 export type InvoiceSendInput = z.infer<typeof invoiceSendSchema>;
 export type InvoicePaymentInput = z.infer<typeof invoicePaymentSchema>;

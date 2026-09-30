@@ -1,7 +1,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
-import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
+import { assertDeletable } from "@/lib/repositories/deleteGuards";
 import type { SortDirection } from "@/lib/sort";
 
 const LIST_ESTIMATE_SELECT = {
@@ -286,18 +286,18 @@ export async function updateCustomer(
   return prisma.customer.findFirst({ where: { id, orgId } });
 }
 
-/**
- * Opportunistic write-through: keep a customer's email current with where a
- * document was actually sent. Org-scoped `updateMany` no-ops (rather than
- * throwing) when the id/orgId pair doesn't match, which callers rely on to
- * treat this as a best-effort side effect.
- */
+/** Best-effort email sync (e.g. from a send dialog). Returns whether a row
+ *  actually matched — callers decide how to surface a miss/throw. */
 export async function updateCustomerEmail(
   id: number,
   orgId: string,
   email: string
-): Promise<void> {
-  await prisma.customer.updateMany({ where: { id, orgId }, data: { email } });
+): Promise<boolean> {
+  const result = await prisma.customer.updateMany({
+    where: { id, orgId },
+    data: { email },
+  });
+  return result.count > 0;
 }
 
 /**
@@ -306,6 +306,10 @@ export async function updateCustomerEmail(
  * Cascade), so this refuses — like deleteEstimate — while a descendant
  * estimate has scheduled Events or any invoice. Otherwise deleting the
  * customer would bypass the guards that deleting the estimate itself enforces.
+ * Events can also link to a Customer directly (nullable `customerId`, used by
+ * non-`job` events with no estimate chain), so the Event guard checks both
+ * paths — otherwise Prisma's `SetNull` FK action would silently orphan a live
+ * scheduled event instead of blocking the delete.
  */
 export async function deleteCustomer(
   id: number,
@@ -315,14 +319,9 @@ export async function deleteCustomer(
     const descendantEstimates = {
       estimate: { siteMeasure: { location: { customerId: id } } },
     };
-    const eventCount = await tx.event.count({
-      where: { orgId, ...descendantEstimates },
+    await assertDeletable(tx, orgId, descendantEstimates, {
+      OR: [{ customerId: id }, descendantEstimates],
     });
-    if (eventCount > 0) throw new EstimateHasEventsError(eventCount);
-    const invoiceCount = await tx.invoice.count({
-      where: { orgId, ...descendantEstimates },
-    });
-    if (invoiceCount > 0) throw new HasInvoicesError(invoiceCount);
     const result = await tx.customer.deleteMany({ where: { id, orgId } });
     return result.count > 0;
   });

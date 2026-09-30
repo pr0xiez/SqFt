@@ -76,6 +76,14 @@ with the file that owns it.
   adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin
   callers; ordering/error invariants live here (see *Send Pipeline* in
   `CONTEXT.md`).
+- `lib/dashboard/approvedRevenue.ts` — shared **approved-revenue query**
+  (`getApprovedEstimateRevenueRows`, `getMtdApprovedEstimates`): the one place
+  that queries approved estimates in a date range and reduces them via
+  `computeEstimateView`. Both `getDashboardKpis` (`lib/dashboard/kpis.ts`,
+  `bookedRevenueMtd`) and `getDashboardRevenue` (`lib/dashboard/revenue.ts`,
+  `mtdTotal` + weekly buckets) call it instead of each defining its own
+  "what counts as MTD approved revenue" — add any future MTD-revenue logic
+  here, not by re-deriving it in either dashboard function.
 - `lib/quickCreate/` — **pure quick-create logic** (`toInvoiceableCandidates`):
   projects estimates to billable candidates (`unbilled > 0`) for the
   quick-invoice search. The global **"+ New" launcher** UI lives in
@@ -103,33 +111,44 @@ with the file that owns it.
   silent. The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
+- `lib/repositories/loginRepo.ts` — credentials lookup and atomic failed-login
+  counters; `lib/auth/login.ts` owns lockout policy, called by `authorizeCredentials`.
 - `lib/queryCache.ts` — persisted react-query cache policy (localStorage key,
-  buster, the never-persist key list, and the sign-out clear). Consumed by
+  buster, the persistence allowlist, and the sign-out clear). Consumed by
   `components/ui/Providers.tsx` and `AccountBlock`.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
-  `validateUserIds`, the auth-time lookup `findUserForAuth`) and
-  `organizationRepo.ts` owns all `Organization` access (settings read/write,
-  Stripe Connect fields, the dashboard's send-email header, and the
-  super-admin-only `listAllOrgsForAdmin`/`countOrgsForAdmin` — deliberately
-  not org-scoped, gated by the caller instead).
-- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …).
+  `validateUserIds`, and `applyUserPatch` — the shared role/profile/archived
+  orchestration used by both the self-org and super-admin PATCH routes).
+  `organizationRepo.ts` owns organization settings, Stripe fields, and gated
+  platform-wide admin reads. `approvedRevenueSelect.ts` owns the shared revenue projection.
+- `lib/users/schema.ts` — the shared `userCreateSchema` / `userPatchSchema`
+  Zod schemas, used by both the self-org (`app/api/users/`) and super-admin
+  (`app/api/admin/orgs/[orgId]/users/`) user create/patch routes.
+- `lib/hooks/` — react-query hooks (`useEstimates`, `useInvoices`, …), all
+  built on the shared `apiFetch<T>(url, init?, fallbackMessage?)`
+  (`lib/hooks/apiFetch.ts`) — fetch + `res.ok` check + `readApiError` +
+  `res.json()` (204 → `undefined`) in one place, so every query/mutation
+  surfaces the server's real `{code, message}` instead of a fixed generic
+  string. New hooks should call it rather than hand-rolling the fetch dance.
+  Shared dialog DOM hooks (`useFocusTrap`, `useScrollLock`) live here too.
+- `lib/env.ts` — validated server configuration for DB, email, Stripe, public URLs,
+  address lookup, and the admin allowlist. Blank optional values retain disabled
+  feature behavior; Auth.js reads `AUTH_SECRET` itself.
 - `lib/email/` — React-Email templates + Resend senders.
+- `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
+  `generateToken()` output) and `trackPublicView`, the shared status-gated
+  view-tracking spine used by `estimate-review`/`invoice-review`; request
+  metadata is read during render, and writes finish via Next's `after()` with
+  failure logging. Do not use an untracked fire-and-forget promise here.
+- `lib/http/clientMeta.ts` — shared audit metadata extraction for route
+  handlers and public review pages; missing/empty values use null.
+- `lib/estimateStatus.ts` — canonical status vocabulary, display labels,
+  filter values, and the narrower operator-editable status subset.
+- `next.config.ts` — global security headers/CSP; preview-only Vercel toolbar
+  allowances and `no-referrer` on public bearer-token review pages.
 - `lib/tenant.ts` — org scoping; `lib/prisma.ts` — Prisma client;
   `lib/utils.ts` — `fmtDollar` and friends.
-- `lib/env.ts` — **centralized `process.env` access**: a zod schema
-  (`getEnv()`) covering every infra/secret var (`DATABASE_URL`,
-  `RESEND_API_KEY`/`EMAIL_FROM`, `GEOAPIFY_API_KEY`, `SUPER_ADMIN_EMAILS`,
-  the `PUBLIC_BASE_URL`/`VERCEL_*` set consumed by `lib/baseUrl.ts`,
-  `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). Only `DATABASE_URL` is
-  required; everything else keeps its pre-existing optional/fallback
-  semantics — this only centralizes *how* they're read and typed. `getEnv()`
-  re-validates `process.env` on every call rather than freezing it at import
-  (several consumers/tests rely on re-reading env vars that change after
-  module load), so a missing `DATABASE_URL` still fails at first import of
-  `lib/prisma.ts` rather than lazily mid-request. Business-logic defaults
-  (non-secret constants) are a separate concern — see #95 — and don't belong
-  here.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,
   `siteMeasures`, …) plus shared `components/ui/` (`Modal`, `Button`, `Toast`).
 - `prisma/` — schema, migrations, `seed.ts`. Design docs and plans live in
@@ -147,6 +166,8 @@ with the file that owns it.
   CI and avoid known parallel-contention flakiness.
 - `npm run migrate:dev` — apply migrations (`prisma migrate deploy`);
   `npm run seed:dev` — seed the dev DB.
+- `scripts/ignore-app-deploy.sh` — shared Vercel/CI app-change detection;
+  checks both merge parents so a no-op merge from main cannot hide PR changes.
 
 ## Gotchas
 
@@ -172,18 +193,19 @@ with the file that owns it.
   `onDelete: Cascade`.** Delete paths at every level must guard against
   cascading away financial records (`HAS_INVOICES`) and scheduled events
   (`ESTIMATE_HAS_EVENTS`) — don't add a new delete path without those checks.
+  The shared guard lives in `lib/repositories/deleteGuards.ts`; customer
+  deletion also checks Events linked directly by `customerId`.
 - **Stripe test/live modes are isolated.** The Stripe secret key mode must
   match the mode of the stored `stripeConnectAccountId` (an account created
   with a test-mode key cannot be used with a live-mode key and vice versa).
   This invariant holds by construction via the dev/prod DB split — test keys
   in dev, live keys in production. An org onboarded in production must
   re-onboard in any test environment (or seed a fresh test-mode account).
-- **Every successful react-query response is persisted to `localStorage` for
-  24 hours** by `PersistQueryClientProvider` and survives sign-out unless
-  cleared. A query whose data must not outlive the session (anything
-  identity-, verification- or payment-sensitive) has to be added to the
-  never-persist list in `lib/queryCache.ts` — the default policy is "persist
-  everything".
+- **React-query persistence is opt-in.** `lib/queryCache.ts` only permits the
+  reviewed `line-item-templates` configuration family in localStorage for 24
+  hours. New query families default to in-memory only; customer, financial,
+  identity, and verification payloads (including nested PII) must not persist.
+  Tightening the policy requires a cache-buster bump to evict old stored data.
 - **Super-admin routes (`/api/admin/orgs/[orgId]/...`) take the target org
   from the URL param, not the caller's session org** — the `orgId` on the
   gated session belongs to the operator, not the org being managed.

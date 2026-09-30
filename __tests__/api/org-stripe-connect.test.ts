@@ -86,10 +86,10 @@ describe("POST /api/org/stripe/connect", () => {
     expect(mockCreateConnectedAccount).not.toHaveBeenCalled();
   });
 
-  it("returns 401 when role is crew (not admin)", async () => {
+  it("returns 403 when role is crew (not admin)", async () => {
     asCrew();
     const res = await POST(makeRequest("POST"), noParams);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(403);
     expect(mockCreateConnectedAccount).not.toHaveBeenCalled();
   });
 

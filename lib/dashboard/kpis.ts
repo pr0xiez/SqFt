@@ -1,11 +1,10 @@
 // lib/dashboard/kpis.ts
 
-import { computeEstimateView } from "@/lib/estimateView/compute";
-import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
+import { getApprovedEstimateRevenueRows } from "@/lib/dashboard/approvedRevenue";
+import { round2 } from "@/lib/money";
 import {
   getEstimateCreationCounts,
   getEstimateWinLossCounts,
-  listApprovedEstimatesForRevenue,
   listAwaitingEstimates,
 } from "@/lib/repositories/estimateRepo";
 import { getSiteMeasureCreationCounts } from "@/lib/repositories/siteMeasureRepo";
@@ -58,23 +57,20 @@ export async function getDashboardKpis(orgId: string): Promise<DashboardKpis> {
       gte: sixtyDaysAgo,
       lt: thirtyDaysAgo,
     }),
-    listApprovedEstimatesForRevenue(orgId, { gte: monthStart }),
-    listApprovedEstimatesForRevenue(orgId, {
+    getApprovedEstimateRevenueRows(orgId, { gte: monthStart }),
+    getApprovedEstimateRevenueRows(orgId, {
       gte: lastMonthStart,
       lte: lastMonthSamePeriodEnd,
     }),
   ]);
 
-  const bookedRevenueMtd = acceptedMtd.reduce(
-    (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-    0
+  const bookedRevenueMtd = round2(
+    acceptedMtd.reduce((sum, row) => sum + row.total, 0)
   );
-  const bookedRevenueDelta =
+  const bookedRevenueDelta = round2(
     bookedRevenueMtd -
-    acceptedLastMonthSamePeriod.reduce(
-      (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-      0
-    );
+      acceptedLastMonthSamePeriod.reduce((sum, row) => sum + row.total, 0)
+  );
 
   const expiringSoonCount = awaitingEstimates.filter((q) => {
     if (!q.sentAt) return false;

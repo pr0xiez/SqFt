@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { EstimateStatusFilter } from "@/components/estimates/filterEstimates";
+import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
@@ -10,6 +10,11 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { cn } from "@/lib/cn";
+import {
+  ESTIMATE_STATUS_LABELS,
+  ESTIMATE_STATUSES,
+} from "@/lib/estimateStatus";
+import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
@@ -18,15 +23,16 @@ import { fmtBig } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "draft", label: "Draft" },
-  { value: "sent", label: "Sent" },
-  { value: "approved", label: "Approved" },
-  { value: "declined", label: "Declined" },
+  ...ESTIMATE_STATUSES.map((value) => ({
+    value,
+    label: ESTIMATE_STATUS_LABELS[value],
+  })),
 ];
 
 const STATUS_PILL_COLOR: Record<string, string> = {
   draft: "text-[var(--muted)]",
   sent: "text-[var(--gold)]",
+  viewed: "text-[var(--gold)]",
   approved: "text-[var(--sage)]",
   declined: "text-[var(--accent)]",
 };
@@ -78,7 +84,7 @@ export function EstimateListView() {
   const debouncedQuery = useDebouncedValue(query, 300);
   const sortKey = sort?.key ?? "date";
   const sortDir = sort?.direction ?? "desc";
-  const { data, isLoading } = useEstimates({
+  const { data, isLoading, isError, refetch } = useEstimates({
     page,
     perPage,
     sort: sortKey,
@@ -89,13 +95,14 @@ export function EstimateListView() {
   const estimates = data?.items ?? [];
   const total = data?.total ?? 0;
   const facets = data?.facets ?? {};
-  const statusCounts = {
+  const statusCounts: Record<EstimateStatusFilter, number> = {
     all: facets.all ?? 0,
     draft: facets.draft ?? 0,
     sent: facets.sent ?? 0,
+    viewed: facets.viewed ?? 0,
     approved: facets.approved ?? 0,
     declined: facets.declined ?? 0,
-  } as Record<EstimateStatusFilter, number>;
+  };
 
   const handleSort = (key: SortKey) => {
     const defaultDir =
@@ -193,6 +200,15 @@ export function EstimateListView() {
         {isLoading ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
             Loading…
+          </div>
+        ) : isError ? (
+          <div className="p-6 flex flex-col items-start gap-2.5">
+            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
+              Something went wrong loading estimates.
+            </div>
+            <Button variant="default" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
           </div>
         ) : allCount === 0 ? (
           <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">

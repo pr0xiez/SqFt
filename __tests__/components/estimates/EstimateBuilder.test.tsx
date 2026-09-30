@@ -84,7 +84,7 @@ function makeEstimate(over: Partial<EstimateDetail> = {}): EstimateDetail {
     date: "2026-06-01",
     markupPct: 0,
     depositPct: 0.3,
-    approvalToken: null,
+    hasApprovalToken: false,
     createdAt: "2026-06-01",
     siteMeasure: {
       id: 7,

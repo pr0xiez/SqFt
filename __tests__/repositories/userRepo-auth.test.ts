@@ -9,16 +9,16 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-const { findUserForAuth, countUsersForAdmin } = await import(
-  "@/lib/repositories/userRepo"
-);
+const { countUsersForAdmin } = await import("@/lib/repositories/userRepo");
+
+const { findCredentialsUser } = await import("@/lib/repositories/loginRepo");
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("findUserForAuth", () => {
+describe("findCredentialsUser", () => {
   it("returns null when no user matches the email", async () => {
     findUnique.mockResolvedValue(null);
-    expect(await findUserForAuth("nobody@example.com")).toBeNull();
+    expect(await findCredentialsUser("nobody@example.com")).toBeNull();
   });
 
   it("looks up by email (not org-scoped — login precedes knowing the org) and includes the password hash", async () => {
@@ -32,7 +32,7 @@ describe("findUserForAuth", () => {
       archived: false,
     };
     findUnique.mockResolvedValue(row);
-    const result = await findUserForAuth("ada@example.com");
+    const result = await findCredentialsUser("ada@example.com");
     expect(findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { email: "ada@example.com" } })
     );

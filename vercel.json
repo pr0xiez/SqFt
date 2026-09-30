@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "DATABASE_URL=\"$(printf '%s' \"$DATABASE_URL\" | sed 's/-pooler//')\" npx prisma migrate deploy && next build --webpack",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)www'"
+  "ignoreCommand": "bash scripts/ignore-app-deploy.sh"
 }

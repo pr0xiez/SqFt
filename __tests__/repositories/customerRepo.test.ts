@@ -124,20 +124,28 @@ describe("updateCustomer", () => {
 });
 
 describe("updateCustomerEmail", () => {
-  it("scopes the write by id and orgId", async () => {
+  it("scopes the update to id + orgId and returns true on a match", async () => {
     updateMany.mockResolvedValue({ count: 1 });
-    await updateCustomerEmail(1, "org1", "new@example.com");
+    const result = await updateCustomerEmail(1, "org1", "new@example.com");
+    expect(result).toBe(true);
     expect(updateMany).toHaveBeenCalledWith({
       where: { id: 1, orgId: "org1" },
       data: { email: "new@example.com" },
     });
   });
 
-  it("no-ops (does not throw) when the customer isn't in the org", async () => {
+  it("returns false when no row matches in the org", async () => {
     updateMany.mockResolvedValue({ count: 0 });
+    expect(await updateCustomerEmail(99, "org1", "new@example.com")).toBe(
+      false
+    );
+  });
+
+  it("propagates a rejected prisma call", async () => {
+    updateMany.mockRejectedValue(new Error("db down"));
     await expect(
-      updateCustomerEmail(99, "org1", "x@x.com")
-    ).resolves.toBeUndefined();
+      updateCustomerEmail(1, "org1", "new@example.com")
+    ).rejects.toThrow("db down");
   });
 });
 
@@ -164,7 +172,29 @@ describe("deleteCustomer", () => {
     expect(eventCount).toHaveBeenCalledWith({
       where: {
         orgId: "org1",
-        estimate: { siteMeasure: { location: { customerId: 1 } } },
+        OR: [
+          { customerId: 1 },
+          { estimate: { siteMeasure: { location: { customerId: 1 } } } },
+        ],
+      },
+    });
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("refuses when an event links directly to the customer with no estimate chain", async () => {
+    // e.g. a "visit"/"other" type event, which has a nullable customerId FK
+    // and no estimateId at all.
+    eventCount.mockResolvedValue(1);
+    await expect(deleteCustomer(1, "org1")).rejects.toBeInstanceOf(
+      EstimateHasEventsError
+    );
+    expect(eventCount).toHaveBeenCalledWith({
+      where: {
+        orgId: "org1",
+        OR: [
+          { customerId: 1 },
+          { estimate: { siteMeasure: { location: { customerId: 1 } } } },
+        ],
       },
     });
     expect(deleteMany).not.toHaveBeenCalled();

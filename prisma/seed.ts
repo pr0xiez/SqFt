@@ -62,6 +62,8 @@ async function main() {
     // Delete demo users so re-runs of the seed don't collide with the
     // EmailTakenError that createOrganization now raises.
     await prisma.user.deleteMany({ where: { orgId: { in: demoOrgIds } } });
+    // Login-lockout columns on recreated demo users use their schema defaults:
+    // failedLoginCount = 0 and lockedUntil = null.
     // Then delete the orgs themselves — cascades clean up any remaining
     // children. createOrganization will recreate them below.
     await prisma.organization.deleteMany({
@@ -96,6 +98,7 @@ async function main() {
   console.log("  ✓ 6 line item templates");
 
   // ── Crew (installers as crew-role users) ──────────────────────────────────
+  const unlockedLogin = { failedLoginCount: 0, lockedUntil: null };
   const crewPwd = await bcrypt.hash("demo1234", 10);
   const [crewMike, crewCarlos, crewDave, crewSarah] = await Promise.all([
     prisma.user.create({
@@ -106,6 +109,7 @@ async function main() {
         password: crewPwd,
         role: "crew",
         title: "Owner / Sales",
+        ...unlockedLogin,
       },
     }),
     prisma.user.create({
@@ -116,6 +120,7 @@ async function main() {
         password: crewPwd,
         role: "crew",
         title: "Lead Installer",
+        ...unlockedLogin,
       },
     }),
     prisma.user.create({
@@ -126,6 +131,7 @@ async function main() {
         password: crewPwd,
         role: "crew",
         title: "Installer",
+        ...unlockedLogin,
       },
     }),
     prisma.user.create({
@@ -136,6 +142,7 @@ async function main() {
         password: crewPwd,
         role: "crew",
         title: "Showroom",
+        ...unlockedLogin,
       },
     }),
   ]);
@@ -147,6 +154,7 @@ async function main() {
     update: {},
     create: {
       name: "Marcus Chen",
+      ...unlockedLogin,
       email: "lead@sqft.dev",
       password: leadHash,
       role: "lead",
@@ -161,6 +169,7 @@ async function main() {
     update: {},
     create: {
       name: "Diego Marín",
+      ...unlockedLogin,
       email: "crew@sqft.dev",
       password: crewHash,
       role: "crew",
@@ -178,6 +187,7 @@ async function main() {
     update: {},
     create: {
       name: "Sam Operator",
+      ...unlockedLogin,
       email: "admin@sqft.dev",
       password: superAdminHash,
       role: "admin",

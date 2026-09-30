@@ -1,8 +1,7 @@
 // lib/dashboard/revenue.ts
 
-import { computeEstimateView } from "@/lib/estimateView/compute";
-import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
-import { listApprovedEstimatesForRevenue } from "@/lib/repositories/estimateRepo";
+import { getMtdApprovedEstimates } from "@/lib/dashboard/approvedRevenue";
+import { round2 } from "@/lib/money";
 
 export interface WeekSummary {
   label: string;
@@ -32,14 +31,9 @@ export async function getDashboardRevenue(
   const daysLeft = totalDays - today;
   const monthStart = new Date(year, month, 1);
 
-  const acceptedMtd = await listApprovedEstimatesForRevenue(orgId, {
-    gte: monthStart,
-  });
+  const acceptedMtd = await getMtdApprovedEstimates(orgId, monthStart);
 
-  const mtdTotal = acceptedMtd.reduce(
-    (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-    0
-  );
+  const mtdTotal = round2(acceptedMtd.reduce((sum, r) => sum + r.total, 0));
 
   // Build 4 fixed week buckets (day ranges within the month)
   const weekBoundaries = [
@@ -62,15 +56,14 @@ export async function getDashboardRevenue(
 
     const weekStart = new Date(year, month, start);
     const weekEnd = new Date(year, month, end, 23, 59, 59, 999);
-    const amount = acceptedMtd
-      .filter(
-        (q) =>
-          q.approvedAt && q.approvedAt >= weekStart && q.approvedAt <= weekEnd
-      )
-      .reduce(
-        (sum, q) => sum + computeEstimateView(fromPrismaEstimate(q)).total,
-        0
-      );
+    const amount = round2(
+      acceptedMtd
+        .filter(
+          (r) =>
+            r.approvedAt && r.approvedAt >= weekStart && r.approvedAt <= weekEnd
+        )
+        .reduce((sum, r) => sum + r.total, 0)
+    );
 
     return { label, amount, isCurrent, isFuture };
   });
