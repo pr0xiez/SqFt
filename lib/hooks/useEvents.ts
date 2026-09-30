@@ -105,6 +105,6 @@ export function useDeleteEvent() {
         { method: "DELETE" },
         "Failed to delete event"
       ),
-    onSuccess: () => invalidateEventQueries(qc),
+    onSettled: () => invalidateEventQueries(qc),
   });
 }

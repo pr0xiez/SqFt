@@ -2,8 +2,11 @@
 // directly (it is pure but conceptually a server artifact, mirroring estimateView).
 export {
   computeEstimateBilling,
+  invoiceOutstanding,
+  isInvoiceOverdue,
   isOverbill,
   OVERBILL_EPSILON,
+  paymentsPaidTotal,
   prorateInvoice,
 } from "./compute";
 export type {

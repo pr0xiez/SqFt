@@ -496,8 +496,12 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
               await deleteEvent.mutateAsync(id);
               setPanelOpen(false);
               showToast("Event deleted");
-            } catch {
-              showToast("Failed to delete event");
+            } catch (error) {
+              showToast(
+                error instanceof Error
+                  ? error.message
+                  : "Failed to delete event"
+              );
             }
           }}
         />
