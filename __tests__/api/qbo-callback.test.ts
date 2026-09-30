@@ -98,6 +98,45 @@ describe("GET /api/qbo/callback", () => {
       tokens: expect.objectContaining({ refreshToken: "rt" }),
       companyName: "Mock Flooring Co",
     });
+    expect(mockExchange).toHaveBeenCalledWith(
+      expect.objectContaining({ environment: "sandbox" }),
+      "auth-code",
+      "https://app.test/api/qbo/callback"
+    );
+  });
+
+  it("exchanges and returns mock OAuth on the session's deployment origin", async () => {
+    process.env.QBO_ENVIRONMENT = "mock";
+    mockExchange.mockResolvedValueOnce({
+      accessToken: "at",
+      refreshToken: "rt",
+      expiresIn: 3600,
+      refreshExpiresIn: 86400,
+    });
+    mockQboFetch.mockResolvedValueOnce({
+      CompanyInfo: { CompanyName: "Mock Flooring Co" },
+    });
+    const url = new URL("https://immutable.test/api/qbo/callback");
+    for (const [key, value] of Object.entries(goodQuery()))
+      url.searchParams.set(key, value);
+    const res = await GET(makeRequest("GET", url.toString()), noParams);
+    expect(mockExchange).toHaveBeenCalledWith(
+      expect.objectContaining({ environment: "mock" }),
+      "auth-code",
+      "https://immutable.test/api/qbo/callback"
+    );
+    expect(res.headers.get("location")).toBe(
+      "https://immutable.test/settings/integrations?qbo=connected"
+    );
+  });
+
+  it("returns mock OAuth errors to the session's origin too", async () => {
+    process.env.QBO_ENVIRONMENT = "mock";
+    const res = await GET(callbackRequest(goodQuery("org_evil")), noParams);
+    expect(res.headers.get("location")).toBe(
+      "http://localhost/settings/integrations?qbo=error&reason=bad_state"
+    );
+    expect(mockExchange).not.toHaveBeenCalled();
   });
 
   it("rejects a state signed for a different org (no connection stored)", async () => {

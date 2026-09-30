@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiRoute } from "@/lib/api/route";
-import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { logError } from "@/lib/logger";
 import { qboFetch } from "@/lib/qbo/client";
-import { getQboConfig } from "@/lib/qbo/config";
+import { getQboAppBaseUrl, getQboConfig } from "@/lib/qbo/config";
 import { exchangeAuthCode, verifyState } from "@/lib/qbo/connect";
 import { upsertQboConnection } from "@/lib/repositories/qboRepo";
 
@@ -14,11 +13,12 @@ import { upsertQboConnection } from "@/lib/repositories/qboRepo";
  * another org redirects to the error state instead of connecting.
  */
 export const GET = apiRoute({ minRole: "admin" }, async ({ req, orgId }) => {
-  const settingsUrl = `${getPublicBaseUrl()}/settings/integrations`;
+  const config = getQboConfig();
+  const appBaseUrl = getQboAppBaseUrl(config, req.nextUrl);
+  const settingsUrl = `${appBaseUrl}/settings/integrations`;
   const fail = (reason: string) =>
     NextResponse.redirect(`${settingsUrl}?qbo=error&reason=${reason}`);
 
-  const config = getQboConfig();
   if (!config) return fail("unconfigured");
 
   const params = req.nextUrl.searchParams;
@@ -34,7 +34,7 @@ export const GET = apiRoute({ minRole: "admin" }, async ({ req, orgId }) => {
     const tokens = await exchangeAuthCode(
       config,
       code,
-      `${getPublicBaseUrl()}/api/qbo/callback`
+      `${appBaseUrl}/api/qbo/callback`
     );
     const companyName = await readCompanyName(
       config.apiBaseUrl,

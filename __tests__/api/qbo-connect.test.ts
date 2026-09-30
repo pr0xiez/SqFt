@@ -94,6 +94,21 @@ describe("POST /api/qbo/connect", () => {
     );
     expect(parsed.searchParams.get("state")).toContain("org1.");
   });
+
+  it("keeps mock OAuth callbacks on the deployment holding the session", async () => {
+    asRole("admin");
+    process.env.QBO_ENVIRONMENT = "mock";
+    const res = await connectPost(
+      makeRequest("POST", "https://immutable.test/api/qbo/connect"),
+      noParams
+    );
+    const { url } = (await res.json()) as { url: string };
+    const parsed = new URL(url);
+    expect(parsed.origin).toBe("https://app.test");
+    expect(parsed.searchParams.get("redirect_uri")).toBe(
+      "https://immutable.test/api/qbo/callback"
+    );
+  });
 });
 
 describe("GET /api/qbo/status", () => {

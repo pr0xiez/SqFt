@@ -245,6 +245,8 @@ with the file that owns it.
   green until the preview env is configured.
   Protected Vercel previews use `VERCEL_AUTOMATION_BYPASS_SECRET` only on
   same-origin `/api/qbo-mock/` server requests; never send it to Intuit.
+  Mock OAuth callbacks/return links use the requesting deployment's origin
+  to preserve its session cookie; real Intuit uses the registered public URL.
 
 ## Keeping these docs current
 

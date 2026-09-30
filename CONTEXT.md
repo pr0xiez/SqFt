@@ -532,7 +532,10 @@ Environments: `QBO_ENVIRONMENT` = `sandbox | production | mock`; integration
 is invisible when env is absent. `mock` serves the app's own test-only realm
 (`app/api/qbo-mock`, state in `QboMockRealm`) used by the `qbo-*.spec.ts`
 Playwright suites — refused in production, and specs skip when the target
-deployment doesn't serve it. Tax: the invoice mapping emits QBO's
+deployment doesn't serve it. Mock OAuth callbacks and settings redirects
+stay on the requesting deployment's origin so its admin session survives;
+real Intuit flows use the configured public URL registered with Intuit.
+Tax: the invoice mapping emits QBO's
 `TxnTaxDetail` override only when the (future, P0) tax contract fields are
 present in the snapshot (`totals.taxAmount` et al).
 

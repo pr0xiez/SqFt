@@ -33,6 +33,18 @@ export const QBO_MINORVERSION = "75";
 
 export const QBO_SCOPE = "com.intuit.quickbooks.accounting";
 
+/** Mock OAuth must return to the host carrying the admin's session cookie.
+ * Real Intuit flows keep the configured, registered callback origin.
+ */
+export function getQboAppBaseUrl(
+  config: QboConfig | null,
+  requestUrl: URL | string
+): string {
+  return config?.environment === "mock"
+    ? new URL(requestUrl).origin
+    : getPublicBaseUrl();
+}
+
 export function isMockQboEnabled(): boolean {
   return (
     process.env.QBO_ENVIRONMENT === "mock" &&
