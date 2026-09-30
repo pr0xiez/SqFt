@@ -6,9 +6,15 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { readApiError } from "@/lib/api/errors";
-import type { EstimateStatus } from "@/lib/estimateStatus";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import type { SortDirection } from "@/lib/sort";
+
+export type EstimateStatus =
+  | "draft"
+  | "sent"
+  | "viewed"
+  | "approved"
+  | "declined";
 
 export interface CustomerEstimateSummary {
   id: number;
@@ -130,24 +136,15 @@ function customersQueryString(p: CustomerListParams): string {
   return sp.toString();
 }
 
-async function fetchCustomers(
-  p: CustomerListParams
-): Promise<CustomerListResponse> {
-  const res = await fetch(`/api/customers?${customersQueryString(p)}`);
-  if (!res.ok) throw new Error("Failed to fetch customers");
-  return res.json();
-}
-
-async function fetchCustomer(id: number): Promise<CustomerDetail> {
-  const res = await fetch(`/api/customers/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch customer");
-  return res.json();
-}
-
 export function useCustomers(params: CustomerListParams) {
   return useQuery({
     queryKey: ["customers", params],
-    queryFn: () => fetchCustomers(params),
+    queryFn: () =>
+      apiFetch<CustomerListResponse>(
+        `/api/customers?${customersQueryString(params)}`,
+        undefined,
+        "Failed to fetch customers"
+      ),
     placeholderData: keepPreviousData,
   });
 }
@@ -155,7 +152,12 @@ export function useCustomers(params: CustomerListParams) {
 export function useCustomer(id: number) {
   return useQuery({
     queryKey: ["customers", id],
-    queryFn: () => fetchCustomer(id),
+    queryFn: () =>
+      apiFetch<CustomerDetail>(
+        `/api/customers/${id}`,
+        undefined,
+        "Failed to fetch customer"
+      ),
     enabled: !!id,
   });
 }
@@ -163,15 +165,16 @@ export function useCustomer(id: number) {
 export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateCustomerInput) => {
-      const res = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error("Failed to create customer");
-      return res.json() as Promise<Customer>;
-    },
+    mutationFn: (input: CreateCustomerInput) =>
+      apiFetch<Customer>(
+        "/api/customers",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        "Failed to create customer"
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });
 }
@@ -179,14 +182,16 @@ export function useCreateCustomer() {
 export function useUpdateCustomer(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Partial<CreateCustomerInput>) => {
-      const res = await fetch(`/api/customers/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update customer");
-    },
+    mutationFn: (data: Partial<CreateCustomerInput>) =>
+      apiFetch<Customer>(
+        `/api/customers/${id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        },
+        "Failed to update customer"
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customers", id] });
@@ -197,16 +202,12 @@ export function useUpdateCustomer(id: number) {
 export function useDeleteCustomer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/customers/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const { message } = await readApiError(
-          res,
-          "Failed to delete customer"
-        );
-        throw new Error(message);
-      }
-    },
+    mutationFn: (id: number) =>
+      apiFetch<void>(
+        `/api/customers/${id}`,
+        { method: "DELETE" },
+        "Failed to delete customer"
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
   });
 }

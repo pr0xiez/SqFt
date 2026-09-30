@@ -9,6 +9,7 @@ import { SendEstimateDialog } from "@/components/estimates/SendEstimateDialog";
 import { InvoicesSection } from "@/components/invoices/InvoicesSection";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/Toast";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import { computeEstimateView } from "@/lib/estimateView";
 import { useEstimate, useUpdateEstimate } from "@/lib/hooks/useEstimates";
 import { useLineItemTemplates } from "@/lib/hooks/useLineItemTemplates";
@@ -41,8 +42,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
     );
   }
 
-  const locked =
-    estimate.status === "approved" || estimate.status === "declined";
+  const locked = isEstimateLocked(estimate.status);
 
   const rooms = (estimate.siteMeasure.items ?? []).filter(
     (i): i is RoomItem => i.type === "room"
@@ -168,7 +168,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
         estimateNumber={estimate.estimateNumber}
         orgName={estimate.org?.name ?? ""}
         customerEmail={estimate.siteMeasure.location?.customer?.email ?? null}
-        hasToken={Boolean(estimate.approvalToken)}
+        hasToken={estimate.hasApprovalToken}
         open={sendDialogOpen}
         onClose={() => setSendDialogOpen(false)}
       />

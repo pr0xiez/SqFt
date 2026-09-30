@@ -2,18 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { DashboardKpis } from "@/lib/dashboard/kpis";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export type { DashboardKpis };
-
-async function fetchDashboardKpis(): Promise<DashboardKpis> {
-  const res = await fetch("/api/dashboard/kpis");
-  if (!res.ok) throw new Error("Failed to fetch dashboard KPIs");
-  return res.json();
-}
 
 export function useDashboardKPIs() {
   return useQuery({
     queryKey: ["dashboard", "kpis"],
-    queryFn: fetchDashboardKpis,
+    queryFn: () =>
+      apiFetch<DashboardKpis>(
+        "/api/dashboard/kpis",
+        undefined,
+        "Failed to fetch dashboard KPIs"
+      ),
   });
 }

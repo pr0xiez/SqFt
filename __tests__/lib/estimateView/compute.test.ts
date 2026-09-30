@@ -161,3 +161,43 @@ describe("computeEstimateView — totals breakdown", () => {
     expect(v.hasUnresolvedLines).toBe(false);
   });
 });
+
+describe("computeEstimateView — rounding (issue #158)", () => {
+  it("rounds every returned money field to cents, never a raw binary float", () => {
+    // qty=1, rate=0.07, markupPct=12: raw subtotal*markup/total arithmetic
+    // produces 0.0784 as 0.07840000000000001 in IEEE-754. Every field below
+    // must come back as an exact 2-decimal number.
+    const v = computeEstimateView({
+      lineItems: [baseLi({ qty: 1, rate: 0.07 })],
+      items: [],
+      markupPct: 12,
+      depositPct: 0.5,
+    });
+    expect(v.lines[0].subtotal).toBe(0.07);
+    expect(v.subtotal).toBe(0.07);
+    expect(v.markup).toBe(0.01);
+    expect(v.total).toBe(0.08);
+    expect(v.deposit).toBe(0.04);
+  });
+
+  it("derives total from already-rounded subtotal + markup, not a rounded raw sum", () => {
+    // subtotal=1.50, markup=1.5*37%=0.555 (mathematically), which rounds
+    // half-up to 0.56. Rounding the RAW float sum (1.5 + 0.5549999999999999
+    // = 2.0549999999999997) would incorrectly floor to 2.05 — the raw double
+    // undershoots 2.055 due to binary representation error, and round2's
+    // half-up nudge never gets a chance to see it. Deriving total from the
+    // already-rounded subtotal/markup (1.50 + 0.56 = 2.06) is the
+    // mathematically correct half-up result and matches the convention
+    // `foldMarkupIntoLines` uses for line-level amounts.
+    const v = computeEstimateView({
+      lineItems: [baseLi({ qty: 1, rate: 1.5 })],
+      items: [],
+      markupPct: 37,
+      depositPct: 0.5,
+    });
+    expect(v.subtotal).toBe(1.5);
+    expect(v.markup).toBe(0.56);
+    expect(v.total).toBe(2.06);
+    expect(v.deposit).toBe(1.03);
+  });
+});

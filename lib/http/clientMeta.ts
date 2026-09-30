@@ -15,8 +15,15 @@ export interface ClientMeta {
  * different sentinel per route.
  */
 export function clientMeta(req: NextRequest): ClientMeta {
+  return clientMetaFromHeaders(req.headers);
+}
+
+/** Shared by route handlers and public server components. */
+export function clientMetaFromHeaders(h: Headers): ClientMeta {
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const userAgent = h.get("user-agent")?.trim();
   return {
-    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
-    userAgent: req.headers.get("user-agent") ?? null,
+    ip: !ip || ip === "unknown" ? null : ip,
+    userAgent: !userAgent || userAgent === "unknown" ? null : userAgent,
   };
 }

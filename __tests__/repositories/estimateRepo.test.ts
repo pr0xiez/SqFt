@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
+import {
+  EstimateHasEventsError,
+  HasInvoicesError,
+  ValidationError,
+} from "@/lib/api/errors";
 
 const estimateFindMany = vi.fn();
 const estimateFindFirst = vi.fn();
@@ -89,10 +93,12 @@ const {
   listEstimates,
   listEstimatesForSiteMeasure,
   getEstimate,
+  getEstimateForSend,
   createEstimate,
   saveEstimate,
   deleteEstimate,
   rotateApprovalToken,
+  estimateHasApprovalToken,
   getEstimateByToken,
 } = await import("@/lib/repositories/estimateRepo");
 
@@ -141,21 +147,15 @@ describe("listEstimates (paginated)", () => {
     });
   });
 
-  it("counts a 'viewed' row in its own facet, not just 'all' (regression)", async () => {
+  it("never selects approvalToken — CWE-201/522: it's the estimate-review bearer token", async () => {
     estimateFindMany.mockResolvedValue([]);
-    estimateCount.mockResolvedValue(1);
-    estimateGroupBy.mockResolvedValue([
-      { status: "viewed", _count: { _all: 1 } },
-    ]);
-    const res = await listEstimates("org1", baseParams);
-    expect(res.facets).toEqual({
-      all: 1,
-      draft: 0,
-      sent: 0,
-      viewed: 1,
-      approved: 0,
-      declined: 0,
-    });
+    estimateCount.mockResolvedValue(0);
+    mockGroupBy();
+    await listEstimates("org1", baseParams);
+    const call = estimateFindMany.mock.calls[0][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(call.select).not.toHaveProperty("approvalToken");
   });
 
   it("filters by status when not 'all'", async () => {
@@ -168,6 +168,25 @@ describe("listEstimates (paginated)", () => {
         where: { orgId: "org1", status: "approved" },
       })
     );
+  });
+
+  it("filters viewed rows and includes them in the named facet and all count", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(2);
+    estimateGroupBy.mockResolvedValue([
+      { status: "viewed", _count: { _all: 2 } },
+      { status: "sent", _count: { _all: 1 } },
+    ]);
+    const result = await listEstimates("org1", {
+      ...baseParams,
+      status: "viewed",
+    });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { orgId: "org1", status: "viewed" },
+      })
+    );
+    expect(result.facets).toMatchObject({ all: 3, viewed: 2, sent: 1 });
   });
 
   it("maps the customer sort key to the nested relation orderBy", async () => {
@@ -236,13 +255,13 @@ describe("listEstimatesForSiteMeasure", () => {
 });
 
 describe("getEstimate", () => {
-  it("includes siteMeasure with location.customer + rooms and line items", async () => {
+  it("selects siteMeasure with location.customer + rooms and line items", async () => {
     estimateFindFirst.mockResolvedValue(null);
     await getEstimate(1, "org1");
     expect(estimateFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 1, orgId: "org1" },
-        include: expect.objectContaining({
+        select: expect.objectContaining({
           siteMeasure: expect.objectContaining({
             include: expect.objectContaining({
               location: { include: { customer: true } },
@@ -253,6 +272,32 @@ describe("getEstimate", () => {
         }),
       })
     );
+  });
+
+  it("never selects approvalToken — CWE-201/522: it's the estimate-review bearer token", async () => {
+    estimateFindFirst.mockResolvedValue(null);
+    await getEstimate(1, "org1");
+    const call = estimateFindFirst.mock.calls[0][0] as {
+      select: Record<string, unknown>;
+    };
+    expect(call.select).not.toHaveProperty("approvalToken");
+  });
+});
+
+describe("getEstimateForSend", () => {
+  it("does select approvalToken — server-only, feeds the send pipeline", async () => {
+    estimateFindFirst.mockResolvedValue(null);
+    await getEstimateForSend(1, "org1");
+    const call = estimateFindFirst.mock.calls[0][0] as {
+      where: unknown;
+      include: Record<string, unknown>;
+    };
+    expect(call.where).toEqual({ id: 1, orgId: "org1" });
+    // Plain `include` on the top level returns every scalar (including
+    // approvalToken) by construction — no explicit key to assert on, but
+    // this pins the include-vs-select choice against an accidental switch.
+    expect(call).toHaveProperty("include");
+    expect(call).not.toHaveProperty("select");
   });
 });
 
@@ -408,6 +453,26 @@ describe("saveEstimate", () => {
       data: [expect.objectContaining({ estimateId: 1, name: "Tile" })],
     });
   });
+
+  // Issue #288: approval/decline must go exclusively through
+  // approveEstimateByToken / declineEstimateByToken, which write the
+  // EstimateApproval consent row and run the supersede-siblings logic — a
+  // plain status flip through saveEstimate would skip both. This guards the
+  // repo layer (the trust boundary) even though EstimatePatch's TS type
+  // already excludes these values, in case a caller bypasses the type.
+  it.each([
+    "approved",
+    "declined",
+  ] as const)("rejects a direct status=%s patch with ValidationError and does not touch the DB", async (status) => {
+    // Simulate a caller that bypasses EstimatePatch's TS type (e.g. an
+    // untyped JSON body) — the repo must still refuse this at runtime.
+    const patch = { status } as unknown as Parameters<typeof saveEstimate>[2];
+    await expect(saveEstimate(1, "org1", patch)).rejects.toBeInstanceOf(
+      ValidationError
+    );
+    expect($transaction).not.toHaveBeenCalled();
+    expect(estimateUpdateMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("saveEstimate — total denormalization", () => {
@@ -503,6 +568,24 @@ describe("rotateApprovalToken", () => {
   it("returns null when the estimate isn't found", async () => {
     estimateUpdateMany.mockResolvedValue({ count: 0 });
     expect(await rotateApprovalToken(99, "org1")).toBeNull();
+  });
+});
+
+describe("estimateHasApprovalToken", () => {
+  it("collapses a present token to true without returning it", async () => {
+    estimateFindFirst.mockResolvedValue({ approvalToken: "secret" });
+    expect(await estimateHasApprovalToken(1, "org1")).toBe(true);
+    expect(estimateFindFirst).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      select: { approvalToken: true },
+    });
+  });
+
+  it("returns false when there's no token, or the estimate isn't in the org", async () => {
+    estimateFindFirst.mockResolvedValue({ approvalToken: null });
+    expect(await estimateHasApprovalToken(1, "org1")).toBe(false);
+    estimateFindFirst.mockResolvedValue(null);
+    expect(await estimateHasApprovalToken(99, "org1")).toBe(false);
   });
 });
 

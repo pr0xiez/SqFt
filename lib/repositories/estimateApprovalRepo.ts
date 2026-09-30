@@ -1,4 +1,5 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import { OPEN_ESTIMATE_STATUSES } from "@/lib/estimateStatus";
 import { prisma } from "@/lib/prisma";
 
 export interface ApproveEstimateInput {
@@ -86,28 +87,22 @@ export async function approveEstimateByToken(
       },
     });
 
-    // Collect the sibling ids once — the updateMany below and the event
-    // records it drives are both keyed off this single list, so the
-    // "what counts as an open sibling" condition lives in exactly one place.
-    const openSiblings = await tx.estimate.findMany({
+    const declineReason = `Superseded — customer approved Estimate #${e.estimateNumber}`;
+    // PostgreSQL rechecks the status guard while updating each locked row.
+    // RETURNING supplies only changed ids, so concurrent terminal transitions
+    // cannot be overwritten or receive a false supersede event.
+    const superseded = await tx.estimate.updateManyAndReturn({
       where: {
         siteMeasureId: e.siteMeasureId,
         id: { not: e.id },
-        status: { in: ["draft", "sent", "viewed"] },
+        status: { in: [...OPEN_ESTIMATE_STATUSES] },
       },
+      data: { status: "declined", declinedAt: new Date(), declineReason },
       select: { id: true },
     });
-    const siblingIds = openSiblings.map((s) => s.id);
-    const declineReason = `Superseded — customer approved Estimate #${e.estimateNumber}`;
-    // `id: { in: [] }` correctly matches no rows, so this is safe to run
-    // unconditionally even when there are no open siblings.
-    await tx.estimate.updateMany({
-      where: { id: { in: siblingIds } },
-      data: { status: "declined", declinedAt: new Date(), declineReason },
-    });
-    if (siblingIds.length > 0) {
+    if (superseded.length > 0) {
       await tx.estimateEvent.createMany({
-        data: siblingIds.map((id) => ({
+        data: superseded.map(({ id }) => ({
           estimateId: id,
           type: "declined",
           source: "system_supersede",

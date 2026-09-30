@@ -38,6 +38,22 @@ beforeEach(() => {
 });
 
 describe("GET /api/estimates", () => {
+  it("preserves the viewed filter instead of silently falling back to all", async () => {
+    mockList.mockResolvedValue({ items: [], total: 0, facets: {} });
+    expect(
+      (
+        await GET(
+          makeRequest("GET", "http://x/api/estimates?status=viewed"),
+          noParams
+        )
+      ).status
+    ).toBe(200);
+    expect(mockList).toHaveBeenCalledWith(
+      "org1",
+      expect.objectContaining({ status: "viewed" })
+    );
+  });
+
   it("401 for crew role", async () => {
     mockRequireSession.mockResolvedValue({
       user: { id: "u1", orgId: "org1", role: "crew" },
@@ -79,6 +95,7 @@ describe("GET /api/estimates", () => {
     expect(body.items[0].total).toBe(123);
     expect(body.items[0].lineItems).toBeUndefined();
     expect(body.items[0].siteMeasure.items).toBeUndefined();
+    expect(body.items[0]).not.toHaveProperty("approvalToken");
     expect(mockList).toHaveBeenCalledWith(
       "org1",
       expect.objectContaining({

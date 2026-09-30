@@ -17,12 +17,13 @@ import { ZodError, type ZodType } from "zod";
 import {
   ApiError,
   ForbiddenError,
+  toErrorEnvelope,
   UnauthorizedError,
   ValidationError,
 } from "@/lib/api/errors";
 import { hasMinRole } from "@/lib/auth/permissions";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
-import { logError, logMutation, logRequest } from "@/lib/logger";
+import { logError, logMutation, logRequest, maskTokenPath } from "@/lib/logger";
 import { getOrgId, requireSession } from "@/lib/tenant";
 
 const MUTATION_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
@@ -202,7 +203,10 @@ function wrapHandler(
   return async (req, ctx) => {
     const start = Date.now();
     const method = req.method;
-    const path = req.nextUrl.pathname;
+    // Masked before it ever reaches a log call — the raw pathname can carry
+    // a public estimate/invoice review token, which is the sole credential
+    // for those routes (see lib/publicRoutes.ts) and must never be logged.
+    const path = maskTokenPath(req.nextUrl.pathname);
     const logCtx = { orgId: "unauthenticated" };
 
     let res: Response;
@@ -246,16 +250,7 @@ function errorToResponse(
     );
   }
   if (err instanceof ApiError) {
-    return NextResponse.json(
-      {
-        error: {
-          code: err.code,
-          message: err.message,
-          ...(err.details !== undefined ? { details: err.details } : {}),
-        },
-      },
-      { status: err.status }
-    );
+    return NextResponse.json(toErrorEnvelope(err), { status: err.status });
   }
 
   logError({

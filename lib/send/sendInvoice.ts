@@ -112,7 +112,7 @@ const invoiceSendable: Sendable<InvoiceForSend, InvoicePrepared> = {
       subject: req.subject,
       sentByEmail: req.sender.email,
       sentByName: req.sender.name,
-      snapshot: prepared.snapshot as never,
+      snapshot: prepared.snapshot,
     }),
 };
 

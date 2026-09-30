@@ -1,10 +1,8 @@
-import {
-  ESTIMATE_STATUS_FILTERS,
-  type EstimateStatusFilter,
-} from "@/components/estimates/filterEstimates";
 import { NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
+import { ESTIMATE_STATUS_FILTERS } from "@/lib/estimateStatus";
 import { estimateCreateSchema } from "@/lib/estimates/schema";
+import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { parsePageParams } from "@/lib/pagination/params";
 import {
   createEstimate,
@@ -62,6 +60,8 @@ export const POST = apiRoute(
   async ({ orgId, input }) => {
     const estimate = await createEstimate(orgId, input);
     if (!estimate) throw new NotFoundError("Site measure not found");
-    return estimate;
+    // A freshly created estimate never has an approval token yet (only
+    // rotateApprovalToken / reviseEstimate mint one) — no need to query.
+    return { ...estimate, hasApprovalToken: false };
   }
 );

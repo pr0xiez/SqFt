@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
@@ -211,5 +212,29 @@ describe("DELETE /api/site-measures/[id]", () => {
     );
     expect(res.status).toBe(204);
     expect(mockDelete).toHaveBeenCalledWith(1, "org1");
+  });
+
+  it("maps EstimateHasEventsError to ESTIMATE_HAS_EVENTS 409", async () => {
+    mockDelete.mockRejectedValue(new EstimateHasEventsError(2));
+    const res = await DELETE(
+      makeRequest("DELETE", "http://x/api/site-measures/1"),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("ESTIMATE_HAS_EVENTS");
+    expect(body.error.message).toContain("2");
+  });
+
+  it("maps HasInvoicesError to HAS_INVOICES 409", async () => {
+    mockDelete.mockRejectedValue(new HasInvoicesError(3));
+    const res = await DELETE(
+      makeRequest("DELETE", "http://x/api/site-measures/1"),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("HAS_INVOICES");
+    expect(body.error.message).toContain("3");
   });
 });
