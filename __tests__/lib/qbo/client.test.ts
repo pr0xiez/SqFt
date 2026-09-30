@@ -3,6 +3,7 @@ import { classifyFault, QboApiError, qboFetch } from "@/lib/qbo/client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 function fault(code: string, message = "msg", detail = "detail") {
@@ -28,6 +29,26 @@ describe("classifyFault", () => {
 });
 
 describe("qboFetch", () => {
+  it("passes preview protection only to our mock provider and refuses redirects", async () => {
+    vi.stubEnv("QBO_ENVIRONMENT", "mock");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("PUBLIC_BASE_URL", "https://review.example");
+    vi.stubEnv("VERCEL_AUTOMATION_BYPASS_SECRET", "test-bypass");
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      expect(init.headers["x-vercel-protection-bypass"]).toBe("test-bypass");
+      expect(init.redirect).toBe("error");
+      return Response.json({ Invoice: { Id: "7", Balance: 20 } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await qboFetch({
+      accessToken: "mock",
+      realmId: "mock",
+      apiBaseUrl: "https://review.example/api/qbo-mock",
+      method: "GET",
+      path: "/invoice/7",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
   const base = {
     accessToken: "tok",
     realmId: "realm1",

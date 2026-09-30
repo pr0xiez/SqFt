@@ -7,7 +7,7 @@
  */
 
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { QBO_SCOPE, type QboConfig } from "./config";
+import { mockProtectionHeaders, QBO_SCOPE, type QboConfig } from "./config";
 
 /** Rotated token pair as returned by Intuit's token endpoint. */
 export interface QboTokens {
@@ -122,8 +122,10 @@ async function callTokenEndpoint(
 ): Promise<QboTokens> {
   const res = await fetch(config.tokenUrl, {
     method: "POST",
+    redirect: "error",
     headers: {
       authorization: basicAuth(config),
+      ...mockProtectionHeaders(config.tokenUrl),
       accept: "application/json",
       "content-type": "application/x-www-form-urlencoded",
     },
@@ -178,9 +180,11 @@ export async function revokeToken(
 ): Promise<void> {
   await fetch(config.revokeUrl, {
     method: "POST",
+    redirect: "error",
     headers: {
       authorization: basicAuth(config),
       "content-type": "application/json",
+      ...mockProtectionHeaders(config.revokeUrl),
     },
     body: JSON.stringify({ token: refreshToken }),
     signal: AbortSignal.timeout(TOKEN_FETCH_TIMEOUT_MS),

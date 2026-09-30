@@ -40,6 +40,25 @@ export function isMockQboEnabled(): boolean {
   );
 }
 
+/** Protected previews require an automation header for server requests.
+ * Never send this project credential to Intuit or outside our own mock.
+ * https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation
+ */
+export function mockProtectionHeaders(
+  url: URL | string
+): Record<string, string> {
+  const secret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (!isMockQboEnabled() || process.env.VERCEL_ENV !== "preview" || !secret)
+    return {};
+  const target = new URL(url);
+  if (
+    target.origin !== new URL(getPublicBaseUrl()).origin ||
+    !target.pathname.startsWith("/api/qbo-mock/")
+  )
+    return {};
+  return { "x-vercel-protection-bypass": secret };
+}
+
 export function getQboConfig(): QboConfig | null {
   const clientId = process.env.QBO_CLIENT_ID;
   const clientSecret = process.env.QBO_CLIENT_SECRET;

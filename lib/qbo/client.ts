@@ -7,7 +7,7 @@
  * string-matching Intuit messages.
  */
 
-import { QBO_MINORVERSION } from "./config";
+import { mockProtectionHeaders, QBO_MINORVERSION } from "./config";
 
 /** Per-request cap on Accounting API calls. */
 export const QBO_FETCH_TIMEOUT_MS = 15_000;
@@ -112,9 +112,11 @@ export async function qboFetch(req: QboRequest): Promise<unknown> {
 
   const res = await fetch(url, {
     method: req.method,
+    redirect: "error",
     headers: {
       authorization: `Bearer ${req.accessToken}`,
       accept: "application/json",
+      ...mockProtectionHeaders(url),
       ...(req.body !== undefined ? { "content-type": "application/json" } : {}),
     },
     body: req.body !== undefined ? JSON.stringify(req.body) : undefined,

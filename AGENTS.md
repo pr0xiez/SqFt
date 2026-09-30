@@ -243,6 +243,8 @@ with the file that owns it.
   the target environment (local `.env` or Vercel Preview). They skip
   cleanly when the deployment doesn't serve `/api/qbo-mock/`, so CI stays
   green until the preview env is configured.
+  Protected Vercel previews use `VERCEL_AUTOMATION_BYPASS_SECRET` only on
+  same-origin `/api/qbo-mock/` server requests; never send it to Intuit.
 
 ## Keeping these docs current
 
