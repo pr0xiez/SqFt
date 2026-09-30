@@ -48,4 +48,31 @@ describe("snapshotInvoice", () => {
     ]);
     expect(snap.totals.balanceDue).toBe(153.5);
   });
+
+  it("is a plain JSON value the Prisma `snapshot` column can store as-is (no `as never` cast needed at the call site — see issue #119)", () => {
+    const snap = snapshotInvoice(source, {
+      invoiceNumber: 7465,
+      date: new Date("2026-06-05T00:00:00Z"),
+      dueDate: null,
+      memo: null,
+      terms: "Net 30",
+      paymentInstructions: "",
+      pct: null,
+      amount: 307,
+      customer: null,
+      org: {
+        name: "All About Hardwood",
+        address: null,
+        phone: null,
+        licenseNumber: null,
+        logoUrl: null,
+      },
+      stripePaymentLinkUrl: null,
+    });
+    // A round-trip through JSON is exactly what Prisma does when persisting a
+    // Json column; equality here confirms the snapshot carries no non-JSON
+    // values (Date, undefined, class instances, …) that would silently
+    // change shape on write.
+    expect(JSON.parse(JSON.stringify(snap))).toEqual(snap);
+  });
 });

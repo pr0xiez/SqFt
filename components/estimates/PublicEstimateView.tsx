@@ -1,3 +1,4 @@
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import {
   computeEstimateView,
   type EstimateView,
@@ -106,8 +107,7 @@ export function PublicEstimateView({ estimate, token, frozenView }: Props) {
               deposit={deposit}
               depositPct={estimate.depositPct}
             />
-            {estimate.status === "approved" ||
-            estimate.status === "declined" ? null : (
+            {isEstimateLocked(estimate.status) ? null : (
               <PublicEstimateAcceptBlockWithDecline token={token} />
             )}
             {estimate.status === "declined" && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { roundToDecimals } from "@/lib/money";
 
 type BaseProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -75,8 +76,11 @@ export function DecimalInput({
             if (Number.isNaN(n)) {
               onCommit(allowEmpty ? null : 0);
             } else {
-              const factor = 10 ** maxDecimals;
-              onCommit(Math.round(n * factor) / factor);
+              // Reuse the SSOT rounding (lib/money.ts) so the value committed
+              // here can never diverge from what computeEstimateView derives
+              // from it later — including the half-up nudge past binary-float
+              // error at the .005 boundary (e.g. 1.005 → 1.01).
+              onCommit(roundToDecimals(n, maxDecimals));
             }
           }
         }

@@ -13,7 +13,13 @@ import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
 
 export async function POST(req: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret) return new NextResponse("not configured", { status: 500 });
+  if (!secret) {
+    logError({
+      path: "api/webhooks/stripe",
+      errorMessage: "Stripe webhook secret is not configured",
+    });
+    return new NextResponse("not configured", { status: 500 });
+  }
 
   const body = await req.text(); // RAW body — required for signature verification
   const sig = (await headers()).get("stripe-signature");

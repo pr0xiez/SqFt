@@ -1,15 +1,16 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   type PublicInvoice,
   PublicInvoiceView,
 } from "@/components/invoices/PublicInvoiceView";
+import { parseInvoiceSnapshot } from "@/lib/invoices/parseSnapshot";
 import { round2 } from "@/lib/money";
 import {
   getInvoiceByToken,
   getOrgStripe,
   markInvoiceViewed,
 } from "@/lib/repositories";
+import { isValidTokenShape, trackPublicView } from "@/lib/tokens";
 import { fmtDollar } from "@/lib/utils";
 
 export const metadata = {
@@ -22,28 +23,13 @@ interface Props {
   searchParams: Promise<{ pay?: string; session_id?: string }>;
 }
 
-type SnapshotShape = {
-  memo: string | null;
-  terms: string;
-  paymentInstructions: string;
-  dueDate: string | null;
-  org: {
-    name: string;
-    phone: string | null;
-    address: string | null;
-    logoUrl: string | null;
-  };
-  customer: { name: string | null; address: string | null } | null;
-  lines: Array<{ name: string; description: string | null; amount: number }>;
-};
-
 export default async function PublicInvoicePage({
   params,
   searchParams,
 }: Props) {
   const { token } = await params;
   const { pay, session_id } = await searchParams;
-  if (!token || token.length < 16 || token.length > 128) notFound();
+  if (!token || !isValidTokenShape(token)) notFound();
 
   const invoice = await getInvoiceByToken(token);
   if (!invoice || !invoice.snapshot) notFound();
@@ -51,14 +37,15 @@ export default async function PublicInvoicePage({
   // open — or pay — a cancelled invoice from a stale email.
   if (invoice.status === "void") notFound();
 
-  if (invoice.status === "sent") {
-    const h = await headers();
-    const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-    const userAgent = h.get("user-agent") ?? null;
-    void markInvoiceViewed(invoice.id, { ip, userAgent });
-  }
+  await trackPublicView(invoice.status === "sent", (meta) =>
+    markInvoiceViewed(invoice.id, meta)
+  );
 
-  const snap = invoice.snapshot as unknown as SnapshotShape;
+  // Snapshots are frozen forever, even across later schema changes — validate
+  // the shape rather than casting, so a stale/malformed snapshot 404s cleanly
+  // instead of crashing this customer-facing page.
+  const snap = parseInvoiceSnapshot(invoice.snapshot);
+  if (!snap) notFound();
   // Balance due reflects the live payment ledger, not the frozen snapshot —
   // a partially-paid invoice must not show the full amount as still owed.
   const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));

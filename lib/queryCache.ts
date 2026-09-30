@@ -11,34 +11,18 @@ export const QUERY_CACHE_KEY = "sqft-query-cache";
  * Bump when the shape of anything persisted changes. A persisted cache written
  * before the bump is discarded rather than rehydrated into code that expects
  * the new shape (there is no per-query versioning). Bumping also purges any
- * cache written before a key was added to `NEVER_PERSIST` — otherwise the
+ * cache written before the persistence policy became stricter — otherwise the
  * already-written sensitive data would sit in localStorage until its 24h
  * `maxAge` expired on its own.
  */
-export const QUERY_CACHE_BUSTER =
-  "2026-08-never-persist-invoices-customers-users";
+export const QUERY_CACHE_BUSTER = "2026-09-session-data-not-persisted";
 
-/**
- * Query keys that must never be written to localStorage.
- *
- * - `stripe-connect` carries Stripe's identity-verification failure text —
- *   the reason a person's ID or tax id was rejected.
- * - `invoices` carries the payment ledger (amounts owed/paid, line items).
- * - `customers` carries PII (name, phone, email).
- * - `users` carries the org's member roster and roles (also PII).
- *
- * None of this has any business sitting in the browser for 24 hours,
- * outliving the session that fetched it, on what may be a shared machine.
- */
-const NEVER_PERSIST = new Set<string>([
-  "stripe-connect",
-  "invoices",
-  "customers",
-  "users",
-]);
+/** Only explicitly reviewed, non-personal configuration may outlive a session.
+ * New query families are not persisted by default: many carry nested PII. */
+const PERSISTABLE = new Set<string>(["line-item-templates"]);
 
 export function isPersistableQueryKey(queryKey: readonly unknown[]): boolean {
-  return !NEVER_PERSIST.has(String(queryKey[0]));
+  return PERSISTABLE.has(String(queryKey[0]));
 }
 
 /**

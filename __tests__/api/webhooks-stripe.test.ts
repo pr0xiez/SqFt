@@ -80,6 +80,19 @@ describe("POST /api/webhooks/stripe", () => {
     expect(mockLogError).not.toHaveBeenCalled();
   });
 
+  it("logs a missing webhook secret and fails closed", async () => {
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    const res = await POST(postRequest());
+    expect(res.status).toBe(500);
+    expect(mockLogError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorMessage: "Stripe webhook secret is not configured",
+      })
+    );
+    expect(mockConstructStripeEvent).not.toHaveBeenCalled();
+    expect(mockHandleStripeEvent).not.toHaveBeenCalled();
+  });
+
   it("logs the event id/type and still returns 500 when the handler throws", async () => {
     // Mirrors the deliberate retry throw in lib/stripe/webhook.ts
     // ("Stripe charge not yet attached; will retry").

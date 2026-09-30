@@ -67,6 +67,8 @@ export const POST = apiRoute(
   async ({ orgId, input }) => {
     const estimate = await createEstimate(orgId, input);
     if (!estimate) throw new NotFoundError("Site measure not found");
-    return estimate;
+    // A freshly created estimate never has an approval token yet (only
+    // rotateApprovalToken / reviseEstimate mint one) — no need to query.
+    return { ...estimate, hasApprovalToken: false };
   }
 );

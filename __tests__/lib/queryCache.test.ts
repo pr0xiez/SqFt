@@ -30,8 +30,27 @@ describe("isPersistableQueryKey", () => {
     expect(isPersistableQueryKey(["users", "assignable"])).toBe(false);
   });
 
-  it("persists ordinary queries", () => {
-    expect(isPersistableQueryKey(["estimates", 1])).toBe(true);
-    expect(isPersistableQueryKey(["siteMeasures", 1])).toBe(true);
+  it.each([
+    "estimates",
+    "siteMeasures",
+    "locations",
+    "events",
+    "admin",
+    "admin-orgs",
+    "admin-org-members",
+    "qbo-status",
+  ])("keeps nested PII under %s out of localStorage", (key) => {
+    expect(isPersistableQueryKey([key, 1])).toBe(false);
+    expect(isPersistableQueryKey([key, "list", {}])).toBe(false);
+  });
+
+  it("does not persist new or malformed query families by default", () => {
+    expect(isPersistableQueryKey(["new-financial-report"])).toBe(false);
+    expect(isPersistableQueryKey([])).toBe(false);
+    expect(isPersistableQueryKey(["org"])).toBe(false);
+  });
+
+  it("persists configuration queries", () => {
+    expect(isPersistableQueryKey(["line-item-templates"])).toBe(true);
   });
 });
