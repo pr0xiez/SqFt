@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { after, NextResponse } from "next/server";
+import { getEnv } from "@/lib/env";
 import { logError } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { runQboSyncForOrg } from "@/lib/qbo/runner";
@@ -8,12 +9,12 @@ import {
   recordStripePayment,
   recordStripePaymentFailure,
 } from "@/lib/repositories/invoiceRepo";
-import { getOrgIdByConnectAccount } from "@/lib/repositories/orgRepo";
+import { getOrgIdByConnectAccount } from "@/lib/repositories/organizationRepo";
 import { getStripe } from "@/lib/stripe/client";
 import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
 
 export async function POST(req: Request) {
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = getEnv().STRIPE_WEBHOOK_SECRET;
   if (!secret) {
     logError({
       path: "api/webhooks/stripe",

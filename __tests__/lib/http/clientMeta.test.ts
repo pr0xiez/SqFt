@@ -14,7 +14,7 @@ describe("clientMetaFromHeaders", () => {
     ).toEqual({ ip: null, userAgent: null });
   });
 
-  it("extracts the first forwarded address and user-agent", () => {
+  it("extracts the last forwarded address and user-agent", () => {
     expect(
       clientMetaFromHeaders(
         new Headers({
@@ -22,6 +22,6 @@ describe("clientMetaFromHeaders", () => {
           "user-agent": "browser",
         })
       )
-    ).toEqual({ ip: "192.0.2.1", userAgent: "browser" });
+    ).toEqual({ ip: "192.0.2.2", userAgent: "browser" });
   });
 });

@@ -9,12 +9,19 @@ import type { NextRequest } from "next/server";
 export function makeRequest(
   method = "GET",
   url = "http://localhost/",
-  body?: unknown
+  body?: unknown,
+  extraHeaders?: Record<string, string>
 ): NextRequest {
   const init: RequestInit = { method };
   if (body !== undefined) {
     init.body = typeof body === "string" ? body : JSON.stringify(body);
     init.headers = { "content-type": "application/json" };
+  }
+  if (extraHeaders) {
+    init.headers = {
+      ...(init.headers as Record<string, string>),
+      ...extraHeaders,
+    };
   }
   const req = new Request(url, init);
   Object.defineProperty(req, "nextUrl", {

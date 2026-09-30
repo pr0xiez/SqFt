@@ -10,34 +10,10 @@
 import { z } from "zod";
 import { apiRoute } from "@/lib/api/route";
 import { createOrganization } from "@/lib/onboarding/createOrganization";
-import { prisma } from "@/lib/prisma";
-
-const ORG_SELECT = {
-  id: true,
-  name: true,
-  slug: true,
-  subscriptionStatus: true,
-  trialEndsAt: true,
-  currentPeriodEndsAt: true,
-  createdAt: true,
-  _count: { select: { users: true } },
-} as const;
+import { listAllOrgsForAdmin } from "@/lib/repositories/organizationRepo";
 
 export const GET = apiRoute({ superAdmin: true }, async () => {
-  const rows = await prisma.organization.findMany({
-    select: ORG_SELECT,
-    orderBy: { createdAt: "desc" },
-  });
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    slug: r.slug,
-    subscriptionStatus: r.subscriptionStatus,
-    trialEndsAt: r.trialEndsAt,
-    currentPeriodEndsAt: r.currentPeriodEndsAt,
-    createdAt: r.createdAt,
-    userCount: r._count.users,
-  }));
+  return listAllOrgsForAdmin();
 });
 
 const CreateOrgBody = z

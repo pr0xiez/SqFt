@@ -1,3 +1,5 @@
+import { getEnv } from "@/lib/env";
+
 /**
  * Returns the absolute base URL for building user-facing links (no trailing slash).
  *
@@ -21,13 +23,14 @@
  * Vercel's URL env vars never include a protocol, so `https://` is prepended.
  */
 export function getPublicBaseUrl(): string {
-  const explicit = process.env.PUBLIC_BASE_URL;
+  const {
+    PUBLIC_BASE_URL: explicit,
+    VERCEL_ENV: env,
+    VERCEL_BRANCH_URL: branch,
+    VERCEL_URL: deployment,
+    VERCEL_PROJECT_PRODUCTION_URL: prod,
+  } = getEnv();
   if (explicit) return explicit.replace(/\/+$/, "");
-
-  const env = process.env.VERCEL_ENV;
-  const branch = process.env.VERCEL_BRANCH_URL;
-  const deployment = process.env.VERCEL_URL;
-  const prod = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 
   if (env === "preview") {
     if (branch) return `https://${branch}`;

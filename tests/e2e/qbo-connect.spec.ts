@@ -30,7 +30,13 @@ test.describe
         page.getByRole("button", { name: "Disconnect" })
       ).toBeVisible();
 
+      const disconnected = page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/api/qbo/disconnect") &&
+          response.request().method() === "POST"
+      );
       await page.getByRole("button", { name: "Disconnect" }).click();
+      expect((await disconnected).ok()).toBeTruthy();
       await expect(
         page.getByRole("button", { name: "Connect to QuickBooks" })
       ).toBeVisible();

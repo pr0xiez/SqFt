@@ -21,7 +21,7 @@ vi.mock("@/lib/repositories/invoiceRepo", () => ({
   recordStripePayment: vi.fn(),
 }));
 
-vi.mock("@/lib/repositories/orgRepo", () => ({
+vi.mock("@/lib/repositories/organizationRepo", () => ({
   getOrgStripe: vi.fn(),
 }));
 
@@ -39,7 +39,7 @@ import {
   getInvoiceByToken,
   recordStripePayment,
 } from "@/lib/repositories/invoiceRepo";
-import { getOrgStripe } from "@/lib/repositories/orgRepo";
+import { getOrgStripe } from "@/lib/repositories/organizationRepo";
 import { getStripe } from "@/lib/stripe/client";
 
 const mockGetInvoiceByToken = vi.mocked(getInvoiceByToken);
