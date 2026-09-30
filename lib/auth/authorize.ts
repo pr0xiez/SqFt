@@ -12,9 +12,8 @@
  * must keep doing so, or this and the real runtime behavior diverge.
  */
 
-import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { authenticateCredentials } from "@/lib/auth/login";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -27,21 +26,5 @@ export async function authorizeCredentials(credentials: unknown) {
 
   const { email, password } = parsed.data;
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (!user) return null;
-  if (user.archived) return null;
-
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) return null;
-
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    orgId: user.orgId,
-    role: user.role,
-  };
+  return authenticateCredentials(email, password);
 }

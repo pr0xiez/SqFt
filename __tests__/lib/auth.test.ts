@@ -14,10 +14,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const findUnique = vi.fn();
+const updateMany = vi.fn();
+const executeRaw = vi.fn();
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    user: { findUnique },
+    user: { findUnique, updateMany },
+    $executeRaw: executeRaw,
   },
 }));
 
@@ -34,6 +37,7 @@ const { mapTokenToSessionFields } = await import("@/lib/auth/session");
 
 beforeEach(() => {
   vi.clearAllMocks();
+  updateMany.mockResolvedValue({ count: 1 });
 });
 
 const dbUser = {
@@ -46,6 +50,8 @@ const dbUser = {
   archived: false,
   orgId: "org1",
   createdAt: new Date(),
+  failedLoginCount: 0,
+  lockedUntil: null,
 };
 
 describe("authorizeCredentials", () => {
@@ -65,13 +71,15 @@ describe("authorizeCredentials", () => {
       orgId: "org1",
       role: "admin",
     });
-    expect(findUnique).toHaveBeenCalledWith({
-      where: { email: "alice@example.com" },
-    });
+    expect(findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: "alice@example.com" },
+      })
+    );
     expect(compare).toHaveBeenCalledWith("correct-password", "hashed-password");
   });
 
-  it("returns null for an archived user without checking the password", async () => {
+  it("returns null for an archived user after a dummy password comparison", async () => {
     findUnique.mockResolvedValue({ ...dbUser, archived: true });
 
     const result = await authorizeCredentials({
@@ -80,7 +88,8 @@ describe("authorizeCredentials", () => {
     });
 
     expect(result).toBeNull();
-    expect(compare).not.toHaveBeenCalled();
+    expect(compare).toHaveBeenCalledTimes(1);
+    expect(compare.mock.calls[0]?.[1]).not.toBe(dbUser.password);
   });
 
   it("returns null for an unknown email", async () => {
@@ -92,7 +101,7 @@ describe("authorizeCredentials", () => {
     });
 
     expect(result).toBeNull();
-    expect(compare).not.toHaveBeenCalled();
+    expect(compare).toHaveBeenCalledTimes(1);
   });
 
   it("returns null for a wrong password", async () => {

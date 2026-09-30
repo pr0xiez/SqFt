@@ -111,8 +111,10 @@ with the file that owns it.
   silent. The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
+- `lib/repositories/loginRepo.ts` — credentials lookup and atomic failed-login
+  counters; `lib/auth/login.ts` owns lockout policy, called by `authorizeCredentials`.
 - `lib/queryCache.ts` — persisted react-query cache policy (localStorage key,
-  buster, the never-persist key list, and the sign-out clear). Consumed by
+  buster, the persistence allowlist, and the sign-out clear). Consumed by
   `components/ui/Providers.tsx` and `AccountBlock`.
 - `lib/repositories/` — all Prisma data access, org-scoped (`*Repo.ts`);
   `userRepo.ts` owns all `User` access (assignable list, archive guard,
@@ -184,12 +186,11 @@ with the file that owns it.
   This invariant holds by construction via the dev/prod DB split — test keys
   in dev, live keys in production. An org onboarded in production must
   re-onboard in any test environment (or seed a fresh test-mode account).
-- **Every successful react-query response is persisted to `localStorage` for
-  24 hours** by `PersistQueryClientProvider` and survives sign-out unless
-  cleared. A query whose data must not outlive the session (anything
-  identity-, verification- or payment-sensitive) has to be added to the
-  never-persist list in `lib/queryCache.ts` — the default policy is "persist
-  everything".
+- **React-query persistence is opt-in.** `lib/queryCache.ts` only permits the
+  reviewed `line-item-templates` configuration family in localStorage for 24
+  hours. New query families default to in-memory only; customer, financial,
+  identity, and verification payloads (including nested PII) must not persist.
+  Tightening the policy requires a cache-buster bump to evict old stored data.
 - **Super-admin routes (`/api/admin/orgs/[orgId]/...`) take the target org
   from the URL param, not the caller's session org** — the `orgId` on the
   gated session belongs to the operator, not the org being managed.

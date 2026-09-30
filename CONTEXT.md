@@ -32,6 +32,13 @@ DB on every request after sign-in (`lib/auth.ts`'s `jwt` callback, via
 `userRepo.findAuthState`): archiving a user or changing their role takes effect
 on their next request, not just their next login, and `session.maxAge` is 7
 days (not the NextAuth default of 30).
+Credential login (`lib/auth/authorize.ts` → `lib/auth/login.ts`) uses
+`loginRepo`'s atomic database statement to lock after five failed attempts
+for 15 minutes. An expired lock starts a fresh attempt budget, and attempts
+during a lock do not extend it. All failures return the same generic result;
+unknown, archived, and locked accounts pay a dummy bcrypt comparison to
+reduce timing differences (this is not a constant-time guarantee).
+
 Events link assigned users via the `Event.assignees` relation
 (`eventRepo` `assigneeIds: string[]`). People are managed on the admin
 **Members** page (`/settings/members`) — role, title, archive/restore — for
