@@ -157,6 +157,8 @@ with the file that owns it.
   CI and avoid known parallel-contention flakiness.
 - `npm run migrate:dev` — apply migrations (`prisma migrate deploy`);
   `npm run seed:dev` — seed the dev DB.
+- `scripts/ignore-app-deploy.sh` — shared Vercel/CI app-change detection;
+  checks both merge parents so a no-op merge from main cannot hide PR changes.
 
 ## Gotchas
 
