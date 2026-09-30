@@ -51,34 +51,49 @@ describe("listCustomers", () => {
     pipeline: "any" as const,
   };
 
-  it("hydrates the page ids returned by the raw query, preserving order", async () => {
-    queryRaw
-      .mockResolvedValueOnce([{ id: 3 }, { id: 1 }]) // page ids (sorted)
-      .mockResolvedValueOnce([{ count: BigInt(2) }]) // total
-      .mockResolvedValueOnce([
-        { key: "phone", count: BigInt(1) },
-        { key: "online", count: BigInt(1) },
-      ]) // source facets
-      .mockResolvedValueOnce([
-        { key: "any", count: BigInt(2) },
-        { key: "open", count: BigInt(1) },
-        { key: "accepted", count: BigInt(0) },
-        { key: "cold", count: BigInt(1) },
-      ]) // pipeline facets
-      .mockResolvedValueOnce([
-        { open: BigInt(4), won: BigInt(1), with_open: BigInt(2) },
-      ]); // summary
-    findMany.mockResolvedValue([
-      { id: 1, name: "B" },
-      { id: 3, name: "A" },
+  it("uses one materialized aggregation and hydrates only the database page in its order", async () => {
+    queryRaw.mockResolvedValueOnce([
+      {
+        ids: [2, 1],
+        total: 3,
+        facets: { "source:all": 3 },
+        summary: { openEstimates: 1, won: 1, withOpen: 1 },
+      },
     ]);
-    const res = await listCustomers("org1", base);
-    expect(res.items.map((c) => c.id)).toEqual([3, 1]); // raw id order, not findMany order
-    expect(res.total).toBe(2);
-    expect(res.facets["source:phone"]).toBe(1);
-    expect(res.facets["source:all"]).toBe(2);
-    expect(res.facets["pipeline:open"]).toBe(1);
-    expect(res.summary).toEqual({ openEstimates: 4, won: 1, withOpen: 2 });
+    findMany.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+    const result = await listCustomers("org1", {
+      ...base,
+      page: 2,
+      perPage: 2,
+    });
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    const sql = queryRaw.mock.calls[0][0];
+    expect(sql.sql).toContain("AS MATERIALIZED");
+    expect(sql.sql.match(/LEFT JOIN "Estimate"/g)).toHaveLength(1);
+    expect(sql.sql).toMatch(/ORDER BY name ASC, id ASC/);
+    expect(sql.sql).toMatch(/LIMIT \? OFFSET \?/);
+    expect(sql.values).toEqual(expect.arrayContaining(["org1", 2]));
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { orgId: "org1", id: { in: [2, 1] } } })
+    );
+    expect(result.items.map((customer) => customer.id)).toEqual([2, 1]);
+    expect(result.total).toBe(3);
+    expect(result.summary).toEqual({ openEstimates: 1, won: 1, withOpen: 1 });
+  });
+
+  it("does not hydrate an empty or out-of-range page", async () => {
+    queryRaw.mockResolvedValueOnce([
+      {
+        ids: [],
+        total: 3,
+        facets: { "source:all": 3 },
+        summary: { openEstimates: 0, won: 0, withOpen: 0 },
+      },
+    ]);
+    expect((await listCustomers("org1", { ...base, page: 99 })).items).toEqual(
+      []
+    );
+    expect(findMany).not.toHaveBeenCalled();
   });
 });
 

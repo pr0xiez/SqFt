@@ -89,13 +89,6 @@ export type CustomerListResult = Paginated<CustomerWithCount> & {
 };
 
 const OPEN_STATUSES = Prisma.sql`('sent','viewed')`;
-const SORT_COLUMN: Record<CustomerSortKey, Prisma.Sql> = {
-  name: Prisma.sql`c."name"`,
-  source: Prisma.sql`c."source"`,
-  siteMeasures: Prisma.sql`site_measure_count`,
-  open: Prisma.sql`open_count`,
-  createdAt: Prisma.sql`c."createdAt"`,
-};
 
 function searchSql(q: string): Prisma.Sql {
   const cleaned = q.trim();
@@ -104,101 +97,103 @@ function searchSql(q: string): Prisma.Sql {
   return Prisma.sql`(c."name" ILIKE ${like} OR c."phone" ILIKE ${like} OR c."email" ILIKE ${like})`;
 }
 
-function sourceSql(source: string): Prisma.Sql {
-  return source === "all"
-    ? Prisma.sql`TRUE`
-    : Prisma.sql`c."source" = ${source}`;
+/** Org/search-scoped aggregate; reused by the materialized page/facet query. */
+function aggregateBase(orgId: string, q: string): Prisma.Sql {
+  return Prisma.sql`
+    SELECT
+      c.id,
+      c."name",
+      c."source",
+      c."createdAt",
+      COUNT(DISTINCT sm.id)::int AS site_measure_count,
+      COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES})::int AS open_count,
+      COUNT(e.id) FILTER (WHERE e."status" = 'approved')::int AS accepted_count,
+      COUNT(e.id)::int AS estimate_count
+    FROM "Customer" c
+    LEFT JOIN "Location" loc ON loc."customerId" = c.id
+    LEFT JOIN "SiteMeasure" sm ON sm."locationId" = loc.id
+    LEFT JOIN "Estimate" e ON e."siteMeasureId" = sm.id
+    WHERE c."orgId" = ${orgId} AND ${searchSql(q)}
+    GROUP BY c.id
+  `;
 }
 
-function pipelineHaving(p: CustomerPipelineFilter): Prisma.Sql {
-  switch (p) {
+function sourceSql(source: string): Prisma.Sql {
+  return source === "all" ? Prisma.sql`TRUE` : Prisma.sql`a.source = ${source}`;
+}
+
+function pipelineSql(pipeline: CustomerPipelineFilter): Prisma.Sql {
+  switch (pipeline) {
     case "open":
-      return Prisma.sql`COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) > 0`;
+      return Prisma.sql`a.open_count > 0`;
     case "accepted":
-      return Prisma.sql`COUNT(e.id) FILTER (WHERE e."status" = 'approved') > 0`;
+      return Prisma.sql`a.accepted_count > 0`;
     case "cold":
-      return Prisma.sql`COUNT(e.id) = 0`;
+      return Prisma.sql`a.estimate_count = 0`;
     default:
       return Prisma.sql`TRUE`;
   }
 }
 
-function aggregateBase(
-  orgId: string,
-  q: string,
-  source: string,
-  pipeline: CustomerPipelineFilter
-): Prisma.Sql {
-  return Prisma.sql`
-    FROM "Customer" c
-    LEFT JOIN "Location" loc ON loc."customerId" = c.id
-    LEFT JOIN "SiteMeasure" sm ON sm."locationId" = loc.id
-    LEFT JOIN "Estimate" e ON e."siteMeasureId" = sm.id
-    WHERE c."orgId" = ${orgId} AND ${searchSql(q)} AND ${sourceSql(source)}
-    GROUP BY c.id
-    HAVING ${pipelineHaving(pipeline)}
-  `;
-}
+const SORT_COLUMN: Record<CustomerSortKey, Prisma.Sql> = {
+  name: Prisma.sql`name`,
+  source: Prisma.sql`source`,
+  siteMeasures: Prisma.sql`site_measure_count`,
+  open: Prisma.sql`open_count`,
+  createdAt: Prisma.sql`"createdAt"`,
+};
+
+type CustomerPageAggregate = {
+  ids: number[];
+  total: number;
+  facets: Record<string, number>;
+  summary: CustomerListResult["summary"];
+};
 
 export async function listCustomers(
   orgId: string,
   params: ListCustomersParams
 ): Promise<CustomerListResult> {
   const { page, perPage, sort, q, source, pipeline } = params;
-  const orderCol = SORT_COLUMN[sort.key];
-  const orderDir =
+  const direction =
     sort.direction === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
-  const offset = (page - 1) * perPage;
-
-  const pageRows = await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`
-    SELECT c.id, COUNT(DISTINCT sm.id) AS site_measure_count, COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) AS open_count
-    ${aggregateBase(orgId, q, source, pipeline)}
-    ORDER BY ${orderCol} ${orderDir}, c.id ASC
-    LIMIT ${perPage} OFFSET ${offset}
-  `);
-  const ids = pageRows.map((r) => r.id);
-
-  const totalRows = await prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
-    SELECT COUNT(*)::bigint AS count FROM ( SELECT c.id ${aggregateBase(orgId, q, source, pipeline)} ) sub
-  `);
-  const total = Number(totalRows[0]?.count ?? 0);
-
-  const sourceFacetRows = await prisma.$queryRaw<
-    { key: string; count: bigint }[]
+  // Materialize the expensive join once. Postgres retains its native collation
+  // and pages before returning ids; counts/facets/summary reuse the same base.
+  const [aggregate] = await prisma.$queryRaw<
+    CustomerPageAggregate[]
   >(Prisma.sql`
-    SELECT key, COUNT(*)::bigint AS count FROM ( SELECT c."source" AS key ${aggregateBase(orgId, q, "all", pipeline)} ) sub GROUP BY key
+    WITH base AS MATERIALIZED (${aggregateBase(orgId, q)}),
+    filtered AS (SELECT a.* FROM base a WHERE ${sourceSql(source)} AND ${pipelineSql(pipeline)}),
+    page_rows AS (
+      SELECT id FROM filtered
+      ORDER BY ${SORT_COLUMN[sort.key]} ${direction}, id ASC
+      LIMIT ${perPage} OFFSET ${(page - 1) * perPage}
+    ),
+    source_facets AS (
+      SELECT source, COUNT(*)::int AS count FROM base a
+      WHERE ${pipelineSql(pipeline)} GROUP BY source
+    ),
+    pipeline_facets AS (
+      SELECT 'any' AS key, COUNT(*)::int AS count FROM base a WHERE ${sourceSql(source)}
+      UNION ALL SELECT 'open', COUNT(*)::int FROM base a WHERE ${sourceSql(source)} AND open_count > 0
+      UNION ALL SELECT 'accepted', COUNT(*)::int FROM base a WHERE ${sourceSql(source)} AND accepted_count > 0
+      UNION ALL SELECT 'cold', COUNT(*)::int FROM base a WHERE ${sourceSql(source)} AND estimate_count = 0
+    )
+    SELECT ARRAY(SELECT id FROM page_rows) AS ids,
+      (SELECT COUNT(*)::int FROM filtered) AS total,
+      COALESCE((SELECT jsonb_object_agg('source:' || source, count) FROM source_facets), '{}'::jsonb)
+        || jsonb_build_object('source:all', (SELECT COALESCE(SUM(count), 0)::int FROM source_facets))
+        || COALESCE((SELECT jsonb_object_agg('pipeline:' || key, count) FROM pipeline_facets WHERE count > 0), '{}'::jsonb) AS facets,
+      (SELECT jsonb_build_object(
+        'openEstimates', COALESCE(SUM(open_count), 0)::int,
+        'won', COALESCE(SUM(accepted_count), 0)::int,
+        'withOpen', COUNT(*) FILTER (WHERE open_count > 0)::int
+      ) FROM filtered) AS summary
   `);
 
-  const pipelineFacetRows = await prisma.$queryRaw<
-    { key: string; count: bigint }[]
-  >(Prisma.sql`
-    SELECT key, COUNT(*)::bigint AS count FROM (
-      SELECT c.id,
-        CASE WHEN COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) > 0 THEN 'open' END AS open_k,
-        CASE WHEN COUNT(e.id) FILTER (WHERE e."status" = 'approved') > 0 THEN 'accepted' END AS acc_k,
-        CASE WHEN COUNT(e.id) = 0 THEN 'cold' END AS cold_k
-      ${aggregateBase(orgId, q, source, "any")}
-    ) sub, LATERAL (VALUES ('any'), (open_k), (acc_k), (cold_k)) AS v(key)
-    WHERE v.key IS NOT NULL GROUP BY v.key
-  `);
-
-  const summaryRows = await prisma.$queryRaw<
-    { open: bigint; won: bigint; with_open: bigint }[]
-  >(Prisma.sql`
-    SELECT COALESCE(SUM(open_count), 0)::bigint AS open, COALESCE(SUM(accepted_count), 0)::bigint AS won, COUNT(*) FILTER (WHERE open_count > 0)::bigint AS with_open
-    FROM (
-      SELECT c.id, COUNT(e.id) FILTER (WHERE e."status" IN ${OPEN_STATUSES}) AS open_count, COUNT(e.id) FILTER (WHERE e."status" = 'approved') AS accepted_count
-      FROM "Customer" c
-      LEFT JOIN "Location" loc ON loc."customerId" = c.id
-      LEFT JOIN "SiteMeasure" sm ON sm."locationId" = loc.id
-      LEFT JOIN "Estimate" e ON e."siteMeasureId" = sm.id
-      WHERE c."orgId" = ${orgId} GROUP BY c.id
-    ) sub
-  `);
-
-  const hydrated = ids.length
+  const hydrated = aggregate.ids.length
     ? await prisma.customer.findMany({
-        where: { id: { in: ids } },
+        where: { orgId, id: { in: aggregate.ids } },
         include: {
           _count: { select: { locations: true } },
           locations: {
@@ -211,32 +206,16 @@ export async function listCustomers(
         },
       })
     : [];
-  const byId = new Map(hydrated.map((c) => [c.id, c]));
-  const items = ids
-    .map((id) => byId.get(id))
-    .filter(Boolean) as CustomerWithCount[];
-
-  const facets: Record<string, number> = {};
-  let sourceAll = 0;
-  for (const r of sourceFacetRows) {
-    const n = Number(r.count);
-    facets[`source:${r.key}`] = n;
-    sourceAll += n;
-  }
-  facets["source:all"] = sourceAll;
-  for (const r of pipelineFacetRows) {
-    facets[`pipeline:${r.key}`] = Number(r.count);
-  }
-
+  const byId = new Map(hydrated.map((customer) => [customer.id, customer]));
+  const items = aggregate.ids.flatMap((id) => {
+    const customer = byId.get(id);
+    return customer ? [customer] : [];
+  });
   return {
     items,
-    total,
-    facets,
-    summary: {
-      openEstimates: Number(summaryRows[0]?.open ?? 0),
-      won: Number(summaryRows[0]?.won ?? 0),
-      withOpen: Number(summaryRows[0]?.with_open ?? 0),
-    },
+    total: aggregate.total,
+    facets: aggregate.facets,
+    summary: aggregate.summary,
   };
 }
 

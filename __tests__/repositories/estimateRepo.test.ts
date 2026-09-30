@@ -710,10 +710,10 @@ describe("markEstimateViewed", () => {
       "@/lib/repositories/estimateRepo"
     );
 
-    await markEstimateViewed(1, { ip: "1.2.3.4", userAgent: "UA" });
+    await markEstimateViewed(1, "org1", { ip: "1.2.3.4", userAgent: "UA" });
 
     expect(estimateUpdateMany).toHaveBeenCalledWith({
-      where: { id: 1, status: "sent" },
+      where: { id: 1, orgId: "org1", status: "sent" },
       data: { status: "viewed", viewedAt: expect.any(Date) },
     });
     expect(eventCreate).toHaveBeenCalledWith(
@@ -735,7 +735,7 @@ describe("markEstimateViewed", () => {
     const { markEstimateViewed } = await import(
       "@/lib/repositories/estimateRepo"
     );
-    await markEstimateViewed(1, { ip: null, userAgent: null });
+    await markEstimateViewed(1, "org1", { ip: null, userAgent: null });
     expect(estimateUpdateMany).not.toHaveBeenCalled();
     expect(eventCreate).toHaveBeenCalled();
   });
@@ -747,7 +747,7 @@ describe("markEstimateViewed", () => {
     const { markEstimateViewed } = await import(
       "@/lib/repositories/estimateRepo"
     );
-    await markEstimateViewed(1, { ip: null, userAgent: null });
+    await markEstimateViewed(1, "org1", { ip: null, userAgent: null });
     expect(eventCreate).not.toHaveBeenCalled();
   });
 });

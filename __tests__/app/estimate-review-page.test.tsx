@@ -39,6 +39,7 @@ const TOKEN = "tok_0123456789abcdefghijklmnopqrstuvwxyzABC";
 function liveEstimate(over: Partial<Record<string, unknown>> = {}) {
   return {
     id: 42,
+    orgId: "org1",
     estimateNumber: 5001,
     status: "sent",
     date: new Date("2026-05-01T00:00:00Z"),
@@ -274,7 +275,11 @@ describe("PublicEstimatePage — pre-approval estimates still render live", () =
     await renderPage();
 
     expect(screen.getAllByText("$2000.00").length).toBeGreaterThan(0);
-    expect(markEstimateViewed).toHaveBeenCalledWith(42, expect.any(Object));
+    expect(markEstimateViewed).toHaveBeenCalledWith(
+      42,
+      "org1",
+      expect.any(Object)
+    );
   });
 
   it("still renders when markEstimateViewed rejects, and logs the failure instead of dropping it", async () => {

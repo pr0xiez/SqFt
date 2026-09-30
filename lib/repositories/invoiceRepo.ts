@@ -460,20 +460,26 @@ export interface MarkInvoiceViewedInput {
   userAgent: string | null;
 }
 
-/** Public view-tracking. Flips sent → viewed; always logs the open. */
+/**
+ * Public view-tracking. Flips sent → viewed; always logs the open.
+ * Org-scoped like every other invoice mutation (issue #258) — the caller
+ * (the public token page) already has the invoice row and its orgId, so no
+ * extra query is needed to supply it.
+ */
 export async function markInvoiceViewed(
   invoiceId: number,
+  orgId: string,
   input: MarkInvoiceViewedInput
 ) {
   await prisma.$transaction(async (tx) => {
-    const inv = await tx.invoice.findUnique({
-      where: { id: invoiceId },
+    const inv = await tx.invoice.findFirst({
+      where: { id: invoiceId, orgId },
       select: { status: true },
     });
     if (!inv) return;
     if (inv.status === "sent") {
       await tx.invoice.updateMany({
-        where: { id: invoiceId, status: "sent" },
+        where: { id: invoiceId, orgId, status: "sent" },
         data: { status: "viewed", viewedAt: new Date() },
       });
     }
