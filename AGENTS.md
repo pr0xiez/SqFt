@@ -110,6 +110,10 @@ with the file that owns it.
   status briefly (bounded window, see `PaymentsSettingsView`) instead of going
   silent. The raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
+- `lib/request.ts` — low-level HTTP request helpers shared by public routes/
+  pages, currently `getClientIp` (prefers Vercel's platform-populated
+  `x-vercel-forwarded-for`/`x-real-ip` over the spoofable client-supplied
+  `X-Forwarded-For` for audit/view-tracking IPs).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
 - `lib/repositories/loginRepo.ts` — credentials lookup and atomic failed-login
   counters; `lib/auth/login.ts` owns lockout policy, called by `authorizeCredentials`.
@@ -141,6 +145,8 @@ with the file that owns it.
   view-tracking spine used by `estimate-review`/`invoice-review`; request
   metadata is read during render, and writes finish via Next's `after()` with
   failure logging. Do not use an untracked fire-and-forget promise here.
+- `lib/request.ts` — deployment-aware audited IP selection; platform headers
+  are trusted only on Vercel, with a best-effort rightmost XFF hop elsewhere.
 - `lib/http/clientMeta.ts` — shared audit metadata extraction for route
   handlers and public review pages; missing/empty values use null.
 - `lib/estimateStatus.ts` — canonical status vocabulary, display labels,

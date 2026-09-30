@@ -605,3 +605,8 @@ branching. Every `lib/hooks/*` query/mutation goes through
 wraps `fetch` + the `res.ok` check + `readApiError` + `res.json()` (204 → no
 body, resolves `undefined`) in one call — so hooks never re-hand-roll this and
 always surface the server's real message instead of a fixed generic string.
+
+Public view and consent audit metadata uses `lib/http/clientMeta.ts`, backed by
+`lib/request.ts`. Missing or blank addresses remain null; only required approval
+columns use the unknown fallback. Platform-specific headers are used only on
+Vercel. Other deployments need an ingress that appends or overwrites the client IP.
