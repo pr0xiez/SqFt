@@ -14,6 +14,10 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
 }));
 
+vi.mock("next/server", () => ({
+  after: vi.fn((run: () => Promise<void>) => void run()),
+}));
+
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
