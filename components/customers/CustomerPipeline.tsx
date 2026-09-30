@@ -115,16 +115,7 @@ function SiteMeasureRow({
                   <StatusPill status={q.status} />
                   <div className="flex-1 min-w-0 flex items-baseline gap-2">
                     <span className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] tracking-[.02em]">
-                      {q.status === "approved"
-                        ? "Approved"
-                        : q.status === "declined"
-                          ? "Declined"
-                          : q.status === "viewed"
-                            ? "Viewed"
-                            : q.status === "sent"
-                              ? "Sent"
-                              : "Created"}{" "}
-                      {relativeTime(touch)}
+                      {tone.label} {relativeTime(touch)}
                     </span>
                     <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] hidden sm:inline">
                       · {q._count.lineItems} line item

@@ -1,3 +1,4 @@
+import { round2 } from "@/lib/money";
 import {
   isLinkedQtyMode,
   type LineItemCalc,
@@ -10,20 +11,25 @@ import type { EstimateInput, EstimateView, LineView } from "./types";
 
 /** Single source of truth for estimate math. Returns the fully-computed view —
  *  per-line subtotals plus the labeled totals breakdown — used by the editor,
- *  the public estimate page, the send-email route, and the signed snapshot. */
+ *  the public estimate page, the send-email route, and the signed snapshot.
+ *  Every returned money field (line subtotals, subtotal, markup, total,
+ *  deposit) is round2'd to cents, matching the rounding convention
+ *  `foldMarkupIntoLines` uses for line-level amounts; each total is derived
+ *  from already-rounded inputs rather than rounding a raw float sum. */
 export function computeEstimateView(input: EstimateInput): EstimateView {
   const rooms = input.items.filter((r) => r.type === "room");
 
   const lines: LineView[] = input.lineItems.map((li) => {
     const effectiveQty = resolveQty(li, rooms);
-    const subtotal = effectiveQty === null ? null : effectiveQty * li.rate;
+    const subtotal =
+      effectiveQty === null ? null : round2(effectiveQty * li.rate);
     return { id: li.id, effectiveQty, subtotal };
   });
 
-  const subtotal = lines.reduce((sum, l) => sum + (l.subtotal ?? 0), 0);
-  const markup = subtotal * (input.markupPct / 100);
-  const total = subtotal + markup;
-  const deposit = total * input.depositPct;
+  const subtotal = round2(lines.reduce((sum, l) => sum + (l.subtotal ?? 0), 0));
+  const markup = round2(subtotal * (input.markupPct / 100));
+  const total = round2(subtotal + markup);
+  const deposit = round2(total * input.depositPct);
   const hasUnresolvedLines = lines.some((l) => l.subtotal === null);
 
   return {

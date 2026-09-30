@@ -1,6 +1,11 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { LastAdminError } from "@/lib/api/errors";
+import {
+  EmailTakenError,
+  LastAdminError,
+  NotFoundError,
+} from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
+import type { UserPatchInput } from "@/lib/users/schema";
 
 export const USER_SELECT = {
   id: true,
@@ -51,57 +56,33 @@ export async function createUser(
       select: USER_SELECT,
     });
   } catch (err) {
-    // Callers are expected to pre-check email availability with
-    // `findByEmailInOrg` (org-scoped), which only rules out a duplicate
-    // *within the caller's own org*. `User.email` is still globally @unique,
-    // so this insert can still collide with a DIFFERENT org's user. Don't
-    // surface the specific EMAIL_TAKEN/409 for that case — doing so would let
-    // an org admin submit arbitrary emails and learn from the response
-    // whether they're registered anywhere on the platform, not just their
-    // own org (cross-tenant registration oracle, see #324). Fall through to
-    // the same generic 500 any other unexpected write failure gets, so the
-    // response is indistinguishable from a transient error.
-    if (isUniqueEmailViolation(err)) {
-      throw new Error("Failed to create user: email conflict");
+    // Callers pre-flight-check email uniqueness via findByEmail, but that's
+    // a TOCTOU window under concurrency: two requests can both pass the
+    // check and race to insert, and the loser hits the User.email unique
+    // index. Catch that here and surface the same typed error instead of
+    // letting a raw P2002 bubble up as a 500.
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      (err as { code?: string }).code === "P2002"
+    ) {
+      throw new EmailTakenError();
     }
     throw err;
   }
 }
 
-/**
- * Org-scoped "is this email already used" check — the one callers creating a
- * user should use. Deliberately does NOT look outside `orgId`: a global
- * lookup here is the cross-tenant oracle from #324. A genuine cross-org
- * collision is still caught at insert time by the DB's global unique
- * constraint on `email` (see `createUser`'s P2002 handling above).
- */
-export function findByEmailInOrg(orgId: string, email: string) {
-  return prisma.user.findFirst({
-    where: { email, orgId },
-    select: { id: true },
-  });
-}
-
-/**
- * Global email lookup. Only correct for flows that are inherently
- * platform-wide, i.e. nothing org-scoped exists yet to check against (e.g.
- * login, or the pre-flight check when creating a brand-new org's first
- * admin). Do NOT use this for an "already taken in my org" existence check —
- * see `findByEmailInOrg`.
- */
 export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }
 
-function isUniqueEmailViolation(err: unknown): boolean {
-  if (typeof err !== "object" || err === null) return false;
-  const e = err as { code?: string; meta?: { target?: string[] | string } };
-  if (e.code !== "P2002") return false;
-  const target = e.meta?.target;
-  if (!target) return false;
-  return Array.isArray(target)
-    ? target.includes("email")
-    : target.includes("email");
+export type AuthState = { orgId: string; role: string; archived: boolean };
+
+export function findAuthState(id: string): Promise<AuthState | null> {
+  return prisma.user.findUnique({
+    where: { id },
+    select: { orgId: true, role: true, archived: true },
+  });
 }
 
 export function findUserRow(
@@ -174,6 +155,68 @@ export async function validateUserIds(
   ids: string[]
 ): Promise<boolean> {
   if (ids.length === 0) return true;
-  const count = await prisma.user.count({ where: { id: { in: ids }, orgId } });
+  const count = await prisma.user.count({
+    where: { id: { in: ids }, orgId, archived: false },
+  });
   return count === ids.length;
+}
+
+/**
+ * Optional hooks a caller can plug into `applyUserPatch`'s pipeline to run a
+ * guard check immediately before the corresponding field is applied — e.g.
+ * the self-org route's "can't demote/archive yourself" checks. Each hook
+ * should throw to abort (before that field's write, but after any earlier
+ * field in the patch has already been applied — matches the historical
+ * per-route ordering this replaces).
+ */
+export type UserPatchGuards = {
+  beforeRoleChange?: (role: string) => void;
+  beforeArchive?: (archived: boolean) => void;
+};
+
+/**
+ * Apply a role / name / title / archived patch to a user, scoped to `orgId`.
+ * Orchestrates: role change (via `updateRole`) -> profile fields (via
+ * `updateProfile`) -> archived flag (via `setArchived`) -> re-fetch. Shared by
+ * the self-org and super-admin PATCH routes; route-specific self-guard checks
+ * (self-demote, self-archive) are injected via `guards`, invoked at the same
+ * point in the pipeline the original per-route code checked them.
+ *
+ * Throws `NotFoundError` if `userId` isn't in `orgId` at any step, or
+ * `LastAdminError` (bubbled from `updateRole`/`setArchived`) if the change
+ * would strip the org's last admin.
+ */
+export async function applyUserPatch(
+  userId: string,
+  orgId: string,
+  patch: UserPatchInput,
+  guards: UserPatchGuards = {}
+): Promise<UserRow> {
+  if (patch.role !== undefined) {
+    guards.beforeRoleChange?.(patch.role);
+    // updateRole throws LastAdminError if this would demote the last admin.
+    if (!(await updateRole(userId, orgId, patch.role))) {
+      throw new NotFoundError();
+    }
+  }
+
+  if (patch.name !== undefined || patch.title !== undefined) {
+    const ok = await updateProfile(userId, orgId, {
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.title !== undefined ? { title: patch.title } : {}),
+    });
+    if (!ok) throw new NotFoundError();
+  }
+
+  if (patch.archived !== undefined) {
+    guards.beforeArchive?.(patch.archived);
+    // setArchived throws LastAdminError if this would archive the last admin.
+    if (!(await setArchived(userId, orgId, patch.archived))) {
+      throw new NotFoundError();
+    }
+  }
+
+  const row = await findUserRow(userId, orgId);
+  if (!row) throw new NotFoundError();
+  return row;
 }

@@ -1,16 +1,17 @@
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import { estimateTokenParams } from "@/lib/estimates/schema";
 import { fromPrismaEstimate } from "@/lib/estimateView";
 import { snapshotEstimate } from "@/lib/estimateView/snapshot";
+import { clientMeta } from "@/lib/http/clientMeta";
 import { approveEstimateByToken, getEstimateByToken } from "@/lib/repositories";
-import { getClientIp } from "@/lib/request";
 
 export const POST = publicRoute({}, async ({ req, params }) => {
   const { token } = estimateTokenParams.parse(params);
   const estimate = await getEstimateByToken(token);
   if (!estimate) throw new NotFoundError();
-  if (estimate.status === "approved" || estimate.status === "declined") {
+  if (isEstimateLocked(estimate.status)) {
     throw new ConflictError(`Estimate already ${estimate.status}`);
   }
 
@@ -28,14 +29,13 @@ export const POST = publicRoute({}, async ({ req, params }) => {
     org: estimate.org,
   });
 
-  const ip = getClientIp(req.headers);
-  const userAgent = req.headers.get("user-agent") ?? "unknown";
+  const { ip, userAgent } = clientMeta(req);
 
   const result = await approveEstimateByToken({
     estimateId: estimate.id,
     ip,
     userAgent,
-    snapshot: snap as never,
+    snapshot: snap,
   });
   if (result === "not_found") throw new NotFoundError();
   if (result === "already_approved" || result === "declined") {

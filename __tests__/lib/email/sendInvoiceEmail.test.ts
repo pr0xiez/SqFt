@@ -1,3 +1,4 @@
+import { render } from "@react-email/render";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/email/client", () => ({
@@ -31,5 +32,17 @@ describe("sendInvoiceEmail", () => {
         replyTo: "doug@example.com",
       })
     );
+
+    // Cheap regression guard: render the exact React element passed to
+    // sendEmail (the one Resend would send) and confirm the customer-facing
+    // HTML carries the formatted amount, recipient, and — most importantly
+    // — a correct review/pay link built from `publicUrl` (falls back here
+    // since `payUrl` is null).
+    const call = vi.mocked(sendEmail).mock.calls[0][0];
+    const html = await render(call.react);
+    expect(html).toContain("$7403.50");
+    expect(html).toContain("Alex");
+    expect(html).toContain("All About Hardwood");
+    expect(html).toContain('href="https://app.sqft.dev/invoice-review/tok"');
   });
 });

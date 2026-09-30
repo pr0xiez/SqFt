@@ -8,7 +8,10 @@ export const POST = apiRoute(
   async ({ orgId, input, params }) => {
     const sender = await requireSender();
     const { id } = estimateIdParams.parse(params);
-    await sendEstimate(id, orgId, { ...input, sender });
-    return { ok: true };
+    const { customerEmailSaved } = await sendEstimate(id, orgId, {
+      ...input,
+      sender,
+    });
+    return { ok: true, customerEmailSaved };
   }
 );

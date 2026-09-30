@@ -74,6 +74,8 @@ async function wipeDemoData(): Promise<void> {
     // Delete demo users so re-runs of the seed don't collide with the
     // EmailTakenError that createOrganization now raises.
     await prisma.user.deleteMany({ where: { orgId: { in: demoOrgIds } } });
+    // Login-lockout columns on recreated demo users use their schema defaults:
+    // failedLoginCount = 0 and lockedUntil = null.
     // Then delete the orgs themselves — cascades clean up any remaining
     // children. createOrganization will recreate them below.
     await prisma.organization.deleteMany({
@@ -119,6 +121,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
   crewSarah: SeedUser;
 }> {
   const orgId = org.id;
+  const unlockedLogin = { failedLoginCount: 0, lockedUntil: null };
   const crewPwd = await bcrypt.hash("demo1234", 10);
   const [crewMike, crewCarlos, crewDave, crewSarah] = await Promise.all([
     prisma.user.create({
@@ -129,6 +132,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
         password: crewPwd,
         role: "crew",
         title: "Owner / Sales",
+        ...unlockedLogin,
       },
     }),
     prisma.user.create({
@@ -139,6 +143,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
         password: crewPwd,
         role: "crew",
         title: "Lead Installer",
+        ...unlockedLogin,
       },
     }),
     prisma.user.create({
@@ -149,6 +154,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
         password: crewPwd,
         role: "crew",
         title: "Installer",
+        ...unlockedLogin,
       },
     }),
     prisma.user.create({
@@ -159,6 +165,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
         password: crewPwd,
         role: "crew",
         title: "Showroom",
+        ...unlockedLogin,
       },
     }),
   ]);
@@ -170,6 +177,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
     update: {},
     create: {
       name: "Marcus Chen",
+      ...unlockedLogin,
       email: "lead@sqft.dev",
       password: leadHash,
       role: "lead",
@@ -184,6 +192,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
     update: {},
     create: {
       name: "Diego Marín",
+      ...unlockedLogin,
       email: "crew@sqft.dev",
       password: crewHash,
       role: "crew",
@@ -201,6 +210,7 @@ async function seedOrgUsers(org: SeedOrg): Promise<{
     update: {},
     create: {
       name: "Sam Operator",
+      ...unlockedLogin,
       email: "admin@sqft.dev",
       password: superAdminHash,
       role: "admin",
@@ -1565,11 +1575,16 @@ async function seedBulkFixtures(
 
 // Populate the denormalized Estimate.total on every seeded estimate, so the
 // list view's total column / sort has data without a separate backfill. Run
-// concurrently rather than as a serial await-in-a-loop — these are
-// independent reads+writes keyed by id, so there's no ordering dependency
-// between them.
+// in bounded batches to avoid saturating the Postgres connection pool.
 async function backfillEstimateTotals(estimateIds: number[]): Promise<void> {
-  await Promise.all(estimateIds.map((id) => setEstimateTotal(id)));
+  const batchSize = 4;
+  for (let offset = 0; offset < estimateIds.length; offset += batchSize) {
+    await Promise.all(
+      estimateIds
+        .slice(offset, offset + batchSize)
+        .map((id) => setEstimateTotal(id))
+    );
+  }
   console.log("  ✓ Estimate.total populated");
 }
 
@@ -1581,9 +1596,17 @@ async function bumpOrgCounters(
   nextEstimateNumber: number,
   totalEstimateCount: number
 ): Promise<void> {
+  const latestInvoice = await prisma.invoice.aggregate({
+    where: { orgId: org.id },
+    _max: { invoiceNumber: true },
+  });
   await prisma.organization.update({
     where: { id: org.id },
-    data: { nextSiteMeasureNumber, nextEstimateNumber, nextInvoiceNumber: 4 },
+    data: {
+      nextSiteMeasureNumber,
+      nextEstimateNumber,
+      nextInvoiceNumber: (latestInvoice._max.invoiceNumber ?? 0) + 1,
+    },
   });
   console.log(`  ✓ ${totalEstimateCount} estimates`);
 }

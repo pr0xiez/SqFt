@@ -1,11 +1,12 @@
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import {
   estimateDeclineSchema,
   estimateTokenParams,
 } from "@/lib/estimates/schema";
+import { clientMeta } from "@/lib/http/clientMeta";
 import { declineEstimateByToken, getEstimateByToken } from "@/lib/repositories";
-import { getClientIp } from "@/lib/request";
 
 export const POST = publicRoute(
   { input: estimateDeclineSchema },
@@ -14,13 +15,11 @@ export const POST = publicRoute(
 
     const estimate = await getEstimateByToken(token);
     if (!estimate) throw new NotFoundError();
-    if (estimate.status === "approved" || estimate.status === "declined") {
+    if (isEstimateLocked(estimate.status)) {
       throw new ConflictError(`Estimate already ${estimate.status}`);
     }
 
-    const clientIp = getClientIp(req.headers);
-    const ip = clientIp === "unknown" ? null : clientIp;
-    const userAgent = req.headers.get("user-agent") ?? null;
+    const { ip, userAgent } = clientMeta(req);
 
     const result = await declineEstimateByToken(estimate.id, {
       reason: input.reason ?? null,

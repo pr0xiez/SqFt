@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/tenant", () => ({
@@ -24,7 +24,10 @@ const validToken = "seed-token-1234567890";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("VERCEL", "1");
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("POST /api/estimate-review/[token]/decline", () => {
   it("declines with optional reason", async () => {

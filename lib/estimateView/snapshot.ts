@@ -1,3 +1,4 @@
+import type { Prisma } from "@/app/generated/prisma/client";
 import { computeEstimateView } from "./compute";
 import type { EstimateInput, LineItemCalc, LineView, RoomItem } from "./types";
 
@@ -22,22 +23,65 @@ export interface EstimateSnapshotMeta {
   };
 }
 
-export interface EstimateSnapshot {
+/** One frozen room/note entry inside the snapshot. A plain object *type*
+ *  (not an `interface`) so it — and therefore `EstimateSnapshot` as a whole —
+ *  structurally satisfies `Prisma.InputJsonValue` with no cast: TypeScript
+ *  only infers the implicit string index signature JSON columns need for
+ *  type literals, not for named interfaces (even ones a property merely
+ *  points at), so every field here is spelled out as a literal shape rather
+ *  than reusing `RoomItem`/`RoomSegment` directly. */
+type EstimateSnapshotRoomItem = {
+  id: number;
+  type: RoomItem["type"];
+  name: string | null;
+  shape: "rect" | null;
+  w: string | number | null;
+  l: string | number | null;
+  segments: Array<{ w?: number | null; l?: number | null }> | null;
+  note: string | null;
+  text: string | null;
+};
+
+/** One frozen line item inside the snapshot — see
+ *  `EstimateSnapshotRoomItem` for why this is a `type`, not an `interface`. */
+type EstimateSnapshotLineItem = {
+  id: number;
+  sortOrder: number;
+  name: string;
+  description: string | null;
+  rate: number;
+  qtyMode: LineItemCalc["qtyMode"];
+  qty: number | null;
+  wastePct: number;
+  unitLabel: string;
+  linkedRoomIds: number[];
+  effectiveQty: LineView["effectiveQty"];
+  subtotal: LineView["subtotal"];
+};
+
+/** The frozen, customer-approved estimate artifact. A `type` (not an
+ *  `interface`) so the whole tree — see `EstimateSnapshotRoomItem` — is
+ *  directly assignable to `Prisma.InputJsonValue`, letting the persistence
+ *  call site pass this value straight to the Prisma write without an
+ *  `as never` escape hatch. A future shape change that isn't JSON-safe (e.g.
+ *  a `Date` or a class instance sneaking into a field) becomes a compile
+ *  error right here instead of a silent runtime cast. */
+export type EstimateSnapshot = {
   estimateNumber: number;
   date: string;
   markupPct: number;
   depositPct: number;
   customer: EstimateSnapshotMeta["customer"];
   org: EstimateSnapshotMeta["org"];
-  items: Array<Record<string, unknown>>;
-  lineItems: Array<Record<string, unknown>>;
+  items: EstimateSnapshotRoomItem[];
+  lineItems: EstimateSnapshotLineItem[];
   totals: {
     subtotal: number;
     markup: number;
     total: number;
     deposit: number;
   };
-}
+};
 
 /** Build a serializable snapshot of an estimate — the customer-approved
  *  artifact. Computes the view internally so totals can never diverge from
@@ -106,3 +150,10 @@ export function snapshotEstimate(
     },
   };
 }
+
+// Compile-time proof that `EstimateSnapshot` is JSON-safe: if a future field
+// stops being assignable to `Prisma.InputJsonValue` (e.g. a `Date` or a class
+// instance sneaks in), this line fails to compile — the whole point of
+// dropping the `as never` cast at the persistence call site.
+type AssertJsonSafe<T extends Prisma.InputJsonValue> = T;
+type _EstimateSnapshotIsJsonSafe = AssertJsonSafe<EstimateSnapshot>;

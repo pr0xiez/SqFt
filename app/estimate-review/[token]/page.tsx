@@ -1,9 +1,9 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   type PublicEstimate,
   PublicEstimateView,
 } from "@/components/estimates/PublicEstimateView";
+import { isEstimateLocked } from "@/lib/estimateStatus";
 import {
   estimateViewFromSnapshot,
   parseEstimateSnapshot,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/estimateView/parseSnapshot";
 import { logError } from "@/lib/logger";
 import { getEstimateByToken, markEstimateViewed } from "@/lib/repositories";
-import { getClientIp } from "@/lib/request";
+import { isValidTokenShape, trackPublicView } from "@/lib/tokens";
 import { parseQtyMode, parseRoomSegments } from "@/lib/utils";
 
 export const metadata = {
@@ -29,18 +29,16 @@ export default async function PublicEstimatePage({ params }: Props) {
   const { token } = await params;
 
   // Reject any token shape that couldn't have been issued, before hitting the DB.
-  if (!token || token.length < 16 || token.length > 128) notFound();
+  if (!token || !isValidTokenShape(token)) notFound();
 
   const estimate = await getEstimateByToken(token);
   if (!estimate) notFound();
 
-  if (estimate.status !== "approved" && estimate.status !== "declined") {
-    const h = await headers();
-    const clientIp = getClientIp(h);
-    const ip = clientIp === "unknown" ? null : clientIp;
-    const userAgent = h.get("user-agent") ?? null;
-    void markEstimateViewed(estimate.id, { ip, userAgent });
-  }
+  await trackPublicView(
+    !isEstimateLocked(estimate.status),
+    (meta) => markEstimateViewed(estimate.id, meta),
+    { type: "estimate", id: estimate.id }
+  );
 
   // An approved estimate renders from the approval snapshot — the frozen
   // record of what the customer signed — not from the live rows, whose

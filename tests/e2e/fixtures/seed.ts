@@ -12,7 +12,8 @@ import {
  * server data, not stale localStorage.
  */
 export async function reloadFresh(page: Page): Promise<void> {
-  await page.evaluate(() => localStorage.clear());
+  // Clear after the old document and its pending cache writes are gone.
+  await clearStorageOnNextLoad(page.context());
   await page.reload();
 }
 
@@ -255,6 +256,19 @@ export async function seedInvoice(
   expect(res.status()).toBe(201);
   const invoice = await res.json();
   return { invoiceId: invoice.id };
+}
+
+/** Rotate (and obtain) the public review token for an invoice. The invoice
+ *  detail payload never carries the raw `publicToken` (#319), so this is the
+ *  only sanctioned way to read a live token value in a test. */
+export async function getInvoicePublicToken(
+  request: APIRequestContext,
+  invoiceId: number
+): Promise<string> {
+  const res = await request.post(`/api/invoices/${invoiceId}/public-token`);
+  expect(res.ok()).toBeTruthy();
+  const { publicToken } = (await res.json()) as { publicToken: string };
+  return publicToken;
 }
 
 /** Seed an estimate and drive it to declined via the public decline endpoint. */
