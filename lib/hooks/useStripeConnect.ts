@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { readApiError } from "@/lib/api/errors";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import {
   connectPhase,
   connectPollInterval,
@@ -13,20 +13,13 @@ export type { StripeConnectStatus };
 
 export const STRIPE_CONNECT_QUERY_KEY = ["stripe-connect"];
 
-async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
-  if (!res.ok) {
-    const { message } = await readApiError(res, fallback);
-    throw new Error(message);
-  }
-  return res.json() as Promise<T>;
-}
-
 export function useStripeConnect(opts?: { pollWhileVerifying?: boolean }) {
   return useQuery({
     queryKey: STRIPE_CONNECT_QUERY_KEY,
-    queryFn: async () =>
-      jsonOrThrow<StripeConnectStatus>(
-        await fetch("/api/org/stripe/connect"),
+    queryFn: () =>
+      apiFetch<StripeConnectStatus>(
+        "/api/org/stripe/connect",
+        undefined,
         "Failed to load Stripe connection status"
       ),
     refetchInterval: opts?.pollWhileVerifying
@@ -49,9 +42,10 @@ export function useStripeConnect(opts?: { pollWhileVerifying?: boolean }) {
 
 export function useStartStripeOnboarding() {
   return useMutation({
-    mutationFn: async (): Promise<{ url: string }> =>
-      jsonOrThrow<{ url: string }>(
-        await fetch("/api/org/stripe/connect", { method: "POST" }),
+    mutationFn: () =>
+      apiFetch<{ url: string }>(
+        "/api/org/stripe/connect",
+        { method: "POST" },
         "Failed to start Stripe onboarding"
       ),
     onSuccess: ({ url }) => {

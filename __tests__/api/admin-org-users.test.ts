@@ -6,10 +6,7 @@ vi.mock("@/lib/repositories", () => ({
   listUsers: vi.fn(),
   createUser: vi.fn(),
   findByEmail: vi.fn(),
-  updateRole: vi.fn(),
-  updateProfile: vi.fn(),
-  setArchived: vi.fn(),
-  findUserRow: vi.fn(),
+  applyUserPatch: vi.fn(),
 }));
 vi.mock("bcryptjs", () => ({
   default: { hash: vi.fn(async () => "hashed-pw") },
@@ -22,7 +19,7 @@ vi.mock("next/server", async (importOriginal) => {
 import type { Session } from "next-auth";
 import { PATCH } from "@/app/api/admin/orgs/[orgId]/users/[userId]/route";
 import { GET, POST } from "@/app/api/admin/orgs/[orgId]/users/route";
-import { LastAdminError } from "@/lib/api/errors";
+import { LastAdminError, NotFoundError } from "@/lib/api/errors";
 import { auth } from "@/lib/auth";
 import * as repos from "@/lib/repositories";
 import { makeRequest, params } from "./_helpers";
@@ -182,18 +179,13 @@ describe("PATCH /api/admin/orgs/[orgId]/users/[userId]", () => {
       pu
     );
     expect(res.status).toBe(403);
-    expect(repos.updateRole).not.toHaveBeenCalled();
+    expect(repos.applyUserPatch).not.toHaveBeenCalled();
   });
 
   it("changes a role scoped to the URL org and returns the row", async () => {
     asSuperAdmin();
     // biome-ignore lint/suspicious/noExplicitAny: partial stub
-    vi.mocked(repos.updateRole).mockResolvedValueOnce({
-      id: "m1",
-      role: "lead",
-    } as any);
-    // biome-ignore lint/suspicious/noExplicitAny: partial stub
-    vi.mocked(repos.findUserRow).mockResolvedValueOnce({
+    vi.mocked(repos.applyUserPatch).mockResolvedValueOnce({
       id: "m1",
       role: "lead",
     } as any);
@@ -202,12 +194,14 @@ describe("PATCH /api/admin/orgs/[orgId]/users/[userId]", () => {
       pu
     );
     expect(res.status).toBe(200);
-    expect(repos.updateRole).toHaveBeenCalledWith("m1", "org1", "lead");
+    expect(repos.applyUserPatch).toHaveBeenCalledWith("m1", "org1", {
+      role: "lead",
+    });
   });
 
   it("404 when the user is not in that org", async () => {
     asSuperAdmin();
-    vi.mocked(repos.updateRole).mockResolvedValueOnce(null);
+    vi.mocked(repos.applyUserPatch).mockRejectedValueOnce(new NotFoundError());
     const res = await PATCH(
       makeRequest("PATCH", "http://localhost/", { role: "lead" }),
       pu
@@ -218,12 +212,7 @@ describe("PATCH /api/admin/orgs/[orgId]/users/[userId]", () => {
   it("archives a member", async () => {
     asSuperAdmin();
     // biome-ignore lint/suspicious/noExplicitAny: partial stub
-    vi.mocked(repos.setArchived).mockResolvedValueOnce({
-      id: "m1",
-      archived: true,
-    } as any);
-    // biome-ignore lint/suspicious/noExplicitAny: partial stub
-    vi.mocked(repos.findUserRow).mockResolvedValueOnce({
+    vi.mocked(repos.applyUserPatch).mockResolvedValueOnce({
       id: "m1",
       archived: true,
     } as any);
@@ -232,12 +221,14 @@ describe("PATCH /api/admin/orgs/[orgId]/users/[userId]", () => {
       pu
     );
     expect(res.status).toBe(200);
-    expect(repos.setArchived).toHaveBeenCalledWith("m1", "org1", true);
+    expect(repos.applyUserPatch).toHaveBeenCalledWith("m1", "org1", {
+      archived: true,
+    });
   });
 
   it("400 LAST_ADMIN when the repo refuses to demote the last admin", async () => {
     asSuperAdmin();
-    vi.mocked(repos.updateRole).mockRejectedValueOnce(new LastAdminError());
+    vi.mocked(repos.applyUserPatch).mockRejectedValueOnce(new LastAdminError());
     const res = await PATCH(
       makeRequest("PATCH", "http://localhost/", { role: "crew" }),
       pu

@@ -1,5 +1,5 @@
-import { OPEN_INVOICE_STATUSES } from "@/components/invoices/filterInvoices";
 import { foldMarkupIntoLines } from "@/lib/estimateView/markup";
+import { OPEN_INVOICE_STATUSES } from "@/lib/invoices/statusFilter";
 import { residualTargetIndex, round2 } from "@/lib/money";
 import type {
   EstimateBilling,
@@ -20,7 +20,7 @@ export function paymentsPaidTotal(
 
 /**
  * An invoice's live outstanding balance: amount minus payments recorded
- * against it, in cents. **Balance due is the exception** to the frozen
+ * against it, in dollars rounded to cents. **Balance due is the exception** to the frozen
  * snapshot (see Invoice in CONTEXT.md) — it is always computed live from the
  * payments ledger, never cached, so a partially-paid invoice never shows the
  * full amount as still owed.
@@ -35,7 +35,7 @@ export function invoiceOutstanding(invoice: {
 /**
  * Whether an invoice is overdue: its status is still "open" (sent, viewed, or
  * partial — see `OPEN_INVOICE_STATUSES`), it has a due date, and that due
- * date's day has fully elapsed (overdue starts the day AFTER the due date).
+ * date's UTC calendar day has fully elapsed. Stored due dates use UTC midnight.
  */
 export function isInvoiceOverdue(invoice: {
   status: string;
@@ -44,12 +44,32 @@ export function isInvoiceOverdue(invoice: {
   if (!OPEN_STATUS_SET.has(invoice.status) || invoice.dueDate === null)
     return false;
   const due = new Date(invoice.dueDate);
-  const endOfDueDay = new Date(
-    due.getFullYear(),
-    due.getMonth(),
-    due.getDate() + 1
+  const endOfDueDay = Date.UTC(
+    due.getUTCFullYear(),
+    due.getUTCMonth(),
+    due.getUTCDate() + 1
   );
-  return Date.now() >= endOfDueDay.getTime();
+  return Date.now() >= endOfDueDay;
+}
+
+/**
+ * Tolerance applied to the overbill comparison so floating-point cents drift
+ * (e.g. 4000.0000000001 vs a 4000 balance) does not falsely trip the guard.
+ * This is billing policy and the SINGLE definition shared by the
+ * Create-Invoice dialog's client-side guard (`lib/invoices/createInvoiceForm`)
+ * and the server's create, paid-in-full, and Stripe overpayment checks
+ * (`lib/repositories/invoiceRepo.ts`).
+ */
+export const OVERBILL_EPSILON = 0.005;
+
+/**
+ * Whether `amount` bills past the `unbilled` balance, with the shared
+ * floating-point tolerance. Matches the server's overbill rule so the
+ * dialog's guard and the persisted result never disagree (the server throws
+ * `INVOICE_OVERBILL` on the same condition).
+ */
+export function isOverbill(amount: number, unbilled: number): boolean {
+  return amount > unbilled + OVERBILL_EPSILON;
 }
 
 /** Estimate-level billing rollup. Voided invoices are ignored. */

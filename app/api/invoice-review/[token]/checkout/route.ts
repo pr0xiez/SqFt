@@ -6,7 +6,7 @@ import {
 } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
 import { getPublicBaseUrl } from "@/lib/baseUrl";
-import { round2 } from "@/lib/money";
+import { invoiceOutstanding } from "@/lib/invoices/compute";
 import { getInvoiceByToken } from "@/lib/repositories/invoiceRepo";
 import { getOrgStripe, setOrgConnectStatus } from "@/lib/repositories/orgRepo";
 import {
@@ -31,8 +31,7 @@ export const POST = publicRoute<undefined, { token: string }>(
     }
     if (status !== "active") throw new StripeAccountRestrictedError();
 
-    const paid = round2(invoice.payments.reduce((s, p) => s + p.amount, 0));
-    const balanceDue = round2(invoice.amount - paid);
+    const balanceDue = invoiceOutstanding(invoice);
     if (balanceDue <= 0) throw new InvoiceAlreadyPaidError();
     const balanceDueCents = Math.round(balanceDue * 100);
 

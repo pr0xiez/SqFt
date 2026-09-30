@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   computeEstimateBilling,
   invoiceOutstanding,
   isInvoiceOverdue,
+  isOverbill,
+  OVERBILL_EPSILON,
   paymentsPaidTotal,
   prorateInvoice,
 } from "@/lib/invoices/compute";
@@ -165,6 +167,87 @@ describe("prorateInvoice", () => {
     expect(Math.round(sum * 100) / 100).toBe(4000);
     expect(out.total).toBe(4000);
   });
+
+  it("never NaNs on a $0 (fully-discounted) estimate — the zero-total guard short-circuits the ratio", () => {
+    // Every line is RESOLVED (qty known) but priced at $0 — e.g. a 100%
+    // discounted estimate. estimateTotal is 0, so `amount / estimateTotal`
+    // would be 0/0 = NaN without the `estimateTotal === 0` guard.
+    const freeEstimate: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: 1, subtotal: 0 },
+          { id: 2, effectiveQty: 2, subtotal: 0 },
+        ],
+        subtotal: 0,
+        markup: 0,
+        total: 0,
+        deposit: 0,
+        hasUnresolvedLines: false,
+      },
+      lineMeta: [
+        { id: 1, name: "Carpet Tear Out", description: null },
+        { id: 2, name: "RED OAK", description: null },
+      ],
+    };
+    const out = prorateInvoice(freeEstimate, 0);
+    expect(Number.isNaN(out.ratio)).toBe(false);
+    expect(out.ratio).toBe(0);
+    for (const line of out.lines) {
+      expect(Number.isNaN(line.amount)).toBe(false);
+      expect(line.amount).toBe(0);
+    }
+    expect(Number.isNaN(out.total)).toBe(false);
+    expect(out.total).toBe(0);
+  });
+
+  it("never NaNs on an all-UNRESOLVED view (every line still unpriced) — total is 0, guard short-circuits", () => {
+    // Every line's qty is unresolved (null), so per computeEstimateView every
+    // line contributes 0 to subtotal, and total is necessarily 0 too. Confirms
+    // the `estimateTotal === 0` guard also covers this shape, not just the
+    // explicit-$0-price case above, and that the resulting breakdown carries
+    // no NaN despite every line being omitted.
+    const allUnresolved: ProrationSource = {
+      view: {
+        lines: [
+          { id: 1, effectiveQty: null, subtotal: null },
+          { id: 2, effectiveQty: null, subtotal: null },
+        ],
+        subtotal: 0,
+        markup: 0,
+        total: 0,
+        deposit: 0,
+        hasUnresolvedLines: true,
+      },
+      lineMeta: [
+        { id: 1, name: "Carpet Tear Out", description: null },
+        { id: 2, name: "RED OAK", description: null },
+      ],
+    };
+    const out = prorateInvoice(allUnresolved, 0);
+    expect(Number.isNaN(out.ratio)).toBe(false);
+    expect(out.ratio).toBe(0);
+    expect(out.lines).toEqual([]); // both lines omitted, no phantom $0/$NaN rows
+    expect(Number.isNaN(out.total)).toBe(false);
+    expect(out.total).toBe(0);
+  });
+});
+
+describe("isOverbill", () => {
+  it("is false when billing exactly the balance", () => {
+    expect(isOverbill(4000, 4000)).toBe(false);
+  });
+
+  it("is false within the floating-point tolerance at exactly unbilled + epsilon", () => {
+    // Boundary: amount === unbilled + 0.005 is NOT an overbill (strict >).
+    expect(isOverbill(4000 + OVERBILL_EPSILON, 4000)).toBe(false);
+    expect(OVERBILL_EPSILON).toBe(0.005);
+  });
+
+  it("is true just past the tolerance", () => {
+    expect(isOverbill(4000 + OVERBILL_EPSILON + 0.001, 4000)).toBe(true);
+    expect(isOverbill(9999, 4000)).toBe(true);
+    expect(isOverbill(4000.01, 4000)).toBe(true);
+  });
 });
 
 describe("paymentsPaidTotal", () => {
@@ -178,6 +261,12 @@ describe("paymentsPaidTotal", () => {
 });
 
 describe("invoiceOutstanding", () => {
+  it("rounds the final balance once, including fractional-cent ledger amounts", () => {
+    expect(
+      invoiceOutstanding({ amount: 1.5, payments: [{ amount: 0.495 }] })
+    ).toBe(1.01);
+  });
+
   it("subtracts paid total from the invoice amount, rounded to cents", () => {
     expect(
       invoiceOutstanding({
@@ -193,38 +282,43 @@ describe("invoiceOutstanding", () => {
 });
 
 describe("isInvoiceOverdue", () => {
-  it("is false for a non-open status even with a past due date", () => {
-    expect(isInvoiceOverdue({ status: "draft", dueDate: "2000-01-01" })).toBe(
-      false
-    );
-    expect(isInvoiceOverdue({ status: "paid", dueDate: "2000-01-01" })).toBe(
-      false
-    );
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
 
-  it("is false for an open status with no due date", () => {
+  it.each([
+    "UTC",
+    "America/New_York",
+    "America/Los_Angeles",
+    "Europe/Berlin",
+  ])("uses the stored UTC calendar date in %s", (timezone) => {
+    vi.stubEnv("TZ", timezone);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-16T23:59:59.999Z"));
+    for (const status of ["sent", "viewed", "partial"]) {
+      expect(isInvoiceOverdue({ status, dueDate: "2026-08-16" })).toBe(false);
+      expect(
+        isInvoiceOverdue({ status, dueDate: new Date("2026-08-16T00:00:00Z") })
+      ).toBe(false);
+    }
+    vi.setSystemTime(new Date("2026-08-17T00:00:00Z"));
+    for (const status of ["sent", "viewed", "partial"]) {
+      expect(
+        isInvoiceOverdue({ status, dueDate: "2026-08-16T00:00:00.000Z" })
+      ).toBe(true);
+    }
+  });
+
+  it("excludes closed invoices and missing or invalid due dates", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-17T12:00:00Z"));
+    for (const status of ["draft", "paid", "void"]) {
+      expect(isInvoiceOverdue({ status, dueDate: "2000-01-01" })).toBe(false);
+    }
     expect(isInvoiceOverdue({ status: "sent", dueDate: null })).toBe(false);
-  });
-
-  it("is false on the due date itself, true the day after (end-of-day boundary)", () => {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, "0");
-    const d = String(today.getDate()).padStart(2, "0");
-    expect(
-      isInvoiceOverdue({ status: "sent", dueDate: `${y}-${m}-${d}` })
-    ).toBe(false);
-
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yy = yesterday.getFullYear();
-    const ym = String(yesterday.getMonth() + 1).padStart(2, "0");
-    const yd = String(yesterday.getDate()).padStart(2, "0");
-    expect(
-      isInvoiceOverdue({
-        status: "partial",
-        dueDate: `${yy}-${ym}-${yd}`,
-      })
-    ).toBe(true);
+    expect(isInvoiceOverdue({ status: "sent", dueDate: "invalid" })).toBe(
+      false
+    );
   });
 });

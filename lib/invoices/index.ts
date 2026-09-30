@@ -4,6 +4,8 @@ export {
   computeEstimateBilling,
   invoiceOutstanding,
   isInvoiceOverdue,
+  isOverbill,
+  OVERBILL_EPSILON,
   paymentsPaidTotal,
   prorateInvoice,
 } from "./compute";
@@ -11,12 +13,7 @@ export type {
   DeriveInvoiceAmountArgs,
   InvoiceFormMode,
 } from "./createInvoiceForm";
-export {
-  deriveInvoiceAmount,
-  invoiceLeaves,
-  isOverbill,
-  OVERBILL_EPSILON,
-} from "./createInvoiceForm";
+export { deriveInvoiceAmount, invoiceLeaves } from "./createInvoiceForm";
 export type {
   EstimateBilling,
   InvoiceLike,

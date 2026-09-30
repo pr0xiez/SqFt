@@ -4,7 +4,6 @@ import type {
   SubscriptionStatus,
 } from "@/components/admin/orgs/types";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
-import { ADMIN_ORGS_LIST_CAP } from "@/lib/pagination/constants";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/tenant";
 
@@ -31,7 +30,6 @@ export default async function AdminOrgsPage() {
       _count: { select: { users: true } },
     },
     orderBy: { createdAt: "desc" },
-    take: ADMIN_ORGS_LIST_CAP,
   });
 
   const initial: AdminOrgRow[] = rows.map((r) => ({

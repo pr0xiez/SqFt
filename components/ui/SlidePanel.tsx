@@ -1,7 +1,9 @@
 "use client";
 
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
+import { useFocusTrap } from "@/lib/hooks/useFocusTrap";
+import { useScrollLock } from "@/lib/hooks/useScrollLock";
 
 interface SlidePanelProps {
   open: boolean;
@@ -22,6 +24,8 @@ export function SlidePanel({
   footer,
   children,
 }: SlidePanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -31,12 +35,11 @@ export function SlidePanel({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+  // Lock body scroll while open (nest-safe: ref-counted, see useScrollLock).
+  useScrollLock(open);
+
+  // Trap focus inside the panel, move initial focus in on open, restore on close.
+  useFocusTrap(panelRef, open);
 
   return (
     <>
@@ -51,11 +54,20 @@ export function SlidePanel({
         aria-hidden="true"
       />
 
-      {/* Panel */}
+      {/* Panel — stays mounted while closed so the slide-out transition can
+          play. `role="dialog"` stays static (a conditional role trips the
+          a11y linter's aria-prop/role check), but `aria-hidden` + `inert`
+          while closed pull it out of the accessibility tree and tab order
+          entirely, so it doesn't present as an open, focusable dialog while
+          visually hidden. `aria-modal` is dropped while closed too. */}
       <div
+        ref={panelRef}
         role="dialog"
-        aria-modal="true"
+        aria-modal={open ? "true" : undefined}
+        aria-hidden={open ? undefined : "true"}
         aria-label={title}
+        tabIndex={-1}
+        inert={open ? undefined : true}
         className={cn(
           "fixed top-0 right-0 bottom-0 z-[401]",
           "bg-[var(--surface)] border-l border-[var(--line)]",

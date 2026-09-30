@@ -6,22 +6,22 @@ import type {
   MemberRow,
   UpdateMemberInput,
 } from "@/components/settings/members/types";
-import { readApiError } from "@/lib/api/errors";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 
 export function useUpdateMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (args: UpdateMemberInput) => {
+    mutationFn: (args: UpdateMemberInput) => {
       const { id, ...patch } = args;
-      const res = await fetch(`/api/users/${id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) {
-        throw await readApiError(res, "Failed to update member");
-      }
-      return (await res.json()) as MemberRow;
+      return apiFetch<MemberRow>(
+        `/api/users/${id}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(patch),
+        },
+        "Failed to update member"
+      );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
@@ -30,18 +30,16 @@ export function useUpdateMember() {
 export function useCreateMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: CreateMemberInput) => {
-      const res = await fetch(`/api/users`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) {
-        const err = await readApiError(res, "Failed to add member");
-        throw err;
-      }
-      return (await res.json()) as MemberRow;
-    },
+    mutationFn: (input: CreateMemberInput) =>
+      apiFetch<MemberRow>(
+        "/api/users",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input),
+        },
+        "Failed to add member"
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
   });
 }

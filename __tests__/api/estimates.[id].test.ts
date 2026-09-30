@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { EstimateHasEventsError, EstimateLockedError } from "@/lib/api/errors";
+import {
+  EstimateHasEventsError,
+  EstimateLockedError,
+  HasInvoicesError,
+} from "@/lib/api/errors";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/repositories", () => ({
@@ -7,6 +11,7 @@ vi.mock("@/lib/repositories", () => ({
   saveEstimate: vi.fn(),
   deleteEstimate: vi.fn(),
   rotateApprovalToken: vi.fn(),
+  estimateHasApprovalToken: vi.fn(),
 }));
 
 const stubSession = { user: { id: "u1", orgId: "org1", role: "lead" } };
@@ -22,8 +27,13 @@ vi.mock("next/server", async (importOriginal) => {
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
 });
 
-const { getEstimate, saveEstimate, deleteEstimate, rotateApprovalToken } =
-  await import("@/lib/repositories");
+const {
+  getEstimate,
+  saveEstimate,
+  deleteEstimate,
+  rotateApprovalToken,
+  estimateHasApprovalToken,
+} = await import("@/lib/repositories");
 const { GET, PATCH, DELETE } = await import("@/app/api/estimates/[id]/route");
 const { POST: tokenPOST } = await import(
   "@/app/api/estimates/[id]/approval-token/route"
@@ -33,9 +43,11 @@ const mockGetEstimate = vi.mocked(getEstimate);
 const mockSaveEstimate = vi.mocked(saveEstimate);
 const mockDeleteEstimate = vi.mocked(deleteEstimate);
 const mockRotate = vi.mocked(rotateApprovalToken);
+const mockHasToken = vi.mocked(estimateHasApprovalToken);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockHasToken.mockResolvedValue(false);
 });
 
 describe("GET /api/estimates/[id]", () => {
@@ -57,6 +69,21 @@ describe("GET /api/estimates/[id]", () => {
       params({ id: "99" })
     );
     expect(res.status).toBe(404);
+  });
+
+  it("carries only the hasApprovalToken flag, never the raw token", async () => {
+    // Shape mirrors the real repo's select (no `approvalToken` key at all —
+    // see ESTIMATE_DETAILS_SELECT in estimateRepo.ts).
+    // biome-ignore lint/suspicious/noExplicitAny: test stub
+    mockGetEstimate.mockResolvedValue({ id: 1, status: "sent" } as any);
+    mockHasToken.mockResolvedValue(true);
+    const res = await GET(
+      makeRequest("GET", "http://x/api/estimates/1"),
+      params({ id: "1" })
+    );
+    const body = await res.json();
+    expect(body).not.toHaveProperty("approvalToken");
+    expect(body.hasApprovalToken).toBe(true);
   });
 });
 
@@ -81,6 +108,37 @@ describe("PATCH /api/estimates/[id]", () => {
     );
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+  });
+
+  // Issue #288: the general-purpose PATCH must not be able to forge an
+  // approval/decline — that bypasses the EstimateApproval consent record and
+  // the supersede-siblings invariant, which only exist in
+  // approveEstimateByToken / declineEstimateByToken. Rejected at the zod
+  // layer before saveEstimate is ever called.
+  it.each([
+    "approved",
+    "declined",
+  ] as const)("rejects a direct status=%s patch with VALIDATION_FAILED and never calls saveEstimate", async (status) => {
+    const res = await PATCH(
+      makeRequest("PATCH", "http://x/api/estimates/1", { status }),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("VALIDATION_FAILED");
+    expect(mockSaveEstimate).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "draft",
+    "sent",
+  ] as const)("still allows a legitimate direct status=%s transition", async (status) => {
+    mockSaveEstimate.mockResolvedValue({ id: 1, status } as never);
+    const res = await PATCH(
+      makeRequest("PATCH", "http://x/api/estimates/1", { status }),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(200);
+    expect(mockSaveEstimate).toHaveBeenCalledWith(1, "org1", { status });
   });
 
   it("rejects depositPct out of range with VALIDATION_FAILED", async () => {
@@ -133,6 +191,29 @@ describe("DELETE /api/estimates/[id]", () => {
     const body = await res.json();
     expect(body.error.code).toBe("ESTIMATE_HAS_EVENTS");
     expect(body.error.message).toContain("2");
+  });
+
+  it("returns NOT_FOUND when deleteEstimate returns false", async () => {
+    mockDeleteEstimate.mockResolvedValue(false);
+    const res = await DELETE(
+      makeRequest("DELETE", "http://x/api/estimates/99"),
+      params({ id: "99" })
+    );
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error.code).toBe("NOT_FOUND");
+  });
+
+  it("maps HasInvoicesError to HAS_INVOICES 409", async () => {
+    mockDeleteEstimate.mockRejectedValue(new HasInvoicesError(3));
+    const res = await DELETE(
+      makeRequest("DELETE", "http://x/api/estimates/1"),
+      params({ id: "1" })
+    );
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("HAS_INVOICES");
+    expect(body.error.message).toContain("3");
   });
 });
 

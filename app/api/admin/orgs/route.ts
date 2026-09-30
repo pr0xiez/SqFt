@@ -10,7 +10,6 @@
 import { z } from "zod";
 import { apiRoute } from "@/lib/api/route";
 import { createOrganization } from "@/lib/onboarding/createOrganization";
-import { ADMIN_ORGS_LIST_CAP } from "@/lib/pagination/constants";
 import { prisma } from "@/lib/prisma";
 
 const ORG_SELECT = {
@@ -28,7 +27,6 @@ export const GET = apiRoute({ superAdmin: true }, async () => {
   const rows = await prisma.organization.findMany({
     select: ORG_SELECT,
     orderBy: { createdAt: "desc" },
-    take: ADMIN_ORGS_LIST_CAP,
   });
   return rows.map((r) => ({
     id: r.id,
