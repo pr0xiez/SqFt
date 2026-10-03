@@ -12,7 +12,7 @@ import { EmailTakenError, NotFoundError } from "@/lib/api/errors";
 import { apiRoute } from "@/lib/api/route";
 import {
   createUser,
-  findByEmail,
+  findOrgUserByEmail,
   getOrgById,
   listUsers,
 } from "@/lib/repositories";
@@ -31,7 +31,8 @@ export const POST = apiRoute(
     const { orgId } = params as { orgId: string };
     if (!(await getOrgById(orgId)))
       throw new NotFoundError("Organization not found");
-    if (await findByEmail(input.email)) throw new EmailTakenError();
+    if (await findOrgUserByEmail(orgId, input.email))
+      throw new EmailTakenError();
     const password = await bcrypt.hash(input.password, 10);
     return createUser(orgId, {
       name: input.name,

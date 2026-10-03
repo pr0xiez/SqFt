@@ -1,9 +1,5 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import {
-  EmailTakenError,
-  LastAdminError,
-  NotFoundError,
-} from "@/lib/api/errors";
+import { ConflictError, LastAdminError, NotFoundError } from "@/lib/api/errors";
 import { prisma } from "@/lib/prisma";
 import type { UserPatchInput } from "@/lib/users/schema";
 
@@ -56,22 +52,34 @@ export async function createUser(
       select: USER_SELECT,
     });
   } catch (err) {
-    // Callers pre-flight-check email uniqueness via findByEmail, but that's
-    // a TOCTOU window under concurrency: two requests can both pass the
-    // check and race to insert, and the loser hits the User.email unique
-    // index. Catch that here and surface the same typed error instead of
-    // letting a raw P2002 bubble up as a 500.
+    // Callers pre-flight-check same-org duplicates via findOrgUserByEmail, but
+    // User.email is globally unique, so P2002 can also mean the email belongs
+    // to ANOTHER org (or a concurrent insert raced us). Surface one generic
+    // error so the response never reveals cross-tenant registration (#324).
     if (
       typeof err === "object" &&
       err !== null &&
       (err as { code?: string }).code === "P2002"
     ) {
-      throw new EmailTakenError();
+      throw new ConflictError(
+        "Unable to create a user with these details.",
+        "USER_CREATE_FAILED"
+      );
     }
     throw err;
   }
 }
 
+/** Org-scoped email lookup — use for tenant-facing duplicate checks so the
+ *  result never reveals users in other orgs. */
+export function findOrgUserByEmail(orgId: string, email: string) {
+  return prisma.user.findFirst({
+    where: { orgId, email },
+    select: { id: true },
+  });
+}
+
+/** Global (cross-org) lookup. NOT for tenant-facing responses (see #324). */
 export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }

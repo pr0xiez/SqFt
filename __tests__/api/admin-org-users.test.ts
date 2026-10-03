@@ -5,7 +5,7 @@ vi.mock("@/lib/repositories", () => ({
   getOrgById: vi.fn(),
   listUsers: vi.fn(),
   createUser: vi.fn(),
-  findByEmail: vi.fn(),
+  findOrgUserByEmail: vi.fn(),
   applyUserPatch: vi.fn(),
 }));
 vi.mock("bcryptjs", () => ({
@@ -142,20 +142,24 @@ describe("POST /api/admin/orgs/[orgId]/users", () => {
     asSuperAdmin();
     // biome-ignore lint/suspicious/noExplicitAny: partial stub
     vi.mocked(repos.getOrgById).mockResolvedValueOnce({ id: "org1" } as any);
-    vi.mocked(repos.findByEmail).mockResolvedValueOnce(
+    vi.mocked(repos.findOrgUserByEmail).mockResolvedValueOnce(
       // biome-ignore lint/suspicious/noExplicitAny: partial stub
       { id: "existing" } as any
     );
     const res = await POST(makeRequest("POST", "http://localhost/", body), p);
     expect(res.status).toBe(409);
     expect((await res.json()).error.code).toBe("EMAIL_TAKEN");
+    expect(repos.findOrgUserByEmail).toHaveBeenCalledWith(
+      "org1",
+      "new@org.test"
+    );
   });
 
   it("201 creates the user in the TARGET org with a hashed, lowercased email", async () => {
     asSuperAdmin();
     // biome-ignore lint/suspicious/noExplicitAny: partial stub
     vi.mocked(repos.getOrgById).mockResolvedValueOnce({ id: "org1" } as any);
-    vi.mocked(repos.findByEmail).mockResolvedValueOnce(null);
+    vi.mocked(repos.findOrgUserByEmail).mockResolvedValueOnce(null);
     vi.mocked(repos.createUser).mockResolvedValueOnce(
       // biome-ignore lint/suspicious/noExplicitAny: partial stub
       { id: "m2", email: "new@org.test" } as any
