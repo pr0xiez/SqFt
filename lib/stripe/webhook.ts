@@ -1,6 +1,8 @@
 import type Stripe from "stripe";
 import { StripeWebhookInvalidError } from "@/lib/api/errors";
+import { logError } from "@/lib/logger";
 import { round2 } from "@/lib/money";
+import type { ChargeFees } from "./chargeFees";
 import { getStripe } from "./client";
 
 export interface WebhookDeps {
@@ -43,15 +45,15 @@ export interface WebhookDeps {
     amount: number;
     reason: "unknown_account" | "missing_invoice_metadata";
   }): Promise<void>;
-  /** Fetch the charge + balance-transaction fee/net for a payment intent (on the connected account). */
+  /**
+   * Fetch the charge + balance-transaction fee/net for a payment intent (on
+   * the connected account), briefly re-reading while the balance transaction
+   * lags the charge. fee/net are null if it's still unreadable.
+   */
   retrieveCharge(
     accountId: string,
     paymentIntentId: string
-  ): Promise<{
-    id: string | null;
-    balanceFee: number | null;
-    balanceNet: number | null;
-  }>;
+  ): Promise<ChargeFees>;
 }
 
 /** Verify signature → typed event. Throws StripeWebhookInvalidError on mismatch. */
@@ -79,6 +81,11 @@ const PAYING_SESSION_EVENTS = new Set<string>([
 
 const ASYNC_PAYMENT_FAILED = "checkout.session.async_payment_failed";
 const PAYMENT_INTENT_SUCCEEDED = "payment_intent.succeeded";
+
+/** How long (by `event.created`) an event whose charge still has no readable
+ * balance transaction keeps being retried for fee/net. Past it, give up so one
+ * odd charge can't keep the endpoint failing for days. */
+const BALANCE_TX_RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** Every event type this handler acts on; anything else is a no-op. */
 function isHandledEvent(type: string): boolean {
@@ -156,7 +163,11 @@ async function recordFailure(fields: EventFields, deps: WebhookDeps) {
 }
 
 /** Money is confirmed and attributable to an invoice — record it. */
-async function recordSettlement(fields: EventFields, deps: WebhookDeps) {
+async function recordSettlement(
+  event: Stripe.Event,
+  fields: EventFields,
+  deps: WebhookDeps
+) {
   // fields.orgId is non-null here (checked by the caller's guard).
   const orgId = fields.orgId as string;
   const charge = await deps.retrieveCharge(
@@ -179,6 +190,25 @@ async function recordSettlement(fields: EventFields, deps: WebhookDeps) {
     feeAmount: charge.balanceFee,
     netAmount: charge.balanceNet,
   });
+  // Money first, fee/net eventually. A balance transaction that still isn't
+  // readable (Stripe lag outlasting retrieveCharge's brief re-read) left
+  // fee/net null on the payment just recorded. Throw AFTER recording so this
+  // event isn't marked processed and Stripe redelivers it; the redelivery's
+  // record() backfills fee/net onto the existing row (recordStripePayment).
+  // Past the retry window, log and let the event be marked processed instead.
+  if (charge.balanceFee === null || charge.balanceNet === null) {
+    const ageMs = Date.now() - event.created * 1000;
+    if (ageMs < BALANCE_TX_RETRY_WINDOW_MS) {
+      throw new Error(
+        `Stripe charge ${charge.id} has no readable balance transaction yet; payment recorded, will retry for fee/net`
+      );
+    }
+    logError({
+      path: "lib/stripe/webhook#recordSettlement",
+      orgId,
+      errorMessage: `Stripe charge ${charge.id} (invoice ${fields.invoiceId}) still has no readable balance transaction ${Math.round(ageMs / 3_600_000)}h after event ${event.id}; giving up, fee/net stay empty`,
+    });
+  }
 }
 
 /** Money moved but we can't book it: either no org owns event.account, or
@@ -219,7 +249,7 @@ export async function handleStripeEvent(
       fields.orgId &&
       fields.amountTotal > 0
     ) {
-      await recordSettlement(fields, deps);
+      await recordSettlement(event, fields, deps);
     } else if (
       fields.sessionPaid &&
       fields.paymentIntentId &&

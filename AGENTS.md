@@ -112,17 +112,21 @@ with the file that owns it.
   whether the user or Stripe is the one holding up onboarding, and *which*
   requirements failed; `readAccountStatus` is the status-only read used on the
   customer checkout path), `connectPhase.ts` (**client-safe, no SDK import** —
-  the `connectPhase`/`connectPollInterval` selector shared by
-  `PaymentsSettingsView` and `useStripeConnect`, plus the
-  `StripeConnectStatus` wire type), `checkout.ts` (`buildCheckoutParams`,
-  `createInvoiceCheckoutSession` — creates the Checkout Session on the
-  connected account), `webhook.ts` (`constructStripeEvent`,
-  `handleStripeEvent` — signature-verified event handler). The admin Stripe
-  onboarding surface is `/settings/payments` (`app/(app)/settings/payments`,
-  admin-gated inline — `(app)` is the authed builder route group, not
-  `(admin)`); after returning from Stripe onboarding it polls the connect
-  status briefly (bounded window, see `PaymentsSettingsView`) instead of going
-  silent. The raw-body webhook receiver is
+  the `connectPhase`/`connectPollInterval` selector and the post-onboarding
+  `STRIPE_CONNECT_POLL_SCHEDULE`, shared by `PaymentsSettingsView` and
+  `useStripeConnect`, plus the `StripeConnectStatus` wire type),
+  `checkout.ts` (`buildCheckoutParams` — card + ACH + Link only via
+  `EXCLUDED_PAYMENT_METHOD_TYPES`; `createInvoiceCheckoutSession` — creates
+  the Checkout Session on the connected account), `chargeFees.ts` (charge →
+  fee/net from its balance transaction, with a brief re-read while the
+  balance transaction lags; shared by the webhook and confirm routes),
+  `webhook.ts` (`constructStripeEvent`, `handleStripeEvent` —
+  signature-verified event handler). The admin Stripe onboarding surface is
+  `/settings/payments` (`app/(app)/settings/payments`, admin-gated inline —
+  `(app)` is the authed builder route group, not `(admin)`); after returning
+  from Stripe onboarding it polls the connect status on a backoff for up to
+  10 minutes (`STRIPE_CONNECT_POLL_SCHEDULE`) instead of going silent. The
+  raw-body webhook receiver is
   `app/api/webhooks/stripe/route.ts` (allowlisted in `lib/publicRoutes.ts`).
 - `lib/request.ts` — low-level HTTP request helpers shared by public routes/
   pages, currently `getClientIp` (prefers Vercel's platform-populated
@@ -221,6 +225,19 @@ with the file that owns it.
   This invariant holds by construction via the dev/prod DB split — test keys
   in dev, live keys in production. An org onboarded in production must
   re-onboard in any test environment (or seed a fresh test-mode account).
+  Switching the *platform* Stripe account orphans every stored
+  `stripeConnectAccountId` — null it (plus `stripeConnectStatus` /
+  `stripeConnectOnboardedAt`) or the org's connect route errors and it can't
+  re-onboard.
+- **Stripe environments & webhooks.** Production uses the live `ahall.tech`
+  account; staging, previews and local dev share the general sandbox "ahall.tech
+  sandbox" (`acct_1UMURqIm0PFpl3bb`), not the account's built-in test mode.
+  Webhooks are Connect-scoped (`connect: true`) v1 endpoints pinned to the SDK's
+  API version. Vercel Authentication 401s Stripe on protected deployments
+  (staging.sqft.dev, previews), so the staging endpoint URL carries
+  `?x-vercel-protection-bypass=` with its own bypass secret (not the Playwright
+  one); previews have no webhook and rely on reconcile-on-return. Locally:
+  `stripe listen --forward-connect-to localhost:3000/api/webhooks/stripe`.
 - **React-query persistence is opt-in.** `lib/queryCache.ts` only permits the
   reviewed `line-item-templates` configuration family in localStorage for 24
   hours. New query families default to in-memory only; customer, financial,

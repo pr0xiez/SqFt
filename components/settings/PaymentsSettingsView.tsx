@@ -9,17 +9,11 @@ import {
   useStripeConnect,
 } from "@/lib/hooks/useStripeConnect";
 import type { ConnectRequirementIssue } from "@/lib/stripe/connect";
-import { connectPhase, connectPhasePolls } from "@/lib/stripe/connectPhase";
-
-/**
- * How long the page keeps polling after returning from Stripe onboarding.
- * Test-mode verification settles in well under a minute; live-mode identity
- * checks can take hours, so this window is a courtesy for the fast path, not a
- * guarantee — after it closes the user still has the "Check status" button.
- * (A Connect webhook would remove the need to poll at all; see the note in
- * docs/superpowers/specs/2026-06-28-stripe-payments-design.md.)
- */
-const POLL_WINDOW_MS = 2 * 60 * 1000;
+import {
+  connectPhase,
+  connectPhasePolls,
+  STRIPE_CONNECT_POLL_WINDOW_MS,
+} from "@/lib/stripe/connectPhase";
 
 const STRIPE_DASHBOARD_URL = "https://dashboard.stripe.com";
 
@@ -69,14 +63,17 @@ function IssueList({ issues }: { issues: ConnectRequirementIssue[] }) {
 
 export function PaymentsSettingsView() {
   const qc = useQueryClient();
-  const [polling, setPolling] = useState(false);
+  // When the post-onboarding poll window opened (epoch ms); null when closed.
+  // The hook polls on the backoff schedule in `connectPollInterval` while this
+  // is set; clearing it at the window's end is what flips the copy back.
+  const [pollWindowOpenedAt, setPollWindowOpenedAt] = useState<number | null>(
+    null
+  );
   // Tracks the MANUAL check only. `isFetching` is also true for every
-  // background poll, so using it here disabled the button every 5 seconds —
+  // background poll, so using it here disabled the button on every tick —
   // silently dropping clicks and blurring it out from under keyboard users.
   const [checking, setChecking] = useState(false);
-  const { data, isError, refetch } = useStripeConnect({
-    pollWhileVerifying: polling,
-  });
+  const { data, isError, refetch } = useStripeConnect({ pollWindowOpenedAt });
   const start = useStartStripeOnboarding();
 
   useEffect(() => {
@@ -84,9 +81,9 @@ export function PaymentsSettingsView() {
     const onboarding = params.get("onboarding");
     if (onboarding !== "return" && onboarding !== "refresh") return;
 
-    // Consume the flag. Leaving it in the URL re-armed a fresh polling window
-    // — and up to 24 more live Stripe reads — on every reload or back
-    // navigation to this page, forever.
+    // Consume the flag. Leaving it in the URL re-armed a fresh ten-minute
+    // polling window — and dozens more live Stripe reads — on every reload or
+    // back navigation to this page, forever.
     params.delete("onboarding");
     const qs = params.toString();
     window.history.replaceState(
@@ -101,10 +98,23 @@ export function PaymentsSettingsView() {
     // is being verified, and nothing can change until a new link is minted, so
     // there is nothing to watch for. Only `return` opens a polling window.
     if (onboarding !== "return") return;
-    setPolling(true);
-    const timer = setTimeout(() => setPolling(false), POLL_WINDOW_MS);
-    return () => clearTimeout(timer);
+    setPollWindowOpenedAt(Date.now());
   }, [qc]);
+
+  // Close the window at its end. Its own effect, keyed on the window rather
+  // than on the URL flag: the flag is consumed on first sight, so a timer owned
+  // by the effect above was cancelled by Strict Mode's dev-only remount and
+  // never re-armed, leaving the window open for good.
+  useEffect(() => {
+    if (pollWindowOpenedAt === null) return;
+    const remaining =
+      pollWindowOpenedAt + STRIPE_CONNECT_POLL_WINDOW_MS - Date.now();
+    const timer = setTimeout(
+      () => setPollWindowOpenedAt(null),
+      Math.max(0, remaining)
+    );
+    return () => clearTimeout(timer);
+  }, [pollWindowOpenedAt]);
 
   const checkNow = useCallback(async () => {
     setChecking(true);
@@ -119,7 +129,8 @@ export function PaymentsSettingsView() {
   const issues = data?.requirements?.issues ?? [];
   // Only promise self-updating copy when a poll is genuinely scheduled: the
   // window can still be open in a phase that has nothing to watch for.
-  const autoUpdating = polling && connectPhasePolls(phase, data);
+  const autoUpdating =
+    pollWindowOpenedAt !== null && connectPhasePolls(phase, data);
 
   const setupButton = (label: string) => (
     <Button
@@ -182,10 +193,13 @@ export function PaymentsSettingsView() {
           </div>
         );
 
-      // Before the requirement flags: payments are PAUSED, and the dashboard
-      // link here is the only way to find out why. An account Stripe happens to
-      // be re-reviewing is still a restricted account.
-      case "restricted":
+      // Only an account that was active before lands here (a never-active one
+      // gets the onboarding cards; see connectPhase). Its payments are PAUSED,
+      // and the dashboard link is the only way to find out why. One Stripe
+      // happens to be re-reviewing is still a restricted account — and then
+      // the copy points at "the button below", so Check status must be here.
+      case "restricted": {
+        const inReview = data?.requirements?.inReview === true;
         return (
           <div>
             <Title>Your Stripe account is restricted</Title>
@@ -194,16 +208,18 @@ export function PaymentsSettingsView() {
               Stripe has paused payments on this account, so customers
               can&apos;t pay invoices online right now. Open the Stripe
               dashboard to see what it needs, or re-run the setup.
-              {data?.requirements?.inReview
+              {inReview
                 ? ` Stripe is still reviewing what you submitted.${updateNote}`
                 : ""}
             </Body>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {setupButton("Continue setup")}
+              {inReview ? checkButton : null}
               <DashboardLink />
             </div>
           </div>
         );
+      }
 
       case "action-due":
         return (

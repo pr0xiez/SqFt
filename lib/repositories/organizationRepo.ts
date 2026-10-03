@@ -155,6 +155,22 @@ export async function getOrgStripe(orgId: string) {
 }
 
 /**
+ * The admin payments page's read: the connected account, and whether it has
+ * ever been active (`stripeConnectOnboardedAt` non-null — see
+ * {@link setOrgConnectStatus}). Kept apart from {@link getOrgStripe}, which
+ * serves the customer pay path and has no use for the stamp.
+ */
+export async function getOrgConnectOnboarding(orgId: string) {
+  return prisma.organization.findUniqueOrThrow({
+    where: { id: orgId },
+    select: {
+      stripeConnectAccountId: true,
+      stripeConnectOnboardedAt: true,
+    },
+  });
+}
+
+/**
  * Resolve the org that owns a Stripe connected account. The webhook trusts
  * `event.account` (signed) — not caller-supplied metadata — so this is the
  * authoritative org for a payment. Returns null when no org owns the account.
@@ -169,6 +185,12 @@ export async function getOrgIdByConnectAccount(
   return org?.id ?? null;
 }
 
+/**
+ * Attach a newly created connected account. Resets the onboarding stamp: it
+ * describes the attached account, and a fresh one has never been active —
+ * inheriting a previous account's stamp (an org re-onboarding, e.g. in a
+ * test-mode environment) would present its onboarding as "payments paused".
+ */
 export async function setOrgConnectAccount(
   orgId: string,
   accountId: string,
@@ -176,26 +198,36 @@ export async function setOrgConnectAccount(
 ) {
   await prisma.organization.update({
     where: { id: orgId },
-    data: { stripeConnectAccountId: accountId, stripeConnectStatus: status },
+    data: {
+      stripeConnectAccountId: accountId,
+      stripeConnectStatus: status,
+      stripeConnectOnboardedAt: null,
+    },
   });
 }
 
 /**
- * Write-through cache of the account's capability status.
+ * Write-through cache of the account's capability status, plus the
+ * `stripeConnectOnboardedAt` stamp the settings page reads as "this account
+ * has been active before". Every `active` write stamps it, whoever the caller
+ * — the checkout route passes no date, and an activation only it observed must
+ * still count — and nothing here ever clears it, so a later restriction reads
+ * as paused payments rather than unfinished onboarding. (Re-activation after a
+ * restriction re-stamps it; only attaching a new account resets it.)
  *
  * Guarded so an unchanged status writes nothing: the settings page refreshes
- * this on every poll (up to ~24 in a post-onboarding window), and all but the
- * one poll that actually moves the status would otherwise spend a round trip
- * and a row lock rewriting an identical string on the response's critical path.
- * `updateMany` is deliberate — it no-ops instead of throwing when the WHERE
- * doesn't match, which is exactly the "nothing changed" case.
+ * this on every poll (a few dozen in a post-onboarding window), and all but
+ * the one poll that actually moves the status would otherwise spend a round
+ * trip and a row lock rewriting an identical string on the response's
+ * critical path. `updateMany` is deliberate — it no-ops instead of throwing
+ * when the WHERE doesn't match, which is exactly the "nothing changed" case.
  */
 export async function setOrgConnectStatus(
   orgId: string,
   status: ConnectStatus,
-  onboardedAt?: Date
+  onboardedAt: Date = new Date()
 ) {
-  const stampOnboardedAt = status === "active" && onboardedAt !== undefined;
+  const stampOnboardedAt = status === "active";
   await prisma.organization.updateMany({
     where: {
       id: orgId,

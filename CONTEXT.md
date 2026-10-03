@@ -324,7 +324,12 @@ the same file.
 
 Homeowners pay the exact invoice balance via a Stripe-hosted **Checkout
 Session** created on the org's Stripe Connect account (direct charge; the
-contractor bears the processing fee — no surcharge to the homeowner). The
+contractor bears the processing fee — no surcharge to the homeowner).
+Checkout is limited to card (incl. Apple Pay / Google Pay) + ACH debit
+(`us_bank_account`) + Link via `excluded_payment_method_types`
+(`EXCLUDED_PAYMENT_METHOD_TYPES` in `lib/stripe/checkout.ts`; never
+`payment_method_types`), so the BNPL, wallet and local-currency methods a
+contractor switches on in their own Stripe Dashboard never appear. The
 session is created from the public `/invoice-review/[token]` page and
 resolves on the contractor's connected account (Accounts v2, full dashboard,
 Stripe as fees+losses collector). Payment is recorded into the `Payment` ledger
@@ -365,10 +370,17 @@ metadata — is parked in the queryable **`StripeAnomaly`** table (`recordAnomal
 keyed on the Stripe event id) + `logError` before the event is marked processed,
 so it's reconcilable, never lost. The stale-session double-collection window is
 capped by a 30-min-bucketed Checkout `expires_at`; the idempotency key carries
-the same bucket (`inv-{id}-bal-{cents}-{bucket}`) so re-clicks replay one session
+the same bucket (`inv-{id}-bal-{cents}-{bucket}-{CHECKOUT_PARAMS_VERSION}`) so re-clicks replay one session
 while a new bucket or changed balance mints a fresh one. `Payment` carries
 `stripeFeeAmount` / `stripeNetAmount` (dollars, captured from the charge's balance
-transaction on the connected account). Manual payment recording (cash, check,
+transaction on the connected account) — eventually: that balance transaction can
+trail the charge by seconds, so both paths re-read briefly (`retryForBalance`,
+`lib/stripe/chargeFees.ts`) and otherwise still record the money with null
+fee/net; `recordStripePayment` backfills a null pair from any later delivery of
+the same charge (never overwriting a captured one), and the webhook forces such
+a delivery by throwing *after* recording (not marked processed → Stripe
+redelivers) until the event is 24h old, then gives up with a `logError`
+(`recordSettlement`, `lib/stripe/webhook.ts`). Manual payment recording (cash, check,
 card, ACH) also remains via the builder's Record-payment dialog. Each payment
 recomputes the invoice status from the ledger via `nextInvoiceStatus`
 (`lib/repositories/invoiceRepo.ts`), which reads "was this ever viewed" off
@@ -393,12 +405,26 @@ presents as a retryable "Continue setup". The column is a **write-through cache
 for the public pay path only** — `/invoice-review/[token]` gates its Pay button
 on it — so both the admin settings route and the checkout route re-read Stripe
 live: a cached `active` that is never re-checked hides a later restriction from
-the contractor until a customer's payment fails. There is **no `account.updated`
-webhook** (Accounts-v2 status changes arrive as v2 core events, which SqFt does
-not subscribe to), so `/settings/payments` polls for a bounded window after
-onboarding returns. `connectPhase` (`lib/stripe/connectPhase.ts`) is the one
-selector both the page's card and the poller's stop condition read, so the copy
-and the polling cannot disagree. `summarizeRequirements` collapses Stripe's
+the contractor until a customer's payment fails. `restricted` alone is
+ambiguous — Stripe also reports a brand-new account as restricted while its
+onboarding requirements are due or being verified — so
+`Organization.stripeConnectOnboardedAt` is the **"ever active" stamp**:
+`setOrgConnectStatus` sets it on *every* `active` write (whoever the caller) and
+never clears it; only `setOrgConnectAccount` resets it, for a newly attached
+account (`lib/repositories/organizationRepo.ts`). The settings GET exposes it as
+`everActive` (`StripeConnectStatus`), and only an `everActive` account gets the
+"payments paused" restricted card — which then outranks the requirement flags;
+a never-active restricted account gets the onboarding cards (action-due /
+in-review / finish-setup) instead. There is **no `account.updated` webhook**
+(Accounts-v2 status changes arrive as v2 core events, which SqFt does not
+subscribe to), so after `?onboarding=return` (never `refresh`)
+`/settings/payments` polls on a **backoff** — every 5 s for the first 2 min,
+then every 20 s until 10 min, then stops (`STRIPE_CONNECT_POLL_SCHEDULE`; each
+poll is one live Stripe read). `connectPhase` (`lib/stripe/connectPhase.ts`) is
+the one selector both the page's card and the poller read —
+`connectPollInterval(phase, data, elapsedMs)` combines "is this phase waiting on
+Stripe" with the schedule — so the copy and the polling cannot disagree.
+`summarizeRequirements` collapses Stripe's
 requirement entries to `{ actionDue, inReview, issues }`: `actionDue` keys on
 `minimum_deadline` (an `eventually_due` requirement is future work and blocks
 nothing), and `issues` carries *every* failure for the side that is actually
@@ -685,6 +711,14 @@ Domain codes:
 - `STRIPE_ACCOUNT_RESTRICTED` (409) — the org's Stripe Connect account exists
   but is not yet enabled for charges (onboarding incomplete). Same route as
   above.
+- `STRIPE_CHECKOUT_UNAVAILABLE` (503) — Stripe refused or couldn't be reached
+  while starting checkout (the live account-status re-check or the session
+  create), for a reason other than a restricted account (platform-key
+  permission or auth, network, rate limit, outage). The
+  homeowner gets a try-later message; the route logs the Stripe error (type /
+  code / request id, via `describeStripeError` in `lib/stripe/checkout.ts`).
+  A non-Stripe failure stays `INTERNAL`. Thrown by the checkout-session route
+  (`app/api/invoice-review/[token]/checkout`).
 - `INVOICE_ALREADY_PAID` (409) — the invoice is already fully paid (or has no
   remaining balance) when a Stripe checkout session is requested. Thrown by the
   checkout-session route (`app/api/invoice-review/[token]/checkout`).

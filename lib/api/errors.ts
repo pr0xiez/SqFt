@@ -175,6 +175,24 @@ export class StripeAccountRestrictedError extends ConflictError {
   }
 }
 
+/**
+ * Stripe refused (or couldn't be reached) while creating a Checkout Session,
+ * for a reason other than the account being restricted: a platform key missing
+ * a permission, a revoked key, a network failure, a rate limit, a Stripe
+ * outage. Nothing the homeowner can fix — they get a customer-safe message,
+ * and the checkout route logs the underlying Stripe error.
+ */
+export class StripeCheckoutUnavailableError extends ApiError {
+  constructor() {
+    super({
+      code: "STRIPE_CHECKOUT_UNAVAILABLE",
+      status: 503,
+      message:
+        "Online payment isn't available right now. Please try again later or contact the business.",
+    });
+  }
+}
+
 export class InvoiceAlreadyPaidError extends ConflictError {
   constructor() {
     super("This invoice is already paid.", "INVOICE_ALREADY_PAID");

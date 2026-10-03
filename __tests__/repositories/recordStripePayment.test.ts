@@ -154,6 +154,143 @@ describe.skipIf(!process.env.VITEST_DB_AVAILABLE)("recordStripePayment", () => {
     );
     expect(flagged).toBeDefined();
   });
+
+  // ── Fee/net backfill: Stripe's balance transaction can lag the charge ──────
+
+  it("backfills fee/net from a later delivery when the first record had none, without a second payment", async () => {
+    const { orgId, invoiceId, amount } = await seedSentInvoice();
+    seededOrgIds.push(orgId);
+    const ts = `${Date.now()}-${Math.round(performance.now())}`;
+    const base = {
+      paymentIntentId: `pi_${ts}`,
+      chargeId: `ch_${ts}`,
+      orgId,
+      invoiceId,
+      amount,
+    };
+
+    // The first recorder beat the balance transaction → fee/net unknown.
+    const first = await recordStripePayment({
+      ...base,
+      feeAmount: null,
+      netAmount: null,
+    });
+    // A later delivery of the same charge (webhook redelivery / confirm) has it.
+    const later = await recordStripePayment({
+      ...base,
+      feeAmount: 14.8,
+      netAmount: 485.2,
+    });
+
+    expect(first.recorded).toBe(true);
+    expect(later).toEqual({ recorded: false, overpaid: false });
+    const inv = await getInvoice(invoiceId, orgId);
+    expect(inv?.payments).toHaveLength(1);
+    expect(inv?.payments[0]?.stripeFeeAmount).toBe(14.8);
+    expect(inv?.payments[0]?.stripeNetAmount).toBe(485.2);
+    expect(inv?.status).toBe("paid");
+    // The ledger side effects ran once — the backfill only touches fee/net.
+    const recorded = await prisma.invoiceEvent.findMany({
+      where: { invoiceId, type: "payment_recorded" },
+    });
+    expect(recorded).toHaveLength(1);
+  });
+
+  it("never overwrites a captured fee/net", async () => {
+    const { orgId, invoiceId, amount } = await seedSentInvoice();
+    seededOrgIds.push(orgId);
+    const ts = `${Date.now()}-${Math.round(performance.now())}`;
+    const base = {
+      paymentIntentId: `pi_${ts}`,
+      chargeId: `ch_${ts}`,
+      orgId,
+      invoiceId,
+      amount,
+    };
+
+    await recordStripePayment({ ...base, feeAmount: 14.8, netAmount: 485.2 });
+    // A path that missed the balance transaction, then a conflicting read.
+    await recordStripePayment({ ...base, feeAmount: null, netAmount: null });
+    await recordStripePayment({ ...base, feeAmount: 99, netAmount: 401 });
+
+    const inv = await getInvoice(invoiceId, orgId);
+    expect(inv?.payments).toHaveLength(1);
+    expect(inv?.payments[0]?.stripeFeeAmount).toBe(14.8);
+    expect(inv?.payments[0]?.stripeNetAmount).toBe(485.2);
+  });
+
+  it("does not backfill through another org's delivery of the same charge id", async () => {
+    const owner = await seedSentInvoice();
+    const other = await seedSentInvoice();
+    seededOrgIds.push(owner.orgId, other.orgId);
+    const ts = `${Date.now()}-${Math.round(performance.now())}`;
+    const chargeId = `ch_${ts}`;
+
+    await recordStripePayment({
+      paymentIntentId: `pi_${ts}`,
+      chargeId,
+      orgId: owner.orgId,
+      invoiceId: owner.invoiceId,
+      amount: owner.amount,
+      feeAmount: null,
+      netAmount: null,
+    });
+    const forged = await recordStripePayment({
+      paymentIntentId: `pi_${ts}`,
+      chargeId,
+      orgId: other.orgId,
+      invoiceId: other.invoiceId,
+      amount: other.amount,
+      feeAmount: 14.8,
+      netAmount: 485.2,
+    });
+
+    expect(forged.recorded).toBe(false);
+    const inv = await getInvoice(owner.invoiceId, owner.orgId);
+    expect(inv?.payments[0]?.stripeFeeAmount).toBeNull();
+    expect(inv?.payments[0]?.stripeNetAmount).toBeNull();
+    const otherInv = await getInvoice(other.invoiceId, other.orgId);
+    expect(otherInv?.payments).toHaveLength(0);
+  });
+
+  it("backfills fee/net when this delivery loses the insert race (P2002) to one that had none", async () => {
+    const { orgId, invoiceId, amount } = await seedSentInvoice();
+    seededOrgIds.push(orgId);
+    const ts = `${Date.now()}-${Math.round(performance.now())}`;
+    const chargeId = `ch_${ts}`;
+
+    let loser: ReturnType<typeof recordStripePayment> | undefined;
+    await prisma.$transaction(async (tx) => {
+      // The winning delivery has inserted the charge (without fee/net) but not
+      // committed: the loser's soft check can't see it, so the loser's insert
+      // blocks on the unique index and fails with P2002 once this commits.
+      await tx.payment.create({
+        data: {
+          invoiceId,
+          amount,
+          method: "stripe",
+          stripeChargeId: chargeId,
+          recordedByName: "Stripe",
+        },
+      });
+      loser = recordStripePayment({
+        paymentIntentId: `pi_${ts}`,
+        chargeId,
+        orgId,
+        invoiceId,
+        amount,
+        feeAmount: 14.8,
+        netAmount: 485.2,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+
+    await expect(loser).resolves.toEqual({ recorded: false, overpaid: false });
+    const inv = await getInvoice(invoiceId, orgId);
+    expect(inv?.payments).toHaveLength(1);
+    expect(inv?.payments[0]?.stripeFeeAmount).toBe(14.8);
+    expect(inv?.payments[0]?.stripeNetAmount).toBe(485.2);
+  });
 });
 
 describe.skipIf(!process.env.VITEST_DB_AVAILABLE)(

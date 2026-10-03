@@ -1,6 +1,7 @@
 import { apiRoute } from "@/lib/api/route";
 import { getPublicBaseUrl } from "@/lib/baseUrl";
 import {
+  getOrgConnectOnboarding,
   getOrgStripe,
   setOrgConnectAccount,
   setOrgConnectStatus,
@@ -23,26 +24,29 @@ import type { StripeConnectStatus } from "@/lib/stripe/connectPhase";
 // that fails. Refreshing unconditionally is also what keeps the requirements
 // summary from being dropped on the poll that flips an account to active.
 export const GET = apiRoute({ minRole: "admin" }, async ({ orgId }) => {
-  const org = await getOrgStripe(orgId);
+  const org = await getOrgConnectOnboarding(orgId);
   if (!org.stripeConnectAccountId) {
     const disconnected: StripeConnectStatus = {
       connected: false,
       status: null,
       requirements: null,
+      everActive: false,
     };
     return disconnected;
   }
 
   const detail = await readAccountStatusDetail(org.stripeConnectAccountId);
-  await setOrgConnectStatus(
-    orgId,
-    detail.status,
-    detail.status === "active" ? new Date() : undefined
-  );
+  // Stamps `stripeConnectOnboardedAt` when this read finds the account active.
+  await setOrgConnectStatus(orgId, detail.status);
   const body: StripeConnectStatus = {
     connected: true,
     status: detail.status,
     requirements: detail.requirements,
+    // `org` was read before the write above, so the poll that first finds the
+    // account active counts too. The stamp is what lets the page tell a
+    // restriction on a once-live account from a new account mid-onboarding.
+    everActive:
+      detail.status === "active" || org.stripeConnectOnboardedAt !== null,
   };
   return body;
 });
