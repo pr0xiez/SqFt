@@ -2,6 +2,13 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import { OPEN_ESTIMATE_STATUSES } from "@/lib/estimateStatus";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Stored in EstimateApproval.ip/userAgent (NOT NULL) when client metadata is
+ * absent. EstimateEvent keeps a real null. Drop this once those columns are
+ * made nullable in a migration.
+ */
+export const APPROVAL_META_FALLBACK = "unknown";
+
 export interface ApproveEstimateInput {
   estimateId: number;
   // Client metadata is nullable (see lib/http/clientMeta.ts) to match the
@@ -48,10 +55,10 @@ export async function approveEstimateByToken(
       await tx.estimateApproval.create({
         data: {
           estimateId: input.estimateId,
-          // NOT NULL columns: fall back to a sentinel when the caller has no
-          // client metadata rather than storing null end-to-end.
-          ip: input.ip ?? "unknown",
-          userAgent: input.userAgent ?? "unknown",
+          // NOT NULL columns (changing them needs a migration): the one
+          // place a missing value becomes a sentinel; see the constant.
+          ip: input.ip ?? APPROVAL_META_FALLBACK,
+          userAgent: input.userAgent ?? APPROVAL_META_FALLBACK,
           snapshot: input.snapshot,
         },
       });
@@ -72,7 +79,7 @@ export async function approveEstimateByToken(
     await tx.estimate.updateMany({
       where: {
         id: input.estimateId,
-        status: { in: ["draft", "sent", "viewed"] },
+        status: { in: [...OPEN_ESTIMATE_STATUSES] },
       },
       data: { status: "approved", approvedAt: new Date() },
     });

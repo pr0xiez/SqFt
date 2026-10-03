@@ -1,5 +1,7 @@
+import type { EstimateStatus } from "@/lib/estimateStatus";
+
 interface Props {
-  status: "draft" | "sent" | "viewed" | "approved" | "declined";
+  status: EstimateStatus;
   sentAt?: Date | string | null;
   approvedAt?: Date | string | null;
   declinedAt?: Date | string | null;

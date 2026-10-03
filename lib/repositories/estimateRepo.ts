@@ -8,6 +8,7 @@ import {
 import {
   ESTIMATE_STATUSES,
   isEstimateLocked,
+  OPEN_ESTIMATE_STATUSES,
   type OperatorEstimateStatus,
 } from "@/lib/estimateStatus";
 import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
@@ -805,7 +806,7 @@ export async function declineEstimateByToken(
     if (q.status === "declined") return "already_declined";
 
     await tx.estimate.updateMany({
-      where: { id: estimateId, status: { in: ["draft", "sent", "viewed"] } },
+      where: { id: estimateId, status: { in: [...OPEN_ESTIMATE_STATUSES] } },
       data: {
         status: "declined",
         declinedAt: new Date(),
