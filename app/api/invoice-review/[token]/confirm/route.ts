@@ -9,6 +9,11 @@ import {
   recordStripePayment,
 } from "@/lib/repositories/invoiceRepo";
 import { getOrgStripe } from "@/lib/repositories/organizationRepo";
+import {
+  chargeFees,
+  retrieveChargeFees,
+  retryForBalance,
+} from "@/lib/stripe/chargeFees";
 import { getStripe } from "@/lib/stripe/client";
 
 const Body = z.object({ sessionId: z.string().min(1).max(200) });
@@ -19,13 +24,14 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
     const invoice = await getInvoiceByToken(params.token);
     if (!invoice || invoice.status === "void") throw new NotFoundError();
     const org = await getOrgStripe(invoice.orgId);
-    if (!org.stripeConnectAccountId) throw new NotFoundError();
+    const accountId = org.stripeConnectAccountId;
+    if (!accountId) throw new NotFoundError();
 
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.retrieve(
       input.sessionId,
       { expand: ["payment_intent.latest_charge.balance_transaction"] },
-      { stripeAccount: org.stripeConnectAccountId }
+      { stripeAccount: accountId }
     );
     // Bind the session to THIS invoice. The session's metadata.invoiceId is set
     // by us at checkout creation; requiring it to match the token's invoice stops
@@ -69,15 +75,21 @@ export const POST = publicRoute<{ sessionId: string }, { token: string }>(
     // pi_-id here vs the real ch_-id there) and record the same charge twice.
     // Defer to the webhook.
     if (!pi?.id || !charge?.id) return { status: "pending" };
-    const bt = charge.balance_transaction ?? null;
+    // A fresh charge's balance transaction can lag it by a few seconds, so
+    // re-read briefly for fee/net. Still missing → record anyway (money
+    // first); the webhook's later delivery backfills fee/net.
+    const paymentIntentId = pi.id;
+    const fees = await retryForBalance(chargeFees(charge), () =>
+      retrieveChargeFees(stripe, accountId, paymentIntentId)
+    );
     const { overpaid } = await recordStripePayment({
-      paymentIntentId: pi.id,
+      paymentIntentId,
       chargeId: charge.id,
       orgId: invoice.orgId,
       invoiceId: invoice.id,
       amount: round2((session.amount_total ?? 0) / 100),
-      feeAmount: bt ? bt.fee / 100 : null,
-      netAmount: bt ? bt.net / 100 : null,
+      feeAmount: fees.balanceFee,
+      netAmount: fees.balanceNet,
     });
     // Mirror the payment into QBO now rather than at the next sweep — this is
     // the moment the contractor checks whether the card payment synced.

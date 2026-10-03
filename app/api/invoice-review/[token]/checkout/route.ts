@@ -2,11 +2,13 @@ import {
   InvoiceAlreadyPaidError,
   NotFoundError,
   StripeAccountRestrictedError,
+  StripeCheckoutUnavailableError,
   StripeNotConnectedError,
 } from "@/lib/api/errors";
 import { publicRoute } from "@/lib/api/route";
 import { getPublicBaseUrl } from "@/lib/baseUrl";
 import { invoiceOutstanding } from "@/lib/invoices/compute";
+import { logError, maskTokenPath } from "@/lib/logger";
 import { getInvoiceByToken } from "@/lib/repositories/invoiceRepo";
 import {
   getOrgStripe,
@@ -14,22 +16,48 @@ import {
 } from "@/lib/repositories/organizationRepo";
 import {
   buildCheckoutParams,
+  CHECKOUT_PARAMS_VERSION,
   createInvoiceCheckoutSession,
+  describeStripeError,
+  isStripeError,
 } from "@/lib/stripe/checkout";
 import { type ConnectStatus, readAccountStatus } from "@/lib/stripe/connect";
 
 export const POST = publicRoute<undefined, { token: string }>(
-  async ({ params }) => {
+  async ({ req, params }) => {
     const invoice = await getInvoiceByToken(params.token);
     if (!invoice || invoice.status === "void") throw new NotFoundError();
     if (invoice.status === "paid") throw new InvoiceAlreadyPaidError();
 
     const org = await getOrgStripe(invoice.orgId);
     if (!org.stripeConnectAccountId) throw new StripeNotConnectedError();
+
+    // A Stripe call on this path failed for a reason the homeowner can't fix:
+    // a platform key missing a permission, a revoked key, a network failure, a
+    // rate limit, an outage. Log the real cause (the wrapper doesn't log
+    // ApiErrors) and answer with the typed 503 rather than a bare "Server
+    // error". A non-Stripe error is our own bug: hand it back unchanged so the
+    // wrapper logs it and answers INTERNAL.
+    const mapStripeFailure = (step: string, err: unknown): unknown => {
+      if (!isStripeError(err)) return err;
+      logError({
+        method: req.method,
+        path: maskTokenPath(req.nextUrl.pathname),
+        orgId: invoice.orgId,
+        status: 503,
+        errorMessage: `${step} failed on ${org.stripeConnectAccountId}: ${describeStripeError(err)}`,
+      });
+      return new StripeCheckoutUnavailableError();
+    };
+
     // Re-check capability live; cache the result.
     let status = org.stripeConnectStatus as ConnectStatus | null;
     if (status !== "active") {
-      status = await readAccountStatus(org.stripeConnectAccountId);
+      try {
+        status = await readAccountStatus(org.stripeConnectAccountId);
+      } catch (err) {
+        throw mapStripeFailure("Account status read", err);
+      }
       await setOrgConnectStatus(invoice.orgId, status);
     }
     if (status !== "active") throw new StripeAccountRestrictedError();
@@ -44,7 +72,9 @@ export const POST = publicRoute<undefined, { token: string }>(
     // replay); a new bucket — or a changed balance — mints a fresh session and
     // lets any token-rotation param conflict age out. expires_at sits 3 buckets
     // ahead: constant per bucket, always 60–90 min out (above Stripe's 30-min
-    // minimum, well under the 24h max) even after request latency.
+    // minimum, well under the 24h max) even after request latency. The key's
+    // CHECKOUT_PARAMS_VERSION suffix keeps a deploy that changes the create
+    // params from colliding with keys the previous code minted this bucket.
     const BUCKET_SEC = 30 * 60;
     const bucket = Math.floor(Date.now() / 1000 / BUCKET_SEC);
     const expiresAt = (bucket + 3) * BUCKET_SEC;
@@ -64,7 +94,7 @@ export const POST = publicRoute<undefined, { token: string }>(
       const { url } = await createInvoiceCheckoutSession(
         org.stripeConnectAccountId,
         checkoutParams,
-        `inv-${invoice.id}-bal-${balanceDueCents}-${bucket}`
+        `inv-${invoice.id}-bal-${balanceDueCents}-${bucket}-${CHECKOUT_PARAMS_VERSION}`
       );
       return { url };
     } catch (err) {
@@ -90,7 +120,8 @@ export const POST = publicRoute<undefined, { token: string }>(
         // error below — a stale cache is not worth a 500 to the customer.
       }
       if (restricted) throw new StripeAccountRestrictedError();
-      throw err;
+      // Not restricted, but Stripe still said no (or couldn't be reached).
+      throw mapStripeFailure("Checkout session create", err);
     }
   }
 );

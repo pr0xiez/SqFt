@@ -9,6 +9,7 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/repositories/organizationRepo", () => ({
+  getOrgConnectOnboarding: vi.fn(),
   getOrgStripe: vi.fn(),
   setOrgConnectAccount: vi.fn(),
   setOrgConnectStatus: vi.fn(),
@@ -29,6 +30,7 @@ import type { Session } from "next-auth";
 import { GET, POST } from "@/app/api/org/stripe/connect/route";
 import { auth } from "@/lib/auth";
 import {
+  getOrgConnectOnboarding,
   getOrgStripe,
   setOrgConnectAccount,
   setOrgConnectStatus,
@@ -43,6 +45,7 @@ import { makeRequest, noParams } from "./_helpers";
 const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
+const mockGetOrgConnectOnboarding = vi.mocked(getOrgConnectOnboarding);
 const mockGetOrgStripe = vi.mocked(getOrgStripe);
 const mockSetOrgConnectAccount = vi.mocked(setOrgConnectAccount);
 const mockSetOrgConnectStatus = vi.mocked(setOrgConnectStatus);
@@ -163,6 +166,17 @@ describe("POST /api/org/stripe/connect", () => {
 });
 
 describe("GET /api/org/stripe/connect", () => {
+  /** The org row as the settings read sees it: an account, maybe a stamp. */
+  function orgWith(
+    stripeConnectAccountId: string | null,
+    stripeConnectOnboardedAt: Date | null = null
+  ) {
+    mockGetOrgConnectOnboarding.mockResolvedValueOnce({
+      stripeConnectAccountId,
+      stripeConnectOnboardedAt,
+    });
+  }
+
   it("returns 401 when no session", async () => {
     mockAuth.mockResolvedValueOnce(null);
     const res = await GET(makeRequest("GET"), noParams);
@@ -171,34 +185,24 @@ describe("GET /api/org/stripe/connect", () => {
 
   it("returns { connected: false, status: null } when no account", async () => {
     asAdmin();
-    mockGetOrgStripe.mockResolvedValueOnce({
-      name: "Acme Floors",
-      stripeConnectAccountId: null,
-      stripeConnectStatus: null,
-    });
+    orgWith(null);
 
     const res = await GET(makeRequest("GET"), noParams);
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      connected: boolean;
-      status: string | null;
-    };
-    expect(body).toEqual({
+    expect(await res.json()).toEqual({
       connected: false,
       status: null,
       requirements: null,
+      everActive: false,
     });
+    expect(mockGetOrgConnectOnboarding).toHaveBeenCalledWith("org1");
     expect(mockReadAccountStatusDetail).not.toHaveBeenCalled();
   });
 
   it("refreshes status from Stripe when account exists and status is not active", async () => {
     asAdmin();
-    mockGetOrgStripe.mockResolvedValueOnce({
-      name: "Acme Floors",
-      stripeConnectAccountId: "acct_123",
-      stripeConnectStatus: "pending",
-    });
+    orgWith("acct_123");
     mockReadAccountStatusDetail.mockResolvedValueOnce({
       status: "active",
       requirements: { actionDue: false, inReview: false, issues: [] },
@@ -207,27 +211,22 @@ describe("GET /api/org/stripe/connect", () => {
     const res = await GET(makeRequest("GET"), noParams);
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { connected: boolean; status: string };
-    expect(body).toEqual({
+    expect(await res.json()).toEqual({
       connected: true,
       status: "active",
       requirements: { actionDue: false, inReview: false, issues: [] },
+      // Not stamped yet when the row was read — this is the poll that first
+      // finds the account active, and it counts.
+      everActive: true,
     });
     expect(mockReadAccountStatusDetail).toHaveBeenCalledWith("acct_123");
-    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
-      "org1",
-      "active",
-      expect.any(Date)
-    );
+    // The repo stamps stripeConnectOnboardedAt on any active write.
+    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith("org1", "active");
   });
 
   it("surfaces the requirements summary while onboarding is incomplete", async () => {
     asAdmin();
-    mockGetOrgStripe.mockResolvedValueOnce({
-      name: "Acme Floors",
-      stripeConnectAccountId: "acct_123",
-      stripeConnectStatus: "pending",
-    });
+    orgWith("acct_123");
     const issues = [
       {
         requirement: "individual.id_number",
@@ -242,30 +241,22 @@ describe("GET /api/org/stripe/connect", () => {
     const res = await GET(makeRequest("GET"), noParams);
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { requirements: unknown };
-    expect(body).toEqual({
+    expect(await res.json()).toEqual({
       connected: true,
       status: "pending",
       requirements: { actionDue: true, inReview: false, issues },
+      everActive: false,
     });
-    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
-      "org1",
-      "pending",
-      undefined
-    );
+    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith("org1", "pending");
   });
 
-  it("still refreshes from Stripe when the cached status is active, so a later restriction surfaces", async () => {
-    // Skipping the read once the cache said "active" latched the settings page
-    // to "payments are active" permanently. A Stripe restriction after that
-    // point stayed invisible here while the public "Pay now" button — gated on
-    // the same cached value — kept sending customers to a failing checkout.
+  it("reports a never-active account as such while Stripe calls it restricted mid-onboarding", async () => {
+    // Stripe reports a brand-new account's capabilities as restricted while
+    // its onboarding requirements are due or being verified. Without the
+    // never-active signal the page told that contractor Stripe had "paused
+    // payments" on an account that had never taken one.
     asAdmin();
-    mockGetOrgStripe.mockResolvedValueOnce({
-      name: "Acme Floors",
-      stripeConnectAccountId: "acct_123",
-      stripeConnectStatus: "active",
-    });
+    orgWith("acct_123", null);
     mockReadAccountStatusDetail.mockResolvedValueOnce({
       status: "restricted",
       requirements: { actionDue: false, inReview: true, issues: [] },
@@ -274,28 +265,42 @@ describe("GET /api/org/stripe/connect", () => {
     const res = await GET(makeRequest("GET"), noParams);
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { connected: boolean; status: string };
-    expect(body).toEqual({
-      connected: true,
+    const body = (await res.json()) as { status: string; everActive: boolean };
+    expect(body.status).toBe("restricted");
+    expect(body.everActive).toBe(false);
+  });
+
+  it("still refreshes from Stripe when the cached status is active, so a later restriction surfaces", async () => {
+    // Skipping the read once the cache said "active" latched the settings page
+    // to "payments are active" permanently. A Stripe restriction after that
+    // point stayed invisible here while the public "Pay now" button — gated on
+    // the same cached value — kept sending customers to a failing checkout.
+    asAdmin();
+    orgWith("acct_123", new Date("2026-09-01T00:00:00Z"));
+    mockReadAccountStatusDetail.mockResolvedValueOnce({
       status: "restricted",
       requirements: { actionDue: false, inReview: true, issues: [] },
     });
+
+    const res = await GET(makeRequest("GET"), noParams);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      connected: true,
+      status: "restricted",
+      requirements: { actionDue: false, inReview: true, issues: [] },
+      // Stamped when it went live: this is a restriction on a once-active
+      // account — payments really are paused.
+      everActive: true,
+    });
     expect(mockReadAccountStatusDetail).toHaveBeenCalledWith("acct_123");
     // …and the cached copy the public pay path reads is downgraded with it.
-    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith(
-      "org1",
-      "restricted",
-      undefined
-    );
+    expect(mockSetOrgConnectStatus).toHaveBeenCalledWith("org1", "restricted");
   });
 
   it("carries the requirements summary on the poll that flips an account active", async () => {
     asAdmin();
-    mockGetOrgStripe.mockResolvedValueOnce({
-      name: "Acme Floors",
-      stripeConnectAccountId: "acct_123",
-      stripeConnectStatus: "pending",
-    });
+    orgWith("acct_123");
     mockReadAccountStatusDetail.mockResolvedValueOnce({
       status: "active",
       requirements: { actionDue: false, inReview: false, issues: [] },

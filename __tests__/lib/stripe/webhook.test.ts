@@ -1,5 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/logger", () => ({ logError: vi.fn() }));
+
+import { logError } from "@/lib/logger";
 import { handleStripeEvent } from "@/lib/stripe/webhook";
+
+beforeEach(() => {
+  vi.mocked(logError).mockClear();
+});
 
 function deps() {
   const record = vi.fn().mockResolvedValue({ recorded: true, overpaid: false });
@@ -273,5 +281,108 @@ describe("handleStripeEvent", () => {
     expect(d.record).not.toHaveBeenCalled();
     // NOT marked processed → the 500 makes Stripe redeliver once the charge lands.
     expect(d.markProcessed).not.toHaveBeenCalled();
+  });
+
+  // ── Fee/net when the balance transaction lags the charge ────────────────────
+  // retrieveCharge already re-read briefly; these cover what happens when the
+  // balance transaction is STILL unreadable afterwards.
+
+  const HOUR_S = 60 * 60;
+  const nowS = () => Math.floor(Date.now() / 1000);
+  const noBalanceTx = { id: "ch_1", balanceFee: null, balanceNet: null };
+
+  it.each([
+    ["a fresh", 0],
+    ["a 23h-old", 23 * HOUR_S],
+  ])("records the payment, then forces a retry, for %s event whose balance transaction is still missing", async (_label, ageS) => {
+    const d = deps();
+    d.retrieveCharge = vi.fn().mockResolvedValue(noBalanceTx);
+    await expect(
+      handleStripeEvent(recordableEvent({ created: nowS() - ageS }), d)
+    ).rejects.toThrow(/balance transaction/);
+    // Money first: the payment is recorded now, with fee/net unknown…
+    expect(d.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chargeId: "ch_1",
+        amount: 450,
+        feeAmount: null,
+        netAmount: null,
+      })
+    );
+    // …but the event is NOT marked processed → the 500 makes Stripe redeliver.
+    expect(d.markProcessed).not.toHaveBeenCalled();
+  });
+
+  it("on redelivery with the balance transaction readable, hands fee/net to record (backfill) and marks processed", async () => {
+    const d = deps();
+    d.retrieveCharge = vi
+      .fn()
+      .mockResolvedValueOnce(noBalanceTx)
+      .mockResolvedValueOnce({
+        id: "ch_1",
+        balanceFee: 2.06,
+        balanceNet: 58.69,
+      });
+    const ev = recordableEvent({ created: nowS() });
+
+    await expect(handleStripeEvent(ev, d)).rejects.toThrow();
+    // Stripe redelivers the same event; the charge is already recorded, so
+    // recordStripePayment reports a duplicate (and backfills fee/net).
+    d.record.mockResolvedValueOnce({ recorded: false, overpaid: false });
+    await handleStripeEvent(ev, d);
+
+    expect(d.record).toHaveBeenCalledTimes(2);
+    expect(d.record).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        chargeId: "ch_1",
+        feeAmount: 2.06,
+        netAmount: 58.69,
+      })
+    );
+    expect(d.markProcessed).toHaveBeenCalledTimes(1);
+    expect(d.markProcessed).toHaveBeenCalledWith(
+      "evt_1",
+      "checkout.session.completed"
+    );
+    expect(logError).not.toHaveBeenCalled();
+  });
+
+  it("stops retrying an event older than 24h: records, logs, marks processed", async () => {
+    const d = deps();
+    d.retrieveCharge = vi.fn().mockResolvedValue(noBalanceTx);
+    await handleStripeEvent(
+      recordableEvent({ created: nowS() - 25 * HOUR_S }),
+      d
+    );
+    // The money is still recorded (fee/net stay null)…
+    expect(d.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chargeId: "ch_1",
+        feeAmount: null,
+        netAmount: null,
+      })
+    );
+    // …and the event is terminal, so one odd charge can't fail the endpoint
+    // for days — but it's logged for a human.
+    expect(d.markProcessed).toHaveBeenCalledWith(
+      "evt_1",
+      "checkout.session.completed"
+    );
+    expect(logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orgId: "org_1",
+        errorMessage: expect.stringContaining("ch_1"),
+      })
+    );
+  });
+
+  it("neither retries nor logs when the balance transaction is readable", async () => {
+    const d = deps();
+    await handleStripeEvent(recordableEvent({ created: nowS() }), d);
+    expect(d.record).toHaveBeenCalledWith(
+      expect.objectContaining({ feeAmount: 1.43, netAmount: 448.57 })
+    );
+    expect(d.markProcessed).toHaveBeenCalledTimes(1);
+    expect(logError).not.toHaveBeenCalled();
   });
 });

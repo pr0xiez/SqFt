@@ -29,6 +29,24 @@ vi.mock("@/lib/stripe/client", () => ({
   getStripe: vi.fn(),
 }));
 
+// Zero back-off so the balance-transaction re-read runs without real sleeps
+// (the delays themselves are covered in __tests__/lib/stripe/chargeFees.test.ts).
+vi.mock("@/lib/stripe/chargeFees", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/lib/stripe/chargeFees")>();
+  return {
+    ...mod,
+    retryForBalance: (
+      first: Parameters<typeof mod.retryForBalance>[0],
+      reread: Parameters<typeof mod.retryForBalance>[1]
+    ) =>
+      mod.retryForBalance(
+        first,
+        reread,
+        mod.BALANCE_TX_RETRY_DELAYS_MS.map(() => 0)
+      ),
+  };
+});
+
 vi.mock("next/server", async (importOriginal) => {
   const mod = await importOriginal<typeof import("next/server")>();
   return { ...mod, after: vi.fn((cb: () => void) => cb()) };
@@ -40,6 +58,7 @@ import {
   recordStripePayment,
 } from "@/lib/repositories/invoiceRepo";
 import { getOrgStripe } from "@/lib/repositories/organizationRepo";
+import { BALANCE_TX_RETRY_DELAYS_MS } from "@/lib/stripe/chargeFees";
 import { getStripe } from "@/lib/stripe/client";
 
 const mockGetInvoiceByToken = vi.mocked(getInvoiceByToken);
@@ -109,6 +128,10 @@ function makeStripeMock(
       sessions: {
         retrieve: vi.fn().mockResolvedValue(session),
       },
+    },
+    // Re-read only when the session's charge has no balance transaction yet.
+    paymentIntents: {
+      retrieve: vi.fn().mockResolvedValue(session.payment_intent),
     },
   };
 }
@@ -317,26 +340,74 @@ describe("POST /api/invoice-review/[token]/confirm", () => {
       { expand: ["payment_intent.latest_charge.balance_transaction"] },
       { stripeAccount: CONNECT_ACCOUNT_ID }
     );
+    // Balance transaction already readable → no re-read, no added latency.
+    expect(stripeMock.paymentIntents.retrieve).not.toHaveBeenCalled();
   });
 
-  // ── Edge: missing balance_transaction ──────────────────────────────────────
+  // ── Edge: balance transaction lags the charge ───────────────────────────────
 
-  it("records with null fee/net when balance_transaction is null", async () => {
+  const LAGGING_PI = {
+    id: PI_ID,
+    latest_charge: { id: CHARGE_ID, balance_transaction: null },
+  };
+
+  it("re-reads a charge whose balance transaction lags and records its fee/net once readable", async () => {
     mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice());
     mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
-    const stripeMock = makeStripeMock({
-      payment_intent: {
+    const stripeMock = makeStripeMock({ payment_intent: LAGGING_PI });
+    stripeMock.paymentIntents.retrieve
+      .mockResolvedValueOnce(LAGGING_PI)
+      .mockResolvedValueOnce({
         id: PI_ID,
-        latest_charge: { id: CHARGE_ID, balance_transaction: null },
-      },
-    });
+        latest_charge: {
+          id: CHARGE_ID,
+          balance_transaction: { fee: 175, net: 49825 },
+        },
+      });
     // biome-ignore lint/suspicious/noExplicitAny: mock duck-type
     mockGetStripe.mockReturnValueOnce(stripeMock as any);
 
-    await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
 
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe("paid");
+    expect(stripeMock.paymentIntents.retrieve).toHaveBeenCalledTimes(2);
+    expect(stripeMock.paymentIntents.retrieve).toHaveBeenCalledWith(
+      PI_ID,
+      { expand: ["latest_charge.balance_transaction"] },
+      { stripeAccount: CONNECT_ACCOUNT_ID }
+    );
     expect(mockRecordStripePayment).toHaveBeenCalledWith(
-      expect.objectContaining({ feeAmount: null, netAmount: null })
+      expect.objectContaining({
+        chargeId: CHARGE_ID,
+        feeAmount: 1.75,
+        netAmount: 498.25,
+      })
+    );
+  });
+
+  it("still records the payment (money first) with null fee/net when the balance transaction stays missing", async () => {
+    mockGetInvoiceByToken.mockResolvedValueOnce(makeInvoice());
+    mockGetOrgStripe.mockResolvedValueOnce(activeOrg);
+    // Every re-read still lacks the balance transaction.
+    const stripeMock = makeStripeMock({ payment_intent: LAGGING_PI });
+    // biome-ignore lint/suspicious/noExplicitAny: mock duck-type
+    mockGetStripe.mockReturnValueOnce(stripeMock as any);
+
+    const res = await POST(makePostRequest(), params({ token: TEST_TOKEN }));
+
+    // The money is real and recorded; the webhook backfills fee/net later.
+    const body = (await res.json()) as { status: string };
+    expect(body.status).toBe("paid");
+    expect(stripeMock.paymentIntents.retrieve).toHaveBeenCalledTimes(
+      BALANCE_TX_RETRY_DELAYS_MS.length
+    );
+    expect(mockRecordStripePayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chargeId: CHARGE_ID,
+        feeAmount: null,
+        netAmount: null,
+      })
     );
   });
 

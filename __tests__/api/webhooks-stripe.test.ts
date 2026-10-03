@@ -31,6 +31,24 @@ vi.mock("@/lib/stripe/client", () => ({
   getStripe: vi.fn(),
 }));
 
+// Zero back-off so the balance-transaction re-read runs without real sleeps
+// (the delays themselves are covered in __tests__/lib/stripe/chargeFees.test.ts).
+vi.mock("@/lib/stripe/chargeFees", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/lib/stripe/chargeFees")>();
+  return {
+    ...mod,
+    retryForBalance: (
+      first: Parameters<typeof mod.retryForBalance>[0],
+      reread: Parameters<typeof mod.retryForBalance>[1]
+    ) =>
+      mod.retryForBalance(
+        first,
+        reread,
+        mod.BALANCE_TX_RETRY_DELAYS_MS.map(() => 0)
+      ),
+  };
+});
+
 vi.mock("@/lib/stripe/webhook", () => ({
   constructStripeEvent: vi.fn(),
   handleStripeEvent: vi.fn(),
@@ -42,6 +60,7 @@ vi.mock("next/headers", () => ({
 
 import { POST } from "@/app/api/webhooks/stripe/route";
 import { logError } from "@/lib/logger";
+import { getStripe } from "@/lib/stripe/client";
 import { constructStripeEvent, handleStripeEvent } from "@/lib/stripe/webhook";
 
 const mockLogError = vi.mocked(logError);
@@ -113,6 +132,37 @@ describe("POST /api/webhooks/stripe", () => {
     expect(call?.errorMessage).toContain(EVENT.id);
     expect(call?.errorMessage).toContain(EVENT.type);
     expect(call?.err).toBeInstanceOf(Error);
+  });
+
+  it("wires retrieveCharge to re-read until the charge's lagging balance transaction is readable", async () => {
+    mockHandleStripeEvent.mockResolvedValueOnce(undefined);
+    const retrieve = vi
+      .fn()
+      .mockResolvedValueOnce({
+        latest_charge: { id: "ch_1", balance_transaction: null },
+      })
+      .mockResolvedValueOnce({
+        latest_charge: {
+          id: "ch_1",
+          balance_transaction: { fee: 206, net: 5869 },
+        },
+      });
+    vi.mocked(getStripe).mockReturnValueOnce({
+      paymentIntents: { retrieve },
+    } as never);
+
+    await POST(postRequest());
+    const deps = mockHandleStripeEvent.mock.calls[0]?.[1];
+    const charge = await deps?.retrieveCharge("acct_1", "pi_1");
+
+    expect(charge).toEqual({ id: "ch_1", balanceFee: 2.06, balanceNet: 58.69 });
+    expect(retrieve).toHaveBeenCalledTimes(2);
+    // Direct charge: read on the connected account, BT expanded.
+    expect(retrieve).toHaveBeenCalledWith(
+      "pi_1",
+      { expand: ["latest_charge.balance_transaction"] },
+      { stripeAccount: "acct_1" }
+    );
   });
 
   it("returns 400 without logging when the signature is invalid", async () => {

@@ -640,11 +640,39 @@ export interface RecordStripePaymentInput {
 }
 
 /**
+ * Fill in fee/net on an already-recorded Stripe payment. The first recorder
+ * can beat Stripe's balance transaction (read-after-write lag) and store them
+ * null; a later delivery of the same charge (webhook redelivery, the other
+ * path) carries them. Only fills a null pair, so a captured fee/net is never
+ * overwritten; org-scoped like every other write here.
+ */
+async function backfillStripeFees(
+  input: RecordStripePaymentInput,
+  db: Prisma.TransactionClient = prisma
+): Promise<void> {
+  if (input.feeAmount === null || input.netAmount === null) return;
+  await db.payment.updateMany({
+    where: {
+      stripeChargeId: input.chargeId,
+      stripeFeeAmount: null,
+      stripeNetAmount: null,
+      invoice: { orgId: input.orgId },
+    },
+    data: {
+      stripeFeeAmount: input.feeAmount,
+      stripeNetAmount: input.netAmount,
+    },
+  });
+}
+
+/**
  * Idempotent Stripe payment recorder. Returns `{ recorded: true }` on the
  * first successful write, `{ recorded: false }` if the chargeId is already
  * present (soft idempotency check) or if the invoice is missing. A racing
  * double-insert that slips past the soft check is caught via the `@unique`
- * constraint on `Payment.stripeChargeId` (P2002 → `recorded: false`).
+ * constraint on `Payment.stripeChargeId` (P2002 → `recorded: false`). Either
+ * duplicate path backfills fee/net the existing row lacks
+ * (`backfillStripeFees`), so they end up captured whichever delivery wins.
  *
  * A charge on a voided or already-covered invoice is still recorded (the money
  * is real) but flagged via `classifyStripeCharge` — an `InvoiceEvent` with
@@ -661,7 +689,10 @@ export async function recordStripePayment(
         where: { stripeChargeId: input.chargeId },
         select: { id: true },
       });
-      if (existing) return { recorded: false, overpaid: false };
+      if (existing) {
+        await backfillStripeFees(input, tx);
+        return { recorded: false, overpaid: false };
+      }
 
       const inv = await tx.invoice.findFirst({
         where: { id: input.invoiceId, orgId: input.orgId },
@@ -736,11 +767,13 @@ export async function recordStripePayment(
   } catch (err) {
     // Hard idempotency backstop: two deliveries raced past the findUnique check
     // and the second lost the @unique constraint on stripeChargeId → P2002.
+    // The winner (now committed) may lack the fee/net this delivery carries.
     if (
       typeof err === "object" &&
       err !== null &&
       (err as { code?: string }).code === "P2002"
     ) {
+      await backfillStripeFees(input);
       return { recorded: false, overpaid: false };
     }
     throw err;
