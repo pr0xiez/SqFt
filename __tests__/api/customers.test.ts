@@ -5,7 +5,7 @@
  * __tests__/lib/api/route.test.ts.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { HasInvoicesError } from "@/lib/api/errors";
+import { EstimateHasEventsError, HasInvoicesError } from "@/lib/api/errors";
 
 vi.mock("@/lib/repositories", () => ({
   listCustomers: vi.fn(),
@@ -235,5 +235,19 @@ describe("DELETE /api/customers/[id]", () => {
     const body = await res.json();
     expect(body.error.code).toBe("HAS_INVOICES");
     expect(body.error.message).toContain("3");
+  });
+
+  it("maps EstimateHasEventsError to ESTIMATE_HAS_EVENTS 409", async () => {
+    mockDeleteCustomer.mockRejectedValue(new EstimateHasEventsError(2));
+
+    const res = await DELETE_ID(
+      makeRequest("DELETE", "http://localhost/api/customers/7"),
+      idParams("7")
+    );
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error.code).toBe("ESTIMATE_HAS_EVENTS");
+    expect(body.error.message).toContain("2");
   });
 });
