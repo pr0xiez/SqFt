@@ -31,12 +31,19 @@ export const GET = apiRoute({ minRole: "lead" }, async ({ req, orgId }) => {
       ? (statusParam as EstimateStatusFilter)
       : "all";
 
+  const customerIdParam = Number(req.nextUrl.searchParams.get("customerId"));
+  const customerId =
+    Number.isInteger(customerIdParam) && customerIdParam > 0
+      ? customerIdParam
+      : undefined;
+
   const { items, total, facets } = await listEstimates(orgId, {
     page,
     perPage,
     sort,
     q,
     status,
+    customerId,
   });
 
   return { items, total, facets };

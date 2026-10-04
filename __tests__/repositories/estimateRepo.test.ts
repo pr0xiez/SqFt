@@ -147,6 +147,21 @@ describe("listEstimates (paginated)", () => {
     });
   });
 
+  it("filters to one customer's estimates when customerId is given", async () => {
+    estimateFindMany.mockResolvedValue([]);
+    estimateCount.mockResolvedValue(0);
+    mockGroupBy();
+    await listEstimates("org1", { ...baseParams, customerId: 42 });
+    expect(estimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          orgId: "org1",
+          AND: [{ siteMeasure: { location: { customerId: 42 } } }],
+        },
+      })
+    );
+  });
+
   it("never selects approvalToken — CWE-201/522: it's the estimate-review bearer token", async () => {
     estimateFindMany.mockResolvedValue([]);
     estimateCount.mockResolvedValue(0);
@@ -254,6 +269,7 @@ describe("listEstimatesForSiteMeasure", () => {
     expect(estimateFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { orgId: "org1", siteMeasureId: 42 },
+        take: 500,
       })
     );
   });

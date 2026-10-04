@@ -6,23 +6,25 @@ import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { cn } from "@/lib/cn";
 import { useAssignableUsers } from "@/lib/hooks/useAssignableUsers";
+import { useCustomers } from "@/lib/hooks/useCustomers";
+import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useEstimates } from "@/lib/hooks/useEstimates";
 import type { CalEvent, CreateEventInput } from "@/lib/hooks/useEvents";
+import { isTruncated, withSelectedOption } from "@/lib/schedule/pickerOptions";
 import { timeToMinutes } from "@/lib/utils";
 
-export interface EstimateOption {
-  id: number;
-  estimateNumber: number;
-  siteMeasure: {
-    location?: { customer?: { id: number } | null } | null | undefined;
-  };
-}
+/** Rows requested per picker query; a truncation hint shows past this. */
+export const PICKER_PAGE_SIZE = 50;
 
 /** Seed values for a new event (backlog scheduling, click-on-a-time-slot). */
 export interface EventFormDefaults {
   type?: "job" | "visit" | "other";
   title?: string;
   customerId?: number;
+  /** Label for the pre-selected customer (may be outside the search page). */
+  customerName?: string;
   estimateId?: number;
+  estimateNumber?: number;
   startTime?: string;
   endTime?: string;
 }
@@ -33,8 +35,6 @@ interface EventFormPanelProps {
   defaultDate: string;
   defaults?: EventFormDefaults | null;
   editingEvent: CalEvent | null;
-  customers: { id: number; name: string }[];
-  estimates: EstimateOption[];
   onSave: (data: CreateEventInput) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
 }
@@ -50,8 +50,6 @@ export function EventFormPanel({
   defaultDate,
   defaults,
   editingEvent,
-  customers,
-  estimates,
   onSave,
   onDelete,
 }: EventFormPanelProps) {
@@ -70,14 +68,79 @@ export function EventFormPanel({
   const { data: crew = [], isLoading: crewLoading } = useAssignableUsers();
 
   const ev = editingEvent;
-  const customerEstimates = useMemo(
-    () =>
-      customerId
-        ? estimates.filter(
-            (q) => q.siteMeasure.location?.customer?.id === customerId
-          )
-        : [],
-    [customerId, estimates]
+
+  // Pickers query the server (search + page) instead of bulk-loading, and
+  // only while the panel is open so a closed form costs nothing.
+  const [customerSearch, setCustomerSearch] = useState("");
+  const debouncedCustomerSearch = useDebouncedValue(customerSearch.trim());
+  const { data: customersData } = useCustomers(
+    {
+      page: 1,
+      perPage: PICKER_PAGE_SIZE,
+      sort: "name",
+      dir: "asc",
+      q: debouncedCustomerSearch,
+      source: "all",
+      pipeline: "any",
+    },
+    { enabled: open }
+  );
+  const { data: estimatesData } = useEstimates(
+    {
+      page: 1,
+      perPage: PICKER_PAGE_SIZE,
+      sort: "date",
+      dir: "desc",
+      q: "",
+      status: "all",
+      customerId,
+    },
+    { enabled: open && type === "job" && !!customerId }
+  );
+
+  // Label for the current selection, known without the lists: from the event
+  // being edited or from backlog/slot defaults.
+  const [pickedCustomer, setPickedCustomer] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const selectedCustomer = useMemo(() => {
+    if (!customerId) return null;
+    if (pickedCustomer?.id === customerId) return pickedCustomer;
+    const name =
+      ev?.customerId === customerId
+        ? ev.customer?.name
+        : defaults?.customerId === customerId
+          ? defaults.customerName
+          : undefined;
+    return { id: customerId, name: name ?? `Customer #${customerId}` };
+  }, [customerId, pickedCustomer, ev, defaults]);
+  const selectedEstimate = useMemo(() => {
+    if (!estimateId) return null;
+    const num =
+      ev?.estimateId === estimateId
+        ? ev.estimateNumber
+        : defaults?.estimateId === estimateId
+          ? defaults.estimateNumber
+          : undefined;
+    return { id: estimateId, estimateNumber: num ?? estimateId };
+  }, [estimateId, ev, defaults]);
+
+  const customers = withSelectedOption(
+    customersData?.items ?? [],
+    selectedCustomer
+  );
+  const customerEstimates = withSelectedOption(
+    estimatesData?.items ?? [],
+    selectedEstimate
+  );
+  const customersTruncated = isTruncated(
+    customersData?.total,
+    customersData?.items.length ?? 0
+  );
+  const estimatesTruncated = isTruncated(
+    estimatesData?.total,
+    estimatesData?.items.length ?? 0
   );
 
   useEffect(() => {
@@ -105,6 +168,8 @@ export function EventFormPanel({
       setCrewMemberIds(new Set());
       setNotes("");
     }
+    setCustomerSearch("");
+    setPickedCustomer(null);
   }, [open, ev, defaultDate, defaults]);
 
   // Same-day events must end after they start; multi-day events may wrap past
@@ -208,12 +273,23 @@ export function EventFormPanel({
               <span className="text-[var(--muted)] font-[400]">(optional)</span>
             )}
           </div>
+          <input
+            type="search"
+            value={customerSearch}
+            onChange={(e) => setCustomerSearch(e.target.value)}
+            placeholder="Search customers…"
+            aria-label="Search customers"
+            className={cn(inputClass, "mb-1.5")}
+          />
           <select
+            aria-label="Customer"
             value={customerId ?? ""}
             onChange={(e) => {
-              setCustomerId(
-                e.target.value ? parseInt(e.target.value, 10) : undefined
-              );
+              const id = e.target.value
+                ? parseInt(e.target.value, 10)
+                : undefined;
+              setCustomerId(id);
+              setPickedCustomer(customers.find((c) => c.id === id) ?? null);
               setEstimateId(undefined);
             }}
             className={inputClass}
@@ -227,6 +303,12 @@ export function EventFormPanel({
               </option>
             ))}
           </select>
+          {customersTruncated && (
+            <div className="text-[11px] text-[var(--muted)] mt-1">
+              Showing the first {customers.length} of {customersData?.total}{" "}
+              customers — type to narrow the list.
+            </div>
+          )}
         </div>
 
         {/* Estimate (only for jobs) */}
@@ -236,6 +318,7 @@ export function EventFormPanel({
               Estimate <span className="text-[var(--accent)]">*</span>
             </div>
             <select
+              aria-label="Estimate"
               value={estimateId ?? ""}
               onChange={(e) =>
                 setEstimateId(
@@ -260,6 +343,12 @@ export function EventFormPanel({
                 </>
               )}
             </select>
+            {estimatesTruncated && (
+              <div className="text-[11px] text-[var(--muted)] mt-1">
+                Showing the {estimatesData?.items.length} newest of{" "}
+                {estimatesData?.total} estimates for this customer.
+              </div>
+            )}
             {missingEstimate && customerId && customerEstimates.length > 0 && (
               <div className="text-[11px] text-[var(--muted)] mt-1">
                 Select the estimate this job is for.

@@ -8,7 +8,6 @@ import {
   eventMatchesCrew,
 } from "@/components/schedule/crewFilters";
 import {
-  type EstimateOption,
   type EventFormDefaults,
   EventFormPanel,
 } from "@/components/schedule/EventFormPanel";
@@ -17,8 +16,6 @@ import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { useAssignableUsers } from "@/lib/hooks/useAssignableUsers";
-import { useCustomers } from "@/lib/hooks/useCustomers";
-import { useEstimates } from "@/lib/hooks/useEstimates";
 import {
   type CalEvent,
   useCreateEvent,
@@ -66,25 +63,6 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   const daysToShow = isMobile ? 3 : 7;
 
   const { data: events = [] } = useEvents();
-  const { data: customersData } = useCustomers({
-    page: 1,
-    perPage: 100,
-    sort: "name",
-    dir: "asc",
-    q: "",
-    source: "all",
-    pipeline: "any",
-  });
-  const customers = customersData?.items ?? [];
-  const { data: estimatesData } = useEstimates({
-    page: 1,
-    perPage: 100,
-    sort: "date",
-    dir: "desc",
-    q: "",
-    status: "all",
-  });
-  const estimates = estimatesData?.items ?? [];
   const { data: schedulableData } = useSchedulableEstimates();
   const backlog = useMemo(
     () => (Array.isArray(schedulableData) ? schedulableData : []),
@@ -125,33 +103,6 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
     return () => clearInterval(id);
   }, []);
 
-  // A backlog estimate (or its customer) may be older than the 100-row picker
-  // fetches above — merge synthetic options so the pre-filled selects never
-  // show blank.
-  const customerOptions = useMemo(() => {
-    const opts: { id: number; name: string }[] = [...customers];
-    for (const c of backlog) {
-      if (c.customerId && !opts.some((o) => o.id === c.customerId)) {
-        opts.push({ id: c.customerId, name: c.customerName });
-      }
-    }
-    return opts;
-  }, [customers, backlog]);
-
-  const estimateOptions = useMemo(() => {
-    const opts: EstimateOption[] = [...estimates];
-    for (const c of backlog) {
-      if (c.customerId && !opts.some((o) => o.id === c.id)) {
-        opts.push({
-          id: c.id,
-          estimateNumber: c.estimateNumber,
-          siteMeasure: { location: { customer: { id: c.customerId } } },
-        });
-      }
-    }
-    return opts;
-  }, [estimates, backlog]);
-
   function openNewEvent(date: string, defaults?: EventFormDefaults) {
     setSelectedDate(date);
     setEditingEvent(null);
@@ -170,7 +121,9 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
       type: "job",
       title: `Install — ${c.customerName}`,
       customerId: c.customerId ?? undefined,
+      customerName: c.customerName,
       estimateId: c.id,
+      estimateNumber: c.estimateNumber,
     });
   }
 
@@ -476,8 +429,6 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
           defaultDate={selectedDate}
           defaults={formDefaults}
           editingEvent={editingEvent}
-          customers={customerOptions}
-          estimates={estimateOptions}
           onSave={async (data) => {
             try {
               if (editingEvent) {

@@ -49,6 +49,20 @@ describe("updateOrgSettings", () => {
   });
 });
 
+describe("listAllOrgsForAdmin bounds", () => {
+  it("caps at MAX_LIST_ROWS by default and clamps oversized take", async () => {
+    findMany.mockResolvedValue([]);
+    await listAllOrgsForAdmin();
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ take: 500 })
+    );
+    await listAllOrgsForAdmin({ take: 99999, skip: 10 });
+    expect(findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ take: 500, skip: 10 })
+    );
+  });
+});
+
 describe("listAllOrgsForAdmin", () => {
   it("is not org-scoped — lists every org, mapping _count.users to userCount", async () => {
     findMany.mockResolvedValue([

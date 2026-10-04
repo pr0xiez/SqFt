@@ -136,8 +136,12 @@ function customersQueryString(p: CustomerListParams): string {
   return sp.toString();
 }
 
-export function useCustomers(params: CustomerListParams) {
+export function useCustomers(
+  params: CustomerListParams,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
+    enabled: options?.enabled ?? true,
     queryKey: ["customers", params],
     queryFn: () =>
       apiFetch<CustomerListResponse>(

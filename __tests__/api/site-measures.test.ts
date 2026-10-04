@@ -214,6 +214,16 @@ describe("DELETE /api/site-measures/[id]", () => {
     expect(mockDelete).toHaveBeenCalledWith(1, "org1");
   });
 
+  it("returns NOT_FOUND when deleteSiteMeasure deletes nothing", async () => {
+    mockDelete.mockResolvedValue(false);
+    const res = await DELETE(
+      makeRequest("DELETE", "http://x/api/site-measures/99"),
+      params({ id: "99" })
+    );
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("NOT_FOUND");
+  });
+
   it("maps EstimateHasEventsError to ESTIMATE_HAS_EVENTS 409", async () => {
     mockDelete.mockRejectedValue(new EstimateHasEventsError(2));
     const res = await DELETE(

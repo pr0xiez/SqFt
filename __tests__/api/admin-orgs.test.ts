@@ -56,6 +56,29 @@ afterEach(() => {
   }
 });
 
+describe("GET /api/admin/orgs paging", () => {
+  it("forwards limit/offset and ignores junk values", async () => {
+    asSuperAdmin();
+    mockListAllOrgsForAdmin.mockResolvedValue([]);
+    await GET(
+      makeRequest("GET", "http://localhost/?limit=20&offset=40"),
+      noParams
+    );
+    expect(mockListAllOrgsForAdmin).toHaveBeenLastCalledWith({
+      take: 20,
+      skip: 40,
+    });
+    await GET(
+      makeRequest("GET", "http://localhost/?limit=abc&offset=-1"),
+      noParams
+    );
+    expect(mockListAllOrgsForAdmin).toHaveBeenLastCalledWith({
+      take: undefined,
+      skip: undefined,
+    });
+  });
+});
+
 describe("GET /api/admin/orgs", () => {
   it("401 when no session", async () => {
     process.env.SUPER_ADMIN_EMAILS = "boss@sqft.dev";
@@ -112,7 +135,10 @@ describe("GET /api/admin/orgs", () => {
       userCount: 3,
     });
     expect(body[1]?.userCount).toBe(1);
-    expect(mockListAllOrgsForAdmin).toHaveBeenCalledWith();
+    expect(mockListAllOrgsForAdmin).toHaveBeenCalledWith({
+      take: undefined,
+      skip: undefined,
+    });
   });
 });
 

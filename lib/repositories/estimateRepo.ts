@@ -12,6 +12,7 @@ import {
 } from "@/lib/estimateStatus";
 import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { MAX_LIST_ROWS } from "@/lib/pagination/constants";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import {
@@ -242,6 +243,8 @@ export interface ListEstimatesParams {
   sort: { key: EstimateSortKey; direction: SortDirection };
   q: string;
   status: EstimateStatusFilter;
+  /** Restrict to one customer's estimates (event-form estimate picker). */
+  customerId?: number;
 }
 
 function estimateOrderBy(
@@ -285,6 +288,11 @@ export async function listEstimates(
   if (params.status !== "all") where.status = params.status;
   const search = estimateSearchWhere(params.q);
   if (search) Object.assign(where, search);
+  if (params.customerId !== undefined) {
+    where.AND = [
+      { siteMeasure: { location: { customerId: params.customerId } } },
+    ];
+  }
 
   const [items, total, grouped] = await prisma.$transaction([
     prisma.estimate.findMany({
@@ -398,8 +406,9 @@ export async function listEstimatesForSiteMeasure(
 ): Promise<EstimateWithSiteMeasureSummary[]> {
   return prisma.estimate.findMany({
     where: { orgId, siteMeasureId },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: ESTIMATE_LIST_SELECT,
+    take: MAX_LIST_ROWS,
   });
 }
 

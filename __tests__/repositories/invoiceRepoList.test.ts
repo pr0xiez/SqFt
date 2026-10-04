@@ -230,3 +230,20 @@ describe("listInvoices", () => {
     expect(res.items[0].balanceDue).toBe(66.67);
   });
 });
+
+describe("listInvoicesForEstimate", () => {
+  it("is scoped, deterministically ordered, and capped", async () => {
+    invoiceFindMany.mockResolvedValue([]);
+    const { listInvoicesForEstimate } = await import(
+      "@/lib/repositories/invoiceRepo"
+    );
+    await listInvoicesForEstimate(5, "org1");
+    expect(invoiceFindMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { orgId: "org1", estimateId: 5 },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: 500,
+      })
+    );
+  });
+});
