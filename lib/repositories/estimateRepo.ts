@@ -242,6 +242,8 @@ export interface ListEstimatesParams {
   sort: { key: EstimateSortKey; direction: SortDirection };
   q: string;
   status: EstimateStatusFilter;
+  /** Restrict to one customer's estimates (event-form estimate picker). */
+  customerId?: number;
 }
 
 function estimateOrderBy(
@@ -285,6 +287,11 @@ export async function listEstimates(
   if (params.status !== "all") where.status = params.status;
   const search = estimateSearchWhere(params.q);
   if (search) Object.assign(where, search);
+  if (params.customerId !== undefined) {
+    where.AND = [
+      { siteMeasure: { location: { customerId: params.customerId } } },
+    ];
+  }
 
   const [items, total, grouped] = await prisma.$transaction([
     prisma.estimate.findMany({

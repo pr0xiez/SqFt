@@ -103,6 +103,7 @@ export interface EstimateListParams {
   dir: SortDirection;
   q: string;
   status: string;
+  customerId?: number;
 }
 
 export interface EstimateListResponse {
@@ -119,11 +120,16 @@ function estimatesQueryString(p: EstimateListParams): string {
   sp.set("dir", p.dir);
   if (p.q) sp.set("q", p.q);
   if (p.status && p.status !== "all") sp.set("status", p.status);
+  if (p.customerId) sp.set("customerId", String(p.customerId));
   return sp.toString();
 }
 
-export function useEstimates(params: EstimateListParams) {
+export function useEstimates(
+  params: EstimateListParams,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
+    enabled: options?.enabled ?? true,
     queryKey: ["estimates", params],
     queryFn: () =>
       apiFetch<EstimateListResponse>(
