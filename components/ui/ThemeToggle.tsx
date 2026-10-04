@@ -1,41 +1,78 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DesktopIcon, MoonIcon, SunIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+type ThemeChoice = "system" | "light" | "dark";
+
+const OPTIONS: ReadonlyArray<{
+  value: ThemeChoice;
+  label: string;
+  Icon: typeof SunIcon;
+}> = [
+  { value: "system", label: "Match system theme", Icon: DesktopIcon },
+  { value: "light", label: "Light theme", Icon: SunIcon },
+  { value: "dark", label: "Dark theme", Icon: MoonIcon },
+];
+
+function readChoice(): ThemeChoice {
+  try {
+    const saved = localStorage.getItem("theme");
+    return saved === "light" || saved === "dark" ? saved : "system";
+  } catch {
+    return "system";
+  }
+}
+
+function applyChoice(choice: ThemeChoice) {
+  const root = document.documentElement;
+  if (choice === "system") {
+    delete root.dataset.theme;
+  } else {
+    root.dataset.theme = choice;
+  }
+  try {
+    if (choice === "system") localStorage.removeItem("theme");
+    else localStorage.setItem("theme", choice);
+  } catch {
+    // Storage blocked (private mode): the choice still applies to this page.
+  }
+}
+
+/**
+ * System / light / dark. "System" follows the OS (the CSS handles it, so it
+ * also tracks the OS flipping at sunset); an explicit pick is remembered.
+ */
+export function ThemeToggle({ className }: { className?: string }) {
+  const [choice, setChoice] = useState<ThemeChoice>("system");
 
   useEffect(() => {
-    const saved = localStorage.getItem("theme");
-    const initial = saved === "dark" ? "dark" : "light";
-    setTheme(initial);
-    document.documentElement.dataset.theme = initial === "dark" ? "dark" : "";
+    setChoice(readChoice());
   }, []);
 
-  function toggleTheme() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.dataset.theme = next === "dark" ? "dark" : "";
-    localStorage.setItem("theme", next);
+  function choose(next: ThemeChoice) {
+    setChoice(next);
+    applyChoice(next);
   }
 
   return (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      className={cn(
-        "font-[var(--font-mono)] text-[11px] tracking-[.02em]",
-        "border border-[var(--line)] bg-transparent cursor-pointer",
-        "px-[10px] py-[6px] rounded-[6px] text-[var(--muted)]",
-        "transition-[border-color,color] duration-[150ms]",
-        "hover:border-[var(--ink-2)] hover:text-[var(--ink)]",
-        "flex items-center gap-1.5"
-      )}
-      title="Toggle theme"
+    <fieldset
+      className={cn("seg p-[2px] [&>*]:min-h-[28px] [&>*]:px-2", className)}
+      aria-label="Theme"
     >
-      <span>{theme === "dark" ? "☀" : "☾"}</span>
-      <span>{theme === "dark" ? "Light" : "Dark"}</span>
-    </button>
+      {OPTIONS.map(({ value, label, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => choose(value)}
+          aria-label={label}
+          aria-pressed={choice === value}
+          title={label}
+        >
+          <Icon aria-hidden="true" className="size-[15px]" />
+        </button>
+      ))}
+    </fieldset>
   );
 }

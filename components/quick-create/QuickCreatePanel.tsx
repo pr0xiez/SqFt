@@ -1,7 +1,10 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+import { ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SlidePanel } from "@/components/ui/SlidePanel";
+import { Tag } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/cn";
 
 /** One selectable record in the quick-create search results. */
@@ -32,9 +35,6 @@ interface QuickCreatePanelProps {
   createDisabled: boolean;
   creating: boolean;
 }
-
-const eyebrow =
-  "font-[var(--font-mono)] text-[9px] tracking-[.06em] uppercase text-[var(--muted)]";
 
 /**
  * Shared chrome for both quick-create flows: a customer search, a list of
@@ -68,29 +68,18 @@ export function QuickCreatePanel({
       title={title}
       width="432px"
       footer={
-        <div className="flex items-center justify-between gap-2 w-full">
-          <span className={eyebrow}>{footerNote}</span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-[var(--surface)] border border-[var(--line)] rounded-[6px] px-4 py-[9px] whitespace-nowrap cursor-pointer hover:border-[var(--ink-2)]"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 w-full">
+          <span className="text-[13px] text-[var(--muted)]">{footerNote}</span>
+          <div className="flex gap-2 ml-auto">
+            <Button onClick={onClose}>Cancel</Button>
+            <Button
+              variant="primary"
               onClick={onCreate}
               disabled={createDisabled}
-              className={cn(
-                "font-[var(--font-mono)] text-[11px] rounded-[6px] px-4 py-[9px] border whitespace-nowrap",
-                createDisabled
-                  ? "text-[var(--muted)] bg-[var(--surface-2)] border-[var(--line)] cursor-not-allowed"
-                  : "text-white bg-[var(--accent)] border-[var(--accent)] cursor-pointer hover:bg-[var(--accent-l)]"
-              )}
             >
               {creating ? "Creating…" : createLabel}
-            </button>
+              {!creating && <ArrowRightIcon aria-hidden="true" />}
+            </Button>
           </div>
         </div>
       }
@@ -99,22 +88,20 @@ export function QuickCreatePanel({
         value={query}
         onChange={onQueryChange}
         placeholder={placeholder}
-        className="max-w-none"
+        className="max-w-none md:max-w-none"
       />
-      <div className={cn(eyebrow, "mt-3 mb-3 mx-0.5")}>{hint}</div>
+      <p className="text-[13px] text-[var(--muted)] mt-3 mb-3">{hint}</p>
 
       {loading && rows.length === 0 ? (
-        <div className="border border-dashed border-[var(--line-2)] rounded-[8px] py-6 text-center font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-          Searching…
-        </div>
+        <div className={EMPTY_BOX}>Searching…</div>
       ) : rows.length === 0 ? (
-        <div className="border border-dashed border-[var(--line-2)] rounded-[8px] py-6 text-center font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+        <div className={EMPTY_BOX}>
           {query.trim()
             ? `No matches for "${query.trim()}"`
             : "Search by customer name or number"}
         </div>
       ) : (
-        <ul className="border border-[var(--line)] rounded-[8px] overflow-hidden">
+        <ul className="border border-[var(--line)] rounded-[var(--r)] overflow-hidden bg-[var(--surface)]">
           {rows.map((row, i) => {
             const selected = row.id === selectedId;
             return (
@@ -125,34 +112,35 @@ export function QuickCreatePanel({
                   onClick={() => onSelect(row.id)}
                   aria-pressed={selected}
                   className={cn(
-                    "w-full text-left flex items-center gap-3 px-3.5 py-3 border-l-[3px]",
+                    "w-full text-left flex items-center gap-3 px-3.5 py-3 min-h-[60px] border-l-[3px] transition-colors",
                     i > 0 && "border-t border-t-[var(--line)]",
                     selected
-                      ? "border-l-[var(--sage)] bg-[var(--sage-wash)]"
-                      : "border-l-transparent bg-[var(--surface)]",
+                      ? "border-l-[var(--ok)] bg-[color-mix(in_oklab,var(--ok)_10%,transparent)]"
+                      : "border-l-transparent",
                     row.disabled
-                      ? "opacity-45 cursor-default"
-                      : "cursor-pointer hover:bg-[var(--surface-2)]"
+                      ? "opacity-50 cursor-default"
+                      : "cursor-pointer hover:bg-[var(--hover)]"
                   )}
                 >
                   <span className="flex-1 min-w-0">
-                    <span className="block text-[14px] font-[600] tracking-[-0.01em] truncate">
+                    <span className="block text-[14.5px] font-[600] tracking-[-0.01em] truncate">
                       {row.title}
                     </span>
-                    <span className="block font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate">
+                    <span className="block text-[13px] text-[var(--muted)] mt-0.5 truncate">
                       {row.meta}
                     </span>
                   </span>
                   {selected && (
-                    <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] whitespace-nowrap">
-                      ✓ Selected
+                    <span className="inline-flex items-center gap-1 text-[13px] font-[600] text-[var(--ok)] whitespace-nowrap">
+                      <CheckIcon
+                        aria-hidden="true"
+                        weight="bold"
+                        className="size-[14px]"
+                      />
+                      Selected
                     </span>
                   )}
-                  {!selected && row.badge && (
-                    <span className="font-[var(--font-mono)] text-[9px] text-[var(--muted)] border border-[var(--line)] rounded-[4px] px-[7px] py-0.5 whitespace-nowrap">
-                      {row.badge}
-                    </span>
-                  )}
+                  {!selected && row.badge && <Tag>{row.badge}</Tag>}
                 </button>
               </li>
             );
@@ -162,3 +150,6 @@ export function QuickCreatePanel({
     </SlidePanel>
   );
 }
+
+const EMPTY_BOX =
+  "border border-dashed border-[var(--line-2)] rounded-[var(--r)] px-4 py-6 text-center text-[14px] text-[var(--muted)]";

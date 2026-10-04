@@ -32,6 +32,7 @@
     "@fontsource-variable/azeret-mono": "^5.2.11",
     "@fontsource-variable/fraunces": "^5.2.9",
     "@fontsource-variable/playfair-display": "^5.2.8",
+    "@phosphor-icons/react": "^2.1.10",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@react-email/components": "^1.0.12",

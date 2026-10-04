@@ -1,13 +1,26 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/Card";
+import { CardLink } from "@/components/ui/CardLink";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  CELL,
+  CELL_FIGURE,
+  CELL_PRIMARY,
+  CELL_SUB,
+  TABLE_HEAD,
+  TABLE_HEAD_CELL,
+  TABLE_ROW,
+} from "@/components/ui/table";
+import { cn } from "@/lib/cn";
 import type { SiteMeasure } from "@/lib/hooks/useSiteMeasures";
 
 function formatAge(dateStr: string): { label: string; overdue: boolean } {
   const diff = Math.floor(
     (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
   );
-  if (diff === 0) return { label: "today", overdue: false };
+  if (diff === 0) return { label: "Today", overdue: false };
   if (diff === 1) return { label: "1d ago", overdue: false };
   return { label: `${diff}d ago`, overdue: diff > 10 };
 }
@@ -20,19 +33,8 @@ function getLatestEstimate(est: SiteMeasure) {
   );
 }
 
-const statusStyles: Record<
-  string,
-  { bg: string; color: string; strikethrough?: boolean }
-> = {
-  sent: { bg: "rgba(176,122,26,.1)", color: "var(--gold)" },
-  viewed: { bg: "rgba(61,107,74,.1)", color: "var(--sage)" },
-  approved: { bg: "var(--accent)", color: "#fff" },
-  declined: {
-    bg: "rgba(20,18,12,.06)",
-    color: "var(--ink-2)",
-    strikethrough: true,
-  },
-};
+const GRID_COLS =
+  "grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[88px_minmax(0,1fr)_minmax(0,220px)_96px]";
 
 interface Props {
   siteMeasures: SiteMeasure[];
@@ -42,129 +44,103 @@ export function SiteMeasuresTable({ siteMeasures }: Props) {
   const router = useRouter();
 
   return (
-    <section
-      className="bg-[var(--surface)] border border-[var(--line)] rounded-[10px] p-6"
-      style={{ boxShadow: "var(--shadow)" }}
+    <Card
+      flush
+      title="Recent site measures"
+      sub="The last 8 created"
+      action={<CardLink href="/site-measures">View all</CardLink>}
     >
-      <header className="flex items-baseline justify-between mb-[18px] pb-[14px] border-b border-[var(--line)]">
-        <div className="text-[14px] font-[600] tracking-[-0.01em] flex items-center gap-2.5">
-          Recent site measures
-          <span className="font-[var(--font-mono)] text-[10px] px-[7px] py-[2px] border border-[var(--line)] rounded-[10px] text-[var(--muted)] font-[500]">
-            last 8 created
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => router.push("/site-measures")}
-          className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border-0 cursor-pointer hover:text-[var(--ink)] tracking-[.02em]"
-        >
-          View all →
-        </button>
-      </header>
-
-      <table className="w-full border-collapse">
-        <thead>
-          <tr>
-            {(["#", "Customer", "Estimate", "Amount", "Age"] as const).map(
-              (h, i) => (
-                <th
-                  key={h}
-                  className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] font-[500] pb-3 border-b border-[var(--line)]"
-                  style={{
-                    textAlign: i >= 3 ? "right" : "left",
-                    paddingLeft: "12px",
-                    paddingRight: "12px",
-                  }}
-                >
-                  {h}
-                </th>
-              )
-            )}
-          </tr>
-        </thead>
-        <tbody>
+      <div className={cn(TABLE_HEAD, GRID_COLS, "border-t")}>
+        <div className={TABLE_HEAD_CELL}>#</div>
+        <div className={TABLE_HEAD_CELL}>Customer</div>
+        <div className={TABLE_HEAD_CELL}>Latest estimate</div>
+        <div className={cn(TABLE_HEAD_CELL, "text-right")}>Age</div>
+      </div>
+      {siteMeasures.length === 0 ? (
+        <p className="px-5 md:px-6 py-6 border-t border-[var(--line)] md:border-t-0 text-[14px] text-[var(--muted)]">
+          No site measures yet.
+        </p>
+      ) : (
+        <div className="border-t border-[var(--line)] md:border-t-0">
           {siteMeasures.map((est) => {
             const latestEstimate = getLatestEstimate(est);
             const age = formatAge(est.createdAt);
             const estimateVersions = est.estimates?.length ?? 0;
-            const estimateStatus = latestEstimate?.status;
-            const statusStyle = estimateStatus
-              ? statusStyles[estimateStatus]
-              : null;
 
             return (
-              <tr
+              <button
                 key={est.id}
+                type="button"
                 onClick={() => router.push(`/site-measures/${est.id}`)}
-                className="transition-colors hover:bg-[var(--surface-2)] cursor-pointer"
+                className={cn(TABLE_ROW, GRID_COLS, "py-3")}
               >
-                <td className="py-3.5 px-3 border-b border-dashed border-[var(--line)]">
-                  <span className="font-[var(--font-mono)] text-[11.5px] font-[600] text-[var(--ink-2)]">
+                <div className={cn(CELL, "hidden md:block")}>
+                  <span
+                    className={cn(
+                      CELL_FIGURE,
+                      "font-[600] text-[var(--ink-2)]"
+                    )}
+                  >
                     #{est.siteMeasureNumber ?? est.id}
                   </span>
-                </td>
-
-                <td className="py-3.5 px-3 border-b border-dashed border-[var(--line)]">
-                  <div className="text-[13px] font-[600] tracking-[-0.01em]">
-                    {est.location?.customer?.name ?? "—"}
+                </div>
+                <div className={cn(CELL, "min-w-0")}>
+                  <div className={cn(CELL_PRIMARY, "truncate")}>
+                    {est.location?.customer?.name ?? "-"}
                   </div>
                   {est.location?.address && (
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
+                    <div className={CELL_SUB}>
                       {est.location.address.split(",")[0]}
                     </div>
                   )}
-                </td>
-
-                <td className="py-3.5 px-3 border-b border-dashed border-[var(--line)]">
-                  {statusStyle ? (
-                    <div className="flex flex-col items-start gap-1">
-                      <span
-                        className="font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.08em] px-[9px] py-[3px] rounded-[11px] font-[600]"
-                        style={{
-                          background: statusStyle.bg,
-                          color: statusStyle.color,
-                          textDecoration: statusStyle.strikethrough
-                            ? "line-through"
-                            : undefined,
-                        }}
-                      >
-                        {estimateStatus}
+                  {/* phones: estimate status folds under the name */}
+                  <div className="md:hidden mt-1.5">
+                    {latestEstimate ? (
+                      <StatusBadge status={latestEstimate.status} />
+                    ) : (
+                      <span className="text-[13px] text-[var(--muted)]">
+                        No estimate yet
                       </span>
+                    )}
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    CELL,
+                    "hidden md:flex items-center gap-2 min-w-0"
+                  )}
+                >
+                  {latestEstimate ? (
+                    <>
+                      <StatusBadge status={latestEstimate.status} />
                       {estimateVersions > 1 && (
-                        <span className="font-[var(--font-mono)] text-[9.5px] text-[var(--muted)] tracking-[.02em]">
-                          {estimateVersions} versions sent
+                        <span className="text-[13px] text-[var(--muted)] whitespace-nowrap">
+                          {estimateVersions} versions
                         </span>
                       )}
-                    </div>
+                    </>
                   ) : (
-                    <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] italic flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full border border-dashed border-[var(--line-2)]" />
+                    <span className="text-[13.5px] text-[var(--muted)]">
                       No estimate yet
                     </span>
                   )}
-                </td>
-
-                <td
-                  className="py-3.5 px-3 border-b border-dashed border-[var(--line)] font-[var(--font-mono)] text-[13px] font-[600] tracking-[-0.02em]"
-                  style={{ textAlign: "right" }}
-                >
-                  <span style={{ color: "var(--muted)" }}>—</span>
-                </td>
-
-                <td
-                  className="py-3.5 px-3 border-b border-dashed border-[var(--line)] font-[var(--font-mono)] text-[10.5px]"
-                  style={{
-                    textAlign: "right",
-                    color: age.overdue ? "var(--accent)" : "var(--muted)",
-                  }}
+                </div>
+                <div
+                  className={cn(
+                    CELL,
+                    "text-right text-[13.5px] whitespace-nowrap self-start md:self-center",
+                    age.overdue
+                      ? "text-[var(--accent-ink)] font-[560]"
+                      : "text-[var(--muted)]"
+                  )}
                 >
                   {age.label}
-                </td>
-              </tr>
+                </div>
+              </button>
             );
           })}
-        </tbody>
-      </table>
-    </section>
+        </div>
+      )}
+    </Card>
   );
 }

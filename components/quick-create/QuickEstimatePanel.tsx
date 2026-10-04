@@ -13,7 +13,7 @@ import { useSiteMeasures } from "@/lib/hooks/useSiteMeasures";
 
 /**
  * Quick estimate: search a customer's site measures and spin up a blank
- * estimate from the chosen one — the same create-and-open-builder action the
+ * estimate from the chosen one: the same create-and-open-builder action the
  * site-measure page exposes, lifted into the global launcher.
  */
 export function QuickEstimatePanel({ onClose }: { onClose: () => void }) {
@@ -37,7 +37,7 @@ export function QuickEstimatePanel({ onClose }: { onClose: () => void }) {
     () =>
       (data?.items ?? []).map((sm) => {
         const rooms = sm._count?.items;
-        const customer = sm.location?.customer?.name ?? "—";
+        const customer = sm.location?.customer?.name ?? "-";
         return {
           id: sm.id,
           title: `№ ${sm.siteMeasureNumber ?? sm.id}${
@@ -84,7 +84,7 @@ export function QuickEstimatePanel({ onClose }: { onClose: () => void }) {
           ? "Select a site measure to continue"
           : "Site measure selected"
       }
-      createLabel="Create estimate →"
+      createLabel="Create estimate"
       onCreate={onCreate}
       createDisabled={selectedId === null || create.isPending}
       creating={create.isPending}

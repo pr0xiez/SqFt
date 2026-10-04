@@ -1,30 +1,36 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { BrandMark } from "@/components/ui/BrandMark";
+import { Button } from "@/components/ui/Button";
+import { DownloadSimpleIcon } from "@/components/ui/icons";
+
 interface Props {
-  orgName: string;
-  orgAddress: string | null;
+  /** Left side of the bar: the document's status. */
+  children?: ReactNode;
 }
 
-export function PublicEstimateHeader({ orgName, orgAddress }: Props) {
+/**
+ * The slim bar above the public document: the SqFt mark and the PDF action on
+ * one line, the document's status under it.
+ */
+export function PublicEstimateHeader({ children }: Props) {
   return (
-    <header className="px-7 py-[18px] flex items-center gap-[14px] max-w-[880px] mx-auto">
-      <div className="font-[800] text-[18px] tracking-[-0.025em]">
-        <em className="not-italic text-[var(--accent)]">Sq</em>Ft
-      </div>
-      <div className="w-px h-[18px] bg-[var(--line-2)]" />
-      <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] uppercase">
-        {orgName}
-        {orgAddress ? ` · ${orgAddress}` : ""}
-      </div>
-      <div className="ml-auto">
-        <button
+    <div className="mb-3 sm:mb-4 print:hidden">
+      <div className="flex items-center justify-between gap-3">
+        <BrandMark size="sm" />
+        <Button
           type="button"
-          className="font-[var(--font-mono)] text-[11px] px-3 py-[7px] border border-[var(--line-2)] bg-transparent text-[var(--ink-2)] rounded-md inline-flex items-center gap-1.5 hover:border-[var(--ink)] hover:text-[var(--ink)] hover:bg-[var(--surface)] print:hidden"
+          variant="default"
+          size="sm"
+          className="bg-[var(--paper)]"
           onClick={() => window.print()}
         >
-          ⤓ Download PDF
-        </button>
+          <DownloadSimpleIcon aria-hidden="true" />
+          Download PDF
+        </Button>
       </div>
-    </header>
+      {children ? <div className="min-w-0 mt-4">{children}</div> : null}
+    </div>
   );
 }

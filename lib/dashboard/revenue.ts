@@ -46,7 +46,7 @@ export async function getDashboardRevenue(
   const monthAbbr = now.toLocaleString("en-US", { month: "short" });
 
   const weeks: WeekSummary[] = weekBoundaries.map(({ start, end }) => {
-    const label = `${monthAbbr} ${start}–${end}`;
+    const label = `${monthAbbr} ${start}-${end}`;
     const isCurrent = today >= start && today <= end;
     const isFuture = start > today;
 

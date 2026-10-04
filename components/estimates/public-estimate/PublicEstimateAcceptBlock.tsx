@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { CheckIcon } from "@/components/ui/icons";
 import { readApiError } from "@/lib/api/errors";
 
 interface Props {
@@ -34,39 +36,47 @@ export function PublicEstimateAcceptBlock({ token, onDeclineClick }: Props) {
   }
 
   return (
-    <div className="mt-9 bg-[var(--surface)] border border-[var(--line-2)] rounded-lg p-8 print:hidden">
-      <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.08em] mb-2">
-        Approve
-      </div>
-      <div className="text-[22px] font-[700] tracking-[-0.02em] mb-1.5 leading-tight">
+    <section className="mt-10 pt-8 border-t border-[var(--line)] print:hidden">
+      <div className="type-label mb-1.5">Approve</div>
+      <h2 className="type-display text-[24px] sm:text-[28px] mb-2">
         Ready to move forward?
-      </div>
-      <div className="text-[13px] text-[var(--ink-2)] leading-snug mb-6">
+      </h2>
+      <p className="text-[15px] text-[var(--ink-2)] leading-snug mb-6 max-w-[52ch]">
         Approve this estimate to get on the schedule. We'll follow up to confirm
         the details.
-      </div>
+      </p>
 
       {error && (
-        <div className="text-[13px] text-[var(--accent)] mb-3">{error}</div>
+        <div
+          role="alert"
+          className="mb-4 rounded-[var(--r)] bg-[var(--accent-wash)] px-3.5 py-2.5 text-[14px] text-[var(--accent-ink)]"
+        >
+          {error}
+        </div>
       )}
 
-      <div className="flex gap-2.5 flex-wrap mt-2">
-        <button
+      <div className="flex flex-col sm:flex-row gap-2.5">
+        <Button
           type="button"
-          className="flex-1 min-w-[200px] py-3.5 px-5 bg-[var(--accent)] text-white border-0 rounded-md text-[14px] font-[600] tracking-[-0.01em] inline-flex items-center justify-center gap-2 transition-all hover:bg-[var(--accent-l)] hover:-translate-y-px disabled:bg-[var(--line-2)] disabled:text-[var(--muted)] disabled:cursor-not-allowed disabled:transform-none"
+          variant="primary"
+          size="lg"
+          className="w-full sm:w-auto sm:flex-1 px-5"
           disabled={submitting}
           onClick={onApprove}
         >
-          ✓ {submitting ? "Submitting…" : "Approve & get on the schedule"}
-        </button>
-        <button
+          <CheckIcon aria-hidden="true" weight="bold" />
+          {submitting ? "Submitting…" : "Approve & get on the schedule"}
+        </Button>
+        <Button
           type="button"
+          variant="default"
+          size="lg"
+          className="w-full sm:w-auto"
           onClick={onDeclineClick}
-          className="py-3.5 px-4 bg-[var(--surface-2)] text-[var(--ink)] border border-[var(--line-2)] rounded-md text-[13px] font-[500] font-[var(--font-mono)] tracking-[.02em]"
         >
           Decline
-        </button>
+        </Button>
       </div>
-    </div>
+    </section>
   );
 }

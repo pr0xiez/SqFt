@@ -175,6 +175,17 @@ with the file that owns it.
   `lib/utils.ts` — `fmtDollar` and friends.
 - `components/` — UI grouped by domain (`estimates`, `invoices`,
   `siteMeasures`, …) plus shared `components/ui/` (`Modal`, `Button`, `Toast`).
+- **Design system** — the app shares the marketing site's (`www/`) language:
+  Archivo (variable, wide display via `font-stretch`) + JetBrains Mono for
+  figures only, neutral `--bg`/`--surface`/`--ink` tokens, one safety-orange
+  accent (`--accent` fills with dark `--on-accent` text; `--accent-ink` for
+  orange text), one 6px radius (`--r`). Tokens, the `type-*` utilities and the
+  `field`/`seg`/`card` classes live in `app/globals.css`; the rules and the
+  shared primitives (`PageHeader`, `Card`, `Stat`, `StatusBadge`, `TapeMeter`,
+  `ListToolbar`, `table.ts`, …) are documented in **`docs/design-system.md`** —
+  read it before building UI. Icons are Phosphor via `components/ui/icons.ts`
+  (deep SSR imports; no hand-drawn SVGs or text-glyph icons). Theme follows the
+  OS unless `ThemeToggle` stored a choice (`<html data-theme>`).
 - `prisma/` — schema, migrations, `seed.ts`. Design docs and plans live in
   `specs/` and `docs/superpowers/` (e.g.
   `docs/superpowers/specs/2026-06-05-invoice-ui-design.md`).
@@ -207,7 +218,10 @@ with the file that owns it.
   `lib/publicRoutes.ts`** (consumed by the auth proxy in `proxy.ts`), or
   customers get redirected to `/login`. E2E tests for public pages must
   navigate with a **logged-out** context — a logged-in context masks a missing
-  allowlist entry.
+  allowlist entry. The same proxy also redirects **static assets** a
+  logged-out page requests from `public/` unless the `proxy.ts` matcher
+  excludes them (as it does `icons`, `fonts`, `icon.svg`): statically import
+  images instead (the login photo is `app/(auth)/contractor-marking-board.jpg`).
 - **Record ids are global autoincrement ints, not org-scoped.** Any repo
   function or route that accepts a cross-record FK id (like
   `Event.customerId` / `Event.estimateId`) must validate it against the

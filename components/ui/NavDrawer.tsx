@@ -3,6 +3,9 @@
 import { useEffect } from "react";
 import { useQuickCreate } from "@/components/quick-create/QuickCreateProvider";
 import { AccountBlock } from "@/components/ui/AccountBlock";
+import { BrandMark } from "@/components/ui/BrandMark";
+import { buttonClasses } from "@/components/ui/Button";
+import { PlusIcon, XIcon } from "@/components/ui/icons";
 import { NavMenu } from "@/components/ui/NavMenu";
 import { hasMinRole } from "@/lib/auth/permissions";
 import { cn } from "@/lib/cn";
@@ -46,8 +49,8 @@ export function NavDrawer({
         onClick={onClose}
         aria-hidden="true"
         className={cn(
-          "md:hidden fixed inset-0 z-[400] bg-black/40 backdrop-blur-[2px]",
-          "transition-opacity duration-200",
+          "md:hidden fixed inset-0 z-[400] bg-[var(--scrim)] backdrop-blur-[3px]",
+          "transition-opacity duration-300",
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />
@@ -56,24 +59,30 @@ export function NavDrawer({
         aria-modal="true"
         aria-label="Navigation"
         className={cn(
-          "md:hidden fixed top-0 bottom-0 left-0 z-[401] w-[80%] max-w-[320px]",
-          "bg-[var(--surface)] border-r border-[var(--line)] shadow-[var(--shadow-md)]",
-          "flex flex-col transition-transform duration-[220ms] ease-out",
+          "md:hidden fixed top-0 bottom-0 left-0 z-[401] w-[84%] max-w-[340px]",
+          "bg-[var(--bg)] border-r border-[var(--line)] shadow-[var(--shadow-md)]",
+          "flex flex-col transition-transform duration-[380ms] ease-[var(--ease)]",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center h-[56px] px-5 shrink-0 border-b border-[var(--line)]">
-          <span className="text-[18px] font-[800] tracking-[-0.025em] select-none leading-none">
-            <em className="not-italic text-[var(--accent)]">Sq</em>Ft
-          </span>
+        <div
+          className="flex items-center justify-between h-16 pl-5 pr-3 shrink-0"
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        >
+          <BrandMark />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close menu"
+            className="size-10 rounded-[var(--r)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)] cursor-pointer"
+          >
+            <XIcon aria-hidden="true" className="size-5" />
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-2 py-2">
+        <div className="flex-1 overflow-y-auto px-3 pb-3">
           {canQuickCreate && (
-            <div className="px-2 pb-2 mb-1 border-b border-[var(--line)]">
-              <div className="font-[var(--font-mono)] text-[9px] tracking-[.06em] uppercase text-[var(--muted)] px-1 pt-1 pb-1.5">
-                Create
-              </div>
-              <div className="flex gap-2">
+            <div className="pb-3 mb-2 border-b border-[var(--line)]">
+              <div className="grid grid-cols-2 gap-2">
                 {(
                   [
                     ["estimate", "New estimate"],
@@ -87,8 +96,13 @@ export function NavDrawer({
                       onClose();
                       openQuickCreate(kind);
                     }}
-                    className="flex-1 font-[var(--font-mono)] text-[11px] font-[500] text-white bg-[var(--accent)] border border-[var(--accent)] rounded-[6px] px-3 py-2.5 cursor-pointer hover:bg-[var(--accent-l)]"
+                    className={buttonClasses({
+                      variant: kind === "estimate" ? "primary" : "default",
+                      size: "md",
+                      className: "w-full",
+                    })}
                   >
+                    <PlusIcon aria-hidden="true" />
                     {label}
                   </button>
                 ))}

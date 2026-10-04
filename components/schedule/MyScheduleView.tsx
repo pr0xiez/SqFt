@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { DayAgenda } from "@/components/schedule/DayAgenda";
 import { JobCard } from "@/components/schedule/JobCard";
-import { cn } from "@/lib/cn";
+import { buttonClasses } from "@/components/ui/Button";
+import {
+  CalendarDotsIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+} from "@/components/ui/icons";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { type CalEvent, useEvents } from "@/lib/hooks/useEvents";
 import {
   buildAgendaSections,
@@ -24,19 +30,14 @@ function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex-1 flex bg-[var(--surface-2)] rounded-lg p-[3px]">
+    <div className="seg flex-1 flex">
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cn(
-            "flex-1 text-center text-[11px] font-[600] py-1.5 rounded-md transition-colors",
-            value === o.value
-              ? "bg-[var(--surface)] text-[var(--ink)] shadow-sm"
-              : "text-[var(--muted)]"
-          )}
+          className="flex-1 min-h-[36px]"
         >
           {o.label}
         </button>
@@ -78,8 +79,9 @@ export function MyScheduleView({ currentUserId }: { currentUserId: string }) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <header className="bg-[var(--surface)] border-b border-[var(--line)] px-3 pt-2.5 pb-2 max-w-[680px] mx-auto w-full">
-        <div className="flex gap-1.5">
+      <header className="max-w-[680px] mx-auto w-full">
+        <PageHeader title="My Schedule" className="mb-4 md:mb-5" />
+        <div className="flex gap-2">
           <Segmented
             options={[
               { value: "mine", label: "My" },
@@ -97,48 +99,31 @@ export function MyScheduleView({ currentUserId }: { currentUserId: string }) {
             onChange={setRange}
           />
         </div>
-        <div className="flex items-center justify-between gap-2 mt-2">
+        <div className="flex items-center justify-between gap-2 mt-3 pb-3 border-b border-[var(--line)]">
           <button
             type="button"
             aria-label="Previous"
             onClick={() => setFocusedDate((d) => shiftFocus(d, range, -1))}
-            className="w-7 h-7 shrink-0 rounded-lg bg-[var(--surface-2)] flex items-center justify-center hover:border hover:border-[var(--accent)] transition-colors"
+            className={buttonClasses({ size: "icon", className: "size-11" })}
           >
-            ‹
+            <CaretLeftIcon aria-hidden="true" weight="bold" />
           </button>
-          <div className="flex flex-col items-center gap-0.5 min-w-0">
+          <div className="flex flex-col items-center gap-1 min-w-0">
             <button
               type="button"
               onClick={() => setFocusedDate(today)}
               aria-label="Jump to today"
               aria-pressed={isToday}
               title="Jump to today"
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1",
-                "text-[11px] font-[700] transition-colors active:scale-95",
-                isToday
-                  ? "border-[var(--line)] bg-[var(--surface-2)] text-[var(--ink)] hover:border-[var(--accent)]"
-                  : "border-[var(--accent)] bg-[var(--accent)] text-[var(--paper)] shadow-sm"
-              )}
+              className={buttonClasses({
+                variant: isToday ? "ghost" : "primary",
+                size: "sm",
+              })}
             >
-              <svg
-                viewBox="0 0 24 24"
-                width="12"
-                height="12"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <title>Today</title>
-                <circle cx="12" cy="12" r="3.5" />
-                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-              </svg>
+              <CalendarDotsIcon aria-hidden="true" />
               {isToday ? "Today" : "Back to today"}
             </button>
-            <span className="text-[11px] font-[600] text-[var(--ink-2)] truncate max-w-full">
+            <span className="text-[14px] font-[600] text-[var(--ink-2)] truncate max-w-full">
               {formatFocusLabel(focusedDate, range)}
             </span>
           </div>
@@ -146,9 +131,9 @@ export function MyScheduleView({ currentUserId }: { currentUserId: string }) {
             type="button"
             aria-label="Next"
             onClick={() => setFocusedDate((d) => shiftFocus(d, range, 1))}
-            className="w-7 h-7 shrink-0 rounded-lg bg-[var(--surface-2)] flex items-center justify-center hover:border hover:border-[var(--accent)] transition-colors"
+            className={buttonClasses({ size: "icon", className: "size-11" })}
           >
-            ›
+            <CaretRightIcon aria-hidden="true" weight="bold" />
           </button>
         </div>
       </header>

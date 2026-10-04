@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CaretDownIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import type { SchedulableCandidate } from "@/lib/schedule/backlog";
 import { fmtDollar } from "@/lib/utils";
@@ -34,30 +35,29 @@ export function BacklogStrip({ candidates, onSchedule }: BacklogStripProps) {
   const nowMs = Date.now();
 
   return (
-    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg mb-4 overflow-hidden">
+    <section className="card mb-4 overflow-hidden">
       <button
         type="button"
         onClick={() => setCollapsed((c) => !c)}
         aria-expanded={!collapsed}
-        className="w-full flex items-center gap-2 px-3.5 py-2.5 cursor-pointer hover:bg-[var(--surface-2)] transition-colors"
+        className="w-full flex items-center gap-2.5 px-4 min-h-[48px] cursor-pointer hover:bg-[var(--hover)] transition-colors"
       >
-        <span className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
+        <span className="text-[14.5px] font-[600] tracking-[-0.01em]">
           Unscheduled jobs
         </span>
-        <span className="font-[var(--font-mono)] text-[10px] font-[600] text-[var(--bg)] bg-[var(--accent)] rounded-full px-1.5 py-px min-w-[18px]">
+        <span className="type-figure text-[12px] font-[600] leading-none text-[var(--on-accent)] bg-[var(--accent)] rounded-[var(--r-in)] px-1.5 py-[3px] min-w-[20px] text-center">
           {candidates.length}
         </span>
-        <span
+        <CaretDownIcon
+          aria-hidden="true"
           className={cn(
-            "ml-auto text-[10px] text-[var(--muted)] transition-transform",
+            "ml-auto size-4 text-[var(--muted)] transition-transform duration-200 ease-[var(--ease)]",
             collapsed && "-rotate-90"
           )}
-        >
-          ▾
-        </span>
+        />
       </button>
       {!collapsed && (
-        <div className="flex gap-2 px-3.5 pb-3 overflow-x-auto">
+        <div className="flex gap-2 px-4 pb-4 overflow-x-auto no-scrollbar snap-x">
           {candidates.map((c) => {
             const days = waitingDays(c.approvedAt, nowMs);
             return (
@@ -65,31 +65,31 @@ export function BacklogStrip({ candidates, onSchedule }: BacklogStripProps) {
                 key={c.id}
                 type="button"
                 onClick={() => onSchedule(c)}
-                className="shrink-0 w-[200px] text-left border border-[var(--line)] rounded-[6px] px-3 py-2.5 bg-[var(--surface)] cursor-pointer hover:border-[var(--ink-2)] hover:bg-[var(--surface-2)] transition-colors"
+                className="shrink-0 snap-start w-[220px] text-left border border-[var(--line)] rounded-[var(--r)] px-3 py-2.5 bg-[var(--bg)] cursor-pointer hover:border-[var(--ink-2)] hover:bg-[var(--hover)] transition-colors active:scale-[0.98]"
               >
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[13px] font-[600] tracking-[-0.01em] truncate">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[14px] font-[600] tracking-[-0.01em] truncate">
                     {c.customerName}
                   </span>
-                  <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] shrink-0">
+                  <span className="type-figure text-[12.5px] text-[var(--muted)] shrink-0 ml-auto">
                     #{c.estimateNumber}
                   </span>
                 </div>
                 {c.address && (
-                  <div className="text-[11px] text-[var(--muted)] truncate mt-0.5">
+                  <div className="text-[13px] text-[var(--muted)] truncate mt-0.5">
                     {c.address}
                   </div>
                 )}
-                <div className="flex items-baseline justify-between mt-1.5">
-                  <span className="font-[var(--font-mono)] text-[11px]">
+                <div className="flex items-baseline justify-between gap-2 mt-2">
+                  <span className="type-figure text-[13.5px] font-[600]">
                     {fmtDollar(c.total)}
                   </span>
                   {days !== null && (
                     <span
                       className={cn(
-                        "font-[var(--font-mono)] text-[10px]",
+                        "type-figure text-[12.5px]",
                         days >= 7
-                          ? "text-[var(--accent)]"
+                          ? "text-[var(--accent-ink)] font-[600]"
                           : "text-[var(--muted)]"
                       )}
                     >
@@ -102,6 +102,6 @@ export function BacklogStrip({ candidates, onSchedule }: BacklogStripProps) {
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }

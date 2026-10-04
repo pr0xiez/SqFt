@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { ArrowRightIcon, MinusIcon, PlusIcon } from "@/components/ui/icons";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useCreateInvoice } from "@/lib/hooks/useInvoices";
@@ -21,11 +22,6 @@ interface Props {
   open: boolean;
   onClose: () => void;
 }
-
-const labelCls =
-  "block text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-1";
-const inputCls =
-  "w-full text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded mb-3 focus:outline-none focus:border-[var(--ink)]";
 
 export function CreateInvoiceDialog({
   estimateId,
@@ -86,8 +82,8 @@ export function CreateInvoiceDialog({
 
   return (
     <Modal open={open} onClose={onClose} title="New invoice" maxWidth="480px">
-      <span className={labelCls}>Bill by</span>
-      <div className="flex border border-[var(--line-2)] rounded overflow-hidden mb-3">
+      <span className="field-label">Bill by</span>
+      <div className="seg flex w-full mb-4">
         {(
           [
             ["remaining", "Remaining balance"],
@@ -98,12 +94,9 @@ export function CreateInvoiceDialog({
           <button
             key={m}
             type="button"
+            aria-pressed={mode === m}
             onClick={() => setMode(m)}
-            className={`flex-1 text-[12px] py-2 ${
-              mode === m
-                ? "bg-[var(--ink)] text-[var(--bg)]"
-                : "bg-[var(--surface)] text-[var(--ink-2)]"
-            }`}
+            className="flex-1 min-h-[36px] px-2 text-center"
           >
             {label}
           </button>
@@ -111,75 +104,74 @@ export function CreateInvoiceDialog({
       </div>
 
       {mode === "pct" ? (
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2.5 mb-4">
           <input
             aria-label="Percent of balance"
             type="number"
-            className="w-[100px] text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded focus:outline-none focus:border-[var(--ink)]"
+            className="field w-[100px] type-figure"
             value={pct}
             onChange={(e) => setPct(e.target.value)}
           />
-          <span className="text-[13px] text-[var(--ink-2)]">
-            % of {fmtDollar(unbilled)} remaining
+          <span className="text-[14px] text-[var(--ink-2)]">
+            % of <span className="type-figure">{fmtDollar(unbilled)}</span>{" "}
+            remaining
           </span>
         </div>
       ) : null}
 
       {mode === "flat" ? (
-        <>
-          <label className={labelCls} htmlFor="flat-amount">
+        <div className="mb-4">
+          <label className="field-label" htmlFor="flat-amount">
             Amount
           </label>
           <input
             id="flat-amount"
             aria-label="Amount"
             type="number"
-            className={inputCls}
+            className="field type-figure"
             value={flat}
             onChange={(e) => setFlat(e.target.value)}
           />
-        </>
+        </div>
       ) : null}
 
-      <div className="rounded bg-[var(--surface-2)] px-3 py-2.5 mb-4">
-        <div className="text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)]">
-          This invoice
-        </div>
-        <div className="text-[22px] font-[700] tracking-[-0.02em]">
+      <div className="rounded-[var(--r)] border border-[var(--line)] bg-[var(--bg)] px-4 py-3.5 mb-5">
+        <div className="type-label">This invoice</div>
+        <div className="type-stat text-[28px] mt-1.5 text-[var(--ink)]">
           {fmtDollar(amount)}
         </div>
         {overBill ? (
-          <div className="text-[11px] text-[var(--accent)] mt-0.5">
+          <div className="field-error mt-1.5">
             Exceeds the {fmtDollar(unbilled)} unbilled balance.
           </div>
         ) : (
-          <div className="text-[11px] text-[var(--muted)] mt-0.5">
+          <div className="text-[13px] text-[var(--muted)] mt-1.5">
             Leaves {fmtDollar(leaves)} unbilled
           </div>
         )}
       </div>
 
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <label className={labelCls} htmlFor="due-date">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-4 mb-3">
+        <div>
+          <label className="field-label" htmlFor="due-date">
             Due date (optional)
           </label>
           <input
             id="due-date"
             type="date"
-            className={inputCls}
+            className="field"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
           />
         </div>
-        <div className="flex-1">
-          <label className={labelCls} htmlFor="memo">
+        <div>
+          <label className="field-label" htmlFor="memo">
             Memo (optional)
           </label>
           <input
             id="memo"
             type="text"
-            className={inputCls}
+            className="field"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="Deposit"
@@ -187,38 +179,50 @@ export function CreateInvoiceDialog({
         </div>
       </div>
 
-      <button
+      <Button
         type="button"
-        className="text-[12px] text-[var(--accent)] mb-3"
+        variant="ghost"
+        size="sm"
+        className="-ml-3 mb-2"
+        aria-expanded={showMore}
         onClick={() => setShowMore((s) => !s)}
       >
-        {showMore ? "− Cover note & terms" : "+ Cover note & terms"}
-      </button>
+        {showMore ? (
+          <MinusIcon aria-hidden="true" />
+        ) : (
+          <PlusIcon aria-hidden="true" />
+        )}
+        Cover note & terms
+      </Button>
       {showMore ? (
-        <>
-          <label className={labelCls} htmlFor="cover-note">
-            Cover note
-          </label>
-          <textarea
-            id="cover-note"
-            className={`${inputCls} min-h-[70px] resize-y`}
-            value={coverNote}
-            onChange={(e) => setCoverNote(e.target.value)}
-          />
-          <label className={labelCls} htmlFor="terms">
-            Terms
-          </label>
-          <textarea
-            id="terms"
-            className={`${inputCls} min-h-[70px] resize-y`}
-            value={terms}
-            onChange={(e) => setTerms(e.target.value)}
-          />
-        </>
+        <div className="flex flex-col gap-4 mb-2">
+          <div>
+            <label className="field-label" htmlFor="cover-note">
+              Cover note
+            </label>
+            <textarea
+              id="cover-note"
+              className="field min-h-[80px] resize-y"
+              value={coverNote}
+              onChange={(e) => setCoverNote(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="field-label" htmlFor="terms">
+              Terms
+            </label>
+            <textarea
+              id="terms"
+              className="field min-h-[80px] resize-y"
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+            />
+          </div>
+        </div>
       ) : null}
 
-      <div className="flex justify-end gap-2 mt-2">
-        <Button variant="ghost" onClick={onClose} type="button">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-4">
+        <Button variant="default" onClick={onClose} type="button">
           Cancel
         </Button>
         <Button
@@ -227,7 +231,8 @@ export function CreateInvoiceDialog({
           disabled={!canSubmit}
           type="button"
         >
-          {create.isPending ? "Creating…" : "Create draft →"}
+          {create.isPending ? "Creating…" : "Create draft"}
+          {create.isPending ? null : <ArrowRightIcon aria-hidden="true" />}
         </Button>
       </div>
     </Modal>

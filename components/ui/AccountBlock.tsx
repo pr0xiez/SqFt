@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
+import { SignOutIcon } from "@/components/ui/icons";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { cn } from "@/lib/cn";
 import { getInitials } from "@/lib/nav/initials";
@@ -32,47 +33,42 @@ export function AccountBlock({
         <span
           aria-hidden="true"
           className={cn(
-            "shrink-0 w-9 h-9 rounded-full",
-            "bg-[var(--surface-2)] border border-[var(--line)]",
+            "shrink-0 size-9 rounded-full",
+            "bg-[var(--ink)] text-[var(--bg)]",
             "flex items-center justify-center",
-            "font-[var(--font-mono)] text-[12px] font-[600] text-[var(--accent)]"
+            "text-[12.5px] font-[700] tracking-[0.01em]"
           )}
         >
           {initials}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-[600] tracking-[var(--ls-snug)] leading-tight truncate">
+          <div className="text-[14px] font-[620] leading-tight truncate">
             {user?.name ?? "Signed in"}
           </div>
           {user?.role && (
-            <div className="font-[var(--font-mono)] text-[10px] uppercase tracking-[var(--ls-cap)] text-[var(--muted)] mt-0.5">
+            <div className="text-[13px] text-[var(--muted)] mt-0.5 capitalize">
               {user.role}
             </div>
           )}
         </div>
-        {variant === "inline" && <ThemeToggle />}
+        <button
+          type="button"
+          onClick={handleSignOut}
+          aria-label="Sign out"
+          title="Sign out"
+          className={cn(
+            "shrink-0 inline-flex items-center justify-center gap-1.5 h-9 rounded-[var(--r)]",
+            "text-[13.5px] font-[560] text-[var(--ink-2)] cursor-pointer",
+            "hover:text-[var(--ink)] hover:bg-[var(--hover)] transition-colors",
+            variant === "inline" ? "px-3 border border-[var(--line-2)]" : "w-9"
+          )}
+        >
+          <SignOutIcon aria-hidden="true" className="size-[17px]" />
+          {variant === "inline" && <span>Sign out</span>}
+        </button>
       </div>
 
-      {variant === "compact" && (
-        <div className="flex items-center justify-between gap-2">
-          <ThemeToggle />
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={handleSignOut}
-        className={cn(
-          "w-full flex items-center justify-center gap-2",
-          "px-3 py-2.5 rounded-[var(--r)]",
-          "bg-[var(--accent)] hover:bg-[var(--accent-d)]",
-          "text-white font-[var(--font-mono)] text-[11px] tracking-[var(--ls-cap)] uppercase",
-          "transition-colors duration-150 active:translate-y-[1px]"
-        )}
-      >
-        <span>Sign out</span>
-        <span aria-hidden="true">→</span>
-      </button>
+      <ThemeToggle className="w-full [&>*]:flex-1" />
     </div>
   );
 }

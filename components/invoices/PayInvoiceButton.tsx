@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { CreditCardIcon } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
 import { readApiError } from "@/lib/api/errors";
 
@@ -66,13 +68,16 @@ export function PayInvoiceButton({ token }: Props) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="primary"
+      size="lg"
       onClick={handlePay}
       disabled={pending}
-      className="inline-block bg-[var(--accent)] text-white px-6 py-3 rounded-md font-[600] disabled:opacity-60 disabled:cursor-not-allowed"
+      className="w-full sm:w-auto sm:min-w-[220px]"
     >
+      <CreditCardIcon aria-hidden="true" />
       {pending ? "Redirecting…" : "Pay now"}
-    </button>
+    </Button>
   );
 }

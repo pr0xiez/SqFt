@@ -76,7 +76,7 @@ export function QuickInvoicePanel({
           ? "Select an estimate to continue"
           : "Estimate selected"
       }
-      createLabel="Create invoice →"
+      createLabel="Create invoice"
       onCreate={onCreate}
       createDisabled={selectedId === null}
       creating={false}

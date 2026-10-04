@@ -5,11 +5,28 @@ import { useState } from "react";
 import type { SiteMeasureStatus } from "@/components/siteMeasures/filterSiteMeasures";
 import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
-import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingRows,
+} from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
+import { CaretRightIcon, RulerIcon } from "@/components/ui/icons";
+import { ListToolbar } from "@/components/ui/ListToolbar";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
+import {
+  CELL,
+  CELL_FIGURE,
+  CELL_META,
+  CELL_PRIMARY,
+  CELL_SUB,
+  TABLE_HEAD,
+  TABLE_ROW,
+  TABLE_SHELL,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useSiteMeasures } from "@/lib/hooks/useSiteMeasures";
@@ -22,6 +39,8 @@ const STATUS_FILTERS: { value: SiteMeasureStatus; label: string }[] = [
   { value: "measured", label: "Measured" },
   { value: "estimated", label: "Estimated" },
 ];
+
+const GRID_COLS = "md:grid-cols-[92px_minmax(0,1fr)_140px_56px]";
 
 type SortKey = "id" | "customer" | "date";
 
@@ -85,22 +104,25 @@ export function SiteMeasureListView() {
 
   return (
     <>
-      <div className="mb-7">
-        <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-          Site Measures
-        </h1>
-        <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
-          {allCount} site measure{allCount === 1 ? "" : "s"}
-        </div>
-      </div>
+      <PageHeader
+        title="Site Measures"
+        meta={
+          <span>
+            <span className="type-figure text-[var(--ink-2)]">{allCount}</span>{" "}
+            site measure{allCount === 1 ? "" : "s"}
+          </span>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder="Search by # or customer name…"
-        />
-        {STATUS_FILTERS.map(({ value, label }) => (
+      <ListToolbar
+        search={
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by # or customer name…"
+          />
+        }
+        filters={STATUS_FILTERS.map(({ value, label }) => (
           <FilterPill
             key={value}
             active={status === value}
@@ -110,26 +132,30 @@ export function SiteMeasureListView() {
             {label}
           </FilterPill>
         ))}
-        <DensityToggle
-          value={density}
-          onChange={setDensity}
-          className="ml-auto"
-        />
-        {isNarrowed && (
-          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums">
-            {total} of {allCount}
-          </span>
-        )}
-      </div>
+        trailing={
+          <>
+            {isNarrowed && (
+              <span className="text-[13px] text-[var(--muted)]">
+                <span className="type-figure">{total}</span> of{" "}
+                <span className="type-figure">{allCount}</span>
+              </span>
+            )}
+            <DensityToggle
+              value={density}
+              onChange={setDensity}
+              className="hidden md:inline-flex"
+            />
+          </>
+        }
+      />
 
-      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        <div className="hidden md:grid grid-cols-[80px_1fr_110px_80px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+      <div className={TABLE_SHELL}>
+        <div className={cn(TABLE_HEAD, GRID_COLS)}>
           <SortableHeader
             sortKey="id"
             label="#"
             sort={sort}
             onSort={handleSort}
-            className="tabular-nums"
           />
           <SortableHeader
             sortKey="customer"
@@ -143,69 +169,88 @@ export function SiteMeasureListView() {
             sort={sort}
             onSort={handleSort}
           />
-          <div className="px-3.5 py-2.5" />
+          <div aria-hidden="true" />
         </div>
 
         {isLoading ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            Loading…
-          </div>
+          <LoadingRows />
         ) : isError ? (
-          <div className="p-6 flex flex-col items-start gap-2.5">
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
-              Something went wrong loading site measures.
-            </div>
-            <Button variant="default" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </div>
+          <ErrorState
+            message="Something went wrong loading site measures."
+            action={
+              <Button variant="default" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            }
+          />
         ) : allCount === 0 ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            No site measures yet. Create one from a customer record.
-          </div>
+          <EmptyState
+            icon={RulerIcon}
+            title="No site measures yet."
+            body="Create one from a customer record."
+          />
         ) : total === 0 ? (
           <EmptyState noun="site measure" query={query} />
         ) : (
           <>
-            {siteMeasures.map((est) => (
-              <button
-                key={est.id}
-                type="button"
-                onClick={() => router.push(`/site-measures/${est.id}`)}
-                className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_110px_80px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
-              >
-                <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                  <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
-                    #{est.id}
-                  </span>
-                </div>
-                <div className={cn("px-3.5", rowPad)}>
-                  <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                    {est.location?.customer?.name || "—"}
-                  </div>
-                  <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap">
-                    {est.location?.address ?? ""}
-                  </div>
-                </div>
-                <div
-                  className={cn(
-                    "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
-                    rowPad
-                  )}
+            {siteMeasures.map((est) => {
+              const dateLabel = new Date(est.date).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              });
+              return (
+                <button
+                  key={est.id}
+                  type="button"
+                  onClick={() => router.push(`/site-measures/${est.id}`)}
+                  className={cn(TABLE_ROW, "group grid-cols-1", GRID_COLS)}
                 >
-                  {new Date(est.date).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </div>
-                <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                  <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
-                    Open →
-                  </span>
-                </div>
-              </button>
-            ))}
+                  <div className={cn(CELL, "hidden md:block", rowPad)}>
+                    <span
+                      className={cn(
+                        CELL_FIGURE,
+                        "font-[600] text-[var(--ink)]"
+                      )}
+                    >
+                      #{est.id}
+                    </span>
+                  </div>
+                  <div className={cn(CELL, "min-w-0", rowPad)}>
+                    <div className={CELL_PRIMARY}>
+                      {est.location?.customer?.name || "-"}
+                    </div>
+                    <div className={CELL_SUB}>
+                      {est.location?.address ?? ""}
+                    </div>
+                    {/* phones: the columns fold into one meta line */}
+                    <div className="md:hidden mt-1.5 flex items-center gap-2 text-[13px] text-[var(--muted)]">
+                      <span className="type-figure text-[var(--ink-2)]">
+                        #{est.id}
+                      </span>
+                      <span>{dateLabel}</span>
+                    </div>
+                  </div>
+                  <div
+                    className={cn(CELL, CELL_META, "hidden md:block", rowPad)}
+                  >
+                    {dateLabel}
+                  </div>
+                  <div
+                    className={cn(
+                      CELL,
+                      "hidden md:flex justify-end text-[var(--muted)] group-hover:text-[var(--ink)]",
+                      rowPad
+                    )}
+                  >
+                    <CaretRightIcon
+                      aria-hidden="true"
+                      className="size-4 transition-transform duration-300 ease-[var(--ease)] group-hover:translate-x-0.5"
+                    />
+                  </div>
+                </button>
+              );
+            })}
             <Pagination
               total={total}
               page={page}

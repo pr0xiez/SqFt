@@ -1,7 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { Card } from "@/components/ui/Card";
+import { CardLink } from "@/components/ui/CardLink";
 import { CrewAvatar } from "@/components/ui/CrewAvatar";
+import { CalendarBlankIcon, CheckIcon } from "@/components/ui/icons";
+import { Tag } from "@/components/ui/StatusBadge";
+import { cn } from "@/lib/cn";
 import type { CalEvent } from "@/lib/hooks/useEvents";
 import { todayStr } from "@/lib/utils";
 
@@ -10,12 +14,6 @@ const tagLabels: Record<string, string> = {
   visit: "Visit",
   other: "Other",
 };
-
-function dotColor(ev: CalEvent): string {
-  if (ev.type === "job") return "var(--accent)";
-  if (ev.type === "visit") return "var(--gold)";
-  return "var(--muted)";
-}
 
 function isPast(ev: CalEvent): boolean {
   const now = new Date();
@@ -30,113 +28,100 @@ interface Props {
 }
 
 export function ScheduleCard({ events }: Props) {
-  const router = useRouter();
   const today = todayStr();
   const todayEvents = events
     .filter((e) => e.date.slice(0, 10) === today)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
-    <article
-      className="bg-[var(--surface)] border border-[var(--line)] rounded-[10px] p-6"
-      style={{ boxShadow: "var(--shadow)" }}
+    <Card
+      title="Today's schedule"
+      sub={
+        todayEvents.length === 0
+          ? "Nothing booked"
+          : `${todayEvents.length} event${todayEvents.length === 1 ? "" : "s"}`
+      }
+      action={<CardLink href="/schedule">Full calendar</CardLink>}
     >
-      <header className="flex items-baseline justify-between mb-[18px] pb-[14px] border-b border-[var(--line)]">
-        <div className="text-[14px] font-[600] tracking-[-0.01em] flex items-center gap-2.5">
-          Today&apos;s Schedule
-          <span className="font-[var(--font-mono)] text-[10px] px-[7px] py-[2px] border border-[var(--line)] rounded-[10px] text-[var(--muted)] font-[500]">
-            {todayEvents.length} event{todayEvents.length === 1 ? "" : "s"}
-          </span>
+      {todayEvents.length === 0 ? (
+        <div className="flex items-center gap-3 py-3 text-[14px] text-[var(--muted)]">
+          <CalendarBlankIcon aria-hidden="true" className="size-5 shrink-0" />
+          No events scheduled today.
         </div>
-        <button
-          type="button"
-          onClick={() => router.push("/schedule")}
-          className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border-0 cursor-pointer hover:text-[var(--ink)] tracking-[.02em]"
-        >
-          Full calendar →
-        </button>
-      </header>
-
-      <div className="relative pl-16">
-        <div
-          className="absolute top-2 bottom-2 w-px bg-[var(--line)]"
-          style={{ left: "50px" }}
-        />
-
-        {todayEvents.length === 0 ? (
-          <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-2">
-            No events scheduled today.
-          </p>
-        ) : (
-          todayEvents.map((ev, idx) => {
+      ) : (
+        <ol className="relative">
+          {/* the timeline rule */}
+          <span
+            aria-hidden="true"
+            className="absolute top-3 bottom-3 left-[61px] w-px bg-[var(--line)]"
+          />
+          {todayEvents.map((ev) => {
             const completed = isPast(ev);
-            const isLast = idx === todayEvents.length - 1;
             const customerName = ev.customer?.name;
-
             return (
-              <div
+              <li
                 key={ev.id}
-                className={`relative flex gap-3.5 py-3.5 cursor-pointer transition-[padding] duration-150 hover:pl-1.5 ${
-                  isLast ? "" : "border-b border-dashed border-[var(--line)]"
-                }`}
+                className="relative grid grid-cols-[48px_28px_minmax(0,1fr)] items-start py-3"
               >
-                <span
-                  className="absolute font-[var(--font-mono)] text-[11px] text-[var(--muted)] text-right pt-0.5"
-                  style={{ left: "-64px", width: "46px" }}
-                >
+                <span className="type-figure text-[13px] text-[var(--muted)] pt-px">
                   {ev.startTime}
                 </span>
-
-                <span
-                  className="absolute w-2.5 h-2.5 rounded-full z-10 mt-[18px]"
-                  style={{
-                    left: "-18px",
-                    background: completed ? "var(--sage)" : "var(--surface)",
-                    border: `2px solid ${completed ? "var(--sage)" : dotColor(ev)}`,
-                  }}
-                />
-
-                <div className="flex-1 min-w-0">
+                <span className="relative flex justify-center pt-[5px]">
+                  {completed ? (
+                    <span className="size-[14px] -mt-[2px] flex items-center justify-center bg-[var(--ok)] text-[var(--bg)]">
+                      <CheckIcon
+                        aria-hidden="true"
+                        weight="bold"
+                        className="size-[10px]"
+                      />
+                    </span>
+                  ) : (
+                    <span
+                      className={cn(
+                        "size-[10px]",
+                        ev.type === "job"
+                          ? "bg-[var(--accent)]"
+                          : "bg-[var(--bg)] border-2 border-[var(--ink-2)]"
+                      )}
+                    />
+                  )}
+                </span>
+                <div className="min-w-0">
                   <div
-                    className="text-[14px] font-[600] tracking-[-0.01em] mb-1"
-                    style={{
-                      color: completed ? "var(--muted)" : undefined,
-                      textDecoration: completed ? "line-through" : undefined,
-                      textDecorationColor: completed
-                        ? "var(--line-2)"
-                        : undefined,
-                    }}
+                    className={cn(
+                      "text-[14.5px] font-[600] tracking-[-0.01em] truncate",
+                      completed &&
+                        "text-[var(--muted)] line-through decoration-[var(--line-2)]"
+                    )}
                   >
                     {ev.title}
                   </div>
-                  <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] flex items-center gap-2.5 flex-wrap">
-                    <span className="text-[9px] px-[7px] py-[2px] border border-[var(--line)] rounded-[10px] uppercase tracking-[.06em]">
+                  <div className="mt-1.5 flex items-center gap-2.5 flex-wrap text-[13px] text-[var(--muted)]">
+                    <Tag className="h-[20px] text-[12px]">
                       {tagLabels[ev.type] ?? ev.type}
-                    </span>
-
+                    </Tag>
                     {ev.assignees.length > 0 && (
-                      <span className="flex items-center ml-2">
+                      <span className="flex items-center">
                         {ev.assignees.slice(0, 3).map((m) => (
-                          <span key={m.id} className="-ml-[5px] first:ml-0">
-                            <CrewAvatar name={m.name} size="sm" />
+                          <span
+                            key={m.id}
+                            className="-ml-1 first:ml-0 rounded-full ring-2 ring-[var(--surface)]"
+                          >
+                            <CrewAvatar name={m.name} size="md" />
                           </span>
                         ))}
                       </span>
                     )}
-
                     {customerName && (
-                      <>
-                        <span className="w-1 h-1 rounded-full bg-[var(--line-2)]" />
-                        <span>{customerName}</span>
-                      </>
+                      <span className="truncate">{customerName}</span>
                     )}
                   </div>
                 </div>
-              </div>
+              </li>
             );
-          })
-        )}
-      </div>
-    </article>
+          })}
+        </ol>
+      )}
+    </Card>
   );
 }

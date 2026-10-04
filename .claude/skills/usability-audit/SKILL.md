@@ -134,8 +134,8 @@ is not trustworthy.
   and lost the session for every later stop. The driver now scopes all row
   clicks to `<main>`. Keep new stops inside `<main>`.
 - **List rows are `<button>`s, not `<a>`s** (they `router.push` on click).
-  Customer rows are matched by their left source-accent border class
-  (`border-l-[3px]`) to avoid hitting a column-sort header; estimate and
+  Customer rows are matched by their `data-customer-row` attribute
+  (`main button[data-customer-row]`) to avoid hitting a column-sort header; estimate and
   site-measure rows are matched by their `#<number>` label.
 - **Client-fetched detail pages flash "Loading…".** The estimate/site-measure
   detail screens hydrate via React Query *after* navigation, so a naive

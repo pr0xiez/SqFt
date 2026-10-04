@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  type Icon,
+  InfoIcon,
+  WarningCircleIcon,
+} from "@/components/ui/icons";
 
 interface Props {
   token: string;
@@ -24,7 +31,7 @@ type ConfirmState =
  * paid ({ status: "paid" }). `?pay=success` and the session id are both
  * attacker-controllable on this unauthenticated page, so an unverified success
  * state must never show a "Payment received" confirmation. A failed or pending
- * verification shows a neutral finalizing message instead — the webhook remains
+ * verification shows a neutral finalizing message instead; the webhook remains
  * the source of truth.
  */
 export function PaymentConfirm({ token, sessionId }: Props) {
@@ -59,21 +66,21 @@ export function PaymentConfirm({ token, sessionId }: Props) {
 
   if (state === "paid") {
     return (
-      <div className="my-6 rounded-md bg-green-50 border border-green-200 px-5 py-4 text-[14px] font-[600] text-green-800">
-        Payment received — thank you!
-      </div>
+      <Banner tone="ok" icon="check">
+        <span className="font-[600]">Payment received. Thank you!</span>
+      </Banner>
     );
   }
 
   if (state === "overpaid") {
     // Money was captured but the invoice balance had already been covered (e.g.
     // a manual payment landed while this session sat open). Don't claim a clean
-    // "Payment received" — the contractor will refund the difference.
+    // "Payment received": the contractor will refund the difference.
     return (
-      <div className="my-6 rounded-md bg-amber-50 border border-amber-200 px-5 py-4 text-[14px] text-amber-800">
-        Your payment was received, but the invoice balance had already changed —
-        the contractor will refund the difference.
-      </div>
+      <Banner tone="warn" icon="info">
+        Your payment was received, but the invoice balance had already changed.
+        The contractor will refund the difference.
+      </Banner>
     );
   }
 
@@ -82,27 +89,64 @@ export function PaymentConfirm({ token, sessionId }: Props) {
     // copy so the homeowner knows to try again rather than waiting on a payment
     // that will never clear.
     return (
-      <div className="my-6 rounded-md bg-red-50 border border-red-200 px-5 py-4 text-[14px] text-red-800">
-        Your bank payment didn&apos;t go through — please try again.
-      </div>
+      <Banner tone="bad" icon="warning">
+        Your bank payment didn&apos;t go through. Please try again.
+      </Banner>
     );
   }
 
   if (state === "processing") {
-    // Async bank debit in flight — server-verified the session is complete but
+    // Async bank debit in flight: server-verified the session is complete but
     // unsettled. Honest copy: not a confirmation, not an error.
     return (
-      <div className="my-6 rounded-md bg-blue-50 border border-blue-200 px-5 py-4 text-[14px] text-blue-800">
-        Your bank payment is processing — this can take a few business days. The
+      <Banner tone="neutral" icon="clock">
+        Your bank payment is processing. This can take a few business days. The
         invoice will show as paid once it clears.
-      </div>
+      </Banner>
     );
   }
 
-  // Not yet verified — honest neutral state, never a false confirmation.
+  // Not yet verified: honest neutral state, never a false confirmation.
   return (
-    <div className="my-6 rounded-md bg-[var(--surface)] border border-[var(--line)] px-5 py-4 text-[14px] text-[var(--muted)]">
-      Finalizing your payment — this can take a moment.
+    <Banner tone="neutral" icon="clock">
+      Finalizing your payment. This can take a moment.
+    </Banner>
+  );
+}
+
+const BANNER_ICONS: Record<string, Icon> = {
+  check: CheckCircleIcon,
+  info: InfoIcon,
+  warning: WarningCircleIcon,
+  clock: ClockIcon,
+};
+
+const BANNER_TONES = {
+  ok: "bg-[color-mix(in_oklab,var(--ok)_12%,transparent)] text-[var(--ok)]",
+  warn: "bg-[color-mix(in_oklab,var(--warn)_12%,transparent)] text-[var(--warn)]",
+  bad: "bg-[var(--accent-wash)] text-[var(--accent-ink)]",
+  neutral: "bg-[var(--surface-2)] text-[var(--ink-2)]",
+} as const;
+
+/** A full-width notice on the public invoice. Also used for "Payment cancelled". */
+export function Banner({
+  tone,
+  icon,
+  children,
+}: {
+  tone: keyof typeof BANNER_TONES;
+  /** A string key, not a component, so server components can render it. */
+  icon: "check" | "info" | "warning" | "clock";
+  children: ReactNode;
+}) {
+  const BannerIcon = BANNER_ICONS[icon];
+  return (
+    <div
+      role="status"
+      className={`my-6 flex items-start gap-3 rounded-[var(--r)] px-4 py-3.5 text-[14.5px] leading-snug ${BANNER_TONES[tone]}`}
+    >
+      <BannerIcon aria-hidden="true" className="size-[18px] shrink-0 mt-px" />
+      <p className="min-w-0">{children}</p>
     </div>
   );
 }

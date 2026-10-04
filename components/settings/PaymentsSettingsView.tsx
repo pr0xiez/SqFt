@@ -3,6 +3,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { Button, buttonClasses } from "@/components/ui/Button";
+import { ArrowUpRightIcon, CreditCardIcon } from "@/components/ui/icons";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { type StatusTone, Tag } from "@/components/ui/StatusBadge";
 import {
   STRIPE_CONNECT_QUERY_KEY,
   useStartStripeOnboarding,
@@ -25,17 +28,35 @@ function DashboardLink() {
       rel="noopener noreferrer"
       className={buttonClasses({ variant: "default", size: "sm" })}
     >
-      Open Stripe dashboard ↗
+      Open Stripe dashboard
+      <ArrowUpRightIcon aria-hidden="true" />
     </a>
   );
 }
 
-function Title({ children }: { children: ReactNode }) {
-  return <p className="text-[14px] font-[600] mb-1">{children}</p>;
+function Title({
+  children,
+  tone,
+  tag,
+}: {
+  children: ReactNode;
+  tone: StatusTone;
+  tag: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mb-1.5">
+      <h2 className="type-heading">{children}</h2>
+      <Tag tone={tone}>{tag}</Tag>
+    </div>
+  );
 }
 
 function Body({ children }: { children: ReactNode }) {
-  return <p className="text-[13px] text-[var(--muted)] mb-4">{children}</p>;
+  return (
+    <p className="text-[14px] leading-[1.55] text-[var(--muted)] mb-5 max-w-[62ch]">
+      {children}
+    </p>
+  );
 }
 
 /**
@@ -46,12 +67,12 @@ function Body({ children }: { children: ReactNode }) {
 function IssueList({ issues }: { issues: ConnectRequirementIssue[] }) {
   if (issues.length === 0) return null;
   return (
-    <ul className="text-[13px] text-[var(--muted)] mb-3 pl-4 list-disc space-y-1">
+    <ul className="text-[14px] text-[var(--ink-2)] mt-3 mb-4 pl-5 list-disc marker:text-[var(--accent-ink)] space-y-1.5">
       {issues.map((issue) => (
         <li key={`${issue.requirement ?? ""}|${issue.message}`}>
           {issue.message}
           {issue.requirement ? (
-            <span className="ml-1 font-[var(--font-mono)] text-[11px] opacity-70">
+            <span className="ml-1.5 type-figure text-[12.5px] text-[var(--muted)]">
               ({issue.requirement})
             </span>
           ) : null}
@@ -156,15 +177,25 @@ export function PaymentsSettingsView() {
   function card(): ReactNode {
     switch (phase) {
       case "loading":
-        return <p className="text-[13px] text-[var(--muted)]">Loading…</p>;
+        return (
+          <p className="flex items-center gap-2.5 py-1 text-[14px] text-[var(--muted)]">
+            <span
+              aria-hidden="true"
+              className="size-3.5 rounded-full border-2 border-[var(--line-2)] border-t-[var(--accent)] animate-spin"
+            />
+            Loading…
+          </p>
+        );
 
       case "error":
         return (
           <div>
-            <Title>Couldn&apos;t load your payment status</Title>
+            <Title tone="bad" tag="Unavailable">
+              Couldn&apos;t load your payment status
+            </Title>
             <Body>
               We couldn&apos;t reach Stripe just now. Nothing about your setup
-              has changed — try again in a moment.
+              has changed. Try again in a moment.
             </Body>
             {checkButton}
           </div>
@@ -173,8 +204,12 @@ export function PaymentsSettingsView() {
       case "active":
         return (
           <div>
-            <p className="text-[14px] font-[600] text-[var(--sage)] mb-3">
-              Payments are active — customers can pay invoices online.
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 mb-1.5">
+              <h2 className="type-heading">Stripe</h2>
+              <Tag tone="ok">Active</Tag>
+            </div>
+            <p className="text-[14px] text-[var(--ok)] font-[560] mb-5">
+              Payments are active. Customers can pay invoices online.
             </p>
             <DashboardLink />
           </div>
@@ -183,11 +218,13 @@ export function PaymentsSettingsView() {
       case "unsupported":
         return (
           <div>
-            <Title>Stripe can&apos;t enable payments for this account</Title>
+            <Title tone="bad" tag="Unsupported">
+              Stripe can&apos;t enable payments for this account
+            </Title>
             <Body>
               Stripe doesn&apos;t support this business type, country or entity
-              for online payments. Re-running the setup won&apos;t change that —
-              open the Stripe dashboard for the details.
+              for online payments. Re-running the setup won&apos;t change that.
+              Open the Stripe dashboard for the details.
             </Body>
             <DashboardLink />
           </div>
@@ -202,7 +239,9 @@ export function PaymentsSettingsView() {
         const inReview = data?.requirements?.inReview === true;
         return (
           <div>
-            <Title>Your Stripe account is restricted</Title>
+            <Title tone="bad" tag="Paused">
+              Your Stripe account is restricted
+            </Title>
             <IssueList issues={issues} />
             <Body>
               Stripe has paused payments on this account, so customers
@@ -224,10 +263,12 @@ export function PaymentsSettingsView() {
       case "action-due":
         return (
           <div>
-            <Title>Stripe needs more information</Title>
+            <Title tone="pending" tag="Action needed">
+              Stripe needs more information
+            </Title>
             <IssueList issues={issues} />
             <Body>
-              Continue the setup to provide what&apos;s missing — payments stay
+              Continue the setup to provide what&apos;s missing. Payments stay
               off until Stripe has everything it needs.
             </Body>
             {setupButton("Continue setup")}
@@ -237,7 +278,9 @@ export function PaymentsSettingsView() {
       case "in-review":
         return (
           <div>
-            <Title>Stripe is verifying your details</Title>
+            <Title tone="pending" tag="In review">
+              Stripe is verifying your details
+            </Title>
             <IssueList issues={issues} />
             <Body>
               {issues.length > 0
@@ -245,7 +288,7 @@ export function PaymentsSettingsView() {
                 : "Nothing to do on your end. Stripe usually finishes within a few minutes, though identity checks can take longer."}
               {updateNote}
             </Body>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {checkButton}
               {issues.length > 0 ? setupButton("Re-run setup") : null}
             </div>
@@ -255,7 +298,9 @@ export function PaymentsSettingsView() {
       case "incomplete":
         return (
           <div>
-            <Title>Finish setting up payments</Title>
+            <Title tone="pending" tag="Incomplete">
+              Finish setting up payments
+            </Title>
             <Body>
               Your Stripe account isn&apos;t active yet. Complete the setup to
               start accepting card payments.
@@ -267,7 +312,9 @@ export function PaymentsSettingsView() {
       case "not-connected":
         return (
           <div>
-            <Title>Accept card payments</Title>
+            <Title tone="neutral" tag="Not connected">
+              Accept card payments
+            </Title>
             <Body>
               Collect card payments from customers. Stripe charges a processing
               fee, deducted from your payout.
@@ -282,23 +329,25 @@ export function PaymentsSettingsView() {
   }
 
   return (
-    <div className="max-w-[760px] mx-auto px-4 py-8">
-      <h1 className="text-[24px] font-[700] tracking-[-0.02em] mb-1">
-        Payments
-      </h1>
-      <p className="text-[13px] text-[var(--muted)] mb-6">
-        Connect Stripe to accept card payments from customers.
-      </p>
+    <div className="max-w-[760px]">
+      <PageHeader
+        title="Payments"
+        meta="Connect Stripe to accept card payments from customers."
+      />
 
       {/* The card swaps itself out while polling, so announce it — otherwise a
           screen-reader user is never told the thing they were waiting for
           happened. Matches Toast / SaveBar. */}
-      <div
-        role="status"
-        aria-live="polite"
-        className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] px-5 py-5"
-      >
-        {card()}
+      <div role="status" aria-live="polite" className="card p-5 md:p-6">
+        <div className="flex gap-4">
+          <span
+            aria-hidden="true"
+            className="hidden sm:flex size-10 shrink-0 items-center justify-center rounded-[var(--r)] bg-[var(--surface-2)] text-[var(--ink-2)]"
+          >
+            <CreditCardIcon className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">{card()}</div>
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,8 @@ import type {
   MemberRole,
   MemberRow as Row,
 } from "@/components/settings/members/types";
+import { Button } from "@/components/ui/Button";
+import { CrewAvatar } from "@/components/ui/CrewAvatar";
 import { useUpdateAdminOrgMember } from "@/lib/hooks/useAdminOrgMembers";
 
 const ROLES: MemberRole[] = ["admin", "lead", "crew"];
@@ -35,23 +37,14 @@ export function AdminMemberRow({
     });
   }
 
-  const initials =
-    row.name
-      .split(/\s+/)
-      .map((p) => p[0]?.toUpperCase() ?? "")
-      .slice(0, 2)
-      .join("") ||
-    row.email[0]?.toUpperCase() ||
-    "·";
-
   return (
-    <div className="grid grid-cols-[1fr_1.5fr_140px_90px] items-center gap-3 px-4 py-3 border-b border-[var(--line)] last:border-b-0">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-center text-[11px] font-[var(--font-mono)] font-[600] text-[var(--ink)]">
-          {initials}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[14px] font-[500] truncate">{row.name}</div>
+    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_140px_auto] items-center gap-x-4 gap-y-2.5 px-5 md:px-6 py-3.5 border-t border-[var(--line)]">
+      <div className="flex items-center gap-3 min-w-0">
+        <CrewAvatar name={row.name || row.email} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[14.5px] font-[600] tracking-[-0.01em] truncate">
+            {row.name}
+          </div>
           <input
             defaultValue={row.title ?? ""}
             placeholder="Add title"
@@ -61,12 +54,12 @@ export function AdminMemberRow({
                 patch({ userId: row.id, title: next || null });
               }
             }}
-            className="mt-0.5 w-full text-[12px] text-[var(--muted)] bg-transparent border border-transparent hover:border-[var(--line)] focus:border-[var(--line)] rounded-[3px] px-1 py-0.5"
+            className="-mx-1.5 mt-0.5 w-[calc(100%+12px)] text-[13px] text-[var(--muted)] placeholder:text-[var(--muted)] bg-transparent border border-transparent hover:border-[var(--line)] focus:border-[var(--field-border)] focus:text-[var(--ink)] rounded-[var(--r-in)] px-1.5 py-0.5"
             aria-label={`Title for ${row.name}`}
           />
         </div>
       </div>
-      <div className="text-[12px] text-[var(--muted)] truncate">
+      <div className="text-[13.5px] text-[var(--muted)] truncate">
         {row.email}
       </div>
       <div>
@@ -76,7 +69,7 @@ export function AdminMemberRow({
             patch({ userId: row.id, role: e.target.value as MemberRole })
           }
           disabled={row.archived || mutation.isPending}
-          className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] px-2 py-1.5 rounded-[5px] disabled:opacity-60"
+          className="field min-h-[34px] h-[34px] px-2.5 disabled:opacity-60"
           aria-label={`Role for ${row.name}`}
         >
           {ROLES.map((r) => (
@@ -85,19 +78,23 @@ export function AdminMemberRow({
             </option>
           ))}
         </select>
-        {error && (
-          <div className="text-[11px] text-[var(--accent)] mt-1">{error}</div>
-        )}
+        {error && <div className="field-error">{error}</div>}
       </div>
-      <div className="text-right">
-        <button
+      <div className="md:text-right">
+        <Button
           type="button"
+          size="sm"
+          variant={row.archived ? "default" : "ghost"}
+          className={
+            row.archived
+              ? undefined
+              : "hover:text-[var(--accent-ink)] hover:bg-[var(--accent-wash)]"
+          }
           onClick={() => patch({ userId: row.id, archived: !row.archived })}
           disabled={mutation.isPending}
-          className="text-[11px] font-[var(--font-mono)] uppercase tracking-[.04em] px-2 py-1 border border-[var(--line)] rounded-[5px] hover:bg-[var(--surface-2)] disabled:opacity-50"
         >
           {row.archived ? "Restore" : "Archive"}
-        </button>
+        </Button>
       </div>
     </div>
   );

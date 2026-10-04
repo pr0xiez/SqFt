@@ -72,82 +72,83 @@ export function PublicEstimateView({ estimate, token, frozenView }: Props) {
   const foldedLineAmounts = foldMarkupIntoLines(view);
 
   return (
-    <div className="min-h-screen bg-[var(--bg)]">
-      <PublicEstimateHeader
-        orgName={estimate.org.name}
-        orgAddress={estimate.org.address}
-      />
-      <PublicEstimateStatusBar
-        status={estimate.status}
-        sentAt={estimate.sentAt}
-        approvedAt={estimate.approvedAt}
-        declinedAt={estimate.declinedAt}
-      />
-      <div className="max-w-[880px] mx-auto mb-8 px-7">
-        <div className="bg-[var(--paper)] rounded-lg shadow-[0_1px_0_rgba(20,18,12,0.04),0_6px_22px_rgba(20,18,12,0.07),0_32px_80px_rgba(20,18,12,0.06)] overflow-hidden relative print:shadow-none print:border print:border-[#ddd]">
-          <div className="absolute left-0 right-0 top-0 h-1.5 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-l)] print:hidden" />
-          <div className="p-12 sm:p-14">
-            <Letterhead
-              estimateNumber={estimate.estimateNumber}
-              date={estimate.date}
-              org={estimate.org}
-            />
-            <PartiesBlock customer={estimate.customer} />
-            <RoomsList rooms={rooms} />
-            <LineItemsTable
-              lineItems={estimate.lineItems}
-              subtotals={
-                new Map(
-                  view.lines.map((l, idx) => [l.id, foldedLineAmounts[idx]])
-                )
-              }
-            />
-            <TotalsBlock
-              total={total}
-              deposit={deposit}
-              depositPct={estimate.depositPct}
-            />
-            {isEstimateLocked(estimate.status) ? null : (
-              <PublicEstimateAcceptBlockWithDecline token={token} />
-            )}
-            {estimate.status === "declined" && (
-              <div className="mt-9 pt-6 border-t border-[var(--line)]">
-                <div className="text-[14px] text-[var(--ink-2)]">
-                  This estimate was declined on{" "}
-                  {new Date(
-                    estimate.declinedAt ?? Date.now()
-                  ).toLocaleDateString()}
-                  .
+    <div className="min-h-dvh bg-[var(--bg)] px-3 py-4 sm:px-6 sm:py-10 print:p-0 print:bg-transparent">
+      <div className="max-w-[820px] mx-auto">
+        <PublicEstimateHeader>
+          <PublicEstimateStatusBar
+            status={estimate.status}
+            sentAt={estimate.sentAt}
+            approvedAt={estimate.approvedAt}
+            declinedAt={estimate.declinedAt}
+          />
+        </PublicEstimateHeader>
+        <article className="bg-[var(--paper)] border border-[var(--line)] rounded-[var(--r)] shadow-[var(--shadow)] px-5 py-7 sm:p-10 md:p-12 print:shadow-none">
+          <Letterhead
+            estimateNumber={estimate.estimateNumber}
+            date={estimate.date}
+            org={estimate.org}
+          />
+          <PartiesBlock customer={estimate.customer} />
+          <RoomsList rooms={rooms} />
+          <LineItemsTable
+            lineItems={estimate.lineItems}
+            subtotals={
+              new Map(
+                view.lines.map((l, idx) => [l.id, foldedLineAmounts[idx]])
+              )
+            }
+          />
+          <TotalsBlock
+            total={total}
+            deposit={deposit}
+            depositPct={estimate.depositPct}
+          />
+          {isEstimateLocked(estimate.status) ? null : (
+            <PublicEstimateAcceptBlockWithDecline token={token} />
+          )}
+          {estimate.status === "declined" && (
+            <section className="mt-10 pt-7 border-t border-[var(--line)]">
+              <p className="text-[15px] text-[var(--ink-2)]">
+                This estimate was declined on{" "}
+                {new Date(
+                  estimate.declinedAt ?? Date.now()
+                ).toLocaleDateString()}
+                .
+              </p>
+              {estimate.declineReason ? (
+                <p className="mt-2 italic text-[var(--muted)] text-[14.5px]">
+                  "{estimate.declineReason}"
+                </p>
+              ) : null}
+              {(estimate.org.phone || estimate.org.ownerEmail) && (
+                <div className="mt-5 text-[14px] text-[var(--ink-2)]">
+                  Changed your mind or have questions? Contact{" "}
+                  <span className="font-[600]">{estimate.org.name}</span>:
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {estimate.org.phone && (
+                      <span className="type-figure text-[var(--ink)]">
+                        {estimate.org.phone}
+                      </span>
+                    )}
+                    {estimate.org.phone && estimate.org.ownerEmail && (
+                      <span aria-hidden="true" className="text-[var(--muted)]">
+                        ·
+                      </span>
+                    )}
+                    {estimate.org.ownerEmail && (
+                      <a
+                        href={`mailto:${estimate.org.ownerEmail}`}
+                        className="text-[var(--ink)] underline underline-offset-[3px] decoration-[var(--line-2)] break-all"
+                      >
+                        {estimate.org.ownerEmail}
+                      </a>
+                    )}
+                  </div>
                 </div>
-                {estimate.declineReason ? (
-                  <div className="mt-2 italic text-[var(--muted)] text-[14px]">
-                    "{estimate.declineReason}"
-                  </div>
-                ) : null}
-                {(estimate.org.phone || estimate.org.ownerEmail) && (
-                  <div className="mt-5 text-[13px] text-[var(--ink-2)]">
-                    Changed your mind or have questions? Contact{" "}
-                    <span className="font-[600]">{estimate.org.name}</span>:
-                    <div className="mt-1 font-[var(--font-mono)] text-[12px]">
-                      {estimate.org.phone && <span>{estimate.org.phone}</span>}
-                      {estimate.org.phone && estimate.org.ownerEmail && (
-                        <span> · </span>
-                      )}
-                      {estimate.org.ownerEmail && (
-                        <a
-                          href={`mailto:${estimate.org.ownerEmail}`}
-                          className="text-[var(--accent)] underline"
-                        >
-                          {estimate.org.ownerEmail}
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+            </section>
+          )}
+        </article>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   LocationsCard,
   type NewLocationInput,
 } from "@/components/customers/LocationsCard";
+import { ErrorState, LoadingLine } from "@/components/ui/EmptyState";
 import { useToast } from "@/components/ui/Toast";
 import { isOpenEstimate, lastTouchAt } from "@/lib/estimateStatus";
 import {
@@ -133,28 +134,16 @@ export function CustomerDetailView({ customerId }: Props) {
   }
 
   if (isLoading) {
-    return (
-      <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-8">
-        Loading…
-      </p>
-    );
+    return <LoadingLine className="py-8" />;
   }
 
   if (!customer) {
-    return (
-      <p className="font-[var(--font-mono)] text-[11px] text-[var(--accent)] py-8">
-        Customer not found.
-      </p>
-    );
+    return <ErrorState className="px-0 py-8" message="Customer not found." />;
   }
 
   return (
     <>
-      <CustomerHeader
-        customer={customer}
-        locations={locations}
-        onBack={() => router.push("/customers")}
-      />
+      <CustomerHeader customer={customer} locations={locations} />
 
       <CustomerStatStrip stats={stats} />
 

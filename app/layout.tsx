@@ -1,31 +1,34 @@
 import type { Metadata, Viewport } from "next";
-import { Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { Archivo, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const interTight = Inter_Tight({
+// Archivo with its width axis: body copy runs at 100%, display type at ~118%
+// (see `type-display` / `type-title` in globals.css). Same pairing as the
+// marketing site in www/.
+const archivo = Archivo({
   subsets: ["latin"],
-  weight: "variable",
-  variable: "--font-display",
+  axes: ["wdth"],
+  variable: "--font-archivo",
   display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: "variable",
-  variable: "--font-mono",
+  variable: "--font-jetbrains",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "SqFt — Site Measure Book",
-  description: "Flooring contractor estimating and scheduling",
+  title: { default: "SqFt", template: "%s | SqFt" },
+  description: "Flooring contractor estimating, invoicing and scheduling",
   manifest: "/manifest.json",
   icons: {
     apple: "/icons/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "SqFt",
   },
 };
@@ -34,7 +37,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#fafaf7",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f2ef" },
+    { media: "(prefers-color-scheme: dark)", color: "#121211" },
+  ],
 };
 
 export default function RootLayout({
@@ -45,14 +51,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`h-full antialiased ${interTight.variable} ${jetbrainsMono.variable}`}
+      // The theme script below sets data-theme before hydration.
+      suppressHydrationWarning
+      className={`h-full antialiased ${archivo.variable} ${jetbrainsMono.variable}`}
     >
-      {/* Inline script prevents flash of wrong theme on load */}
+      {/* Inline script prevents a flash of the wrong theme. No stored choice
+          means "follow the OS", which the CSS handles on its own. */}
       <head>
         <script
           // biome-ignore lint/security/noDangerouslySetInnerHtml: intentional inline script for no-flash theme
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.dataset.theme='dark';}catch(e){}})()`,
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}})()`,
           }}
         />
       </head>

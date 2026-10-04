@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { UserPlusIcon } from "@/components/ui/icons";
 import { useCreateMember } from "@/lib/hooks/useMembers";
 import type { MemberRole, MemberRow } from "./types";
 
@@ -51,81 +53,77 @@ export function AddMemberForm({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 border border-[var(--line)] rounded-[6px] bg-[var(--surface)] hover:bg-[var(--surface-2)]"
-      >
-        + Invite member
-      </button>
+      <Button type="button" variant="primary" onClick={() => setOpen(true)}>
+        <UserPlusIcon aria-hidden="true" />
+        Invite member
+      </Button>
     );
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] p-4 grid gap-3"
-    >
-      <Field label="Name">
-        <input
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px]"
-        />
-      </Field>
-      <Field label="Email">
-        <input
-          required
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px]"
-        />
-      </Field>
-      <Field label="Role">
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as MemberRole)}
-          className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px]"
-        >
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {r[0]?.toUpperCase() + r.slice(1)}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Temporary password">
-        <input
-          required
-          minLength={8}
-          type="text"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px] font-[var(--font-mono)]"
-          placeholder="At least 8 characters"
-        />
-      </Field>
-      {error && <div className="text-[12px] text-[var(--accent)]">{error}</div>}
-      <div className="flex gap-2 justify-end">
-        <button
+    <form onSubmit={onSubmit} className="card p-5 md:p-6">
+      <h2 className="type-heading mb-4">Invite member</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Name">
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="field"
+          />
+        </Field>
+        <Field label="Email">
+          <input
+            required
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="field"
+          />
+        </Field>
+        <Field label="Role">
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value as MemberRole)}
+            className="field"
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {r[0]?.toUpperCase() + r.slice(1)}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Temporary password">
+          <input
+            required
+            minLength={8}
+            type="text"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="field"
+            placeholder="At least 8 characters"
+          />
+        </Field>
+      </div>
+      {error && (
+        <div className="field-error mt-4" role="alert">
+          {error}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2 justify-end mt-5">
+        <Button
           type="button"
           onClick={() => {
             reset();
             setOpen(false);
           }}
-          className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 border border-[var(--line)] rounded-[6px] bg-[var(--surface)]"
         >
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 rounded-[6px] bg-[var(--ink)] text-[var(--bg)] disabled:opacity-50"
-        >
+        </Button>
+        <Button type="submit" variant="primary" disabled={mutation.isPending}>
           {mutation.isPending ? "Adding…" : "Add member"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -141,9 +139,7 @@ function Field({
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: children contains the control
     <label className="block">
-      <div className="text-[10px] font-[var(--font-mono)] tracking-[.06em] uppercase text-[var(--muted)] mb-1">
-        {label}
-      </div>
+      <span className="field-label">{label}</span>
       {children}
     </label>
   );

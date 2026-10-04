@@ -4,11 +4,29 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
-import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingRows,
+} from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
+import { ArrowCounterClockwiseIcon, FileTextIcon } from "@/components/ui/icons";
+import { ListToolbar } from "@/components/ui/ListToolbar";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
+import { StatusBadge, Tag } from "@/components/ui/StatusBadge";
+import {
+  CELL,
+  CELL_FIGURE,
+  CELL_META,
+  CELL_PRIMARY,
+  CELL_SUB,
+  TABLE_HEAD,
+  TABLE_ROW,
+  TABLE_SHELL,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import {
   ESTIMATE_STATUS_LABELS,
@@ -29,13 +47,7 @@ const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
   })),
 ];
 
-const STATUS_PILL_COLOR: Record<string, string> = {
-  draft: "text-[var(--muted)]",
-  sent: "text-[var(--gold)]",
-  viewed: "text-[var(--gold)]",
-  approved: "text-[var(--sage)]",
-  declined: "text-[var(--accent)]",
-};
+const GRID_COLS = "md:grid-cols-[92px_minmax(0,1fr)_120px_120px_124px_120px]";
 
 type SortKey =
   | "number"
@@ -116,24 +128,25 @@ export function EstimateListView() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
-        <div>
-          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Estimates
-          </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
-            {allCount} estimate{allCount === 1 ? "" : "s"}
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Estimates"
+        meta={
+          <span>
+            <span className="type-figure text-[var(--ink-2)]">{allCount}</span>{" "}
+            estimate{allCount === 1 ? "" : "s"}
+          </span>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder="Search estimate #, customer, site measure…"
-        />
-        {STATUS_FILTERS.map(({ value, label }) => (
+      <ListToolbar
+        search={
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search estimate #, customer, site measure…"
+          />
+        }
+        filters={STATUS_FILTERS.map(({ value, label }) => (
           <FilterPill
             key={value}
             active={status === value}
@@ -143,26 +156,30 @@ export function EstimateListView() {
             {label}
           </FilterPill>
         ))}
-        <DensityToggle
-          value={density}
-          onChange={setDensity}
-          className="ml-auto"
-        />
-        {isNarrowed && (
-          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums">
-            {total} of {allCount}
-          </span>
-        )}
-      </div>
+        trailing={
+          <>
+            {isNarrowed && (
+              <span className="text-[13px] text-[var(--muted)]">
+                <span className="type-figure">{total}</span> of{" "}
+                <span className="type-figure">{allCount}</span>
+              </span>
+            )}
+            <DensityToggle
+              value={density}
+              onChange={setDensity}
+              className="hidden md:inline-flex"
+            />
+          </>
+        }
+      />
 
-      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        <div className="hidden md:grid grid-cols-[80px_1fr_120px_120px_110px_110px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+      <div className={TABLE_SHELL}>
+        <div className={cn(TABLE_HEAD, GRID_COLS)}>
           <SortableHeader
             sortKey="number"
             label="#"
             sort={sort}
             onSort={handleSort}
-            className="tabular-nums"
           />
           <SortableHeader
             sortKey="customer"
@@ -172,7 +189,7 @@ export function EstimateListView() {
           />
           <SortableHeader
             sortKey="siteMeasure"
-            label="Site Measure"
+            label="Site measure"
             sort={sort}
             onSort={handleSort}
           />
@@ -181,7 +198,7 @@ export function EstimateListView() {
             label="Total"
             sort={sort}
             onSort={handleSort}
-            className="tabular-nums"
+            align="right"
           />
           <SortableHeader
             sortKey="status"
@@ -198,22 +215,22 @@ export function EstimateListView() {
         </div>
 
         {isLoading ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            Loading…
-          </div>
+          <LoadingRows />
         ) : isError ? (
-          <div className="p-6 flex flex-col items-start gap-2.5">
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
-              Something went wrong loading estimates.
-            </div>
-            <Button variant="default" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </div>
+          <ErrorState
+            message="Something went wrong loading estimates."
+            action={
+              <Button variant="default" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            }
+          />
         ) : allCount === 0 ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            No estimates yet.
-          </div>
+          <EmptyState
+            icon={FileTextIcon}
+            title="No estimates yet."
+            body="Estimates start from a site measure. Measure the rooms, then price the job."
+          />
         ) : total === 0 ? (
           <EmptyState noun="estimate" query={query} />
         ) : (
@@ -222,70 +239,67 @@ export function EstimateListView() {
               const customer = q.siteMeasure.location?.customer;
               const locationAddress = q.siteMeasure.location?.address;
               const estimateLabel = `#${q.siteMeasure.siteMeasureNumber ?? q.siteMeasure.id}`;
-              const totalLabel = q.total === null ? "—" : `${fmtBig(q.total)}`;
-              const pillColor =
-                STATUS_PILL_COLOR[q.status] ?? "text-[var(--muted)]";
+              const totalLabel = q.total === null ? "-" : `${fmtBig(q.total)}`;
 
               return (
                 <button
                   key={q.id}
                   type="button"
                   onClick={() => router.push(`/estimates/${q.id}`)}
-                  className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_120px_120px_110px_110px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
+                  className={cn(TABLE_ROW, "grid-cols-1", GRID_COLS)}
                 >
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                  <div className={cn(CELL, "hidden md:block", rowPad)}>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
+                      <span
+                        className={cn(
+                          CELL_FIGURE,
+                          "font-[600] text-[var(--ink)]"
+                        )}
+                      >
                         #{q.estimateNumber}
                       </span>
                       {q.revisedFromId && (
-                        <span
-                          className="ml-1.5 font-[var(--font-mono)] text-[10px] uppercase tracking-[.04em] text-[var(--muted)] border border-[var(--line-2)] rounded-sm px-1"
+                        <Tag
+                          icon={ArrowCounterClockwiseIcon}
                           title="Revised estimate"
+                          className="h-[20px] px-1.5 text-[12px]"
                         >
-                          ↶ rev
-                        </span>
+                          Rev
+                        </Tag>
                       )}
                     </div>
                   </div>
-                  <div className={cn("px-3.5", rowPad)}>
-                    <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                      {customer?.name ?? "—"}
-                    </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap md:hidden">
-                      #{q.estimateNumber} · {totalLabel} ·{" "}
-                      <span className={pillColor}>{q.status}</span>
-                    </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap hidden md:block">
+                  <div className={cn(CELL, "min-w-0", rowPad)}>
+                    <div className={CELL_PRIMARY}>{customer?.name ?? "-"}</div>
+                    <div className={cn(CELL_SUB, "hidden md:block")}>
                       {locationAddress ?? ""}
                     </div>
+                    {/* phones: the columns fold into one meta line */}
+                    <div className="md:hidden mt-1.5 flex items-center gap-2 text-[13px] text-[var(--muted)]">
+                      <span className="type-figure text-[var(--ink-2)]">
+                        #{q.estimateNumber}
+                      </span>
+                      <span className="type-figure">{totalLabel}</span>
+                      <StatusBadge status={q.status} />
+                    </div>
                   </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <div className="font-[var(--font-mono)] text-[13px] tabular-nums">
+                  <div className={cn(CELL, "hidden md:block", rowPad)}>
+                    <span className={cn(CELL_FIGURE, "text-[var(--ink-2)]")}>
                       {estimateLabel}
-                    </div>
-                  </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <div className="text-[13px] font-[600] tabular-nums">
-                      {totalLabel}
-                    </div>
-                  </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <span
-                      className={cn(
-                        "inline-block font-[var(--font-mono)] text-[9px] px-2 py-[3px] border rounded-[4px] tracking-[.04em] font-[500] capitalize",
-                        pillColor,
-                        "border-current"
-                      )}
-                    >
-                      {q.status}
                     </span>
                   </div>
                   <div
-                    className={cn(
-                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
-                      rowPad
-                    )}
+                    className={cn(CELL, "hidden md:block text-right", rowPad)}
+                  >
+                    <span className={cn(CELL_FIGURE, "font-[600]")}>
+                      {totalLabel}
+                    </span>
+                  </div>
+                  <div className={cn(CELL, "hidden md:block", rowPad)}>
+                    <StatusBadge status={q.status} />
+                  </div>
+                  <div
+                    className={cn(CELL, CELL_META, "hidden md:block", rowPad)}
                   >
                     {new Date(q.date).toLocaleDateString("en-US", {
                       month: "short",

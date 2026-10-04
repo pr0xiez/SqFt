@@ -13,13 +13,13 @@ export function DayAgenda({
   onOpenEvent: (event: CalEvent) => void;
 }) {
   return (
-    <div className="px-3 pt-1 max-w-[680px] mx-auto w-full">
+    <div className="pt-1 pb-6 max-w-[680px] mx-auto w-full">
       {sections.map((section) => (
-        <section key={section.date}>
+        <section key={section.date} className="mb-2">
           <h2
             className={cn(
-              "text-[13px] font-[700] pt-2.5 pb-1.5",
-              section.isToday && "text-[var(--accent)]"
+              "text-[14px] font-[650] tracking-[-0.005em] pt-3 pb-2",
+              section.isToday ? "text-[var(--accent-ink)]" : "text-[var(--ink)]"
             )}
           >
             {section.label}
@@ -33,7 +33,7 @@ export function DayAgenda({
               />
             ))
           ) : (
-            <p className="text-[11.5px] text-[var(--muted)] italic pb-2">
+            <p className="text-[14px] text-[var(--muted)] pb-3 border-b border-[var(--line)]">
               No jobs
             </p>
           )}

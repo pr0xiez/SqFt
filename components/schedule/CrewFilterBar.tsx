@@ -32,73 +32,43 @@ export function CrewFilterBar({
   const focusCount = active === "all" ? total : (counts.get(active) ?? 0);
 
   return (
-    <div
-      className={cn(
-        "flex items-center gap-3 mb-3.5 px-3.5 py-2.5",
-        "bg-[var(--surface)] border border-[var(--line)] rounded-[var(--r)]",
-        "flex-wrap"
-      )}
-    >
-      <div className="font-[var(--font-mono)] text-[10px] uppercase tracking-[0.08em] font-[600] text-[var(--muted)]">
-        CREW
-      </div>
-      <div className="flex gap-1.5 flex-wrap flex-1">
-        <button
-          type="button"
-          onClick={() => onChange("all")}
-          className={cn(
-            "inline-flex items-center gap-[7px] px-3 py-[5px] rounded-full border cursor-pointer",
-            "font-[var(--font-mono)] text-[11px] tracking-[0.01em] transition-[background,color,border-color] duration-150",
-            active === "all"
-              ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-              : "bg-transparent text-[var(--ink-2)] border-[var(--line)] hover:bg-[var(--surface-2)] hover:border-[var(--ink-2)]"
-          )}
-        >
-          All
-          <span
-            className={cn(
-              "font-[var(--font-mono)] text-[10px] font-[500] tracking-[0.04em]",
-              active === "all"
-                ? "text-[var(--bg)] opacity-70"
-                : "text-[var(--muted)]"
-            )}
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 mb-4">
+      <div className="flex items-center gap-2.5 min-w-0 max-w-full">
+        <span className="type-label shrink-0">Crew</span>
+        <div className="flex gap-1.5 min-w-0 overflow-x-auto no-scrollbar">
+          <button
+            type="button"
+            onClick={() => onChange("all")}
+            aria-pressed={active === "all"}
+            className={cn(CHIP, "px-3", chipState(active === "all"))}
           >
-            {total}
-          </span>
-        </button>
-        {crew.map((m) => {
-          const isActive = active === m.id;
-          const c = counts.get(m.id) ?? 0;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => onChange(m.id)}
-              className={cn(
-                "inline-flex items-center gap-[7px] pl-1.5 pr-2.5 py-[5px] rounded-full border cursor-pointer",
-                "font-[var(--font-mono)] text-[11px] tracking-[0.01em] transition-[background,color,border-color] duration-150",
-                isActive
-                  ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-                  : "bg-transparent text-[var(--ink-2)] border-[var(--line)] hover:bg-[var(--surface-2)] hover:border-[var(--ink-2)]"
-              )}
-            >
-              <CrewAvatar name={m.name} size="md" />
-              {m.name}
-              <span
-                className={cn(
-                  "font-[var(--font-mono)] text-[10px] font-[500] tracking-[0.04em]",
-                  isActive
-                    ? "text-[var(--bg)] opacity-70"
-                    : "text-[var(--muted)]"
-                )}
+            <span>All</span>
+            <span className={countClass(active === "all")}>{total}</span>
+          </button>
+          {crew.map((m) => {
+            const isActive = active === m.id;
+            const c = counts.get(m.id) ?? 0;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onChange(m.id)}
+                aria-pressed={isActive}
+                className={cn(CHIP, "pl-1.5 pr-3", chipState(isActive))}
               >
-                {c}
-              </span>
-            </button>
-          );
-        })}
+                <CrewAvatar
+                  name={m.name}
+                  size="lg"
+                  className={isActive ? "ring-1 ring-[var(--bg)]" : undefined}
+                />
+                <span>{m.name}</span>
+                <span className={countClass(isActive)}>{c}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[0.02em]">
+      <div className="text-[13px] text-[var(--muted)] md:ml-auto">
         {activeName ? (
           <>
             Filtered to{" "}
@@ -116,5 +86,22 @@ export function CrewFilterBar({
         )}
       </div>
     </div>
+  );
+}
+
+/** Matches FilterPill: ink fill when active, outlined otherwise. */
+const CHIP =
+  "inline-flex items-center gap-2 shrink-0 whitespace-nowrap h-[36px] border rounded-[var(--r)] cursor-pointer text-[13.5px] font-[560] transition-[background-color,border-color,color,transform] duration-200 ease-[var(--ease)] active:scale-[0.97]";
+
+function chipState(active: boolean): string {
+  return active
+    ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
+    : "bg-transparent text-[var(--ink-2)] border-[var(--line-2)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]";
+}
+
+function countClass(active: boolean): string {
+  return cn(
+    "type-figure leading-none text-[12px]",
+    active ? "text-[var(--bg)] opacity-70" : "text-[var(--muted)]"
   );
 }

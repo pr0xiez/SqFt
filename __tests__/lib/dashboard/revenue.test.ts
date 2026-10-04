@@ -102,26 +102,26 @@ describe("getDashboardRevenue", () => {
 
     const [w1, w2, w3, w4] = result.weeks;
     expect(w1).toMatchObject({
-      label: "Jun 1–7",
+      label: "Jun 1-7",
       amount: 100,
       isCurrent: false,
       isFuture: false,
     });
     expect(w2).toMatchObject({
-      label: "Jun 8–14",
+      label: "Jun 8-14",
       amount: 200,
       isCurrent: false,
       isFuture: false,
     });
     expect(w3).toMatchObject({
-      label: "Jun 15–21",
+      label: "Jun 15-21",
       amount: 330,
       isCurrent: true,
       isFuture: false,
     });
     // The 4th bucket (22-30) hasn't started yet relative to "today" (15th).
     expect(w4).toMatchObject({
-      label: "Jun 22–30",
+      label: "Jun 22-30",
       amount: 0,
       isCurrent: false,
       isFuture: true,

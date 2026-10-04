@@ -5,6 +5,8 @@ import type {
   MemberRole,
   MemberRow,
 } from "@/components/settings/members/types";
+import { Button } from "@/components/ui/Button";
+import { PlusIcon } from "@/components/ui/icons";
 import {
   type CreateAdminUserInput,
   useCreateAdminOrgMember,
@@ -62,33 +64,32 @@ export function AddAdminUserForm({
 
   if (created) {
     return (
-      <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] p-4 grid gap-3">
-        <div className="text-[10px] font-[var(--font-mono)] tracking-[.06em] uppercase text-[var(--muted)]">
+      <div className="card p-5 md:p-6 grid gap-4">
+        <div className="type-heading">
           User created · hand these off out-of-band
         </div>
         <Credentials label="Email" value={created.email} />
         <Credentials label="Temporary password" value={created.password} mono />
         <div className="flex gap-2 justify-end">
-          <button
-            type="button"
-            onClick={() => {
-              setCreated(null);
-              setOpen(false);
-            }}
-            className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 border border-[var(--line)] rounded-[6px] bg-[var(--surface)]"
-          >
-            Done
-          </button>
-          <button
+          <Button
             type="button"
             onClick={() => {
               setCreated(null);
               setOpen(true);
             }}
-            className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 rounded-[6px] bg-[var(--ink)] text-[var(--bg)]"
           >
             Add another
-          </button>
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => {
+              setCreated(null);
+              setOpen(false);
+            }}
+          >
+            Done
+          </Button>
         </div>
       </div>
     );
@@ -96,27 +97,21 @@ export function AddAdminUserForm({
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 border border-[var(--line)] rounded-[6px] bg-[var(--surface)] hover:bg-[var(--surface-2)]"
-      >
-        + Add user
-      </button>
+      <Button type="button" variant="primary" onClick={() => setOpen(true)}>
+        <PlusIcon aria-hidden="true" />
+        Add user
+      </Button>
     );
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] p-4 grid gap-3"
-    >
+    <form onSubmit={onSubmit} className="card p-5 md:p-6 grid gap-4">
       <Field label="Name">
         <input
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px]"
+          className="field"
         />
       </Field>
       <Field label="Email">
@@ -125,14 +120,14 @@ export function AddAdminUserForm({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px]"
+          className="field"
         />
       </Field>
       <Field label="Role">
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as MemberRole)}
-          className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px]"
+          className="field"
         >
           {ROLES.map((r) => (
             <option key={r} value={r}>
@@ -149,37 +144,35 @@ export function AddAdminUserForm({
             type="text"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="flex-1 text-[14px] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 rounded-[5px] font-[var(--font-mono)]"
+            className="field flex-1 min-w-0 type-figure"
             placeholder="At least 8 characters"
           />
-          <button
-            type="button"
-            onClick={() => setPassword(suggestPassword())}
-            className="text-[11px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 border border-[var(--line)] rounded-[5px] bg-[var(--surface)] hover:bg-[var(--surface-2)]"
-          >
+          <Button type="button" onClick={() => setPassword(suggestPassword())}>
             Suggest
-          </button>
+          </Button>
         </div>
       </Field>
-      {error && <div className="text-[12px] text-[var(--accent)]">{error}</div>}
+      {error && (
+        <div
+          role="alert"
+          className="rounded-[var(--r)] bg-[var(--accent-wash)] px-3.5 py-2.5 text-[14px] font-[560] text-[var(--accent-ink)]"
+        >
+          {error}
+        </div>
+      )}
       <div className="flex gap-2 justify-end">
-        <button
+        <Button
           type="button"
           onClick={() => {
             reset();
             setOpen(false);
           }}
-          className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 border border-[var(--line)] rounded-[6px] bg-[var(--surface)]"
         >
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase px-3 py-2 rounded-[6px] bg-[var(--ink)] text-[var(--bg)] disabled:opacity-50"
-        >
+        </Button>
+        <Button type="submit" variant="primary" disabled={mutation.isPending}>
           {mutation.isPending ? "Adding…" : "Add user"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -195,9 +188,7 @@ function Field({
   return (
     // biome-ignore lint/a11y/noLabelWithoutControl: children contains the control
     <label className="block">
-      <div className="text-[10px] font-[var(--font-mono)] tracking-[.06em] uppercase text-[var(--muted)] mb-1">
-        {label}
-      </div>
+      <span className="field-label">{label}</span>
       {children}
     </label>
   );
@@ -214,26 +205,22 @@ function Credentials({
 }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="grid grid-cols-[120px_1fr_auto] items-center gap-3">
-      <div className="text-[10px] font-[var(--font-mono)] tracking-[.06em] uppercase text-[var(--muted)]">
-        {label}
-      </div>
-      <div
-        className={`text-[13px] ${mono ? "font-[var(--font-mono)]" : ""} break-all`}
-      >
+    <div className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)_auto] md:grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-3">
+      <div className="type-label">{label}</div>
+      <div className={`text-[14px] ${mono ? "type-figure" : ""} break-all`}>
         {value}
       </div>
-      <button
+      <Button
         type="button"
+        size="sm"
         onClick={async () => {
           await navigator.clipboard.writeText(value);
           setCopied(true);
           setTimeout(() => setCopied(false), 1200);
         }}
-        className="text-[10px] font-[var(--font-mono)] tracking-[.04em] uppercase px-2 py-1 border border-[var(--line)] rounded-[4px] bg-[var(--surface)]"
       >
         {copied ? "Copied" : "Copy"}
-      </button>
+      </Button>
     </div>
   );
 }

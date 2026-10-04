@@ -1,5 +1,6 @@
 "use client";
 
+import { Stat } from "@/components/ui/Stat";
 import { relativeTime } from "@/lib/estimateStatus";
 import { formatShortDate } from "@/lib/utils";
 
@@ -12,71 +13,60 @@ interface Stats {
   lastActivity: string | null;
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  tone?: "ink" | "sage" | "gold" | "accent" | "muted";
-}) {
-  const colorMap: Record<string, string> = {
-    ink: "var(--ink)",
-    sage: "var(--sage)",
-    gold: "var(--gold)",
-    accent: "var(--accent)",
-    muted: "var(--muted)",
-  };
-  return (
-    <div className="flex-1 min-w-[120px] px-4 py-3.5">
-      <div className="font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.09em] text-[var(--muted)] mb-1.5">
-        {label}
-      </div>
-      <div
-        className="text-[26px] font-[700] leading-none tracking-[-0.03em] tabular-nums"
-        style={{ color: colorMap[tone ?? "ink"] }}
-      >
-        {value}
-      </div>
-      {hint && (
-        <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-1.5 tracking-[.02em]">
-          {hint}
-        </div>
-      )}
-    </div>
-  );
-}
-
+/**
+ * Four figures in one bordered band, divided by hairlines (like the dashboard
+ * KPI strip); folds to a 2-column grid on phones.
+ */
 export function CustomerStatStrip({ stats }: { stats: Stats }) {
+  const cells = [
+    {
+      label: "Site Measures",
+      value: stats.siteMeasureCount,
+      sub: `${stats.estimateCount} estimate${stats.estimateCount === 1 ? "" : "s"} total`,
+      tone: "text-[var(--ink)]",
+    },
+    {
+      label: "Open",
+      value: stats.open,
+      sub: stats.open > 0 ? "Awaiting reply" : "Nothing pending",
+      tone: stats.open > 0 ? "text-[var(--warn)]" : "text-[var(--muted)]",
+    },
+    {
+      label: "Accepted",
+      value: stats.accepted,
+      sub: stats.declined > 0 ? `${stats.declined} declined` : undefined,
+      tone: stats.accepted > 0 ? "text-[var(--ok)]" : "text-[var(--muted)]",
+    },
+    {
+      label: "Last activity",
+      value: stats.lastActivity ? relativeTime(stats.lastActivity) : "-",
+      sub: stats.lastActivity ? formatShortDate(stats.lastActivity) : undefined,
+      tone: "text-[var(--ink)]",
+    },
+  ];
+
   return (
-    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg mb-4 flex flex-wrap divide-x divide-[var(--line)] overflow-hidden">
-      <Stat
-        label="Site Measures"
-        value={stats.siteMeasureCount}
-        hint={`${stats.estimateCount} estimate${stats.estimateCount === 1 ? "" : "s"} total`}
-      />
-      <Stat
-        label="Open"
-        value={stats.open}
-        tone={stats.open > 0 ? "gold" : "muted"}
-        hint={stats.open > 0 ? "Awaiting reply" : "Nothing pending"}
-      />
-      <Stat
-        label="Accepted"
-        value={stats.accepted}
-        tone={stats.accepted > 0 ? "sage" : "muted"}
-        hint={stats.declined > 0 ? `${stats.declined} declined` : undefined}
-      />
-      <Stat
-        label="Last activity"
-        value={stats.lastActivity ? relativeTime(stats.lastActivity) : "—"}
-        hint={
-          stats.lastActivity ? formatShortDate(stats.lastActivity) : undefined
-        }
-      />
+    <div className="card grid grid-cols-2 lg:grid-cols-4 overflow-hidden mb-6">
+      {cells.map((cell, i) => (
+        <div
+          key={cell.label}
+          className={[
+            "px-5 py-5 md:px-6 border-[var(--line)]",
+            // hairlines between cells: 2 columns on phones, 4 from lg up
+            i % 2 === 0 ? "border-r" : "",
+            i === 1 ? "lg:border-r" : "",
+            i >= 2 ? "border-t lg:border-t-0" : "",
+          ].join(" ")}
+        >
+          <Stat
+            label={cell.label}
+            value={cell.value}
+            size="md"
+            valueClassName={cell.tone}
+            sub={cell.sub}
+          />
+        </div>
+      ))}
     </div>
   );
 }

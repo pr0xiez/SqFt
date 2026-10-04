@@ -12,82 +12,86 @@ type Props = {
 export function BrandPreview({ form, licenseNumber }: Props) {
   const previewStyle = { "--brand": form.brandColor } as CSSProperties;
   return (
-    <div className="sticky top-20" style={previewStyle}>
-      <div className="flex justify-between font-mono text-[10px] tracking-[.18em] uppercase text-[var(--muted)] mb-2">
-        <span>Live preview</span>
+    <div className="xl:sticky xl:top-8" style={previewStyle}>
+      <div className="flex justify-between gap-3 text-[13px] text-[var(--muted)] mb-2">
+        <span className="font-[560] text-[var(--ink-2)]">Live preview</span>
         <span>Estimate · sample</span>
       </div>
-      <div className="bg-[var(--surface)] border border-[var(--line)] rounded overflow-hidden shadow-[var(--shadow)]">
+      <div className="bg-[var(--paper)] border border-[var(--line)] rounded-[var(--r)] overflow-hidden">
         <div className="h-1.5" style={{ background: "var(--brand)" }} />
         <div className="p-5">
-          <div className="flex items-start justify-between pb-3.5 border-b border-[var(--line)]">
-            <div>
-              <div className="text-[15px] font-[700] tracking-[-.015em]">
+          <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[var(--line)]">
+            <div className="min-w-0">
+              <div className="text-[16px] font-[700] tracking-[-.015em] break-words">
                 {form.name || "Workspace"}
               </div>
               {form.tagline && (
-                <div className="text-[10px] italic text-[var(--muted)] mt-0.5 max-w-[200px] leading-[1.25]">
+                <div className="text-[12px] text-[var(--muted)] mt-0.5 max-w-[200px] leading-[1.3]">
                   {form.tagline}
                 </div>
               )}
             </div>
-            <div className="text-right">
-              <div className="font-mono text-[9px] tracking-[.16em] uppercase text-[var(--muted)]">
-                Estimate
-              </div>
-              <div className="font-mono text-[12px] tabular-nums">#Q-1047</div>
+            <div className="text-right shrink-0">
+              <div className="text-[12px] text-[var(--muted)]">Estimate</div>
+              <div className="type-figure text-[13px]">#Q-1047</div>
             </div>
           </div>
 
           <div className="py-3.5 flex flex-col gap-2.5">
-            <PreviewLine name="Sand & refinish — red oak" amt="$2,940.00" />
-            <PreviewLine
-              name="LVP install — Tahoe collection"
-              amt="$3,720.00"
-            />
+            <PreviewLine name="Sand & refinish, red oak" amt="$2,940.00" />
+            <PreviewLine name="LVP install, Tahoe collection" amt="$3,720.00" />
             <PreviewLine name="Underlayment & trim" amt="$485.00" />
           </div>
 
           <div className="pt-3 border-t border-[var(--line)] flex flex-col gap-1.5">
-            <div className="flex items-baseline justify-between text-[13px] font-[600] tracking-[-.005em]">
+            <div className="flex items-baseline justify-between text-[14px] font-[600]">
               <span>Total</span>
               <span
-                className="font-[700] tabular-nums"
+                className="type-figure font-[700]"
                 style={{ color: "var(--brand)" }}
               >
                 $7,145.00
               </span>
             </div>
-            <div className="flex items-baseline justify-between text-[12px] text-[var(--muted)]">
-              <span>Deposit · {Math.round(form.defaultDepositPct * 100)}%</span>
-              <span className="font-mono tabular-nums">
+            <div className="flex items-baseline justify-between text-[13px] text-[var(--muted)]">
+              <span>
+                Deposit ·{" "}
+                <span className="type-figure">
+                  {Math.round(form.defaultDepositPct * 100)}%
+                </span>
+              </span>
+              <span className="type-figure">
                 {fmtDollar(7145 * form.defaultDepositPct)}
               </span>
             </div>
           </div>
 
-          <div className="mt-3.5 pt-3 border-t border-[var(--line)] flex justify-between font-mono text-[9px] tracking-[.12em] uppercase text-[var(--muted)]">
-            <span>Valid {form.defaultValidityDays} days</span>
+          <div className="mt-3.5 pt-3 border-t border-[var(--line)] flex justify-between gap-3 text-[12px] text-[var(--muted)]">
+            <span>
+              Valid{" "}
+              <span className="type-figure">{form.defaultValidityDays}</span>{" "}
+              days
+            </span>
             {form.showLicenseOnEstimates && licenseNumber && (
-              <span>{licenseNumber}</span>
+              <span className="type-figure">{licenseNumber}</span>
             )}
           </div>
         </div>
       </div>
-      <div className="mt-2 font-mono text-[10px] text-center text-[var(--muted)] italic">
-        Sample numbers — your saved settings apply to new estimates.
-      </div>
+      <p className="mt-2 text-[12.5px] text-center text-[var(--muted)]">
+        Sample numbers. Your saved settings apply to new estimates.
+      </p>
     </div>
   );
 }
 
 function PreviewLine({ name, amt }: { name: string; amt: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-2.5 text-[12px]">
+    <div className="flex items-baseline justify-between gap-2.5 text-[13px]">
       <div className="flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
         {name}
       </div>
-      <div className="font-mono w-[78px] text-right tabular-nums">{amt}</div>
+      <div className="type-figure text-right">{amt}</div>
     </div>
   );
 }

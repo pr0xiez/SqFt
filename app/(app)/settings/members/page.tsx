@@ -4,7 +4,7 @@ import type { MemberRow } from "@/components/settings/members/types";
 import { listUsers } from "@/lib/repositories";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Members · Settings · SqFt" };
+export const metadata = { title: "Members" };
 
 export default async function MembersPage() {
   const session = await requireSession();

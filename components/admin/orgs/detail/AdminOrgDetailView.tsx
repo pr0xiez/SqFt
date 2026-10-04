@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import type { MemberRow } from "@/components/settings/members/types";
+import { Card } from "@/components/ui/Card";
+import { BackLink, MetaSep, PageHeader } from "@/components/ui/PageHeader";
 import { AddAdminUserForm } from "./AddAdminUserForm";
 import { AdminMemberRow } from "./AdminMemberRow";
 
@@ -37,25 +38,34 @@ export function AdminOrgDetailView({
   const archived = rows.filter((r) => r.archived);
 
   return (
-    <div className="max-w-[760px] mx-auto px-4 py-8">
-      <Link
-        href="/admin/orgs"
-        className="text-[12px] font-[var(--font-mono)] tracking-[.04em] uppercase text-[var(--muted)] hover:text-[var(--ink)]"
-      >
-        ← Organizations
-      </Link>
-      <h1 className="text-[24px] font-[700] tracking-[-0.02em] mt-2 mb-1">
-        {org.name}
-      </h1>
-      <p className="text-[13px] text-[var(--muted)] mb-6">
-        {org.slug} · {org.subscriptionStatus} · since{" "}
-        {new Date(org.createdAt).toLocaleDateString()}
-      </p>
+    <div className="max-w-[960px]">
+      <PageHeader
+        kicker={<BackLink href="/admin/orgs">Organizations</BackLink>}
+        title={org.name}
+        meta={
+          <>
+            <span>{org.slug}</span>
+            <MetaSep />
+            <span>{org.subscriptionStatus}</span>
+            <MetaSep />
+            <span>since {new Date(org.createdAt).toLocaleDateString()}</span>
+          </>
+        }
+      />
 
-      <h2 className="text-[12px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-2">
-        Members
-      </h2>
-      <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] mb-4">
+      <Card
+        flush
+        title="Members"
+        action={
+          <span className="text-[13px] text-[var(--muted)]">
+            <span className="type-figure text-[var(--ink-2)]">
+              {active.length}
+            </span>{" "}
+            active
+          </span>
+        }
+        className="mb-4 overflow-hidden"
+      >
         {active.map((row) => (
           <AdminMemberRow
             key={row.id}
@@ -64,16 +74,17 @@ export function AdminOrgDetailView({
             onUpdated={upsert}
           />
         ))}
-      </div>
+      </Card>
 
       <AddAdminUserForm orgId={org.id} onCreated={upsert} />
 
       {archived.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-[12px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-2">
-            Archived ({archived.length})
-          </h2>
-          <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] opacity-80">
+        <Card
+          flush
+          title={`Archived (${archived.length})`}
+          className="mt-8 overflow-hidden"
+        >
+          <div className="opacity-80">
             {archived.map((row) => (
               <AdminMemberRow
                 key={row.id}
@@ -83,7 +94,7 @@ export function AdminOrgDetailView({
               />
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

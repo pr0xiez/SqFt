@@ -4,7 +4,7 @@ import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
 import { parseRouteId } from "@/lib/routeParams";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Site Measure Builder — SqFt" };
+export const metadata = { title: "Site measure" };
 
 interface Props {
   params: Promise<{ id: string }>;

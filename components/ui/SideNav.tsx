@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { NewMenu } from "@/components/quick-create/NewMenu";
 import { AccountBlock } from "@/components/ui/AccountBlock";
+import { BrandMark } from "@/components/ui/BrandMark";
+import { SidebarSimpleIcon } from "@/components/ui/icons";
 import { NavMenu } from "@/components/ui/NavMenu";
 import { NavIcon } from "@/components/ui/nav-icons";
 import { hasMinRole } from "@/lib/auth/permissions";
@@ -30,29 +32,34 @@ export function SideNav() {
     <aside
       className={cn(
         "hidden md:flex order-1 shrink-0 flex-col h-full",
-        "bg-[var(--surface)] border-r border-[var(--line)]",
-        "transition-[width] duration-200",
-        collapsed ? "w-[56px]" : "w-[208px]"
+        "bg-[var(--bg)] border-r border-[var(--line)]",
+        "transition-[width] duration-300 ease-[var(--ease)]",
+        collapsed ? "w-[64px]" : "w-[236px]"
       )}
     >
       <div
         className={cn(
-          "flex items-center h-[60px] px-4 shrink-0",
-          collapsed ? "justify-center" : "justify-between"
+          "flex items-center h-16 shrink-0",
+          collapsed ? "justify-center px-2" : "justify-between pl-5 pr-3"
         )}
       >
         {!collapsed && (
-          <span className="text-[18px] font-[800] tracking-[-0.025em] select-none leading-none">
-            <em className="not-italic text-[var(--accent)]">Sq</em>Ft
-          </span>
+          <Link
+            href="/"
+            aria-label="SqFt home"
+            className="no-underline rounded-[var(--r-in)]"
+          >
+            <BrandMark />
+          </Link>
         )}
         <button
           type="button"
           onClick={toggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="text-[var(--muted)] hover:text-[var(--ink)] transition-colors text-[14px] leading-none px-1"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="size-8 rounded-[var(--r)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)] transition-colors cursor-pointer"
         >
-          {collapsed ? "⟩" : "⟨"}
+          <SidebarSimpleIcon aria-hidden="true" className="size-[18px]" />
         </button>
       </div>
 
@@ -60,14 +67,16 @@ export function SideNav() {
         <div
           className={cn(
             "shrink-0",
-            collapsed ? "flex justify-center pb-1" : "px-3 pb-2"
+            collapsed ? "flex justify-center pb-2" : "px-3 pb-3"
           )}
         >
           <NewMenu collapsed={collapsed} />
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-2">
+      <div
+        className={cn("flex-1 overflow-y-auto", collapsed ? "px-2" : "px-3")}
+      >
         {collapsed ? (
           <IconRail
             role={role}
@@ -119,13 +128,13 @@ function IconRail({
             aria-label={item.label}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "w-9 h-9 rounded-[var(--r)] flex items-center justify-center transition-colors",
+              "size-10 rounded-[var(--r)] flex items-center justify-center transition-colors",
               active
-                ? "text-[var(--accent)] bg-[var(--surface-2)]"
-                : "text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
+                ? "text-[var(--accent)] bg-[var(--surface)] shadow-[inset_0_0_0_1px_var(--line)]"
+                : "text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)]"
             )}
           >
-            <NavIcon icon={item.icon} active={active} size={19} />
+            <NavIcon icon={item.icon} active={active} size={20} />
           </Link>
         );
       })}

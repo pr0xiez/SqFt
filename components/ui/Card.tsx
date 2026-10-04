@@ -1,36 +1,51 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  title?: string;
-  sub?: string;
+interface CardProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  title?: ReactNode;
+  sub?: ReactNode;
+  /** Right side of the header row: a link, a button, a count. */
+  action?: ReactNode;
+  /** Drop the body padding (tables and lists that run edge to edge). */
+  flush?: boolean;
 }
 
-export function Card({ className, title, sub, children, ...props }: CardProps) {
+/**
+ * Flat panel on the page background. Cards never cast shadows; elevation is
+ * reserved for things that float (menus, dialogs, toasts).
+ */
+export function Card({
+  className,
+  title,
+  sub,
+  action,
+  flush = false,
+  children,
+  ...props
+}: CardProps) {
+  const hasHeader = Boolean(title || sub || action);
   return (
-    <div
-      className={cn(
-        "bg-[var(--surface)] border border-[var(--line)] rounded-lg",
-        "p-5",
-        className
-      )}
+    <section
+      className={cn("card", !flush && "p-5 md:p-6", className)}
       {...props}
     >
-      {(title || sub) && (
-        <div className="flex items-baseline justify-between gap-2.5 mb-3.5">
-          {title && (
-            <strong className="font-[var(--font-display)] text-[14px] font-[600] text-[var(--ink)] tracking-[-0.01em]">
-              {title}
-            </strong>
+      {hasHeader && (
+        <div
+          className={cn(
+            "flex items-start justify-between gap-3",
+            flush ? "px-5 md:px-6 pt-5 pb-4" : "mb-4"
           )}
-          {sub && (
-            <span className="font-[var(--font-mono)] text-[11px] font-[500] text-[var(--muted)] tracking-[.04em]">
-              {sub}
-            </span>
-          )}
+        >
+          <div className="min-w-0">
+            {title && <h2 className="type-heading">{title}</h2>}
+            {sub && (
+              <p className="mt-1 text-[13px] text-[var(--muted)]">{sub}</p>
+            )}
+          </div>
+          {action ? <div className="shrink-0">{action}</div> : null}
         </div>
       )}
       {children}
-    </div>
+    </section>
   );
 }

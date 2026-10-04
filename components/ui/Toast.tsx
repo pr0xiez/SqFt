@@ -35,29 +35,28 @@ function Toast({ title, body, duration = 2400, onDismiss }: ToastProps) {
   return (
     <div
       className={cn(
-        "fixed bottom-6 right-6 z-[999]",
-        "bg-[var(--ink)] text-[var(--bg)] px-[18px] py-[14px] rounded-lg",
-        "shadow-[0_10px_30px_rgba(0,0,0,0.2)] max-w-[340px]",
-        "transition-all duration-300",
+        "fixed z-[900] left-4 right-4 sm:left-auto sm:right-6 sm:w-auto",
+        "bottom-[calc(72px+env(safe-area-inset-bottom,0px))] md:bottom-6",
+        "bg-[var(--ink)] text-[var(--bg)] px-4 py-3.5 rounded-[var(--r)]",
+        "shadow-[var(--shadow-md)] sm:max-w-[360px]",
+        "transition-[opacity,transform] duration-300 ease-[var(--ease)]",
         visible
           ? "opacity-100 translate-y-0"
           : "opacity-0 translate-y-2.5 pointer-events-none",
-        "animate-[slideUp_0.3s_ease_both]"
+        "animate-[slideUp_.36s_var(--ease)_backwards]"
       )}
       role="status"
       aria-live="polite"
     >
-      <div className="text-[13px] font-[600] tracking-[-0.01em]">{title}</div>
-      {body && (
-        <div className="font-[var(--font-mono)] text-[11px] opacity-80 mt-0.5">
-          {body}
-        </div>
-      )}
+      <div className="text-[14.5px] font-[620] tracking-[-0.005em]">
+        {title}
+      </div>
+      {body && <div className="text-[13.5px] opacity-75 mt-0.5">{body}</div>}
     </div>
   );
 }
 
-// ── Toast Provider / Hook ─────────────────────────────────────────────────
+// ── Toast Provider / Hook ───────────────────────────────────────────────────
 
 interface ToastContextValue {
   showToast: (title: string, body?: string, duration?: number) => void;

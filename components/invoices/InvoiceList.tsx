@@ -5,11 +5,29 @@ import { useState } from "react";
 import type { InvoiceStatusFilter } from "@/components/invoices/filterInvoices";
 import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
-import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingRows,
+} from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
+import { CheckCircleIcon, ReceiptIcon } from "@/components/ui/icons";
+import { ListToolbar } from "@/components/ui/ListToolbar";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import {
+  CELL,
+  CELL_FIGURE,
+  CELL_META,
+  CELL_PRIMARY,
+  TABLE_HEAD,
+  TABLE_HEAD_CELL,
+  TABLE_ROW,
+  TABLE_SHELL,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useInvoiceList } from "@/lib/hooks/useInvoices";
@@ -26,19 +44,13 @@ const STATUS_FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "void", label: "Void" },
 ];
 
-const STATUS_PILL_COLOR: Record<string, string> = {
-  draft: "text-[var(--muted)]",
-  sent: "text-[var(--gold)]",
-  viewed: "text-[var(--gold)]",
-  partial: "text-[var(--gold)]",
-  paid: "text-[var(--sage)]",
-  void: "text-[var(--accent)]",
-};
+const GRID_COLS =
+  "md:grid-cols-[84px_minmax(0,1fr)_120px_120px_112px_116px_116px]";
 
 type SortKey = "number" | "customer" | "amount" | "dueDate" | "sentAt";
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -108,24 +120,25 @@ export function InvoiceListView() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
-        <div>
-          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Invoices
-          </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2 tabular-nums">
-            {allCount} invoice{allCount === 1 ? "" : "s"}
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Invoices"
+        meta={
+          <span>
+            <span className="type-figure text-[var(--ink-2)]">{allCount}</span>{" "}
+            invoice{allCount === 1 ? "" : "s"}
+          </span>
+        }
+      />
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <SearchInput
-          value={query}
-          onChange={setQuery}
-          placeholder="Search invoice #, customer…"
-        />
-        {STATUS_FILTERS.map(({ value, label }) => (
+      <ListToolbar
+        search={
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search invoice #, customer…"
+          />
+        }
+        filters={STATUS_FILTERS.map(({ value, label }) => (
           <FilterPill
             key={value}
             active={status === value}
@@ -135,26 +148,30 @@ export function InvoiceListView() {
             {label}
           </FilterPill>
         ))}
-        <DensityToggle
-          value={density}
-          onChange={setDensity}
-          className="ml-auto"
-        />
-        {isNarrowed && (
-          <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums">
-            {total} of {allCount}
-          </span>
-        )}
-      </div>
+        trailing={
+          <>
+            {isNarrowed && (
+              <span className="text-[13px] text-[var(--muted)]">
+                <span className="type-figure">{total}</span> of{" "}
+                <span className="type-figure">{allCount}</span>
+              </span>
+            )}
+            <DensityToggle
+              value={density}
+              onChange={setDensity}
+              className="hidden md:inline-flex"
+            />
+          </>
+        }
+      />
 
-      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        <div className="hidden md:grid grid-cols-[80px_1fr_110px_110px_100px_105px_105px] bg-[var(--surface-2)] border-b border-[var(--line)]">
+      <div className={TABLE_SHELL}>
+        <div className={cn(TABLE_HEAD, GRID_COLS)}>
           <SortableHeader
             sortKey="number"
             label="#"
             sort={sort}
             onSort={handleSort}
-            className="tabular-nums"
           />
           <SortableHeader
             sortKey="customer"
@@ -167,14 +184,10 @@ export function InvoiceListView() {
             label="Amount"
             sort={sort}
             onSort={handleSort}
-            className="tabular-nums"
+            align="right"
           />
-          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
-            Balance due
-          </div>
-          <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em] text-[var(--muted)]">
-            Status
-          </div>
+          <div className={cn(TABLE_HEAD_CELL, "text-right")}>Balance due</div>
+          <div className={TABLE_HEAD_CELL}>Status</div>
           <SortableHeader
             sortKey="dueDate"
             label="Due"
@@ -190,35 +203,34 @@ export function InvoiceListView() {
         </div>
 
         {isLoading ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            Loading…
-          </div>
+          <LoadingRows />
         ) : isError ? (
-          <div className="p-6 flex flex-col items-start gap-2.5">
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
-              Something went wrong loading invoices.
-            </div>
-            <Button variant="default" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </div>
+          <ErrorState
+            message="Something went wrong loading invoices."
+            action={
+              <Button variant="default" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            }
+          />
         ) : allCount === 0 ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            No invoices yet.
-          </div>
+          <EmptyState
+            icon={ReceiptIcon}
+            title="No invoices yet."
+            body="Invoices are billed from approved estimates."
+          />
         ) : total === 0 ? (
           status === "open" && !query ? (
-            <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-              No open invoices — everything sent has been paid.
-            </div>
+            <EmptyState
+              icon={CheckCircleIcon}
+              title="No open invoices. Everything sent has been paid."
+            />
           ) : (
             <EmptyState noun="invoice" query={query} />
           )
         ) : (
           <>
             {invoices.map((row) => {
-              const pillColor =
-                STATUS_PILL_COLOR[row.status] ?? "text-[var(--muted)]";
               const overdue = isInvoiceOverdue(row);
 
               return (
@@ -226,53 +238,65 @@ export function InvoiceListView() {
                   key={row.id}
                   type="button"
                   onClick={() => router.push(`/invoices/${row.id}`)}
-                  className="w-full text-left grid grid-cols-1 md:grid-cols-[80px_1fr_110px_110px_100px_105px_105px] items-center border-b border-[var(--line)] last:border-b-0 cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]"
+                  className={cn(TABLE_ROW, "grid-cols-1", GRID_COLS)}
                 >
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <span className="font-[var(--font-mono)] text-[13px] font-[600] tabular-nums">
+                  <div className={cn(CELL, "hidden md:block", rowPad)}>
+                    <span
+                      className={cn(
+                        CELL_FIGURE,
+                        "font-[600] text-[var(--ink)]"
+                      )}
+                    >
                       #{row.invoiceNumber}
                     </span>
                   </div>
-                  <div className={cn("px-3.5", rowPad)}>
-                    <div className="text-[14px] font-[600] tracking-[-0.01em]">
-                      {row.customerName ?? "—"}
+                  <div className={cn(CELL, "min-w-0", rowPad)}>
+                    <div className={CELL_PRIMARY}>
+                      {row.customerName ?? "-"}
                     </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate overflow-hidden text-ellipsis whitespace-nowrap md:hidden">
-                      #{row.invoiceNumber} ·{" "}
+                    {/* phones: the columns fold into one meta line */}
+                    <div className="md:hidden mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[var(--muted)]">
+                      {/* split so the number isn't a second exact "#N" match */}
+                      <span className="type-figure text-[var(--ink-2)]">
+                        <span>#</span>
+                        {row.invoiceNumber}
+                      </span>
                       <span
-                        className={overdue ? "text-[var(--accent)]" : undefined}
+                        className={cn(
+                          "type-figure",
+                          overdue && "text-[var(--accent-ink)]"
+                        )}
                         title={overdue ? "Overdue" : undefined}
                       >
                         {fmtDollar(row.balanceDue)} due
-                      </span>{" "}
-                      · <span className={pillColor}>{row.status}</span>
+                      </span>
+                      <StatusBadge status={row.status} />
                     </div>
                   </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <div className="text-[13px] font-[600] tabular-nums">
+                  <div
+                    className={cn(CELL, "hidden md:block text-right", rowPad)}
+                  >
+                    <span className={cn(CELL_FIGURE, "font-[600]")}>
                       {fmtDollar(row.amount)}
-                    </div>
-                  </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <div className="text-[13px] tabular-nums">
-                      {fmtDollar(row.balanceDue)}
-                    </div>
-                  </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <span
-                      className={cn(
-                        "inline-block font-[var(--font-mono)] text-[9px] px-2 py-[3px] border rounded-[4px] tracking-[.04em] font-[500] capitalize",
-                        pillColor,
-                        "border-current"
-                      )}
-                    >
-                      {row.status}
                     </span>
                   </div>
                   <div
+                    className={cn(CELL, "hidden md:block text-right", rowPad)}
+                  >
+                    <span className={cn(CELL_FIGURE, "text-[var(--ink-2)]")}>
+                      {fmtDollar(row.balanceDue)}
+                    </span>
+                  </div>
+                  <div className={cn(CELL, "hidden md:block", rowPad)}>
+                    <StatusBadge status={row.status} />
+                  </div>
+                  <div
                     className={cn(
-                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px]",
-                      overdue ? "text-[var(--accent)]" : "text-[var(--muted)]",
+                      CELL,
+                      "hidden md:block text-[13.5px]",
+                      overdue
+                        ? "text-[var(--accent-ink)] font-[560]"
+                        : "text-[var(--muted)]",
                       rowPad
                     )}
                     title={overdue ? "Overdue" : undefined}
@@ -280,10 +304,7 @@ export function InvoiceListView() {
                     {fmtDate(row.dueDate)}
                   </div>
                   <div
-                    className={cn(
-                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)]",
-                      rowPad
-                    )}
+                    className={cn(CELL, CELL_META, "hidden md:block", rowPad)}
                   >
                     {fmtDate(row.sentAt)}
                   </div>

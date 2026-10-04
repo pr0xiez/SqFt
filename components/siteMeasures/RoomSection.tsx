@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { buttonClasses } from "@/components/ui/Button";
 import { DecimalInput } from "@/components/ui/DecimalInput";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { RulerIcon, TrashIcon, XIcon } from "@/components/ui/icons";
 import type { SiteMeasure } from "@/lib/hooks/useSiteMeasures";
 import type { RoomItem, RoomSegment } from "@/lib/utils";
 import { roomSegments, roomSqft, segmentSqft } from "@/lib/utils";
@@ -26,7 +29,7 @@ type EditorItem = Omit<RoomItem, "segments"> & {
 };
 
 const dimInputClass =
-  "w-16 text-[14px] font-[600] p-[5px_8px] border border-[var(--line)] rounded-[5px] bg-[var(--surface-2)] text-[var(--accent)] text-center focus:outline-none focus:border-[var(--accent)]";
+  "field type-figure min-h-[36px] h-[36px] w-[72px] px-2 text-center font-[600]";
 
 /** Normalize a persisted room to the segments representation the editor uses:
  *  legacy w/l become a single box, and the scalar w/l are cleared. (The repo
@@ -124,10 +127,15 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
   const grossArea = rooms.reduce((s, r) => s + roomSqft(r), 0);
 
   return (
-    <div className="space-y-2.5 mb-3.5">
+    <div className="space-y-3 mb-4">
       {items.length === 0 && (
-        <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-8 text-center font-[var(--font-mono)] text-[12px] text-[var(--muted)]">
-          No rooms yet — add one to begin measuring.
+        <div className="card">
+          <EmptyState
+            icon={RulerIcon}
+            title="No rooms yet."
+            body="Add one to begin measuring."
+            className="py-10"
+          />
         </div>
       )}
 
@@ -136,22 +144,27 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
           return (
             <div
               key={item.id}
-              className="flex items-start gap-2 px-4 py-2 bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--gold)] rounded-lg"
+              className="card flex items-start gap-2 pl-4 pr-2 py-2.5 shadow-[inset_3px_0_0_var(--warn)]"
             >
               <textarea
                 rows={2}
                 value={item.text ?? ""}
                 onChange={(e) => updateRoom(item.id, { text: e.target.value })}
                 placeholder="Field note…"
-                className="flex-1 font-[var(--font-mono)] text-[11px] text-[var(--ink)] bg-transparent focus:outline-none resize-none italic"
+                className="field flex-1 min-h-[64px] bg-transparent border-transparent px-1 py-1.5 resize-none"
               />
               <button
                 type="button"
                 onClick={() => removeItem(item.id)}
-                className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none mt-0.5 shrink-0"
+                className={buttonClasses({
+                  variant: "ghost",
+                  size: "icon-sm",
+                  className:
+                    "text-[var(--muted)] hover:text-[var(--accent-ink)]",
+                })}
                 aria-label="Remove note"
               >
-                ✕
+                <XIcon aria-hidden="true" />
               </button>
             </div>
           );
@@ -160,12 +173,9 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
         const boxes = item.segments ?? [];
         const roomTotal = roomSqft(item);
         return (
-          <div
-            key={item.id}
-            className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-[18px_20px] transition-colors duration-150"
-          >
+          <div key={item.id} className="card p-4 md:p-5">
             {/* Room header */}
-            <div className="flex items-center gap-2.5 mb-3.5">
+            <div className="flex items-center gap-2 mb-4">
               <input
                 type="text"
                 value={item.name ?? ""}
@@ -183,26 +193,30 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                 }}
                 onChange={(e) => updateRoom(item.id, { name: e.target.value })}
                 placeholder="Room name"
-                className="flex-1 text-[15px] font-[600] tracking-[-0.01em] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+                className="field flex-1 min-w-0 w-auto font-[600]"
               />
               <button
                 type="button"
                 onClick={() => removeItem(item.id)}
-                className="font-[var(--font-mono)] text-[10px] px-2.5 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[4px] cursor-pointer transition-colors duration-150 hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                className={buttonClasses({
+                  variant: "ghost",
+                  size: "sm",
+                  className:
+                    "text-[var(--muted)] hover:text-[var(--accent-ink)]",
+                })}
               >
+                <TrashIcon aria-hidden="true" />
                 Remove
               </button>
             </div>
 
-            {/* Dimensions — one row per box; areas sum to the room total */}
-            <div className="space-y-2 mb-3">
-              {boxes.map((seg, idx) => {
+            {/* Dimensions: one row per box; areas sum to the room total */}
+            <div className="type-label mb-2">Dimensions</div>
+            <div className="space-y-2 mb-4">
+              {boxes.map((seg) => {
                 const sqft = segmentSqft(seg);
                 return (
-                  <div key={seg.key} className="flex items-center gap-2.5">
-                    <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] min-w-[80px] tracking-[.04em]">
-                      {idx === 0 ? "Dimensions" : ""}
-                    </span>
+                  <div key={seg.key} className="flex items-center gap-2">
                     <DecimalInput
                       value={seg.l ?? null}
                       allowEmpty
@@ -210,7 +224,12 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                       placeholder="L"
                       className={dimInputClass}
                     />
-                    <span className="text-[14px] text-[var(--muted)]">×</span>
+                    <span
+                      aria-hidden="true"
+                      className="text-[14px] text-[var(--muted)]"
+                    >
+                      ×
+                    </span>
                     <DecimalInput
                       value={seg.w ?? null}
                       allowEmpty
@@ -218,15 +237,13 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                       placeholder="W"
                       className={dimInputClass}
                     />
-                    <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-                      ft
-                    </span>
-                    <div className="ml-auto text-[15px] font-[700] tracking-[-0.02em]">
+                    <span className="text-[13px] text-[var(--muted)]">ft</span>
+                    <div className="ml-auto type-figure text-[14.5px] font-[600] whitespace-nowrap">
                       {sqft > 0 ? (
                         `${Math.round(sqft)} sqft`
                       ) : (
                         <span className="text-[var(--muted)] font-[400]">
-                          —
+                          -
                         </span>
                       )}
                     </div>
@@ -235,30 +252,37 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
                         type="button"
                         onClick={() => removeSegment(item, seg.key)}
                         aria-label="Remove dimension"
-                        className="text-[var(--muted)] hover:text-[var(--accent)] text-sm leading-none shrink-0"
+                        className={buttonClasses({
+                          variant: "ghost",
+                          size: "icon-sm",
+                          className:
+                            "text-[var(--muted)] hover:text-[var(--accent-ink)]",
+                        })}
                       >
-                        ✕
+                        <XIcon aria-hidden="true" />
                       </button>
                     )}
                   </div>
                 );
               })}
 
-              <div className="flex items-center gap-3 pl-[90px]">
+              <div className="flex items-center gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => addSegment(item)}
-                  className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] bg-transparent border-none p-0 cursor-pointer hover:text-[var(--ink)]"
+                  className={buttonClasses({
+                    variant: "ghost",
+                    size: "sm",
+                    className: "-ml-2.5",
+                  })}
                 >
                   + dimension
                 </button>
                 {boxes.length > 1 && (
-                  <div className="ml-auto flex items-center gap-2">
-                    <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em]">
-                      Room total
-                    </span>
-                    <span className="text-[18px] font-[700] tracking-[-0.02em]">
-                      {roomTotal > 0 ? `${Math.round(roomTotal)} sqft` : "—"}
+                  <div className="ml-auto flex items-baseline gap-2">
+                    <span className="type-label">Room total</span>
+                    <span className="type-figure text-[16px] font-[650]">
+                      {roomTotal > 0 ? `${Math.round(roomTotal)} sqft` : "-"}
                     </span>
                   </div>
                 )}
@@ -271,18 +295,22 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
               value={item.note ?? ""}
               onChange={(e) => updateRoom(item.id, { note: e.target.value })}
               placeholder="Add note about this room…"
-              className="w-full text-[13px] text-[var(--ink-2)] bg-[var(--surface)] border border-[var(--line)] rounded-[5px] px-2.5 py-2 italic focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 placeholder:text-[var(--muted)]"
+              aria-label="Room note"
+              className="field text-[var(--ink-2)]"
             />
           </div>
         );
       })}
 
       {/* Add buttons */}
-      <div className="flex gap-2 mt-3.5">
+      <div className="flex gap-2 pt-1">
         <button
           type="button"
           onClick={addRoom}
-          className="flex-1 py-[11px] font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border border-dashed border-[var(--line-2)] rounded-[6px] cursor-pointer transition-colors duration-150 hover:border-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
+          className={buttonClasses({
+            variant: "default",
+            className: "flex-1 border-dashed",
+          })}
         >
           + Add Room
         </button>
@@ -291,7 +319,10 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
           onClick={() =>
             commit([...items, { id: tempId(), type: "note", text: "" }])
           }
-          className="flex-1 py-[11px] font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border border-dashed border-[var(--line-2)] rounded-[6px] cursor-pointer transition-colors duration-150 hover:border-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
+          className={buttonClasses({
+            variant: "default",
+            className: "flex-1 border-dashed",
+          })}
         >
           + Add Note
         </button>
@@ -299,13 +330,13 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
 
       {/* Summary bar */}
       {rooms.length > 0 && (
-        <div className="bg-[var(--ink)] text-[var(--bg)] p-[20px_24px] rounded-lg flex flex-wrap items-center justify-between gap-3.5 mt-3.5 [html[data-theme=dark]_&]:bg-[var(--surface-2)] [html[data-theme=dark]_&]:border [html[data-theme=dark]_&]:border-[var(--line)]">
+        <div className="rounded-[var(--r)] bg-[var(--ink)] text-[var(--bg)] px-5 py-4 md:px-6 flex flex-wrap items-center justify-between gap-3.5">
           <div>
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-1">
+            <div className="text-[13.5px] font-[560] opacity-75 mb-1">
               Gross area
             </div>
-            <div className="text-[28px] font-[700] tracking-[-0.025em]">
-              {grossArea > 0 ? `${Math.round(grossArea)} sqft` : "—"}
+            <div className="type-stat text-[28px] md:text-[32px]">
+              {grossArea > 0 ? `${Math.round(grossArea)} sqft` : "-"}
             </div>
           </div>
         </div>

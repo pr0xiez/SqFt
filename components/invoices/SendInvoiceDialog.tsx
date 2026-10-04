@@ -2,16 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { PaperPlaneTiltIcon } from "@/components/ui/icons";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useSendInvoice } from "@/lib/hooks/useInvoices";
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
-
-const labelCls =
-  "block text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-1";
-const inputCls =
-  "w-full text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded mb-3 focus:outline-none focus:border-[var(--ink)]";
 
 interface Props {
   invoiceId: number;
@@ -63,31 +59,37 @@ export function SendInvoiceDialog({
       title={alreadySent ? "Resend invoice" : "Send invoice to customer"}
       maxWidth="460px"
     >
-      <label className={labelCls} htmlFor="inv-send-to">
-        To
-      </label>
-      <input
-        id="inv-send-to"
-        type="email"
-        className={inputCls}
-        value={to}
-        onChange={(e) => setTo(e.target.value)}
-        placeholder="janet@example.com"
-      />
+      <div className="flex flex-col gap-4">
+        <div>
+          <label className="field-label" htmlFor="inv-send-to">
+            To
+          </label>
+          <input
+            id="inv-send-to"
+            type="email"
+            className="field"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            placeholder="janet@example.com"
+          />
+        </div>
 
-      <label className={labelCls} htmlFor="inv-send-subject">
-        Subject
-      </label>
-      <input
-        id="inv-send-subject"
-        type="text"
-        className={inputCls}
-        value={subject}
-        onChange={(e) => setSubject(e.target.value)}
-      />
+        <div>
+          <label className="field-label" htmlFor="inv-send-subject">
+            Subject
+          </label>
+          <input
+            id="inv-send-subject"
+            type="text"
+            className="field"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+          />
+        </div>
+      </div>
 
-      <div className="flex justify-end gap-2 mt-2">
-        <Button variant="ghost" onClick={onClose} type="button">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-6">
+        <Button variant="default" onClick={onClose} type="button">
           Cancel
         </Button>
         <Button
@@ -96,7 +98,8 @@ export function SendInvoiceDialog({
           disabled={!canSend}
           type="button"
         >
-          {send.isPending ? "Sending…" : alreadySent ? "Resend →" : "Send →"}
+          {send.isPending ? "Sending…" : alreadySent ? "Resend" : "Send"}
+          {send.isPending ? null : <PaperPlaneTiltIcon aria-hidden="true" />}
         </Button>
       </div>
     </Modal>

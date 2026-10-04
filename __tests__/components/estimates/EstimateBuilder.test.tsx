@@ -185,8 +185,8 @@ describe("EstimateBuilderView — edit line item", () => {
 describe("EstimateBuilderView — remove line item", () => {
   it("removes the row from the view and persists the shrunken list", () => {
     renderBuilder();
-    // The remove control is the ✕ button on the row.
-    fireEvent.click(screen.getByText("✕"));
+    // The remove control is the row's "Remove line item" icon button.
+    fireEvent.click(screen.getByRole("button", { name: "Remove line item" }));
 
     // Row gone → empty-state prompt shows.
     expect(screen.queryByDisplayValue("Laminate install")).toBeNull();
@@ -216,14 +216,18 @@ describe("EstimateBuilderView — save affordance / lock state", () => {
 
     // No add/remove controls, and the name field is disabled in read-only mode.
     expect(screen.queryByText("+ Add Line Item")).toBeNull();
-    expect(screen.queryByText("✕")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Remove line item" })
+    ).toBeNull();
     const nameInput = screen.getByDisplayValue(
       "Laminate install"
     ) as HTMLInputElement;
     expect(nameInput.disabled).toBe(true);
 
     // A locked estimate offers Revise rather than Send.
-    expect(screen.queryByText("Send to customer →")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /send to customer/i })
+    ).toBeNull();
   });
 
   it("a dispatch in read-only mode never reaches the save mutation", () => {

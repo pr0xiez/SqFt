@@ -1,14 +1,22 @@
 import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/cn";
 
+/**
+ * - `primary`: safety orange with dark text. The one main action on a screen.
+ * - `default`: outlined. Most actions.
+ * - `ink`: solid off-black. A strong secondary when outline is too quiet.
+ * - `ghost`: text only. Tertiary actions, toolbar icons.
+ * - `danger`: outlined, orange-ink text. Destructive actions.
+ * `accent` is kept as an alias of `primary`.
+ */
 type ButtonVariant =
   | "default"
   | "primary"
   | "accent"
-  | "sage"
-  | "gold"
-  | "ghost";
-type ButtonSize = "sm" | "md" | "lg";
+  | "ink"
+  | "ghost"
+  | "danger";
+type ButtonSize = "sm" | "md" | "lg" | "icon" | "icon-sm";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -17,21 +25,25 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   default:
-    "bg-[var(--surface)] border-[var(--line)] text-[var(--ink)] hover:bg-[var(--surface-2)] hover:border-[var(--ink-2)]",
+    "bg-transparent border-[color-mix(in_oklab,var(--ink)_28%,transparent)] text-[var(--ink)] hover:border-[var(--ink)] hover:bg-[var(--hover)]",
   primary:
-    "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)] hover:bg-[var(--ink-2)] hover:border-[var(--ink-2)]",
+    "bg-[var(--accent)] border-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)]",
   accent:
-    "bg-[var(--accent)] border-[var(--accent)] text-white hover:bg-[var(--accent-l)] hover:border-[var(--accent-l)]",
-  sage: "bg-[var(--sage)] border-[var(--sage)] text-white hover:bg-[var(--sage-l)] hover:border-[var(--sage-l)]",
-  gold: "bg-[var(--gold)] border-[var(--gold)] text-white hover:bg-[var(--gold-l)] hover:border-[var(--gold-l)]",
+    "bg-[var(--accent)] border-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)]",
+  ink: "bg-[var(--ink)] border-[var(--ink)] text-[var(--bg)] hover:bg-[var(--ink-2)] hover:border-[var(--ink-2)]",
   ghost:
-    "bg-transparent border-transparent text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]",
+    "bg-transparent border-transparent text-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--hover)]",
+  danger:
+    "bg-transparent border-[color-mix(in_oklab,var(--accent-ink)_45%,transparent)] text-[var(--accent-ink)] hover:border-[var(--accent-ink)] hover:bg-[var(--accent-wash)]",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "px-3.5 py-2 text-[11px]",
-  md: "px-5 py-2.5 text-[12px]",
-  lg: "px-6 py-3 text-[13px]",
+  sm: "h-[34px] px-3 text-[13.5px] gap-1.5 [&_svg]:size-[15px]",
+  md: "h-10 px-4 text-[14.5px] gap-2 [&_svg]:size-[17px]",
+  lg: "h-12 px-6 text-[16px] gap-2.5 [&_svg]:size-[18px]",
+  /** Square icon-only buttons; give them an aria-label. */
+  icon: "size-10 p-0 [&_svg]:size-[19px]",
+  "icon-sm": "size-[34px] p-0 [&_svg]:size-[17px]",
 };
 
 /**
@@ -48,12 +60,12 @@ export function buttonClasses({
   className?: string;
 } = {}): string {
   return cn(
-    "inline-flex items-center justify-center gap-1.5",
-    "border cursor-pointer rounded-[6px]",
-    "font-[var(--font-mono)] font-[500] tracking-[.02em]",
-    "transition-[background,border-color,color] duration-[150ms]",
-    "disabled:opacity-50 disabled:cursor-not-allowed",
-    "min-h-[36px]",
+    "inline-flex items-center justify-center shrink-0 whitespace-nowrap",
+    "border rounded-[var(--r)] cursor-pointer select-none no-underline",
+    "font-[620] [font-stretch:104%] tracking-[-0.005em] leading-none",
+    "transition-[background-color,border-color,color,transform] duration-200 ease-[var(--ease)]",
+    "active:scale-[0.98]",
+    "disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
     variantStyles[variant],
     sizeStyles[size],
     className

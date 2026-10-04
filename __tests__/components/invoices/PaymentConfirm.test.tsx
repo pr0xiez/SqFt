@@ -4,7 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PaymentConfirm } from "@/components/invoices/PaymentConfirm";
 
-const CONFIRMED = "Payment received — thank you!";
+const CONFIRMED = "Payment received. Thank you!";
 
 function stubFetch(
   impl: () => Promise<{ ok: boolean; json: () => Promise<unknown> }>

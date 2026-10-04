@@ -41,12 +41,12 @@ export function VoidInvoiceDialog({
       sub="This can't be undone. The invoice will be excluded from billing totals."
       maxWidth="400px"
     >
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose} type="button">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-2">
+        <Button variant="default" onClick={onClose} type="button">
           Cancel
         </Button>
         <Button
-          variant="accent"
+          variant="danger"
           onClick={onConfirm}
           disabled={voidInvoice.isPending}
           type="button"

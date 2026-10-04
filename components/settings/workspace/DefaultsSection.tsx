@@ -21,45 +21,43 @@ export function DefaultsSection({ form, onChange }: Props) {
   const depositPct = Math.round(form.defaultDepositPct * 100);
 
   return (
-    <section className="mb-16 scroll-mt-20" id="defaults">
+    <section className="mb-14 scroll-mt-8" id="defaults">
       <SectionHead
-        n="03"
-        title="Estimating Defaults"
+        title="Estimating defaults"
         kicker="What new estimates inherit"
       />
 
-      <div className="border border-[var(--line)] rounded bg-[var(--surface)] p-4 mb-4">
-        <div className="flex items-baseline justify-between mb-2.5">
-          <div className="font-mono text-[10px] tracking-[.14em] uppercase text-[var(--muted)]">
-            Deposit
+      <FieldRow label="Deposit" htmlFor="ws-deposit">
+        <div className="flex items-center gap-4 max-w-[480px]">
+          <div className="flex-1 min-w-0">
+            <input
+              id="ws-deposit"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={depositPct}
+              onChange={(e) =>
+                onChange({ defaultDepositPct: Number(e.target.value) / 100 })
+              }
+              className="w-full h-10 accent-[var(--accent)] cursor-pointer"
+            />
+            <div className="flex justify-between -mt-1 type-figure text-[12px] text-[var(--muted)]">
+              <span>0%</span>
+              <span>100%</span>
+            </div>
           </div>
-          <div className="tabular-nums">
-            <span className="font-[700] text-[28px] tracking-[-.03em] text-[var(--accent)]">
-              {depositPct}
-            </span>
-            <span className="text-[14px] text-[var(--muted)] ml-0.5">%</span>
+          <div className="type-stat text-[26px] w-[72px] text-right shrink-0">
+            {depositPct}
+            <span className="text-[15px] text-[var(--muted)] ml-0.5">%</span>
           </div>
         </div>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={depositPct}
-          onChange={(e) =>
-            onChange({ defaultDepositPct: Number(e.target.value) / 100 })
-          }
-          className="w-full"
-        />
-        <div className="flex justify-between mt-1.5 font-mono text-[9px] text-[var(--muted)] tabular-nums">
-          <span>0%</span>
-          <span>100%</span>
-        </div>
-      </div>
+      </FieldRow>
 
-      <FieldRow label="Estimate validity">
-        <div className="flex items-center gap-2.5 text-[13px] text-[var(--muted)]">
+      <FieldRow label="Estimate validity" htmlFor="ws-validity">
+        <div className="flex items-center gap-2.5 text-[14px] text-[var(--muted)]">
           <input
+            id="ws-validity"
             type="number"
             min={1}
             max={365}
@@ -72,27 +70,22 @@ export function DefaultsSection({ form, onChange }: Props) {
                 ),
               })
             }
-            className="w-[90px] px-2.5 py-2 border border-[var(--line)] rounded bg-transparent font-mono text-[14px] text-right tabular-nums focus:outline-none focus:border-[var(--ink-2)]"
+            className="field type-figure w-[96px] text-right bg-[var(--surface)]"
           />
           <span>days from send</span>
         </div>
       </FieldRow>
 
       <FieldRow label="Measure unit">
-        <div className="inline-flex p-0.5 border border-[var(--line)] rounded bg-[var(--surface)]">
+        <div className="seg flex-wrap">
           {UNITS.map((u) => {
             const active = form.defaultUnitLabel === u.val;
             return (
               <button
                 key={u.val}
                 type="button"
+                aria-pressed={active}
                 onClick={() => onChange({ defaultUnitLabel: u.val })}
-                className={[
-                  "px-3 py-1.5 font-mono text-[11px] tracking-[.04em] border-0 cursor-pointer rounded-sm transition-colors",
-                  active
-                    ? "bg-[var(--ink)] text-[var(--bg)]"
-                    : "bg-transparent text-[var(--muted)] hover:text-[var(--ink)]",
-                ].join(" ")}
               >
                 {u.label}
               </button>
@@ -103,14 +96,16 @@ export function DefaultsSection({ form, onChange }: Props) {
 
       <FieldRow
         label="Default terms"
+        htmlFor="ws-terms"
         hint="Pre-fills the Terms field on a fresh estimate."
       >
         <textarea
+          id="ws-terms"
           rows={4}
           maxLength={2000}
           value={form.defaultTerms}
           onChange={(e) => onChange({ defaultTerms: e.target.value })}
-          className="w-full px-3 py-2 border border-[var(--line)] rounded bg-transparent text-[13px] leading-[1.55] resize-y focus:outline-none focus:border-[var(--ink-2)]"
+          className="field bg-[var(--surface)]"
         />
       </FieldRow>
     </section>

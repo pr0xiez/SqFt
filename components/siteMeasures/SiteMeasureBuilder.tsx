@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { RoomSection } from "@/components/siteMeasures/RoomSection";
 import { SiteMeasureEstimatesCard } from "@/components/siteMeasures/SiteMeasureEstimatesCard";
 import { Button } from "@/components/ui/Button";
+import { ErrorState, LoadingLine } from "@/components/ui/EmptyState";
+import { ArrowRightIcon } from "@/components/ui/icons";
+import { BackLink, MetaSep, PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/components/ui/Toast";
 import { useCreateEstimate } from "@/lib/hooks/useEstimates";
 import {
@@ -33,46 +36,48 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
   }
 
   if (isLoading) {
-    return (
-      <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-8">
-        Loading site measure…
-      </p>
-    );
+    return <LoadingLine label="Loading site measure…" className="py-8" />;
   }
 
   if (!siteMeasure) {
-    return (
-      <p className="font-[var(--font-mono)] text-[11px] text-[var(--accent)] py-8">
-        Site measure not found.
-      </p>
-    );
+    return <ErrorState message="Site measure not found." className="px-0" />;
   }
 
   const rooms = (siteMeasure.items ?? []).filter((i) => i.type === "room");
   const totalArea = estTotalArea(siteMeasure.items ?? []);
+  const location = siteMeasure.location;
 
   return (
     <>
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
-        <div>
-          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Site Measure #{siteMeasure.siteMeasureNumber ?? siteMeasure.id}
-          </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
-            {new Date(siteMeasure.date).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}{" "}
-            · {rooms.length} room{rooms.length === 1 ? "" : "s"} ·{" "}
-            {Math.round(totalArea)} sqft
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => router.push("/site-measures")}>
-            ← All site measures
-          </Button>
+      <PageHeader
+        kicker={<BackLink href="/site-measures">All site measures</BackLink>}
+        title={`Site Measure #${siteMeasure.siteMeasureNumber ?? siteMeasure.id}`}
+        meta={
+          <>
+            <span>
+              {new Date(siteMeasure.date).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+            <MetaSep />
+            <span>
+              <span className="type-figure text-[var(--ink-2)]">
+                {rooms.length}
+              </span>{" "}
+              room{rooms.length === 1 ? "" : "s"}
+            </span>
+            <MetaSep />
+            <span>
+              <span className="type-figure text-[var(--ink-2)]">
+                {Math.round(totalArea)}
+              </span>{" "}
+              sqft
+            </span>
+          </>
+        }
+        actions={
           <Button
             variant="primary"
             onClick={handleCreateEstimate}
@@ -80,26 +85,24 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
           >
             {createEstimate.isPending ? "Creating…" : "+ Create Estimate"}
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Location / customer bar */}
-      {siteMeasure.location && (
-        <div className="flex items-center gap-3.5 px-[18px] py-[14px] bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--accent)] rounded-lg mb-4">
-          <div className="flex-1">
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.04em] mb-0.5">
-              {siteMeasure.location.label
-                ? `Location · ${siteMeasure.location.label}`
-                : "Location"}
+      {/* Location / customer */}
+      {location && (
+        <div className="card flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 md:px-5 mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="type-label mb-1">
+              {location.label ? `Location · ${location.label}` : "Location"}
             </div>
             <div className="text-[16px] font-[600] tracking-[-0.01em]">
-              {siteMeasure.location.customer?.name ?? "—"}
+              {location.customer?.name ?? "-"}
             </div>
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-0.5">
-              {siteMeasure.location.address}
+            <div className="text-[14px] text-[var(--muted)] mt-0.5">
+              {location.address}
             </div>
           </div>
-          {siteMeasure.location.customer && (
+          {location.customer && (
             <Button
               size="sm"
               onClick={() =>
@@ -107,6 +110,7 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
               }
             >
               View customer
+              <ArrowRightIcon aria-hidden="true" />
             </Button>
           )}
         </div>

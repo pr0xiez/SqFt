@@ -4,7 +4,7 @@ import { EstimateListView } from "@/components/estimates/EstimateList";
 import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Estimates — SqFt" };
+export const metadata = { title: "Estimates" };
 
 export default async function EstimatesPage() {
   const session = await requireSession();
