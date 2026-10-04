@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isEstimateLocked, isOpenEstimate } from "@/lib/estimateStatus";
+import {
+  ESTIMATE_STATUS_FILTERS,
+  ESTIMATE_STATUS_LABELS,
+  ESTIMATE_STATUSES,
+  isEstimateLocked,
+  isOpenEstimate,
+  OPEN_ESTIMATE_STATUSES,
+} from "@/lib/estimateStatus";
 
 describe("isEstimateLocked", () => {
   it("is locked when approved", () => {
@@ -27,5 +34,16 @@ describe("isOpenEstimate", () => {
     expect(isOpenEstimate({ status: "draft" })).toBe(false);
     expect(isOpenEstimate({ status: "approved" })).toBe(false);
     expect(isOpenEstimate({ status: "declined" })).toBe(false);
+  });
+});
+
+describe("status vocabulary", () => {
+  it("includes viewed and keeps derived sets consistent", () => {
+    expect(ESTIMATE_STATUSES).toContain("viewed");
+    expect(ESTIMATE_STATUS_FILTERS).toEqual(["all", ...ESTIMATE_STATUSES]);
+    expect([...OPEN_ESTIMATE_STATUSES]).toEqual(["draft", "sent", "viewed"]);
+    for (const s of ESTIMATE_STATUSES) {
+      expect(ESTIMATE_STATUS_LABELS[s]).toBeTruthy();
+    }
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
 import {
+  APPROVAL_META_FALLBACK,
   approveEstimateByToken,
   getEstimateApproval,
 } from "@/lib/repositories/estimateApprovalRepo";
@@ -47,6 +48,26 @@ async function makeSentEstimate() {
 describe.skipIf(!process.env.VITEST_DB_AVAILABLE)(
   "approveEstimateByToken",
   () => {
+    it("missing client metadata: event keeps null, approval uses the fallback", async () => {
+      const { estimateId } = await makeSentEstimate();
+      await approveEstimateByToken({
+        estimateId,
+        ip: null,
+        userAgent: null,
+        snapshot: {},
+      });
+      const ev = await prisma.estimateEvent.findFirstOrThrow({
+        where: { estimateId, type: "approved" },
+      });
+      expect(ev.ip).toBeNull();
+      expect(ev.userAgent).toBeNull();
+      const a = await prisma.estimateApproval.findUniqueOrThrow({
+        where: { estimateId },
+      });
+      expect(a.ip).toBe(APPROVAL_META_FALLBACK);
+      expect(a.userAgent).toBe(APPROVAL_META_FALLBACK);
+    });
+
     it("sets status=approved, writes EstimateApproval (no signature), logs event", async () => {
       const { estimateId } = await makeSentEstimate();
       const res = await approveEstimateByToken({

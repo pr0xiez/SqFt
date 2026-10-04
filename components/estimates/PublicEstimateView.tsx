@@ -1,4 +1,4 @@
-import { isEstimateLocked } from "@/lib/estimateStatus";
+import { type EstimateStatus, isEstimateLocked } from "@/lib/estimateStatus";
 import {
   computeEstimateView,
   type EstimateView,
@@ -21,7 +21,7 @@ import { TotalsBlock } from "./public-estimate/TotalsBlock";
 export interface PublicEstimate {
   id: number;
   estimateNumber: number;
-  status: "draft" | "sent" | "viewed" | "approved" | "declined";
+  status: EstimateStatus;
   date: string | Date;
   markupPct: number;
   depositPct: number;
