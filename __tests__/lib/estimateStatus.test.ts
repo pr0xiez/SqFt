@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isEstimateLocked, isOpenEstimate } from "@/lib/estimateStatus";
+import {
+  ESTIMATE_STATUS_FILTERS,
+  ESTIMATE_STATUS_LABELS,
+  ESTIMATE_STATUSES,
+  isEstimateLocked,
+  isOpenEstimate,
+  OPEN_ESTIMATE_STATUSES,
+} from "@/lib/estimateStatus";
 
 describe("isEstimateLocked", () => {
   it("is locked when approved", () => {
@@ -31,13 +38,12 @@ describe("isOpenEstimate", () => {
 });
 
 describe("status vocabulary", () => {
-  it("includes viewed and keeps derived sets consistent", async () => {
-    const m = await import("@/lib/estimateStatus");
-    expect(m.ESTIMATE_STATUSES).toContain("viewed");
-    expect(m.ESTIMATE_STATUS_FILTERS).toEqual(["all", ...m.ESTIMATE_STATUSES]);
-    expect([...m.OPEN_ESTIMATE_STATUSES]).toEqual(["draft", "sent", "viewed"]);
-    for (const s of m.ESTIMATE_STATUSES) {
-      expect(m.ESTIMATE_STATUS_LABELS[s]).toBeTruthy();
+  it("includes viewed and keeps derived sets consistent", () => {
+    expect(ESTIMATE_STATUSES).toContain("viewed");
+    expect(ESTIMATE_STATUS_FILTERS).toEqual(["all", ...ESTIMATE_STATUSES]);
+    expect([...OPEN_ESTIMATE_STATUSES]).toEqual(["draft", "sent", "viewed"]);
+    for (const s of ESTIMATE_STATUSES) {
+      expect(ESTIMATE_STATUS_LABELS[s]).toBeTruthy();
     }
   });
 });
