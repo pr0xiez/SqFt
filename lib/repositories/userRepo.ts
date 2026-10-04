@@ -4,6 +4,7 @@ import {
   LastAdminError,
   NotFoundError,
 } from "@/lib/api/errors";
+import { MAX_LIST_ROWS } from "@/lib/pagination/constants";
 import { prisma } from "@/lib/prisma";
 import type { UserPatchInput } from "@/lib/users/schema";
 
@@ -28,7 +29,8 @@ export function listUsers(
   return prisma.user.findMany({
     where: { orgId, ...(opts.includeArchived ? {} : { archived: false }) },
     select: USER_SELECT,
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: MAX_LIST_ROWS,
   });
 }
 

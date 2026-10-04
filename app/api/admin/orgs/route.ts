@@ -12,8 +12,22 @@ import { apiRoute } from "@/lib/api/route";
 import { createOrganization } from "@/lib/onboarding/createOrganization";
 import { listAllOrgsForAdmin } from "@/lib/repositories/organizationRepo";
 
-export const GET = apiRoute({ superAdmin: true }, async () => {
-  return listAllOrgsForAdmin();
+function intParam(sp: URLSearchParams, key: string): number | undefined {
+  const raw = sp.get(key);
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
+/** Response stays a bare array; `?limit=` (1..MAX_LIST_ROWS) and `?offset=`
+ *  page through it, and the repo caps every call at MAX_LIST_ROWS. */
+export const GET = apiRoute({ superAdmin: true }, async ({ req }) => {
+  const sp = new URL(req.url).searchParams;
+  const limit = intParam(sp, "limit");
+  return listAllOrgsForAdmin({
+    take: limit && limit > 0 ? limit : undefined,
+    skip: intParam(sp, "offset"),
+  });
 });
 
 const CreateOrgBody = z

@@ -114,7 +114,8 @@ describe("GET /api/users", () => {
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { orgId: "org1" },
-        orderBy: { createdAt: "asc" },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: 500,
       })
     );
   });

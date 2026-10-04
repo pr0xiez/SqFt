@@ -12,6 +12,7 @@ import {
 } from "@/lib/estimateStatus";
 import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
 import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { MAX_LIST_ROWS } from "@/lib/pagination/constants";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import {
@@ -405,8 +406,9 @@ export async function listEstimatesForSiteMeasure(
 ): Promise<EstimateWithSiteMeasureSummary[]> {
   return prisma.estimate.findMany({
     where: { orgId, siteMeasureId },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     select: ESTIMATE_LIST_SELECT,
+    take: MAX_LIST_ROWS,
   });
 }
 

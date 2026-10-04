@@ -269,6 +269,7 @@ describe("listEstimatesForSiteMeasure", () => {
     expect(estimateFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { orgId: "org1", siteMeasureId: 42 },
+        take: 500,
       })
     );
   });

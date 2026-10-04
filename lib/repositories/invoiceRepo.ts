@@ -20,6 +20,7 @@ import {
 import type { InvoiceLike, ProrationSource } from "@/lib/invoices/types";
 import { logError } from "@/lib/logger";
 import { round2 } from "@/lib/money";
+import { MAX_LIST_ROWS } from "@/lib/pagination/constants";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { enqueueQboTaskTx } from "@/lib/repositories/qboRepo";
@@ -146,8 +147,9 @@ export async function listInvoicesForEstimate(
 ) {
   return prisma.invoice.findMany({
     where: { orgId, estimateId },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: INVOICE_SELECT,
+    take: MAX_LIST_ROWS,
   });
 }
 

@@ -1,4 +1,5 @@
 import type { Prisma } from "@/app/generated/prisma/client";
+import { MAX_LIST_ROWS } from "@/lib/pagination/constants";
 import { prisma } from "@/lib/prisma";
 import type { ConnectStatus } from "@/lib/stripe/connect";
 
@@ -112,10 +113,15 @@ export type AdminOrgSummary = {
  * `apiRoute({ superAdmin: true })` (routes) or `isSuperAdmin` (server
  * components) before this runs.
  */
-export async function listAllOrgsForAdmin(): Promise<AdminOrgSummary[]> {
+export async function listAllOrgsForAdmin(
+  opts: { take?: number; skip?: number } = {}
+): Promise<AdminOrgSummary[]> {
+  const take = Math.min(Math.max(opts.take ?? MAX_LIST_ROWS, 1), MAX_LIST_ROWS);
   const rows = await prisma.organization.findMany({
     select: ADMIN_ORG_SELECT,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take,
+    ...(opts.skip ? { skip: Math.max(opts.skip, 0) } : {}),
   });
   return rows.map((r) => ({
     id: r.id,
