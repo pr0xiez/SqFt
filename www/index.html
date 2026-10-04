@@ -2,313 +2,329 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>SqFt — Quote-to-paid for flooring contractors</title>
-<meta name="description" content="SqFt is quote-to-paid software for flooring contractors — measure the space, build the estimate, get it approved, and invoice it. One tool, no spreadsheet." />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,30..100,0..1&family=Azeret+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>SqFt | Quote-to-paid software for flooring contractors</title>
+<meta name="description" content="SqFt is quote-to-paid software for flooring contractors. Measure the rooms, price the job, get it approved and bill it, all in one place." />
+<meta name="color-scheme" content="light dark" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f2ef" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121211" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="canonical" href="https://sqft.dev/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://sqft.dev/" />
+<meta property="og:title" content="SqFt | Quote-to-paid software for flooring contractors" />
+<meta property="og:description" content="Measure the rooms, price the job, get it approved and bill it, all in one place." />
+<meta property="og:image" content="https://sqft.dev/images/og.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preload" href="/fonts/archivo-latin-wdth.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" as="image" media="(max-width: 1023px)" imagesrcset="/images/hero-wide-800.jpg 800w, /images/hero-wide-1200.jpg 1200w" imagesizes="calc(100vw - 40px)" />
+<link rel="preload" as="image" media="(min-width: 1024px)" imagesrcset="/images/hero-900.jpg 900w, /images/hero-1600.jpg 1600w" imagesizes="38vw" />
 <link rel="stylesheet" href="/styles.css" />
+<script>document.documentElement.classList.add("js");</script>
 </head>
 <body>
 
-<!-- ────────────────────────  HEADER  ──────────────────────── -->
-<header class="top">
-  <div class="shell top-inner">
-    <a href="/" class="brand">
-      <span>SqFt</span>
-      <span class="unit">The Flooring Solution</span>
-    </a>
-    <nav class="nav">
-      <a href="#how">How it works</a>
-      <a href="#toolkit">Toolkit</a>
-      <a href="#leads">Get in touch</a>
+<!-- Icon sprite: Phosphor Icons (regular), MIT license, copied from @phosphor-icons/core -->
+<svg xmlns="http://www.w3.org/2000/svg" class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-arrow" viewBox="0 0 256 256"><path fill="currentColor" d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 256 256"><path fill="currentColor" d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 256 256"><path fill="currentColor" d="M244.8,150.4a8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,192,128a8,8,0,0,1-7.37-4.89,8,8,0,0,1,0-6.22A8,8,0,0,1,192,112a24,24,0,1,0-23.24-30,8,8,0,1,1-15.5-4A40,40,0,1,1,219,117.51a67.94,67.94,0,0,1,27.43,21.68A8,8,0,0,1,244.8,150.4ZM190.92,212a8,8,0,1,1-13.84,8,57,57,0,0,0-98.16,0,8,8,0,1,1-13.84-8,72.06,72.06,0,0,1,33.74-29.92,48,48,0,1,1,58.36,0A72.06,72.06,0,0,1,190.92,212ZM128,176a32,32,0,1,0-32-32A32,32,0,0,0,128,176ZM72,120a8,8,0,0,0-8-8A24,24,0,1,1,87.24,82a8,8,0,1,0,15.5-4A40,40,0,1,0,37,117.51,67.94,67.94,0,0,0,9.6,139.19a8,8,0,1,0,12.8,9.61A51.6,51.6,0,0,1,64,128,8,8,0,0,0,72,120Z"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 256 256"><path fill="currentColor" d="M72,104a8,8,0,0,1,8-8h96a8,8,0,0,1,0,16H80A8,8,0,0,1,72,104Zm8,40h96a8,8,0,0,0,0-16H80a8,8,0,0,0,0,16ZM232,56V208a8,8,0,0,1-11.58,7.15L192,200.94l-28.42,14.21a8,8,0,0,1-7.16,0L128,200.94,99.58,215.15a8,8,0,0,1-7.16,0L64,200.94,35.58,215.15A8,8,0,0,1,24,208V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Zm-16,0H40V195.06l20.42-10.22a8,8,0,0,1,7.16,0L96,199.06l28.42-14.22a8,8,0,0,1,7.16,0L160,199.06l28.42-14.22a8,8,0,0,1,7.16,0L216,195.06Z"/></symbol>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<div class="nav-sentinel" aria-hidden="true"></div>
+<header class="nav">
+  <div class="shell nav-inner">
+    <a class="brand" href="/" aria-label="SqFt home"><span class="brand-mark" aria-hidden="true"></span>SqFt</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a class="nav-link nav-link-section" href="#how">How it works</a>
+      <a class="nav-link nav-link-section" href="#toolkit">Toolkit</a>
+      <a class="nav-link" href="https://app.sqft.dev/login">Sign in</a>
     </nav>
-    <div class="top-cta">
-      <a href="#leads" class="btn">
-        Get in touch
-        <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
-      </a>
-    </div>
+    <a class="btn btn-primary btn-sm" href="#leads">Get in touch</a>
   </div>
 </header>
 
-<!-- ─────────────────────────  HERO  ──────────────────────── -->
-<section class="hero">
-  <div class="shell">
-    <div class="hero-meta">
-      <div class="line"></div>
-      <span>SqFt &nbsp;·&nbsp; EST. 2026</span>
-      <div class="line"></div>
-    </div>
+<main id="main">
 
-    <div class="hero-title">
-      <span class="dim dim-top">
-        <svg width="120" height="14"><path class="draw-line" d="M0 7 H120 M3 4 L0 7 L3 10 M117 4 L120 7 L117 10"/></svg>
-        12'-0"
-        <svg width="120" height="14"><path class="draw-line" d="M0 7 H120 M3 4 L0 7 L3 10 M117 4 L120 7 L117 10"/></svg>
-      </span>
-      <span class="dim dim-left">
-        <svg width="80" height="14"><path class="draw-line" d="M0 7 H80 M3 4 L0 7 L3 10 M77 4 L80 7 L77 10"/></svg>
-        6'-0"
-      </span>
-      <span class="dim dim-right">
-        6'-0"
-        <svg width="80" height="14"><path class="draw-line" d="M0 7 H80 M3 4 L0 7 L3 10 M77 4 L80 7 L77 10"/></svg>
-      </span>
-      <div class="word"><span class="sq">Sq</span><span class="ft">Ft.</span></div>
-    </div>
-
-    <div class="hero-sub">
-      <p class="hero-tag">
-        Quote-to-paid for flooring contractors who <em>measure twice</em>. From the first room measure to the final invoice — <strong>one tool, no spreadsheet</strong>.
-      </p>
-      <div>
-        <div class="hero-cta">
-          <a href="#leads" class="btn">
-            Get in touch
-            <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
-          </a>
-          <a href="#how" class="btn ghost">See how it works</a>
-        </div>
-        <p class="note">Built for the trade &nbsp;·&nbsp; early access</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ────────────────────────  LOOP  ──────────────────────── -->
-<section id="how">
-  <div class="shell">
-    <div class="section-head reveal">
-      <span class="label">01 / The Job, End to End</span>
-      <h2>Three steps. <em>No leaks.</em> From the door knock to the deposited check.</h2>
-    </div>
-
-    <div class="loop reveal">
-      <div class="step">
-        <div class="num"><span>STEP 01</span><span class="arrow">→</span></div>
-        <h3><em>Measure</em><br/>&amp; quote</h3>
-        <p>Capture the site measure, then build the estimate. SqFt handles the square-foot math and waste factor as you go.</p>
-        <div class="icon">
-          <svg width="100" height="80" viewBox="0 0 100 80">
-            <rect x="10" y="10" width="80" height="60" stroke-dasharray="3 3"/>
-            <path d="M10 10 L30 30 M70 30 L90 10 M30 30 L30 70 M70 30 L70 70 M30 70 L70 70" />
-            <circle cx="30" cy="30" r="2" fill="currentColor"/>
-            <circle cx="70" cy="30" r="2" fill="currentColor"/>
-            <text x="50" y="48" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="middle">14×11</text>
-          </svg>
+  <!-- Hero -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="shell hero-grid">
+      <div class="hero-copy">
+        <h1 id="hero-title" class="display hero-title">
+          <span class="line"><span>From tape measure</span></span>
+          <span class="line"><span>to paid invoice.</span></span>
+        </h1>
+        <p class="hero-sub">Software for flooring contractors. Measure the rooms, price the job, get it approved and bill it, all in one place.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="#leads">Get in touch <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+          <a class="btn btn-ghost" href="#how">See how it works</a>
         </div>
       </div>
+      <figure class="hero-media">
+        <picture>
+          <source
+            media="(max-width: 1023px)"
+            srcset="/images/hero-wide-800.jpg 800w, /images/hero-wide-1200.jpg 1200w"
+            sizes="calc(100vw - 40px)"
+            width="1200" height="800" />
+          <img
+            src="/images/hero-1600.jpg"
+            srcset="/images/hero-900.jpg 900w, /images/hero-1600.jpg 1600w"
+            sizes="38vw"
+            width="1600" height="2000"
+            alt="A contractor marking a board with a pencil and a tape measure."
+            fetchpriority="high" />
+        </picture>
+      </figure>
+    </div>
+  </section>
 
-      <div class="step">
-        <div class="num"><span>STEP 02</span><span class="arrow">→</span></div>
-        <h3>Send &amp; <em>approve</em></h3>
-        <p>One link, no login. Your customer reviews the estimate breakdown and approves it from their own phone.</p>
-        <div class="icon">
-          <svg width="100" height="80" viewBox="0 0 100 80">
-            <rect x="15" y="10" width="55" height="62"/>
-            <line x1="22" y1="22" x2="60" y2="22"/>
-            <line x1="22" y1="30" x2="55" y2="30"/>
-            <line x1="22" y1="38" x2="60" y2="38"/>
-            <line x1="22" y1="46" x2="50" y2="46"/>
-            <path d="M28 60 Q35 52 42 60 T58 58" stroke="#ff3d00" stroke-width="1.5"/>
-            <path d="M75 30 L92 30 L92 70 L75 70 Z" stroke-dasharray="2 2"/>
-          </svg>
-        </div>
-      </div>
+  <!-- How it works: the tape -->
+  <section id="how" class="how" aria-labelledby="how-title">
+    <div class="shell">
+      <h2 id="how-title" class="display h2">One job, start to finish.</h2>
 
-      <div class="step">
-        <div class="num"><span>STEP 03</span><span class="arrow">●</span></div>
-        <h3>Invoice <em>&amp; bill</em></h3>
-        <p>Turn the approved estimate into an invoice and track it through to paid — deposits, balance, and all.</p>
-        <div class="icon">
-          <svg width="100" height="80" viewBox="0 0 100 80">
-            <rect x="10" y="22" width="80" height="46" />
-            <rect x="10" y="22" width="80" height="10" fill="currentColor" opacity="0.85"/>
-            <rect x="18" y="42" width="22" height="14" stroke-dasharray="2 2"/>
-            <line x1="46" y1="50" x2="82" y2="50"/>
-            <line x1="46" y1="56" x2="72" y2="56"/>
-            <circle cx="78" cy="62" r="3" fill="#ff3d00"/>
-            <text x="50" y="14" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="middle">PAID ✓</text>
-          </svg>
+      <div class="tape-run" data-reveal-group>
+        <div class="tape" aria-hidden="true">
+          <span class="tape-nums"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i><i>8</i><i>9</i><i>10</i><i>11</i><i>12</i><i>13</i><i>14</i><i>15</i></span>
         </div>
+        <ol class="stops">
+          <li class="stop" style="--i: 0">
+            <h3>Measure</h3>
+            <p>Room by room, length by width. An L-shaped room is just two boxes. Square footage and perimeter add themselves up.</p>
+          </li>
+          <li class="stop" style="--i: 1">
+            <h3>Estimate</h3>
+            <p>Price lines from your own templates. Waste factor and markup are built in, and the customer never sees a markup line.</p>
+          </li>
+          <li class="stop" style="--i: 2">
+            <h3>Approve</h3>
+            <p>Send one link. The homeowner opens it on their phone and approves with a single tap. No account, no app.</p>
+          </li>
+          <li class="stop" style="--i: 3">
+            <h3>Invoice</h3>
+            <p>Bill the deposit, then progress payments, then the balance. SqFt keeps track of what is paid and what is still open.</p>
+          </li>
+        </ol>
       </div>
     </div>
-  </div>
-</section>
+  </section>
 
-<!-- ─────────────────────  TOOLKIT  ────────────────────── -->
-<section id="toolkit">
-  <div class="shell">
-    <div class="section-head reveal">
-      <span class="label">02 / The Toolkit</span>
-      <h2>Every drawing has a <em>scale.</em><br/>Yours has a stack.</h2>
-    </div>
-
-    <div class="features">
-
-      <!-- WIDE: Room measure & estimates -->
-      <div class="f wide reveal">
-        <div class="tag"><span class="pin"></span>MEASURE &amp; ESTIMATE</div>
-        <h3>Measure the space. <em>Build the estimate.</em></h3>
-        <p>Record rooms and dimensions on the site measure, then SqFt computes square footage with the waste factor of your choice. Add carpet, LVP, hardwood, labor — every line item respects its unit and coverage.</p>
-        <div class="schematic">
-          <svg width="540" height="180" viewBox="0 0 540 180">
-            <rect x="20" y="20" width="200" height="140" stroke-dasharray="4 4"/>
-            <rect x="220" y="20" width="160" height="90"/>
-            <rect x="220" y="110" width="160" height="50" stroke-dasharray="4 4"/>
-            <rect x="380" y="20" width="140" height="140"/>
-
-            <text x="120" y="92" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">LIVING / 224 sq ft</text>
-            <text x="300" y="65" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">DINING / 120 sq ft</text>
-            <text x="300" y="138" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">HALL / 56 sq ft</text>
-            <text x="450" y="92" font-family="Azeret Mono" font-size="9" fill="currentColor" text-anchor="middle">BEDROOM / 168 sq ft</text>
-
-            <path d="M20 8 H220 M22 4 L20 8 L22 12 M218 4 L220 8 L218 12" stroke="#ff3d00"/>
-            <text x="120" y="2" font-family="Azeret Mono" font-size="8" fill="#c12d00" text-anchor="middle">16'-0"</text>
-
-            <path d="M530 20 V160 M526 22 L530 20 L534 22 M526 158 L530 160 L534 158" stroke="#ff3d00"/>
-            <text x="538" y="92" font-family="Azeret Mono" font-size="8" fill="#c12d00" text-anchor="middle" transform="rotate(90 538 92)">14'-0"</text>
-
-            <circle cx="220" cy="110" r="3" fill="#ff3d00"/>
-            <circle cx="380" cy="20" r="3" fill="#ff3d00"/>
-            <circle cx="380" cy="160" r="3" fill="#ff3d00"/>
-          </svg>
-        </div>
+  <!-- Live estimate -->
+  <section class="calc" aria-labelledby="calc-title">
+    <div class="shell calc-grid">
+      <div class="calc-copy" data-reveal>
+        <p class="eyebrow">Try the math</p>
+        <h2 id="calc-title" class="display h2">Room sizes in. Price out.</h2>
+        <p class="lede">Change a room or the waste factor. SqFt prices your real estimates with this same math.</p>
+        <figure class="calc-photo">
+          <img
+            src="/images/measure-1200.jpg"
+            srcset="/images/measure-700.jpg 700w, /images/measure-1200.jpg 1200w"
+            sizes="36vw"
+            width="1200" height="900"
+            alt="A hand pulling a tape measure across a wood plank."
+            loading="lazy" decoding="async" />
+        </figure>
       </div>
 
-      <!-- Customer review -->
-      <div class="f reveal">
-        <div class="tag"><span class="pin"></span>CUSTOMER REVIEW</div>
-        <h3>One link.<br/><em>Zero login.</em></h3>
-        <p>Send a private link. Your customer reviews the estimate breakdown and approves it from their phone or laptop — no app, no account.</p>
-        <div class="schematic">
-          <svg width="320" height="140" viewBox="0 0 320 140">
-            <rect x="20" y="10" width="100" height="120" rx="10"/>
-            <line x1="35" y1="28" x2="105" y2="28"/>
-            <line x1="35" y1="38" x2="95" y2="38"/>
-            <line x1="35" y1="48" x2="105" y2="48"/>
-            <line x1="35" y1="58" x2="80" y2="58"/>
-            <rect x="35" y="72" width="70" height="16" fill="#ff3d00"/>
-            <text x="70" y="83" font-family="Azeret Mono" font-size="7" fill="#11110f" text-anchor="middle">APPROVE</text>
-            <path d="M40 102 Q48 92 56 102 T76 100" stroke="#11110f" stroke-width="1.2"/>
-            <line x1="35" y1="118" x2="105" y2="118" stroke-dasharray="2 2"/>
-
-            <path d="M130 70 Q200 30 270 70" stroke-dasharray="3 3"/>
-            <path d="M265 65 L272 70 L265 75" />
-
-            <rect x="200" y="80" width="100" height="50"/>
-            <line x1="210" y1="92" x2="280" y2="92"/>
-            <line x1="210" y1="102" x2="270" y2="102"/>
-            <line x1="210" y1="112" x2="265" y2="112"/>
-            <circle cx="290" cy="120" r="3" fill="#ff3d00"/>
-          </svg>
+      <form class="panel calc-panel" data-calc aria-label="Example estimate" data-reveal style="--i: 1">
+        <div class="calc-head">
+          <p class="calc-name">Example estimate</p>
+          <fieldset class="seg" aria-label="Floor type">
+            <legend class="sr-only">Floor type</legend>
+            <input class="sr-only" type="radio" name="floor" id="floor-lvp" value="lvp" checked />
+            <label for="floor-lvp">LVP</label>
+            <input class="sr-only" type="radio" name="floor" id="floor-hardwood" value="hardwood" />
+            <label for="floor-hardwood">Hardwood</label>
+            <input class="sr-only" type="radio" name="floor" id="floor-carpet" value="carpet" />
+            <label for="floor-carpet">Carpet</label>
+          </fieldset>
         </div>
+
+        <div class="rooms" role="group" aria-label="Rooms">
+          <div class="room room-head" aria-hidden="true">
+            <span>Room</span><span>Length</span><span></span><span>Width</span><span>Area</span>
+          </div>
+          <div class="room" data-room>
+            <span class="room-name" id="r1">Living room</span>
+            <input class="num" type="text" inputmode="decimal" value="18" aria-label="Living room length in feet" data-len />
+            <span class="times" aria-hidden="true">&times;</span>
+            <input class="num" type="text" inputmode="decimal" value="14" aria-label="Living room width in feet" data-wid />
+            <output class="area" aria-labelledby="r1" data-area>252 ft&sup2;</output>
+          </div>
+          <div class="room" data-room>
+            <span class="room-name" id="r2">Kitchen</span>
+            <input class="num" type="text" inputmode="decimal" value="12" aria-label="Kitchen length in feet" data-len />
+            <span class="times" aria-hidden="true">&times;</span>
+            <input class="num" type="text" inputmode="decimal" value="11" aria-label="Kitchen width in feet" data-wid />
+            <output class="area" aria-labelledby="r2" data-area>132 ft&sup2;</output>
+          </div>
+          <div class="room" data-room>
+            <span class="room-name" id="r3">Hallway</span>
+            <input class="num" type="text" inputmode="decimal" value="16" aria-label="Hallway length in feet" data-len />
+            <span class="times" aria-hidden="true">&times;</span>
+            <input class="num" type="text" inputmode="decimal" value="3.5" aria-label="Hallway width in feet" data-wid />
+            <output class="area" aria-labelledby="r3" data-area>56 ft&sup2;</output>
+          </div>
+        </div>
+
+        <div class="waste">
+          <p class="waste-label" id="waste-label">Waste factor</p>
+          <fieldset class="seg" aria-labelledby="waste-label">
+            <legend class="sr-only">Waste factor</legend>
+            <input class="sr-only" type="radio" name="waste" id="waste-0" value="0" />
+            <label for="waste-0">0%</label>
+            <input class="sr-only" type="radio" name="waste" id="waste-5" value="5" />
+            <label for="waste-5">5%</label>
+            <input class="sr-only" type="radio" name="waste" id="waste-10" value="10" checked />
+            <label for="waste-10">10%</label>
+            <input class="sr-only" type="radio" name="waste" id="waste-15" value="15" />
+            <label for="waste-15">15%</label>
+          </fieldset>
+        </div>
+
+        <dl class="totals" aria-live="polite">
+          <div><dt>Measured</dt><dd data-out="measured">440 ft&sup2;</dd></div>
+          <div><dt>With waste</dt><dd data-out="order">484 ft&sup2;</dd></div>
+          <div class="totals-sum"><dt>Floor total</dt><dd data-out="total">$2,347.40</dd></div>
+        </dl>
+        <p class="calc-note" data-out="note">Example rate: LVP at $4.85 per ft&sup2;, installed. In SqFt you set your own.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- Toolkit -->
+  <section id="toolkit" class="toolkit" aria-labelledby="toolkit-title">
+    <div class="shell">
+      <h2 id="toolkit-title" class="display h2">Built for the way flooring jobs run.</h2>
+
+      <div class="bento">
+        <article class="tile tile-quote" data-reveal>
+          <img
+            src="/images/finished-1200.jpg"
+            srcset="/images/finished-700.jpg 700w, /images/finished-1200.jpg 1200w"
+            sizes="(min-width: 1024px) 58vw, calc(100vw - 40px)"
+            width="1200" height="900"
+            alt="A bright, empty room with a newly installed light oak floor."
+            loading="lazy" decoding="async" />
+          <div class="tile-body">
+            <h3>The customer sees a clean quote.</h3>
+            <p>Line prices with your markup already folded in. One tap to approve, and the approved version is locked exactly as they saw it.</p>
+          </div>
+        </article>
+
+        <article class="tile tile-billing" data-reveal style="--i: 1">
+          <svg class="tile-icon" aria-hidden="true"><use href="#i-receipt" /></svg>
+          <div class="tile-body">
+            <h3>Deposit now. Balance later.</h3>
+            <p>Invoice by percent or by dollar amount. SqFt tracks paid and open balances, and won’t let you bill past the estimate.</p>
+          </div>
+        </article>
+
+        <article class="tile tile-book" data-reveal style="--i: 2">
+          <img
+            src="/images/materials-1200.jpg"
+            srcset="/images/materials-700.jpg 700w, /images/materials-1200.jpg 1200w"
+            sizes="(min-width: 1024px) 30vw, (min-width: 768px) 46vw, calc(100vw - 40px)"
+            width="1200" height="900"
+            alt="A fan of flooring plank samples in oak, grey and walnut tones."
+            loading="lazy" decoding="async" />
+          <div class="tile-body">
+            <h3>Your price book, built once.</h3>
+            <p>Save materials, labor and tear-out as templates with your own rates. Drop them into any estimate.</p>
+          </div>
+        </article>
+
+        <article class="tile tile-schedule" data-reveal style="--i: 1">
+          <svg class="tile-icon" aria-hidden="true"><use href="#i-calendar" /></svg>
+          <div class="tile-body">
+            <h3>Approved jobs wait for a date.</h3>
+            <p>Every approved estimate without an install date sits above the schedule until you book it.</p>
+          </div>
+        </article>
+
+        <article class="tile tile-team" data-reveal style="--i: 2">
+          <svg class="tile-icon" aria-hidden="true"><use href="#i-users" /></svg>
+          <div class="tile-body">
+            <h3>Everyone sees their part.</h3>
+            <p>Admins, leads and crew each get the right view. Crew opens straight to today’s jobs, with addresses and customer phone numbers.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Job site band -->
+  <section class="field" aria-labelledby="field-title">
+    <img
+      src="/images/field-2400.jpg"
+      srcset="/images/field-1200.jpg 1200w, /images/field-2400.jpg 2400w"
+      sizes="100vw"
+      width="2400" height="1029"
+      alt="An installer kneeling to lay vinyl planks in an empty room."
+      loading="lazy" decoding="async" />
+    <div class="shell field-copy" data-reveal>
+      <h2 id="field-title" class="display h2">Made for the job site, not the office.</h2>
+      <p>Measure on your phone, send the estimate before you leave the driveway, and check tomorrow’s installs from the truck.</p>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="leads" class="leads" aria-labelledby="leads-title">
+    <div class="shell leads-grid">
+      <div class="leads-copy" data-reveal>
+        <h2 id="leads-title" class="display h2">Get SqFt for your shop.</h2>
+        <p class="lede">SqFt is in early access. Tell us about your shop and we’ll get back to you.</p>
+        <p class="leads-direct">Rather email us directly? <a href="mailto:admin@sqft.com">admin@sqft.com</a></p>
       </div>
 
-      <!-- Invoicing -->
-      <div class="f reveal">
-        <div class="tag"><span class="pin"></span>INVOICING</div>
-        <h3>Estimate to<br/><em>invoice.</em></h3>
-        <p>An approved estimate becomes an invoice in a click. Track deposits and the remaining balance through to paid.</p>
-        <div class="schematic">
-          <svg width="320" height="140" viewBox="0 0 320 140">
-            <rect x="40" y="14" width="150" height="112"/>
-            <rect x="40" y="14" width="150" height="20" fill="currentColor" opacity="0.85"/>
-            <text x="52" y="29" font-family="Azeret Mono" font-size="8" fill="#11110f">INV-2026-0142</text>
-            <line x1="52" y1="50" x2="178" y2="50" stroke-dasharray="2 2"/>
-            <text x="52" y="66" font-family="Fraunces" font-size="10" fill="currentColor">Living + Dining</text>
-            <text x="178" y="66" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="end">$4,820</text>
-            <text x="52" y="84" font-family="Fraunces" font-size="10" fill="currentColor">Hallway + Bed</text>
-            <text x="178" y="84" font-family="Azeret Mono" font-size="8" fill="currentColor" text-anchor="end">$3,300</text>
-            <line x1="52" y1="96" x2="178" y2="96"/>
-            <text x="52" y="114" font-family="Azeret Mono" font-size="9" fill="#c12d00">TOTAL</text>
-            <text x="178" y="114" font-family="Azeret Mono" font-size="10" fill="#c12d00" text-anchor="end">$8,120</text>
-
-            <path d="M200 70 H250 M242 64 L250 70 L242 76" />
-
-            <rect x="258" y="44" width="50" height="50"/>
-            <path d="M266 70 L276 80 L300 52" stroke="#ff3d00" stroke-width="2"/>
-            <text x="283" y="108" font-family="Azeret Mono" font-size="8" fill="#c12d00" text-anchor="middle">PAID</text>
-          </svg>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- ─────────────────────────  LEADS  ──────────────────────── -->
-<section id="leads" class="leads">
-  <div class="shell">
-    <div class="section-head reveal">
-      <span class="label">03 / Get In Touch</span>
-      <h2>Like the look of it? <em>Let's talk.</em></h2>
-    </div>
-
-    <div class="leads-grid reveal">
-      <form id="lead-form" class="form-card">
-        <div class="form-meta">FORM 01 · EARLY ACCESS</div>
-        <h3>Tell us about your <em>shop.</em></h3>
-
-        <div class="field">
-          <div>
+      <form id="lead-form" class="panel lead-form" novalidate data-reveal style="--i: 1">
+        <div class="field-row">
+          <div class="form-field">
             <label for="name">Name</label>
-            <input id="name" name="name" type="text" autocomplete="name" required />
+            <input id="name" name="name" type="text" autocomplete="name" required aria-describedby="name-error" />
+            <p class="field-error" id="name-error" hidden>Enter your name.</p>
           </div>
-          <div>
+          <div class="form-field">
             <label for="email">Email</label>
-            <input id="email" name="email" type="email" autocomplete="email" required />
+            <input id="email" name="email" type="email" autocomplete="email" required aria-describedby="email-error" />
+            <p class="field-error" id="email-error" hidden>Enter an email address we can reply to.</p>
           </div>
         </div>
-
-        <div class="field full">
-          <div>
-            <label for="message">What are you hoping SqFt does for you?</label>
-            <textarea id="message" name="message" placeholder="A line about your shop, your trade, and what you're chasing today…"></textarea>
-          </div>
+        <div class="form-field">
+          <label for="message">About your shop</label>
+          <p class="field-hint" id="message-hint">Optional. Your trade, crew size, and what you want SqFt to take off your plate.</p>
+          <textarea id="message" name="message" rows="5" aria-describedby="message-hint"></textarea>
         </div>
-
-        <div class="submit-row">
-          <p class="note">Opens your email app, addressed to admin@sqft.com.</p>
-          <button type="submit" class="btn lg">
-            Send note
-            <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
-          </button>
+        <div class="form-submit">
+          <button class="btn btn-primary" type="submit">Send message <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></button>
+          <p class="form-status" role="status" data-status>Opens your email app, addressed to admin@sqft.com.</p>
         </div>
       </form>
-
-      <aside class="leads-info">
-        <div class="info-block">
-          <div class="lbl">Direct line</div>
-          <p>Rather just email us? Send a note straight to the team and we'll get back to you.</p>
-          <a class="email" href="mailto:admin@sqft.com">admin@sqft.com
-            <svg class="arr" viewBox="0 0 18 8"><path d="M0 4 H17 M13 1 L17 4 L13 7" stroke="currentColor" fill="none" stroke-width="1.2"/></svg>
-          </a>
-        </div>
-      </aside>
     </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="shell footer-inner">
+    <a class="brand" href="/" aria-label="SqFt home"><span class="brand-mark" aria-hidden="true"></span>SqFt</a>
+    <nav class="footer-links" aria-label="Footer">
+      <a href="#how">How it works</a>
+      <a href="#toolkit">Toolkit</a>
+      <a href="https://app.sqft.dev/login">Sign in</a>
+      <a href="mailto:admin@sqft.com">admin@sqft.com</a>
+    </nav>
   </div>
-</section>
-
-<!-- ───────────────────────  FOOTER  ──────────────────────── -->
-<footer>
-  <div class="shell">
-    <div class="foot-inner">
-      <a href="/" class="brand">
-        <span>SqFt</span>
-        <span class="unit">The Flooring Solution</span>
-      </a>
-      <a class="foot-email" href="mailto:admin@sqft.com">admin@sqft.com</a>
-    </div>
-    <div class="foot-bottom">
-      <span>© 2026 SqFt — built for flooring contractors.</span>
-    </div>
+  <div class="shell footer-base">
+    <p>&copy; 2026 SqFt. Built for flooring contractors.</p>
   </div>
 </footer>
 
-<script src="/script.js"></script>
-
+<script src="/script.js" defer></script>
 </body>
 </html>
