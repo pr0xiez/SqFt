@@ -1,6 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { WarningCircleIcon } from "@/components/ui/icons";
+import { Tag } from "@/components/ui/StatusBadge";
+import { cn } from "@/lib/cn";
 import type { QboStatus } from "@/lib/hooks/useQbo";
 import { useQboConnect, useQboDisconnect } from "@/lib/hooks/useQbo";
 
@@ -22,21 +25,32 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
     connection !== null && connection.status === "disconnected";
 
   return (
-    <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] px-5 py-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[14px] font-[600] mb-1">QuickBooks Online</p>
+    <section className="card p-5 md:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
+            <h2 className="type-heading">QuickBooks Online</h2>
+            {connection === null ? (
+              <Tag>Not connected</Tag>
+            ) : needsReauth ? (
+              <Tag tone="bad">Needs reconnect</Tag>
+            ) : (
+              <Tag tone="ok">Connected</Tag>
+            )}
+          </div>
           {connection === null ? (
-            <p className="text-[13px] text-[var(--muted)]">
+            <p className="text-[14px] text-[var(--muted)] max-w-[60ch]">
               Push customers, sent invoices, and payments into your QuickBooks
-              company — included, no extra fee. SqFt stays the source of truth;
+              company. Included, no extra fee. SqFt stays the source of truth;
               changes in QuickBooks never change SqFt records. Linked customers
               receive updates when you save them here.
             </p>
           ) : (
-            <p className="text-[13px] text-[var(--muted)]">
+            <p className="text-[14px] text-[var(--muted)]">
               Connected to{" "}
-              <strong>{connection.companyName ?? "your company"}</strong>
+              <strong className="font-[600] text-[var(--ink)]">
+                {connection.companyName ?? "your company"}
+              </strong>
               {connection.lastSyncedAt
                 ? ` · last synced ${new Date(
                     connection.lastSyncedAt
@@ -47,7 +61,7 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
         </div>
         {connection !== null && !needsReauth ? (
           <Button
-            variant="default"
+            variant="danger"
             size="sm"
             type="button"
             onClick={() => disconnect.mutate()}
@@ -60,61 +74,65 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
 
       {needsReauth ? (
         <div
-          className="mt-4 border border-[var(--accent)] rounded-[var(--r)] px-4 py-3"
+          className="mt-5 flex gap-3 rounded-[var(--r)] bg-[var(--accent-wash)] px-4 py-3.5"
           role="alert"
         >
-          <p className="text-[13px] font-[600] mb-1">
-            QuickBooks needs to be reconnected
-          </p>
-          <p className="text-[12px] text-[var(--muted)] mb-3">
-            The authorization expired or was revoked. Pending syncs are held —
-            nothing is lost — and resume as soon as you reconnect.
-          </p>
-          <Button
-            variant="primary"
-            size="sm"
-            type="button"
-            onClick={() => connect.mutate()}
-            disabled={connect.isPending}
-          >
-            {connect.isPending ? "Redirecting…" : "Reconnect"}
-          </Button>
+          <WarningCircleIcon
+            aria-hidden="true"
+            className="size-[18px] shrink-0 mt-px text-[var(--accent-ink)]"
+          />
+          <div className="min-w-0">
+            <p className="text-[14px] font-[600] text-[var(--ink)]">
+              QuickBooks needs to be reconnected
+            </p>
+            <p className="mt-1 mb-3 text-[13.5px] text-[var(--ink-2)]">
+              The authorization expired or was revoked. Pending syncs are held
+              (nothing is lost) and resume as soon as you reconnect.
+            </p>
+            <Button
+              variant="primary"
+              size="sm"
+              type="button"
+              onClick={() => connect.mutate()}
+              disabled={connect.isPending}
+            >
+              {connect.isPending ? "Redirecting…" : "Reconnect"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
       {connection === null ? (
-        <button
+        <Button
+          variant="primary"
           type="button"
+          className="mt-5"
           onClick={() => connect.mutate()}
           disabled={connect.isPending}
-          className="mt-4 inline-flex items-center rounded-[0.375rem] bg-[#2ca01c] px-4 py-2 text-[13px] font-[600] text-white disabled:opacity-60"
         >
           {connect.isPending ? "Redirecting…" : "Connect to QuickBooks"}
-        </button>
+        </Button>
       ) : null}
 
       {connection !== null && health !== null ? (
-        <dl className="mt-4 flex gap-6 text-[13px]">
+        <dl className="mt-5 pt-5 border-t border-[var(--line)] grid grid-cols-3 gap-4 max-w-[420px]">
           <div>
-            <dt className="text-[11px] uppercase tracking-[.05em] text-[var(--muted)]">
-              Synced
-            </dt>
-            <dd className="font-[600]">{health.done}</dd>
+            <dt className="type-label">Synced</dt>
+            <dd className="type-stat mt-1.5 text-[22px]">{health.done}</dd>
           </div>
           <div>
-            <dt className="text-[11px] uppercase tracking-[.05em] text-[var(--muted)]">
-              Pending
-            </dt>
-            <dd className="font-[600]">{health.pending + health.pausedAuth}</dd>
+            <dt className="type-label">Pending</dt>
+            <dd className="type-stat mt-1.5 text-[22px]">
+              {health.pending + health.pausedAuth}
+            </dd>
           </div>
           <div>
-            <dt className="text-[11px] uppercase tracking-[.05em] text-[var(--muted)]">
-              Failed
-            </dt>
+            <dt className="type-label">Failed</dt>
             <dd
-              className={`font-[600] ${
-                health.failed > 0 ? "text-[var(--accent)]" : ""
-              }`}
+              className={cn(
+                "type-stat mt-1.5 text-[22px]",
+                health.failed > 0 && "text-[var(--accent-ink)]"
+              )}
             >
               {health.failed}
             </dd>
@@ -123,11 +141,11 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
       ) : null}
 
       {connection !== null ? (
-        <p className="mt-4 text-[11px] text-[var(--muted)]">
-          Stripe payments post gross — record Stripe's processing fee in
+        <p className="mt-5 text-[13px] text-[var(--muted)]">
+          Stripe payments post gross: record Stripe's processing fee in
           QuickBooks from your Stripe statement.
         </p>
       ) : null}
-    </div>
+    </section>
   );
 }

@@ -10,11 +10,21 @@ import {
 } from "@/lib/nav/items";
 
 const cellBase = cn(
-  "flex flex-col items-center justify-center gap-[3px]",
-  "py-[7px] px-1 min-h-[50px] rounded-lg",
-  "font-[var(--font-mono)] text-[9.5px] tracking-[.04em]",
-  "transition-colors duration-150 relative whitespace-nowrap"
+  "relative flex flex-col items-center justify-center gap-1",
+  "min-h-[52px] px-1 rounded-[var(--r)] no-underline",
+  "text-[11.5px] font-[560] whitespace-nowrap",
+  "transition-colors duration-150"
 );
+
+/** The tape-blade sliver over the active tab. */
+function ActiveMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute -top-[7px] left-1/2 -translate-x-1/2 w-7 h-[3px] bg-[var(--accent)]"
+    />
+  );
+}
 
 export function MobileTabBar({
   pathname,
@@ -29,8 +39,9 @@ export function MobileTabBar({
       aria-label="Primary"
       className={cn(
         "md:hidden order-3 shrink-0 relative z-[60]",
-        "bg-[var(--surface)] border-t border-[var(--line)]",
-        "py-1.5 px-1 pb-[calc(6px+env(safe-area-inset-bottom,0px))]"
+        "bg-[color-mix(in_oklab,var(--bg)_92%,transparent)] backdrop-blur-md",
+        "border-t border-[var(--line)]",
+        "pt-1.5 px-1 pb-[calc(6px+env(safe-area-inset-bottom,0px))]"
       )}
     >
       <div className="grid grid-cols-5 gap-0.5 max-w-[680px] mx-auto">
@@ -43,13 +54,13 @@ export function MobileTabBar({
               aria-current={active ? "page" : undefined}
               className={cn(
                 cellBase,
-                active ? "text-[var(--accent)]" : "text-[var(--muted)]"
+                active ? "text-[var(--ink)]" : "text-[var(--muted)]"
               )}
             >
-              {active && (
-                <span className="absolute top-[-7px] left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[var(--accent)] rounded-b-sm" />
-              )}
-              <NavIcon icon={s.icon} active={active} size={22} />
+              {active && <ActiveMark />}
+              <span className={active ? "text-[var(--accent)]" : undefined}>
+                <NavIcon icon={s.icon} active={active} size={23} />
+              </span>
               <span>{s.label}</span>
             </Link>
           );
@@ -62,13 +73,13 @@ export function MobileTabBar({
           className={cn(
             cellBase,
             "bg-transparent border-none cursor-pointer",
-            moreActive ? "text-[var(--accent)]" : "text-[var(--muted)]"
+            moreActive ? "text-[var(--ink)]" : "text-[var(--muted)]"
           )}
         >
-          {moreActive && (
-            <span className="absolute top-[-7px] left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[var(--accent)] rounded-b-sm" />
-          )}
-          <NavIcon icon="more" active={moreActive} size={22} />
+          {moreActive && <ActiveMark />}
+          <span className={moreActive ? "text-[var(--accent)]" : undefined}>
+            <NavIcon icon="more" active={moreActive} size={23} />
+          </span>
           <span>More</span>
         </button>
       </div>

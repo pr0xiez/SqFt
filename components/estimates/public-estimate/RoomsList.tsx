@@ -7,11 +7,11 @@ interface Props {
 export function RoomsList({ rooms }: Props) {
   if (rooms.length === 0) return null;
   return (
-    <>
-      <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.08em] mb-3.5">
+    <section className="mb-8 sm:mb-9">
+      <h2 className="text-[14px] font-[620] text-[var(--ink)] mb-3">
         Rooms included
-      </div>
-      <div className="flex flex-wrap gap-1.5 mb-9">
+      </h2>
+      <div className="flex flex-wrap gap-2">
         {rooms.map((r) => {
           const sqft = Math.round(roomSqft(r));
           const boxes = roomSegments(r);
@@ -25,12 +25,12 @@ export function RoomsList({ rooms }: Props) {
           return (
             <span
               key={r.id}
-              className="font-[var(--font-mono)] text-[11px] px-3 py-1.5 border border-[var(--line-2)] rounded-full text-[var(--ink-2)] bg-[var(--surface)] inline-flex items-center gap-1.5"
+              className="inline-flex items-baseline gap-2 min-h-[32px] py-1.5 px-2.5 rounded-[var(--r)] border border-[var(--line)] bg-[var(--surface)] text-[13.5px]"
             >
               <strong className="text-[var(--ink)] font-[600]">
                 {r.name || "Room"}
               </strong>
-              <span className="text-[var(--muted)]">
+              <span className="type-figure text-[13px] text-[var(--muted)]">
                 {dim ? `${dim} · ` : ""}
                 {sqft} sqft
               </span>
@@ -38,6 +38,6 @@ export function RoomsList({ rooms }: Props) {
           );
         })}
       </div>
-    </>
+    </section>
   );
 }

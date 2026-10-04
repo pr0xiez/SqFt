@@ -7,7 +7,7 @@ import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { listAllOrgsForAdmin } from "@/lib/repositories/organizationRepo";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Organizations · Admin · SqFt" };
+export const metadata = { title: "Organizations" };
 
 export default async function AdminOrgsPage() {
   // Defense-in-depth: the (admin) layout already renders ForbiddenPanel for

@@ -5,7 +5,7 @@ import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { getOrgById, listUsers } from "@/lib/repositories";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Organization · Admin · SqFt" };
+export const metadata = { title: "Organization" };
 
 export default async function AdminOrgDetailPage({
   params,

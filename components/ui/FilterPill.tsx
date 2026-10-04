@@ -10,6 +10,7 @@ type FilterPillProps = {
   size?: "sm" | "md";
 };
 
+/** A filter chip with an optional count. Active chips fill with ink. */
 export function FilterPill({
   active,
   count,
@@ -21,24 +22,25 @@ export function FilterPill({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "font-[var(--font-mono)] border rounded-[6px] cursor-pointer transition-colors duration-150",
-        "inline-flex items-center gap-1.5",
+        "inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap",
+        "border rounded-[var(--r)] cursor-pointer font-[560]",
+        "transition-[background-color,border-color,color,transform] duration-200 ease-[var(--ease)] active:scale-[0.97]",
         size === "md"
-          ? "text-[11px] px-3 py-1.5"
-          : "text-[10.5px] px-2.5 py-1 uppercase tracking-[.06em] rounded-[5px]",
+          ? "h-[34px] px-3 text-[13.5px]"
+          : "h-[30px] px-2.5 text-[13px]",
         active
           ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-          : "bg-transparent text-[var(--muted)] border-[var(--line)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
+          : "bg-transparent text-[var(--ink-2)] border-[var(--line-2)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
       )}
     >
       <span>{children}</span>
       {count > 0 && (
         <span
           className={cn(
-            "font-[var(--font-mono)] tabular-nums leading-none",
-            size === "md" ? "text-[9.5px]" : "text-[9px]",
-            active ? "text-[var(--bg)]/70" : "text-[var(--muted)]"
+            "type-figure leading-none text-[12px]",
+            active ? "text-[var(--bg)] opacity-70" : "text-[var(--muted)]"
           )}
         >
           {count}

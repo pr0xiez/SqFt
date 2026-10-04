@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/Card";
+import { CaretRightIcon } from "@/components/ui/icons";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { SiteMeasureEstimateSummary } from "@/lib/hooks/useSiteMeasures";
 
 interface Props {
@@ -9,58 +12,51 @@ interface Props {
 
 export function SiteMeasureEstimatesCard({ estimates }: Props) {
   return (
-    <section className="rounded-md border border-[var(--line)] bg-[var(--surface)] p-5 mb-4">
-      <header className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold tracking-tight">
-          Estimates for this site measure ({estimates.length})
-        </h2>
-      </header>
-
+    <Card
+      flush
+      className="mb-4"
+      title={
+        <>
+          Estimates for this site measure{" "}
+          <span className="type-figure text-[15px] text-[var(--muted)]">
+            ({estimates.length})
+          </span>
+        </>
+      }
+    >
       {estimates.length === 0 ? (
-        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-6 text-center">
-          No estimates yet — create one to start pricing.
+        <p className="px-5 md:px-6 pb-5 text-[14px] text-[var(--muted)]">
+          No estimates yet. Create one to start pricing.
         </p>
       ) : (
-        <ul className="divide-y divide-[var(--line)]">
+        <ul>
           {estimates.map((q) => (
-            <li key={q.id}>
+            <li key={q.id} className="border-t border-[var(--line)]">
               <Link
                 href={`/estimates/${q.id}`}
-                className="flex items-center gap-4 py-3 hover:bg-[var(--surface-2)] -mx-3 px-3 rounded"
+                className="group flex items-center gap-3 sm:gap-4 px-5 md:px-6 min-h-[48px] py-2.5 no-underline transition-colors duration-150 hover:bg-[var(--hover)]"
               >
-                <span className="font-[var(--font-mono)] text-[12px] font-semibold w-16">
+                <span className="type-figure text-[14px] font-[600] w-16 shrink-0">
                   #{q.estimateNumber}
                 </span>
-                <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] flex-1">
-                  {q._count.lineItems} line item
+                <span className="text-[14px] text-[var(--muted)] flex-1 min-w-0">
+                  <span className="type-figure">{q._count.lineItems}</span> line
+                  item
                   {q._count.lineItems === 1 ? "" : "s"}
                 </span>
-                <span
-                  className={`font-[var(--font-mono)] text-[10px] uppercase tracking-wide px-2 py-0.5 rounded border ${statusClass(q.status)}`}
-                >
-                  {q.status}
-                </span>
-                <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-                  Open →
+                <StatusBadge status={q.status} />
+                <span className="inline-flex items-center gap-1 text-[13.5px] font-[500] text-[var(--muted)] group-hover:text-[var(--ink)]">
+                  <span className="hidden sm:inline">Open</span>
+                  <CaretRightIcon
+                    aria-hidden="true"
+                    className="size-[14px] transition-transform duration-300 ease-[var(--ease)] group-hover:translate-x-0.5"
+                  />
                 </span>
               </Link>
             </li>
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
-}
-
-function statusClass(status: string): string {
-  switch (status) {
-    case "sent":
-      return "text-[var(--gold)] border-[var(--gold)]";
-    case "approved":
-      return "text-[var(--sage)] border-[var(--sage)]";
-    case "declined":
-      return "text-[var(--accent)] border-[var(--accent)]";
-    default:
-      return "text-[var(--muted)] border-[var(--line)]";
-  }
 }

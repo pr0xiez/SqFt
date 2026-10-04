@@ -1,123 +1,287 @@
 @import "tailwindcss";
 
-/* ── DESIGN TOKENS — Quiet Modern ────────────────────────────────────────── */
+/* ── SqFt app design system ──────────────────────────────────────────────────
+   Shares the marketing site's language (www/styles.css): Archivo (variable,
+   width + weight) for everything, JetBrains Mono for figures, a neutral
+   off-white / off-black base and one safety-orange accent.
+
+   Rules worth keeping:
+   - One radius (--r, 6px) for every control, card, badge and panel. Elements
+     nested inside a 6px control use --r-in (4px). Circles only for avatars.
+   - Orange fills (--accent) always carry dark text (--on-accent). Orange text
+     uses --accent-ink, which is dark enough to read on every surface.
+   - Mono is for figures (money, areas, quantities, record numbers), not labels.
+   - Theme: follows the OS unless the user picks one; ThemeToggle writes
+     <html data-theme="light|dark">, no attribute means "system".
+   Z-index scale: sticky chrome 60, menus 300, slide panels 400/401,
+   modals 500, toasts 900. ─────────────────────────────────────────────── */
 
 :root {
-  /* Surfaces */
-  --bg:        #fafaf7;
-  --surface:   #ffffff;
-  --surface-2: #f4f3ed;
-  --paper:     #ffffff;  /* elevated panels: dialogs + the public quote "paper" */
+  color-scheme: light;
+
+  /* Surfaces: page, card, recessed/selected, elevated paper */
+  --bg: #f2f2ef;
+  --surface: #fafaf8;
+  --surface-2: #e8e8e3;
+  --paper: #fdfdfb;
 
   /* Ink */
-  --ink:   #1a1a17;
-  --ink-2: #3a3a35;
-  --muted: #6b6b66;
+  --ink: #151514;
+  --ink-2: #3d3d38;
+  --muted: #64645e;
 
-  /* Lines */
-  --line:   #e6e4dd;
-  --line-2: #d8d6cd;
+  /* Lines. --field-border is the 3:1 edge every input gets. */
+  --line: #d7d7d1;
+  --line-2: #c3c3bc;
+  --field-border: #8b8b85;
 
-  /* Accent — vermilion */
-  --accent:   #c0341a;
-  --accent-l: #e04828;
-  --accent-d: #8a2010;
+  /* Interaction washes, usable on any surface */
+  --hover: rgb(21 21 20 / 0.045);
+  --press: rgb(21 21 20 / 0.085);
 
-  /* Semantic */
-  --sage:   #3d6b4a;
-  --sage-l: #588a66;
-  --gold:   #b07a1a;
-  --gold-l: #d4982a;
+  /* Accent: safety orange */
+  --accent: #e5531a;
+  --accent-ink: #b33a0e;
+  --on-accent: #151514;
+  --accent-hover: color-mix(in oklab, var(--accent) 86%, var(--ink));
+  --accent-wash: color-mix(in oklab, var(--accent) 12%, transparent);
 
-  /* Elevation */
-  --shadow:    0 1px 2px rgba(20,18,12,.04), 0 4px 14px rgba(20,18,12,.04);
-  --shadow-md: 0 4px 12px rgba(20,18,12,.08), 0 12px 40px rgba(20,18,12,.08);
+  /* Status. Text-safe on every surface; tint with color-mix for fills. */
+  --ok: #2b6a41;
+  --warn: #8a5800;
+  --bad: var(--accent-ink);
 
-  /* Radii */
-  --r-sm: 4px;
-  --r:    6px;
-  --r-lg: 8px;
+  /* Elevation: overlays only. Cards stay flat. */
+  --shadow: 0 1px 0 rgb(21 21 20 / 0.04), 0 18px 40px -22px rgb(21 21 20 / 0.28);
+  --shadow-md:
+    0 1px 0 rgb(21 21 20 / 0.04), 0 24px 56px -22px rgb(21 21 20 / 0.36);
+  --scrim: rgb(12 12 11 / 0.42);
 
-  /* Spacing — 4px base */
-  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
-  --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px;
+  /* Shape */
+  --r: 6px;
+  --r-in: 4px;
 
-  /* Letter spacing */
-  --ls-tight: -.025em;
-  --ls-snug:  -.01em;
-  --ls-mono:  .04em;
-  --ls-cap:   .06em;
+  /* Spacing, 4px base */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+
+  /* Type */
+  --font-sans:
+    var(--font-archivo), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono:
+    var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-sans);
+  --ls-tight: -0.028em;
+  --ls-snug: -0.012em;
+  --ls-mono: 0.02em;
+  --ls-cap: 0.06em;
 
   /* Motion */
-  --ease:   cubic-bezier(.4,0,.2,1);
-  --t-fast: .12s;
-  --t-base: .15s;
-  --t-slow: .25s;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 0.12s;
+  --t-base: 0.18s;
+  --t-slow: 0.32s;
 
-  /* Typography — injected by next/font/google as CSS vars */
-  /* --font-display and --font-mono are set on <html> by layout.tsx */
+  /* Legacy aliases, kept so older call sites keep resolving */
+  --accent-l: var(--accent-hover);
+  --accent-d: var(--accent-ink);
+  --sage: var(--ok);
+  --sage-l: color-mix(in oklab, var(--ok) 82%, var(--ink));
+  --gold: var(--warn);
+  --gold-l: color-mix(in oklab, var(--warn) 82%, var(--ink));
+  --r-sm: var(--r-in);
+  --r-lg: var(--r);
+
+  /* Select caret (Phosphor CaretDown), recoloured per theme */
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%2364645e' d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
 }
 
-/* ── DARK MODE ────────────────────────────────────────────────────────────── */
+/* Dark tokens, declared twice: once for the OS preference (when the user has
+   not picked light), once for an explicit dark choice. Keep the two in sync. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211;
+    --surface: #1a1a18;
+    --surface-2: #242421;
+    --paper: #1e1e1c;
+    --ink: #edede9;
+    --ink-2: #c4c4bd;
+    --muted: #96968e;
+    --line: #2f2f2b;
+    --line-2: #3d3d38;
+    --field-border: #6f6f69;
+    --hover: rgb(237 237 233 / 0.05);
+    --press: rgb(237 237 233 / 0.09);
+    --accent: #f05f27;
+    --accent-ink: #ff8352;
+    --on-accent: #151514;
+    --ok: #6fc28e;
+    --warn: #e2ad4a;
+    --shadow: 0 1px 0 rgb(0 0 0 / 0.3), 0 18px 44px -20px rgb(0 0 0 / 0.7);
+    --shadow-md: 0 1px 0 rgb(0 0 0 / 0.3), 0 26px 60px -20px rgb(0 0 0 / 0.8);
+    --scrim: rgb(0 0 0 / 0.6);
+    --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%2396968e' d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
+  }
+}
 
 [data-theme="dark"] {
-  --bg:        #0f0f0d;
-  --surface:   #181815;
-  --surface-2: #222220;
-  --paper:     #181815;
-
-  --ink:   #f0eee5;
-  --ink-2: #c9c6bc;
-  --muted: #888579;
-
-  --line:   #2a2a26;
-  --line-2: #363632;
-
-  --accent:   #ff6a44;
-  --accent-l: #ff8665;
-  --accent-d: #d44e2c;
-
-  --sage:   #7fbf90;
-  --sage-l: #9bd4ab;
-  --gold:   #e0b04a;
-  --gold-l: #f0c25a;
-
-  --shadow:    0 1px 2px rgba(0,0,0,.3),  0 4px 14px rgba(0,0,0,.25);
-  --shadow-md: 0 4px 12px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.5);
+  color-scheme: dark;
+  --bg: #121211;
+  --surface: #1a1a18;
+  --surface-2: #242421;
+  --paper: #1e1e1c;
+  --ink: #edede9;
+  --ink-2: #c4c4bd;
+  --muted: #96968e;
+  --line: #2f2f2b;
+  --line-2: #3d3d38;
+  --field-border: #6f6f69;
+  --hover: rgb(237 237 233 / 0.05);
+  --press: rgb(237 237 233 / 0.09);
+  --accent: #f05f27;
+  --accent-ink: #ff8352;
+  --on-accent: #151514;
+  --ok: #6fc28e;
+  --warn: #e2ad4a;
+  --shadow: 0 1px 0 rgb(0 0 0 / 0.3), 0 18px 44px -20px rgb(0 0 0 / 0.7);
+  --shadow-md: 0 1px 0 rgb(0 0 0 / 0.3), 0 26px 60px -20px rgb(0 0 0 / 0.8);
+  --scrim: rgb(0 0 0 / 0.6);
+  --caret: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath fill='%2396968e' d='M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z'/%3E%3C/svg%3E");
 }
 
-/* ── TAILWIND v4 THEME EXTENSION ─────────────────────────────────────────── */
+/* ── TAILWIND v4 THEME ───────────────────────────────────────────────────── */
 
 @theme inline {
-  --color-bg:        var(--bg);
-  --color-surface:   var(--surface);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
-  --color-paper:     var(--paper);
-  --color-ink:       var(--ink);
-  --color-ink-2:     var(--ink-2);
-  --color-muted:     var(--muted);
-  --color-line:      var(--line);
-  --color-line-2:    var(--line-2);
-  --color-accent:    var(--accent);
-  --color-accent-l:  var(--accent-l);
-  --color-accent-d:  var(--accent-d);
-  --color-sage:      var(--sage);
-  --color-sage-l:    var(--sage-l);
-  --color-gold:      var(--gold);
-  --color-gold-l:    var(--gold-l);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-field-border: var(--field-border);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-hover: var(--hover);
 
-  /* font-[var(--font-display)] / font-[var(--font-mono)] work via these */
-  --font-display: var(--font-display);
-  --font-mono:    var(--font-mono);
+  --font-sans:
+    var(--font-archivo), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
+  --font-mono:
+    var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display:
+    var(--font-archivo), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
 
-  /* tracking-[var(--ls-*)] */
   --tracking-tight: var(--ls-tight);
-  --tracking-snug:  var(--ls-snug);
-  --tracking-mono:  var(--ls-mono);
-  --tracking-cap:   var(--ls-cap);
+  --tracking-snug: var(--ls-snug);
+  --tracking-mono: var(--ls-mono);
+  --tracking-cap: var(--ls-cap);
+
+  /* One radius. Every rounded-* step resolves to it, except the nested and
+     hairline steps. */
+  --radius-xs: 2px;
+  --radius-sm: var(--r-in);
+  --radius: var(--r);
+  --radius-md: var(--r);
+  --radius-lg: var(--r);
+  --radius-xl: var(--r);
+  --radius-2xl: var(--r);
+  --radius-3xl: var(--r);
+
+  --ease-brand: var(--ease);
 }
 
-/* ── BASE RESET & BODY ───────────────────────────────────────────────────── */
+/* ── TYPE UTILITIES ──────────────────────────────────────────────────────── */
+
+/* Wide display face, as on the marketing site. */
+@utility type-display {
+  font-family: var(--font-display);
+  font-stretch: 118%;
+  font-weight: 760;
+  letter-spacing: var(--ls-tight);
+  line-height: 1.04;
+  text-wrap: balance;
+}
+
+/* Page titles: one size everywhere. */
+@utility type-title {
+  font-family: var(--font-display);
+  font-stretch: 118%;
+  font-weight: 760;
+  letter-spacing: var(--ls-tight);
+  line-height: 1.04;
+  text-wrap: balance;
+  font-size: clamp(1.75rem, 1.35rem + 1.25vw, 2.45rem);
+}
+
+/* Card and section headings. */
+@utility type-heading {
+  font-family: var(--font-display);
+  font-stretch: 112%;
+  font-weight: 700;
+  letter-spacing: -0.016em;
+  line-height: 1.2;
+  font-size: 17px;
+}
+
+/* Field, column and stat labels: sentence case, never uppercase. */
+@utility type-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+/* Figures: money, areas, quantities, record numbers. */
+@utility type-figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Big stat values (KPI tiles, totals). */
+@utility type-stat {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+/* The one eyebrow style. Rationed: at most one per screen. */
+@utility type-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: var(--ls-cap);
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+
+/* Horizontal scrollers (filter chips on phones) without a visible bar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── BASE ────────────────────────────────────────────────────────────────── */
 
 @layer base {
   *,
@@ -129,39 +293,280 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scrollbar-color: var(--line-2) transparent;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   body {
-    font-family: var(--font-display, 'Inter Tight', system-ui, sans-serif);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    font-stretch: 100%;
     background: var(--bg);
     color: var(--ink);
-    min-height: 100vh;
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
-    transition: background 0.25s, color 0.25s;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 30%, transparent);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  progress {
+    accent-color: var(--accent);
+  }
+
+  /* Every native field gets the brand field treatment unless a component
+     styles it explicitly with utilities (utilities win over this layer). */
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]),
+  select,
+  textarea {
+    font: inherit;
+    color: var(--ink);
+  }
+
+  ::placeholder {
+    color: var(--muted);
+    opacity: 1;
+  }
+}
+
+/* ── COMPONENT CLASSES ───────────────────────────────────────────────────── */
+
+@layer components {
+  /* Text inputs, selects and textareas. Recessed: one step below the card
+     they sit on. Add bg-[var(--surface)] when the field sits on the page bg. */
+  .field {
+    display: block;
+    width: 100%;
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 16px; /* 16px stops iOS zooming on focus */
+    line-height: 1.4;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--field-border);
+    border-radius: var(--r);
+    transition:
+      border-color var(--t-fast) ease,
+      background-color var(--t-fast) ease;
+  }
+  @media (min-width: 768px) {
+    .field {
+      font-size: 14.5px;
+    }
+  }
+  .field:hover:not(:disabled):not(:focus) {
+    border-color: color-mix(in oklab, var(--field-border) 60%, var(--ink));
+  }
+  .field:focus,
+  .field:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--accent-ink);
+  }
+  .field:disabled,
+  .field[readonly] {
+    background-color: var(--surface-2);
+    color: var(--ink-2);
+    cursor: not-allowed;
+  }
+  .field[readonly] {
+    cursor: default;
+  }
+  textarea.field {
+    min-height: 88px;
+    padding: 10px 12px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  select.field {
+    appearance: none;
+    padding-right: 34px;
+    background-image: var(--caret);
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+    background-size: 14px 14px;
+    cursor: pointer;
+  }
+
+  /* Form label sitting above a field. */
+  .field-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .field-hint {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .field-error {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 560;
+    color: var(--accent-ink);
+  }
+
+  /* Flat card. Elevation is reserved for overlays. */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+  }
+
+  /* Segmented control: a recessed track with an ink "thumb". */
+  .seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+  }
+  .seg > * {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 12px;
+    font-size: 13.5px;
+    font-weight: 560;
+    color: var(--ink-2);
+    border-radius: var(--r-in);
+    cursor: pointer;
+    user-select: none;
+    transition:
+      background-color var(--t-fast) ease,
+      color var(--t-fast) ease;
+  }
+  .seg > *:hover {
+    color: var(--ink);
+    background: var(--hover);
+  }
+  .seg > [aria-pressed="true"],
+  .seg > [aria-checked="true"],
+  .seg > [aria-selected="true"],
+  .seg > [data-active="true"] {
+    background: var(--ink);
+    color: var(--bg);
+  }
+
+  /* The tape-measure blade from the marketing site, as a progress meter.
+     Width of the blade = progress. Ticks: feet, half-feet, quarters. */
+  .tape-blade {
+    --tick: rgb(21 21 20 / 0.82);
+    position: relative;
+    height: 100%;
+    border-radius: 2px;
+    background:
+      linear-gradient(to right, var(--tick) 1.5px, transparent 1.5px) 0 0 /
+        24px 55% repeat-x,
+      linear-gradient(to right, var(--tick) 1px, transparent 1px) 0 0 / 12px
+        34% repeat-x,
+      linear-gradient(to right, var(--tick) 1px, transparent 1px) 0 0 / 6px
+        20% repeat-x,
+      var(--accent);
+    box-shadow:
+      inset 0 -1px 0 rgb(0 0 0 / 0.14),
+      inset 0 1px 0 rgb(255 255 255 / 0.18);
   }
 }
 
 /* ── ANIMATIONS ──────────────────────────────────────────────────────────── */
 
 @keyframes fade {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(40px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px) scale(0.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The blade pulls out once when a meter mounts. */
+@keyframes tape-pull {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ── SHARED UTILITIES ────────────────────────────────────────────────────── */
@@ -172,7 +577,7 @@
   margin: 12px 0;
 }
 
-/* ── CREW FILTER — DIM NON-MATCHING CALENDAR EVENTS ────────────────────── */
+/* ── CREW FILTER: DIM NON-MATCHING CALENDAR EVENTS ───────────────────────── */
 
 .cal-crew-focus .cal-event {
   opacity: 0.18;
@@ -181,14 +586,4 @@
 .cal-crew-focus .cal-event.crew-match {
   opacity: 1;
   filter: none;
-}
-
-/* ── MOBILE BOTTOM NAV BODY PADDING ─────────────────────────────────────── */
-
-@layer base {
-  @media (max-width: 767px) {
-    body {
-      padding-bottom: 56px;
-    }
-  }
 }

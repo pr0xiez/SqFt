@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button, buttonClasses } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { MapPinIcon, PlusIcon } from "@/components/ui/icons";
+import { Tag } from "@/components/ui/StatusBadge";
 import type { AddressSuggestion } from "@/lib/address/geoapify";
+import { cn } from "@/lib/cn";
 import { useAddressAutocomplete } from "@/lib/hooks/useAddressAutocomplete";
 import type { CustomerLocationSummary } from "@/lib/hooks/useCustomers";
 
@@ -36,11 +40,6 @@ const EMPTY: NewLocationInput = {
   label: "",
 };
 
-const fieldLabel =
-  "font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]";
-const fieldInput =
-  "w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150";
-
 function mapsHref(address: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
@@ -54,6 +53,7 @@ export function LocationsCard({
   isAdding,
   isStarting,
 }: Props) {
+  const uid = useId();
   const [form, setForm] = useState<NewLocationInput>(EMPTY);
   const {
     suggestions,
@@ -124,97 +124,104 @@ export function LocationsCard({
   );
 
   return (
-    <div
+    <Card
       id="locations-card"
-      className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5 mb-4"
-    >
-      <div className="flex items-baseline justify-between mb-4">
-        <h2 className="text-[15px] font-[700] tracking-[-0.015em]">
-          Locations
-        </h2>
-        {!adding && (
+      title="Locations"
+      action={
+        !adding && (
           <Button size="sm" onClick={() => onAddingChange(true)}>
             + Add location
           </Button>
-        )}
-      </div>
-
+        )
+      }
+      className="mb-6"
+    >
       {locations.length === 0 && !adding ? (
-        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-4">
+        <p className="text-[14px] text-[var(--muted)]">
           No locations yet. Add one to start a site measure.
-        </div>
+        </p>
       ) : (
-        <div className="flex flex-col gap-2">
+        <ul className="-my-3 divide-y divide-[var(--line)]">
           {locations.map((loc) => (
-            <div
+            <li
               key={loc.id}
-              className="flex items-center gap-3 border border-[var(--line)] rounded-md px-4 py-3"
+              className="flex flex-col gap-3 py-3.5 sm:flex-row sm:items-center"
             >
               <div className="flex-1 min-w-0">
-                <div className="text-[13.5px] font-[600] tracking-[-0.01em]">
-                  {loc.address}
-                  {loc.label ? (
-                    <span className="ml-2 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] font-[400]">
-                      {loc.label}
-                    </span>
-                  ) : null}
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-[14.5px] font-[600] tracking-[-0.01em]">
+                    {loc.address}
+                  </span>
+                  {loc.label ? <Tag>{loc.label}</Tag> : null}
                 </div>
                 {loc.notes && (
-                  <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] mt-0.5">
+                  <div className="text-[13px] text-[var(--muted)] mt-0.5">
                     {loc.notes}
                   </div>
                 )}
-                <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5">
-                  {loc.siteMeasures.length} site measure
+                <div className="text-[13px] text-[var(--muted)] mt-0.5">
+                  <span className="type-figure">{loc.siteMeasures.length}</span>{" "}
+                  site measure
                   {loc.siteMeasures.length === 1 ? "" : "s"}
                 </div>
               </div>
-              {loc.address && (
-                <a
-                  href={mapsHref(loc.address)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={buttonClasses({ size: "sm" })}
+              <div className="flex flex-wrap gap-2 shrink-0">
+                {loc.address && (
+                  <a
+                    href={mapsHref(loc.address)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonClasses({ size: "sm" })}
+                  >
+                    <MapPinIcon aria-hidden="true" />
+                    Open in Google Maps
+                  </a>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => onStartSiteMeasure(loc.id)}
+                  disabled={isStarting}
                 >
-                  Open in Google Maps
-                </a>
-              )}
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => onStartSiteMeasure(loc.id)}
-                disabled={isStarting}
-              >
-                + Site measure
-              </Button>
-            </div>
+                  <PlusIcon aria-hidden="true" />
+                  Site measure
+                </Button>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {adding && (
-        <div className="mt-3 border border-dashed border-[var(--line-2)] rounded-md p-4 flex flex-col gap-3">
+        <div
+          className={cn(
+            "flex flex-col gap-4",
+            locations.length > 0 && "mt-3 pt-5 border-t border-[var(--line)]"
+          )}
+        >
           {/* Street + autocomplete */}
           <div className="relative">
-            <div className={fieldLabel}>Street *</div>
+            <label htmlFor={`${uid}-street`} className="field-label">
+              Street *
+            </label>
             <input
+              id={`${uid}-street`}
               type="text"
               value={form.street}
               onChange={(e) => onStreetChange(e.target.value)}
               onFocus={openSuggestions}
               placeholder="Start typing an address…"
               autoComplete="off"
-              className={fieldInput}
+              className="field"
             />
             {showSuggestions && (
-              <ul className="absolute z-10 mt-1 w-full bg-[var(--surface)] border border-[var(--line)] rounded-[5px] shadow-md max-h-60 overflow-y-auto">
+              <ul className="absolute z-[300] mt-1 w-full p-1 bg-[var(--paper)] border border-[var(--line)] rounded-[var(--r)] shadow-[var(--shadow-md)] max-h-60 overflow-y-auto">
                 {suggestions.map((s, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: list is replaced wholesale per query and never reordered in place, so the index is a stable collision-free key
                   <li key={`${s.formatted}-${i}`}>
                     <button
                       type="button"
                       onClick={() => pickSuggestion(s)}
-                      className="w-full text-left text-[12.5px] px-2.5 py-2 hover:bg-[var(--surface-2)] cursor-pointer"
+                      className="w-full text-left text-[14px] px-2.5 py-2 rounded-[var(--r-in)] hover:bg-[var(--hover)] cursor-pointer"
                     >
                       {s.formatted}
                     </button>
@@ -224,59 +231,74 @@ export function LocationsCard({
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <div className={fieldLabel}>Unit / Apt</div>
+              <label htmlFor={`${uid}-unit`} className="field-label">
+                Unit / Apt
+              </label>
               <input
+                id={`${uid}-unit`}
                 type="text"
                 value={form.unit}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, unit: e.target.value }))
                 }
                 placeholder="Apt, suite, unit"
-                className={fieldInput}
+                className="field"
               />
             </div>
             <div>
-              <div className={fieldLabel}>City *</div>
+              <label htmlFor={`${uid}-city`} className="field-label">
+                City *
+              </label>
               <input
+                id={`${uid}-city`}
                 type="text"
                 value={form.city}
                 onChange={(e) => editField("city", e.target.value)}
                 placeholder="Columbus"
-                className={fieldInput}
+                className="field"
               />
             </div>
             <div>
-              <div className={fieldLabel}>State *</div>
+              <label htmlFor={`${uid}-state`} className="field-label">
+                State *
+              </label>
               <input
+                id={`${uid}-state`}
                 type="text"
                 value={form.state}
                 onChange={(e) => editField("state", e.target.value)}
                 placeholder="OH"
-                className={fieldInput}
+                className="field"
               />
             </div>
             <div>
-              <div className={fieldLabel}>ZIP *</div>
+              <label htmlFor={`${uid}-zip`} className="field-label">
+                ZIP *
+              </label>
               <input
+                id={`${uid}-zip`}
                 type="text"
                 value={form.postalCode}
                 onChange={(e) => editField("postalCode", e.target.value)}
                 placeholder="43215"
-                className={fieldInput}
+                className="field"
               />
             </div>
             <div className="md:col-span-2">
-              <div className={fieldLabel}>Label</div>
+              <label htmlFor={`${uid}-label`} className="field-label">
+                Label
+              </label>
               <input
+                id={`${uid}-label`}
                 type="text"
                 value={form.label}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, label: e.target.value }))
                 }
                 placeholder="e.g. Rental, Main house"
-                className={fieldInput}
+                className="field"
               />
             </div>
           </div>
@@ -293,7 +315,7 @@ export function LocationsCard({
             </Button>
             <Button
               size="sm"
-              variant="primary"
+              variant="ink"
               onClick={handleSave}
               disabled={isAdding || !canSave}
             >
@@ -302,6 +324,6 @@ export function LocationsCard({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

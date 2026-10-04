@@ -1,5 +1,8 @@
 "use client";
 
+import { Card } from "@/components/ui/Card";
+import { CardLink } from "@/components/ui/CardLink";
+import { UsersIcon } from "@/components/ui/icons";
 import type { CalEvent } from "@/lib/hooks/useEvents";
 import { getInitials } from "@/lib/nav/initials";
 import { todayStr } from "@/lib/utils";
@@ -26,7 +29,7 @@ function buildCrewEntries(events: CalEvent[], today: string): CrewEntry[] {
           name: member.name,
           initials: getInitials(member.name),
           jobTitle: ev.title,
-          timeRange: `${ev.startTime}–${ev.endTime}`,
+          timeRange: `${ev.startTime}-${ev.endTime}`,
         });
       }
     }
@@ -44,53 +47,40 @@ export function CrewCard({ events }: Props) {
   const crew = buildCrewEntries(events, today);
 
   return (
-    <article
-      className="bg-[var(--surface)] border border-[var(--line)] rounded-[10px] p-6"
-      style={{ boxShadow: "var(--shadow)" }}
+    <Card
+      title="Crew today"
+      action={<CardLink href="/schedule">Manage</CardLink>}
     >
-      <header className="flex items-baseline justify-between mb-[18px] pb-[14px] border-b border-[var(--line)]">
-        <div className="text-[14px] font-[600] tracking-[-0.01em]">
-          Crew · today
-        </div>
-        <button
-          type="button"
-          className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border-0 cursor-pointer hover:text-[var(--ink)] tracking-[.02em]"
-          onClick={() => {}}
-        >
-          Manage →
-        </button>
-      </header>
-
       {crew.length === 0 ? (
-        <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-2">
+        <div className="flex items-center gap-3 py-3 text-[14px] text-[var(--muted)]">
+          <UsersIcon aria-hidden="true" className="size-5 shrink-0" />
           No crew assigned today.
-        </p>
+        </div>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {crew.map((member, idx) => (
+        <ul className="flex flex-col divide-y divide-[var(--line)]">
+          {crew.map((member) => (
             <li
               key={member.id}
-              className={`flex items-center gap-3 py-2.5 ${
-                idx < crew.length - 1
-                  ? "border-b border-dashed border-[var(--line)]"
-                  : ""
-              }`}
+              className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
             >
-              <div className="w-9 h-9 rounded-full bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-center font-[var(--font-mono)] text-[11px] font-[600] shrink-0">
+              <span className="size-9 rounded-full bg-[var(--ink)] text-[var(--bg)] flex items-center justify-center text-[12.5px] font-[700] shrink-0">
                 {member.initials}
-              </div>
+              </span>
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-[600] tracking-[-0.01em]">
+                <div className="text-[14px] font-[600] truncate">
                   {member.name}
                 </div>
-                <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] mt-0.5 truncate">
-                  {member.jobTitle} · {member.timeRange}
+                <div className="text-[13px] text-[var(--muted)] mt-0.5 truncate">
+                  {member.jobTitle}{" "}
+                  <span className="type-figure text-[12.5px]">
+                    {member.timeRange}
+                  </span>
                 </div>
               </div>
             </li>
           ))}
         </ul>
       )}
-    </article>
+    </Card>
   );
 }

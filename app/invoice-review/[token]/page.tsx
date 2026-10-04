@@ -15,7 +15,7 @@ import { isValidTokenShape, trackPublicView } from "@/lib/tokens";
 import { fmtDollar } from "@/lib/utils";
 
 export const metadata = {
-  title: "Invoice — SqFt",
+  title: "Invoice",
   robots: { index: false, follow: false },
 };
 

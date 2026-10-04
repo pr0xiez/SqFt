@@ -1,13 +1,16 @@
 {
-  "name": "SqFt — Estimate Book",
+  "name": "SqFt",
   "short_name": "SqFt",
-  "description": "Flooring contractor estimating and scheduling",
+  "description": "Flooring contractor estimating, invoicing and scheduling",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
-  "theme_color": "#3d3228",
-  "background_color": "#ede7d9",
-  "categories": ["business", "productivity"],
+  "theme_color": "#f2f2ef",
+  "background_color": "#f2f2ef",
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",

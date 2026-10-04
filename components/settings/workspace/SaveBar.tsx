@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/Button";
 
 type Props = {
   dirty: boolean;
@@ -23,10 +24,12 @@ export function SaveBar({ dirty, saving, onSave, onRevert }: Props) {
   return (
     <div
       className={[
-        "fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]",
-        "flex items-center gap-3.5 px-4 py-2.5",
-        "bg-[var(--surface)] border border-[var(--line-2)] rounded-[10px]",
-        "shadow-[var(--shadow-md)] transition-all duration-200",
+        "fixed left-1/2 -translate-x-1/2 z-[60]",
+        "bottom-[calc(80px+env(safe-area-inset-bottom,0px))] md:bottom-6",
+        "w-[calc(100%-28px)] max-w-[460px] md:w-auto md:max-w-none",
+        "flex items-center justify-between gap-4 pl-4 pr-2 py-2",
+        "bg-[var(--paper)] border border-[var(--line-2)] rounded-[var(--r)]",
+        "shadow-[var(--shadow-md)] transition-[opacity,transform] duration-200 ease-[var(--ease)]",
         dirty
           ? "opacity-100 translate-y-0 pointer-events-auto"
           : "opacity-0 translate-y-3 pointer-events-none",
@@ -34,27 +37,28 @@ export function SaveBar({ dirty, saving, onSave, onRevert }: Props) {
       role="status"
       aria-live="polite"
     >
-      <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
-      <span className="font-mono text-[11px] tracking-[.08em] uppercase text-[var(--ink-2)]">
+      <span className="text-[14px] font-[560] text-[var(--ink)] whitespace-nowrap">
         Unsaved changes
       </span>
-      <div className="flex gap-2 ml-2">
-        <button
+      <div className="flex gap-1.5">
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={onRevert}
           disabled={saving}
-          className="font-mono text-[10px] px-2.5 py-1.5 rounded bg-transparent border-0 text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)] cursor-pointer disabled:opacity-50"
         >
           Revert
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="primary"
+          size="sm"
           onClick={onSave}
           disabled={saving}
-          className="font-mono text-[10px] px-3 py-1.5 rounded bg-[var(--ink)] text-[var(--bg)] border border-[var(--ink)] hover:bg-[var(--ink-2)] cursor-pointer disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save workspace"}
-        </button>
+        </Button>
       </div>
     </div>
   );

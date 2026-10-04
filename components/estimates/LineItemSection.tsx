@@ -2,8 +2,13 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { EstimateTotals } from "@/components/estimates/EstimateTotals";
-import { LineItemRow } from "@/components/estimates/LineItemRow";
+import { LINE_GRID, LineItemRow } from "@/components/estimates/LineItemRow";
 import { RoomLinkPicker } from "@/components/estimates/RoomLinkPicker";
+import { buttonClasses } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ListChecksIcon } from "@/components/ui/icons";
+import { TABLE_HEAD_CELL } from "@/components/ui/table";
+import { cn } from "@/lib/cn";
 import {
   type EstimateDraft,
   type EstimateDraftAction,
@@ -95,38 +100,65 @@ export function LineItemSection({
   const depositDisplayPct = Math.round(draft.depositPct * 1000) / 10;
 
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-3">
       {/* Room summary */}
       {rooms.length > 0 && (
-        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-2.5">
-          AVAILABLE ROOMS ·{" "}
-          {rooms
-            .map((r) => `${r.name} (${Math.round(roomSqft(r))} sqft)`)
-            .join(" · ")}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13.5px] text-[var(--muted)]">
+          <span className="font-[560] text-[var(--ink-2)]">
+            Available rooms
+          </span>
+          {rooms.map((r) => (
+            <span key={r.id}>
+              {r.name}{" "}
+              <span className="type-figure text-[13px]">
+                {Math.round(roomSqft(r))}
+              </span>{" "}
+              sqft
+            </span>
+          ))}
         </div>
       )}
 
       {/* Line items table */}
-      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        {/* Header */}
-        <div className="hidden md:grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] bg-[var(--surface-2)] border-b border-[var(--line)]">
-          {["Description", "Scope", "Quantity", "Rate", "Subtotal", ""].map(
-            (h) => (
-              <div
-                key={h}
-                className="px-3.5 py-2.5 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em]"
-              >
-                {h}
-              </div>
-            )
+      <div className="card overflow-hidden">
+        {/* Header (xl only; rows label their own fields below that) */}
+        <div
+          className={cn(
+            "hidden xl:grid px-1.5 border-b border-[var(--line)]",
+            LINE_GRID
           )}
+        >
+          {(
+            [
+              ["Description", "left"],
+              ["Scope", "left"],
+              ["Quantity", "left"],
+              ["Rate", "right"],
+              ["Subtotal", "right"],
+              ["", "left"],
+            ] as const
+          ).map(([h, align]) => (
+            <div
+              key={h}
+              className={cn(
+                TABLE_HEAD_CELL,
+                "px-2.5",
+                align === "right" && "text-right"
+              )}
+            >
+              {h}
+            </div>
+          ))}
         </div>
 
         {/* Rows */}
         {draft.lineItems.length === 0 ? (
-          <div className="p-6 text-center font-[var(--font-mono)] text-[12px] text-[var(--muted)]">
-            No line items yet — add one to begin pricing.
-          </div>
+          <EmptyState
+            icon={ListChecksIcon}
+            title="No line items yet."
+            body="Add one to begin pricing."
+            className="py-10"
+          />
         ) : (
           draft.lineItems.map((li) => {
             const lineView = lineById.get(li.id);
@@ -195,7 +227,10 @@ export function LineItemSection({
         <button
           type="button"
           onClick={() => dispatch({ type: "addLineItem", id: tempLiId() })}
-          className="w-full py-[11px] font-[var(--font-mono)] text-[11px] text-[var(--muted)] bg-transparent border border-dashed border-[var(--line-2)] rounded-[6px] cursor-pointer transition-colors duration-150 hover:border-[var(--ink-2)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
+          className={buttonClasses({
+            variant: "default",
+            className: "w-full border-dashed",
+          })}
         >
           + Add Line Item
         </button>

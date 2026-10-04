@@ -4,7 +4,7 @@ import { SiteMeasureListView } from "@/components/siteMeasures/SiteMeasureList";
 import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Site Measures — SqFt" };
+export const metadata = { title: "Site Measures" };
 
 export default async function SiteMeasuresPage() {
   const session = await requireSession();

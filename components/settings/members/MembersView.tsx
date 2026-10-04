@@ -1,9 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  TABLE_HEAD,
+  TABLE_HEAD_CELL,
+  TABLE_SHELL,
+} from "@/components/ui/table";
+import { cn } from "@/lib/cn";
 import { AddMemberForm } from "./AddMemberForm";
-import { MemberRow } from "./MemberRow";
+import { MEMBER_GRID, MemberRow } from "./MemberRow";
 import type { MemberRow as Row } from "./types";
+
+function MemberTableHead() {
+  return (
+    <div className={cn(TABLE_HEAD, MEMBER_GRID)}>
+      <div className={TABLE_HEAD_CELL}>Member</div>
+      <div className={TABLE_HEAD_CELL}>Email</div>
+      <div className={TABLE_HEAD_CELL}>Role</div>
+      <div className={TABLE_HEAD_CELL}>
+        <span className="sr-only">Actions</span>
+      </div>
+    </div>
+  );
+}
 
 export function MembersView({
   initial,
@@ -28,15 +48,14 @@ export function MembersView({
   const archived = rows.filter((r) => r.archived);
 
   return (
-    <div className="max-w-[760px] mx-auto px-4 py-8">
-      <h1 className="text-[24px] font-[700] tracking-[-0.02em] mb-1">
-        Members
-      </h1>
-      <p className="text-[13px] text-[var(--muted)] mb-6">
-        Who can see and do what. Anyone here can be assigned to jobs.
-      </p>
+    <div className="max-w-[960px]">
+      <PageHeader
+        title="Members"
+        meta="Who can see and do what. Anyone here can be assigned to jobs."
+      />
 
-      <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] mb-4">
+      <div className={cn(TABLE_SHELL, "mb-4")}>
+        <MemberTableHead />
         {active.map((row) => (
           <MemberRow
             key={row.id}
@@ -50,11 +69,14 @@ export function MembersView({
       <AddMemberForm onCreated={upsert} />
 
       {archived.length > 0 && (
-        <div className="mt-8">
-          <h2 className="text-[12px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-2">
-            Archived ({archived.length})
+        <div className="mt-10">
+          <h2 className="type-heading mb-3">
+            Archived{" "}
+            <span className="type-figure text-[15px] text-[var(--muted)]">
+              ({archived.length})
+            </span>
           </h2>
-          <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] opacity-80">
+          <div className={TABLE_SHELL}>
             {archived.map((row) => (
               <MemberRow
                 key={row.id}

@@ -323,15 +323,17 @@ Stale time: 60 s. GC time: ∞. Persisted to localStorage (max age 24 h). Retry:
 
 ## Design System
 
-**Tokens (CSS variables):** `--ink`, `--surface`, `--accent` (vermilion), `--sage`, `--gold`, `--muted`, `--line`, `--shadow-*`
+Shared with the marketing site (`www/`). Full rules and components: `docs/design-system.md`.
 
-**Typography:** Inter Tight (display) + JetBrains Mono (monospace), loaded via `@fontsource-variable`.
+**Tokens (CSS variables, `app/globals.css`):** neutral `--bg` / `--surface` / `--surface-2` / `--paper`, `--ink` / `--ink-2` / `--muted`, `--line` / `--line-2` / `--field-border`, one safety-orange accent (`--accent` fills with dark `--on-accent` text, `--accent-ink` for orange text), status `--ok` / `--warn` / `--bad`, one 6px radius (`--r`).
 
-**Theme:** Light/dark via `data-theme` attribute on `<html>`. Flash-of-unstyled-theme prevented by inline script in root layout that reads `localStorage.theme` before React hydrates.
+**Typography:** Archivo (variable, wide display via `font-stretch`) + JetBrains Mono for figures only, loaded via `next/font/google`.
 
-**Status badge colors:** quote=gold, scheduled=sage, in_progress=accent, completed=muted.
+**Theme:** follows the OS by default; `ThemeToggle` (system / light / dark) stores an explicit choice and sets `data-theme` on `<html>`. An inline script in the root layout applies a stored choice before React hydrates.
 
-**Event type colors:** job=accent, visit=gold, other=sage.
+**Status badges:** `StatusBadge` maps every estimate/invoice status to a tone and icon: draft/void = neutral, sent/viewed/partial = warn, approved/paid = ok, declined/overdue = accent-ink.
+
+**Event type colors:** job = orange wash with an accent edge, visit = warn tint, other = neutral.
 
 ---
 

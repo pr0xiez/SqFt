@@ -1,6 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { CaretRightIcon, CheckIcon } from "@/components/ui/icons";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import {
   estimateStatusTone,
   isOpenEstimate,
@@ -24,19 +27,15 @@ interface Props {
   isStarting: boolean; // createSiteMeasure.isPending
 }
 
-function StatusPill({ status }: { status: string }) {
-  const tone = estimateStatusTone(status);
+/** Quiet trailing "Open" affordance; the whole row is the button. */
+function OpenHint() {
   return (
-    <span
-      className="inline-flex items-center gap-1.5 font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.08em] px-2 py-[3px] rounded-[4px] border"
-      style={{
-        color: tone.fg,
-        borderColor: tone.border,
-        background: tone.bg,
-      }}
-    >
-      <span className="w-1 h-1 rounded-full" style={{ background: tone.fg }} />
-      {tone.label}
+    <span className="inline-flex items-center gap-1 text-[13px] font-[500] text-[var(--muted)] transition-colors group-hover:text-[var(--ink)]">
+      Open
+      <CaretRightIcon
+        aria-hidden="true"
+        className="size-3.5 transition-transform group-hover:translate-x-0.5"
+      />
     </span>
   );
 }
@@ -55,47 +54,50 @@ function SiteMeasureRow({
   const acceptedCount = estimates.filter((q) => q.status === "approved").length;
 
   return (
-    <div className="border border-[var(--line)] rounded-md overflow-hidden">
-      {/* SiteMeasure header */}
+    <div className="border-t border-[var(--line)] first:border-t-0">
+      {/* Site measure header */}
       <button
         type="button"
         onClick={onOpenSiteMeasure}
-        className="w-full text-left flex items-center gap-3 px-4 py-3 bg-[var(--surface-2)] hover:bg-[color-mix(in_srgb,var(--surface-2)_70%,var(--line))] transition-colors duration-150 cursor-pointer"
+        className="group w-full text-left flex flex-wrap items-center gap-x-3 gap-y-1 px-5 md:px-6 py-3 bg-[var(--surface-2)] hover:bg-[var(--hover)] transition-colors duration-150 cursor-pointer"
       >
-        <span className="font-[var(--font-mono)] text-[10.5px] uppercase tracking-[.09em] text-[var(--muted)] shrink-0">
+        <span className="text-[14px] font-[600] shrink-0">
           Site Measure{" "}
-          <span className="text-[var(--ink)]">
+          <span className="type-figure">
             #{siteMeasure.siteMeasureNumber ?? siteMeasure.id}
           </span>
         </span>
-        <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+        <span className="text-[13px] text-[var(--muted)]">
           {formatShortDate(siteMeasure.date)}
         </span>
         <div className="flex-1 min-w-0" />
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-3 shrink-0 text-[13px]">
           {acceptedCount > 0 && (
-            <span className="font-[var(--font-mono)] text-[10px] text-[var(--sage)] uppercase tracking-[.08em]">
-              ✓ Accepted
+            <span className="inline-flex items-center gap-1 font-[560] text-[var(--ok)]">
+              <CheckIcon
+                aria-hidden="true"
+                weight="bold"
+                className="size-3.5"
+              />
+              <span className="type-figure">{acceptedCount}</span> accepted
             </span>
           )}
           {openCount > 0 && (
-            <span className="font-[var(--font-mono)] text-[10px] text-[var(--gold)] uppercase tracking-[.08em]">
-              {openCount} open
+            <span className="font-[560] text-[var(--warn)]">
+              <span className="type-figure">{openCount}</span> open
             </span>
           )}
-          <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-            Open →
-          </span>
+          <OpenHint />
         </div>
       </button>
 
       {/* Estimate thread */}
       {estimates.length === 0 ? (
-        <div className="px-4 py-3 font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] italic">
+        <div className="px-5 md:px-6 py-3 text-[13px] text-[var(--muted)]">
           No estimates drafted on this site measure yet.
         </div>
       ) : (
-        <ul className="divide-y divide-[var(--line)]">
+        <ul className="divide-y divide-[var(--line)] border-t border-[var(--line)]">
           {estimates.map((q) => {
             const tone = estimateStatusTone(q.status);
             const touch = lastTouchAt(q);
@@ -104,27 +106,24 @@ function SiteMeasureRow({
                 <button
                   type="button"
                   onClick={() => onOpenEstimate(q.id)}
-                  className="w-full text-left flex items-center gap-3 pl-4 pr-4 py-3 hover:bg-[var(--surface-2)] cursor-pointer transition-[background,padding] duration-[120ms] hover:pl-5 group"
-                  style={{
-                    borderLeft: `3px solid ${tone.fg}`,
-                  }}
+                  className="group w-full text-left flex items-center gap-3 px-5 md:px-6 py-3 hover:bg-[var(--hover)] cursor-pointer transition-colors duration-150"
                 >
-                  <span className="font-[var(--font-mono)] text-[11px] font-[600] tabular-nums text-[var(--ink)] min-w-[44px]">
+                  <span className="type-figure text-[13.5px] font-[600] text-[var(--ink)] min-w-[52px]">
                     E#{q.estimateNumber}
                   </span>
-                  <StatusPill status={q.status} />
-                  <div className="flex-1 min-w-0 flex items-baseline gap-2">
-                    <span className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] tracking-[.02em]">
+                  <StatusBadge status={q.status} />
+                  <div className="flex-1 min-w-0 flex items-baseline gap-2 text-[13px] text-[var(--muted)]">
+                    <span className="truncate">
                       {tone.label} {relativeTime(touch)}
                     </span>
-                    <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] hidden sm:inline">
-                      · {q._count.lineItems} line item
+                    <span className="hidden sm:inline whitespace-nowrap">
+                      ·{" "}
+                      <span className="type-figure">{q._count.lineItems}</span>{" "}
+                      line item
                       {q._count.lineItems === 1 ? "" : "s"}
                     </span>
                   </div>
-                  <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] group-hover:text-[var(--ink)] transition-colors">
-                    Open →
-                  </span>
+                  <OpenHint />
                 </button>
               </li>
             );
@@ -144,28 +143,24 @@ export function CustomerPipeline({
   isStarting,
 }: Props) {
   return (
-    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-5">
-      <div className="flex items-baseline justify-between mb-4">
-        <div>
-          <h2 className="text-[15px] font-[700] tracking-[-0.015em]">
-            Pipeline
-          </h2>
-          <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--muted)] uppercase tracking-[.08em] mt-0.5">
-            Site measures & estimates
-          </div>
-        </div>
-        {openCount > 0 && (
-          <div className="font-[var(--font-mono)] text-[10.5px] text-[var(--gold)] uppercase tracking-[.08em]">
-            {openCount} awaiting
-          </div>
-        )}
-      </div>
-
+    <Card
+      flush
+      title="Pipeline"
+      sub="Site measures & estimates"
+      action={
+        openCount > 0 ? (
+          <span className="text-[13px] font-[560] text-[var(--warn)]">
+            <span className="type-figure">{openCount}</span> awaiting
+          </span>
+        ) : null
+      }
+      className="overflow-hidden"
+    >
       {siteMeasures.length === 0 ? (
-        <div className="py-10 text-center">
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mb-3">
+        <div className="px-5 md:px-6 pt-4 pb-10 text-center border-t border-[var(--line)]">
+          <p className="text-[14px] text-[var(--muted)] mb-3">
             No site measures yet.
-          </div>
+          </p>
           <Button
             variant="primary"
             size="sm"
@@ -176,7 +171,7 @@ export function CustomerPipeline({
           </Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="border-t border-[var(--line)]">
           {siteMeasures.map((est) => (
             <SiteMeasureRow
               key={est.id}
@@ -187,6 +182,6 @@ export function CustomerPipeline({
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

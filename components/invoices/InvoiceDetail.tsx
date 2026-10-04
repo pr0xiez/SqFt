@@ -1,29 +1,88 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { QboSyncBadge } from "@/components/invoices/QboSyncBadge";
 import { RecordPaymentDialog } from "@/components/invoices/RecordPaymentDialog";
 import { SendInvoiceDialog } from "@/components/invoices/SendInvoiceDialog";
 import { VoidInvoiceDialog } from "@/components/invoices/VoidInvoiceDialog";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { ErrorState, LoadingLine } from "@/components/ui/EmptyState";
+import {
+  ArrowCounterClockwiseIcon,
+  CurrencyDollarIcon,
+  LinkSimpleIcon,
+  PaperPlaneTiltIcon,
+  ProhibitIcon,
+} from "@/components/ui/icons";
+import { BackLink, MetaSep, PageHeader } from "@/components/ui/PageHeader";
+import { Stat } from "@/components/ui/Stat";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { TapeMeter } from "@/components/ui/TapeMeter";
 import { useToast } from "@/components/ui/Toast";
 import {
   type InvoiceDetail as Invoice,
   useInvoice,
   useInvoicePublicToken,
 } from "@/lib/hooks/useInvoices";
-import { invoiceOutstanding, paymentsPaidTotal } from "@/lib/invoices";
+import {
+  invoiceOutstanding,
+  isInvoiceOverdue,
+  paymentsPaidTotal,
+} from "@/lib/invoices";
 import { fmtDollar } from "@/lib/utils";
 
 function fmtDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleDateString("en-US") : "—";
+  return iso ? new Date(iso).toLocaleDateString("en-US") : "-";
 }
 
-const cardCls =
-  "border border-[var(--line)] rounded-lg p-4 bg-[var(--paper)] mb-4";
-const cardLabelCls =
-  "text-[10px] font-[var(--font-mono)] uppercase tracking-[.07em] text-[var(--muted)] mb-2.5";
+type Payment = Invoice["payments"][number];
+
+function PaymentRow({ p }: { p: Payment }) {
+  const isStripeNet =
+    p.method === "stripe" &&
+    p.stripeNetAmount != null &&
+    p.stripeFeeAmount != null;
+  return (
+    <div className="flex items-start justify-between gap-3 py-3 border-b border-[var(--line)] last:border-b-0">
+      <div className="min-w-0">
+        {isStripeNet ? (
+          <>
+            <div className="text-[14px]">
+              Paid{" "}
+              <span className="type-figure font-[600]">
+                {fmtDollar(p.amount)}
+              </span>
+            </div>
+            <div className="mt-0.5 text-[13px] text-[var(--muted)]">
+              Stripe fee{" "}
+              <span className="type-figure">
+                {fmtDollar(p.stripeFeeAmount ?? 0)}
+              </span>{" "}
+              · You netted{" "}
+              <span className="type-figure">
+                {fmtDollar(p.stripeNetAmount ?? 0)}
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="type-figure text-[14px] font-[600]">
+              {fmtDollar(p.amount)}
+            </div>
+            <div className="mt-0.5 text-[13px] text-[var(--muted)]">
+              <span className="capitalize">{p.method}</span>
+              {p.reference ? ` · ${p.reference}` : ""}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="shrink-0 text-[13px] text-[var(--muted)]">
+        {fmtDate(p.paidAt)}
+      </div>
+    </div>
+  );
+}
 
 export function InvoiceDetail({
   invoiceId,
@@ -39,13 +98,9 @@ export function InvoiceDetail({
   const [payOpen, setPayOpen] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
 
-  if (isLoading) return <p className="p-8 text-[13px]">Loading…</p>;
+  if (isLoading) return <LoadingLine />;
   if (error || !inv)
-    return (
-      <p className="p-8 text-[13px] text-[var(--accent)]">
-        {(error as Error)?.message ?? "Not found"}
-      </p>
-    );
+    return <ErrorState message={(error as Error)?.message ?? "Not found"} />;
 
   const paid = paymentsPaidTotal(inv.payments);
   const outstanding = invoiceOutstanding(inv);
@@ -54,6 +109,8 @@ export function InvoiceDetail({
   const isDraft = inv.status === "draft";
   const isPaid = inv.status === "paid";
   const canPay = !isDraft && !isVoid && !isPaid;
+  const overdue = isInvoiceOverdue(inv);
+  const paidShare = inv.amount > 0 ? paid / inv.amount : 0;
 
   async function copyLink() {
     try {
@@ -67,211 +124,211 @@ export function InvoiceDetail({
   }
 
   return (
-    <main className="max-w-[820px] mx-auto p-8">
-      <Link
-        href={`/estimates/${estimateId}`}
-        className="text-[12px] text-[var(--accent)]"
-      >
-        ← Estimate
-      </Link>
-
-      <div className="flex items-start gap-3 mt-2 mb-1">
-        <h1 className="text-[24px] font-[700] tracking-[-0.02em]">
-          Invoice #{inv.invoiceNumber}
-        </h1>
-        <span className="self-center text-[10px] uppercase tracking-[.05em] px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--ink-2)]">
-          {inv.status}
-        </span>
-        <QboSyncBadge invoiceId={inv.id} qboSync={inv.qboSync} />
-        <div className="ml-auto text-right">
-          <div className="text-[24px] font-[700]">{fmtDollar(inv.amount)}</div>
-          {inv.dueDate ? (
-            <div className="text-[11px] text-[var(--accent)]">
-              Due {fmtDate(inv.dueDate)}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="text-[12px] text-[var(--muted)] mb-5">
-        {inv.sentToEmail ? <>Sent to {inv.sentToEmail} · </> : null}
-        {inv.hasPublicToken ? (
-          <button
-            type="button"
-            onClick={copyLink}
-            disabled={publicToken.isPending}
-            className="text-[var(--accent)] underline disabled:opacity-50"
-          >
-            copy public link
-          </button>
-        ) : null}
-      </div>
-
-      {!isVoid ? (
-        <div className="flex gap-2 flex-wrap mb-6">
-          {isDraft ? (
-            <Button
-              variant="primary"
-              size="sm"
-              type="button"
-              onClick={() => setSendOpen(true)}
-            >
-              Send
-            </Button>
-          ) : null}
-          {canPay ? (
-            <Button
-              variant="primary"
-              size="sm"
-              type="button"
-              onClick={() => setPayOpen(true)}
-            >
-              Record payment
-            </Button>
-          ) : null}
-          {!isDraft ? (
-            <Button
-              variant="default"
-              size="sm"
-              type="button"
-              onClick={() => setSendOpen(true)}
-            >
-              Resend
-            </Button>
-          ) : null}
-          {!isPaid ? (
-            <Button
-              variant="accent"
-              size="sm"
-              type="button"
-              onClick={() => setVoidOpen(true)}
-            >
-              Void
-            </Button>
-          ) : null}
-        </div>
-      ) : (
-        <div className="text-[12px] text-[var(--muted)] mb-6">
-          This invoice was voided on {fmtDate(inv.voidedAt)}.
-        </div>
-      )}
-
-      <div className="flex gap-5 items-start flex-col md:flex-row">
-        <div className="flex-[1.4] w-full">
-          <div className={cardCls}>
-            <div className={cardLabelCls}>Breakdown (from estimate)</div>
-            {lines.length === 0 ? (
-              <p className="text-[12px] text-[var(--muted)]">
-                Line breakdown is captured when the invoice is sent.
-              </p>
-            ) : (
-              <table className="w-full text-[13px]">
-                <tbody>
-                  {lines.map((l, i) => (
-                    <tr
-                      key={`${l.name}-${i}`}
-                      className="border-b border-[var(--line)] last:border-b-0"
-                    >
-                      <td className="py-2">
-                        <div className="font-[600]">{l.name}</div>
-                        {l.description ? (
-                          <div className="text-[11px] text-[var(--muted)]">
-                            {l.description}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="py-2 text-right">{fmtDollar(l.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {paid > 0 ? (
+    <div className="max-w-[1040px]">
+      <PageHeader
+        kicker={<BackLink href={`/estimates/${estimateId}`}>Estimate</BackLink>}
+        title={`Invoice #${inv.invoiceNumber}`}
+        meta={
+          <>
+            <StatusBadge status={overdue ? "overdue" : inv.status} />
+            <QboSyncBadge invoiceId={inv.id} qboSync={inv.qboSync} />
+            {inv.sentToEmail ? (
               <>
-                <div className="flex justify-between text-[13px] border-t border-[var(--line-2)] mt-2 pt-2">
-                  <span>Invoice total</span>
-                  <span>{fmtDollar(inv.amount)}</span>
-                </div>
-                <div className="flex justify-between text-[13px] pt-1">
-                  <span>Paid to date</span>
-                  <span>−{fmtDollar(paid)}</span>
-                </div>
+                <MetaSep />
+                <span className="min-w-0 break-all">
+                  Sent to {inv.sentToEmail}
+                </span>
               </>
             ) : null}
-            <div className="flex justify-between font-[700] text-[15px] border-t border-[var(--line-2)] mt-2 pt-2">
-              <span>Balance due</span>
-              <span>{fmtDollar(outstanding)}</span>
-            </div>
-          </div>
-        </div>
+            {inv.hasPublicToken ? (
+              <>
+                <MetaSep />
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  disabled={publicToken.isPending}
+                  className="inline-flex items-center gap-1.5 min-h-[36px] text-[var(--ink)] font-[500] underline underline-offset-[3px] decoration-[var(--line-2)] hover:decoration-[var(--ink)] disabled:opacity-50"
+                >
+                  <LinkSimpleIcon aria-hidden="true" className="size-[15px]" />
+                  copy public link
+                </button>
+              </>
+            ) : null}
+          </>
+        }
+        actions={
+          isVoid ? null : (
+            <>
+              {isDraft ? (
+                <Button
+                  variant="primary"
+                  type="button"
+                  onClick={() => setSendOpen(true)}
+                >
+                  <PaperPlaneTiltIcon aria-hidden="true" />
+                  Send
+                </Button>
+              ) : null}
+              {canPay ? (
+                <Button
+                  variant="primary"
+                  type="button"
+                  onClick={() => setPayOpen(true)}
+                >
+                  <CurrencyDollarIcon aria-hidden="true" />
+                  Record payment
+                </Button>
+              ) : null}
+              {!isDraft ? (
+                <Button
+                  variant="default"
+                  type="button"
+                  onClick={() => setSendOpen(true)}
+                >
+                  <ArrowCounterClockwiseIcon aria-hidden="true" />
+                  Resend
+                </Button>
+              ) : null}
+              {!isPaid ? (
+                <Button
+                  variant="danger"
+                  type="button"
+                  onClick={() => setVoidOpen(true)}
+                >
+                  <ProhibitIcon aria-hidden="true" />
+                  Void
+                </Button>
+              ) : null}
+            </>
+          )
+        }
+      />
 
-        <div className="flex-1 w-full">
-          <div className={cardCls}>
-            <div className={cardLabelCls}>Payments</div>
-            <div className="flex justify-between text-[12px] rounded bg-[var(--surface-2)] px-2.5 py-2 mb-2.5">
-              <span>Outstanding</span>
-              <strong>{fmtDollar(outstanding)}</strong>
-            </div>
+      {isVoid ? (
+        <p className="-mt-2 mb-6 text-[14px] text-[var(--muted)]">
+          This invoice was voided on {fmtDate(inv.voidedAt)}.
+        </p>
+      ) : null}
+
+      <section className="card p-5 md:p-6 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-5">
+          <Stat label="Amount" value={fmtDollar(inv.amount)} />
+          <Stat label="Paid" value={fmtDollar(paid)} />
+          <Stat label="Outstanding" value={fmtDollar(outstanding)} />
+          <Stat
+            label="Due"
+            value={fmtDate(inv.dueDate)}
+            size="sm"
+            valueClassName="mt-2.5"
+            sub={
+              overdue ? (
+                <span className="font-[560] text-[var(--accent-ink)]">
+                  Overdue
+                </span>
+              ) : undefined
+            }
+          />
+        </div>
+        {!isVoid ? (
+          <TapeMeter
+            value={paidShare}
+            size="sm"
+            label="Paid share of the invoice amount"
+            className="mt-6"
+          />
+        ) : null}
+      </section>
+
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-5 items-start">
+        <Card title="Breakdown (from estimate)">
+          {lines.length === 0 ? (
+            <p className="text-[14px] text-[var(--muted)]">
+              Line breakdown is captured when the invoice is sent.
+            </p>
+          ) : (
+            <table className="w-full text-[14px]">
+              <tbody>
+                {lines.map((l, i) => (
+                  <tr
+                    key={`${l.name}-${i}`}
+                    className="border-b border-[var(--line)] last:border-b-0 align-top"
+                  >
+                    <td className="py-2.5 pr-3">
+                      <div className="font-[600]">{l.name}</div>
+                      {l.description ? (
+                        <div className="mt-0.5 text-[13px] text-[var(--muted)]">
+                          {l.description}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="py-2.5 text-right type-figure whitespace-nowrap">
+                      {fmtDollar(l.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {paid > 0 ? (
+            <>
+              <div className="flex justify-between gap-3 text-[14px] border-t border-[var(--line-2)] mt-2 pt-2.5">
+                <span className="text-[var(--ink-2)]">Invoice total</span>
+                <span className="type-figure">{fmtDollar(inv.amount)}</span>
+              </div>
+              <div className="flex justify-between gap-3 text-[14px] pt-1.5">
+                <span className="text-[var(--ink-2)]">Paid to date</span>
+                <span className="type-figure">−{fmtDollar(paid)}</span>
+              </div>
+            </>
+          ) : null}
+          <div className="flex items-baseline justify-between gap-3 border-t border-[var(--line-2)] mt-2.5 pt-3">
+            <span className="text-[15px] font-[650]">Balance due</span>
+            <span className="type-stat text-[22px]">
+              {fmtDollar(outstanding)}
+            </span>
+          </div>
+        </Card>
+
+        <div className="flex flex-col gap-5">
+          <Card title="Payments">
             {inv.payments.length === 0 ? (
-              <p className="text-[12px] text-[var(--muted)]">
+              <p className="text-[14px] text-[var(--muted)]">
                 No payments yet.
               </p>
             ) : (
-              inv.payments.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex justify-between text-[12.5px] py-1.5 border-b border-[var(--line)] last:border-b-0"
-                >
-                  <div>
-                    {p.method === "stripe" &&
-                    p.stripeNetAmount != null &&
-                    p.stripeFeeAmount != null ? (
-                      <>
-                        <span>Paid {fmtDollar(p.amount)}</span>
-                        <div className="text-[11px] text-[var(--muted)]">
-                          Stripe fee {fmtDollar(p.stripeFeeAmount)} · You netted{" "}
-                          {fmtDollar(p.stripeNetAmount)}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {fmtDollar(p.amount)}
-                        <div className="text-[11px] text-[var(--muted)]">
-                          {p.method}
-                          {p.reference ? ` · ${p.reference}` : ""}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <div>{fmtDate(p.paidAt)}</div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <div className={cardCls}>
-            <div className={cardLabelCls}>Activity</div>
-            {inv.invoiceEvents.length === 0 ? (
-              <p className="text-[12px] text-[var(--muted)]">
-                No activity yet.
-              </p>
-            ) : (
-              <div className="border-l-2 border-[var(--line)] pl-3">
-                {inv.invoiceEvents.map((e) => (
-                  <div
-                    key={e.id}
-                    className="text-[11.5px] text-[var(--ink-2)] mb-2"
-                  >
-                    <span className="capitalize">
-                      {e.type.replace(/_/g, " ")}
-                    </span>
-                    {e.actorName ? ` — ${e.actorName}` : ""} ·{" "}
-                    {fmtDate(e.createdAt)}
-                  </div>
+              <div className="-my-3">
+                {inv.payments.map((p) => (
+                  <PaymentRow key={p.id} p={p} />
                 ))}
               </div>
             )}
-          </div>
+          </Card>
+
+          <Card title="Activity">
+            {inv.invoiceEvents.length === 0 ? (
+              <p className="text-[14px] text-[var(--muted)]">
+                No activity yet.
+              </p>
+            ) : (
+              <ol className="border-l border-[var(--line-2)] pl-4 flex flex-col gap-3">
+                {inv.invoiceEvents.map((e) => (
+                  <li key={e.id} className="text-[14px] leading-snug">
+                    <span className="capitalize font-[560] text-[var(--ink)]">
+                      {e.type.replace(/_/g, " ")}
+                    </span>
+                    {e.actorName ? (
+                      <span className="text-[var(--ink-2)]">
+                        , {e.actorName}
+                      </span>
+                    ) : null}
+                    <div className="mt-0.5 text-[13px] text-[var(--muted)]">
+                      {fmtDate(e.createdAt)}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Card>
         </div>
       </div>
 
@@ -298,6 +355,6 @@ export function InvoiceDetail({
         open={voidOpen}
         onClose={() => setVoidOpen(false)}
       />
-    </main>
+    </div>
   );
 }

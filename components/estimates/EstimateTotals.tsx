@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { DecimalInput } from "@/components/ui/DecimalInput";
+import { cn } from "@/lib/cn";
 import { fmtDollar } from "@/lib/utils";
 
 interface Props {
@@ -15,6 +17,13 @@ interface Props {
   onCommitDeposit: (nextPct: number) => void;
 }
 
+/**
+ * Totals under the line items. Figures right-align with the line subtotal
+ * column at xl (the 44px remove column + cell padding sits to their right).
+ */
+const ROW =
+  "flex items-center justify-between gap-4 px-4 xl:pl-4 xl:pr-[56px] py-2.5";
+
 export function EstimateTotals({
   subtotal,
   markupPct,
@@ -27,90 +36,94 @@ export function EstimateTotals({
   onCommitDeposit,
 }: Props) {
   return (
-    <div className="border-t border-[var(--line)] bg-[var(--surface-2)]">
-      {/* Subtotal */}
-      <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-        <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-          Subtotal
-        </div>
-        <div />
-        <div className="px-3.5 py-2.5 text-[14px] font-[600]">
-          {fmtDollar(subtotal)}
-        </div>
-        <div />
+    <div className="border-t border-[var(--line)]">
+      <div className="py-1.5 sm:ml-auto sm:max-w-[460px]">
+        <TotalsRow label="Subtotal" figure={fmtDollar(subtotal)} />
+        <TotalsRow
+          label="Markup"
+          control={
+            <PctInline
+              label="Markup"
+              value={markupPct}
+              readOnly={readOnly}
+              onCommit={onCommitMarkup}
+            />
+          }
+          figure={fmtDollar(markupAmt)}
+        />
       </div>
-      {/* Markup */}
-      <PctRow
-        label="Markup"
-        valuePct={markupPct}
-        suffix={fmtDollar(markupAmt)}
-        readOnly={readOnly}
-        onCommit={onCommitMarkup}
-      />
-      {/* Total */}
-      <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center bg-[var(--ink)] text-[var(--bg)] [html[data-theme=dark]_&]:bg-[var(--surface-2)] [html[data-theme=dark]_&]:border-t [html[data-theme=dark]_&]:border-[var(--line)]">
-        <div className="px-3.5 py-3.5 font-[var(--font-mono)] text-[11px] uppercase tracking-[.04em] opacity-80 col-span-4">
-          Estimate total
-        </div>
-        <div className="px-3.5 py-3.5 text-[22px] font-[700] tracking-[-0.025em]">
+
+      {/* Total: the one strong moment on the page */}
+      <div
+        className={cn(
+          ROW,
+          "py-4 bg-[var(--ink)] text-[var(--bg)] items-baseline"
+        )}
+      >
+        <span className="text-[14.5px] font-[600]">Estimate total</span>
+        <span className="type-stat text-[26px] md:text-[30px]">
           {fmtDollar(total)}
-        </div>
-        <div />
+        </span>
       </div>
-      {/* Deposit footer */}
-      <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-t border-[var(--line)]">
-        <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-2 flex items-center gap-2">
-          <span>Deposit</span>
-          <PctInline
-            value={depositPct}
-            readOnly={readOnly}
-            onCommit={onCommitDeposit}
-          />
-        </div>
-        <div />
-        <div />
-        <div className="px-3.5 py-2.5 text-[13px] font-[600] text-[var(--sage)]">
-          {fmtDollar(deposit)}
-        </div>
-        <div />
+
+      {/* Deposit */}
+      <div className="py-1.5 sm:ml-auto sm:max-w-[460px]">
+        <TotalsRow
+          label="Deposit"
+          control={
+            <PctInline
+              label="Deposit"
+              value={depositPct}
+              readOnly={readOnly}
+              onCommit={onCommitDeposit}
+            />
+          }
+          figure={fmtDollar(deposit)}
+          figureClassName="text-[var(--ok)]"
+        />
       </div>
     </div>
   );
 }
 
-interface PctRowProps {
+function TotalsRow({
+  label,
+  control,
+  figure,
+  figureClassName,
+}: {
   label: string;
-  valuePct: number;
-  suffix: string;
-  readOnly: boolean;
-  onCommit: (nextPct: number) => void;
-}
-
-function PctRow({ label, valuePct, suffix, readOnly, onCommit }: PctRowProps) {
+  control?: ReactNode;
+  figure: string;
+  figureClassName?: string;
+}) {
   return (
-    <div className="grid grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-center border-b border-[var(--line)]">
-      <div className="px-3.5 py-2.5 font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em] col-span-3">
-        {label}
+    <div className={ROW}>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-[14px] text-[var(--ink-2)]">{label}</span>
+        {control}
       </div>
-      <div className="px-2 py-2 flex items-center gap-1.5">
-        <PctInline value={valuePct} readOnly={readOnly} onCommit={onCommit} />
-      </div>
-      <div className="px-3.5 py-2.5 text-[14px] font-[600]">{suffix}</div>
-      <div />
+      <span
+        className={cn("type-figure text-[14.5px] font-[600]", figureClassName)}
+      >
+        {figure}
+      </span>
     </div>
   );
 }
 
 interface PctInlineProps {
+  label: string;
   value: number;
   readOnly: boolean;
   onCommit: (next: number) => void;
 }
 
-function PctInline({ value, readOnly, onCommit }: PctInlineProps) {
+function PctInline({ label, value, readOnly, onCommit }: PctInlineProps) {
   return (
-    <>
+    <span className="inline-flex items-center gap-1">
       <DecimalInput
+        aria-label={`${label} percent`}
         value={value}
         onCommit={(next) => {
           if (next === null) return;
@@ -119,11 +132,9 @@ function PctInline({ value, readOnly, onCommit }: PctInlineProps) {
         }}
         formatOnBlur={false}
         disabled={readOnly}
-        className="w-[58px] font-[var(--font-mono)] text-[13px] font-[600] text-right border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-1.5 py-1 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default"
+        className="field type-figure min-h-[34px] h-[34px] w-[64px] px-2 text-right font-[600] disabled:bg-transparent disabled:border-transparent disabled:text-[var(--ink)] disabled:cursor-default disabled:w-auto disabled:max-w-[48px] disabled:px-0"
       />
-      <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
-        %
-      </span>
-    </>
+      <span className="type-figure text-[13px] text-[var(--muted)]">%</span>
+    </span>
   );
 }

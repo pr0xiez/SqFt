@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { ArrowRightIcon, BuildingsIcon } from "@/components/ui/icons";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Stat } from "@/components/ui/Stat";
 import { isSuperAdmin } from "@/lib/auth/superAdmin";
 import { countOrgsForAdmin } from "@/lib/repositories/organizationRepo";
 import { countUsersForAdmin } from "@/lib/repositories/userRepo";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Admin · SqFt" };
+export const metadata = { title: "Admin" };
 
 export default async function AdminDashboardPage() {
   // Defense-in-depth: the (admin) layout renders ForbiddenPanel for
@@ -19,37 +22,39 @@ export default async function AdminDashboardPage() {
   ]);
 
   return (
-    <div className="max-w-[960px] mx-auto px-4 py-8">
-      <h1 className="text-[24px] font-[700] tracking-[-0.02em] mb-1">Admin</h1>
-      <p className="text-[13px] text-[var(--muted)] mb-6">
-        Operator console for the SqFt platform.
-      </p>
+    <div className="max-w-[960px]">
+      <PageHeader
+        title="Admin"
+        meta="Operator console for the SqFt platform."
+      />
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <Stat label="Organizations" value={orgCount} />
-        <Stat label="Users" value={userCount} />
+      <div className="card grid grid-cols-2 overflow-hidden mb-6">
+        <div className="px-5 py-5 md:px-6 md:py-6 border-r border-[var(--line)]">
+          <Stat label="Organizations" value={orgCount} />
+        </div>
+        <div className="px-5 py-5 md:px-6 md:py-6">
+          <Stat label="Users" value={userCount} />
+        </div>
       </div>
 
       <Link
         href="/admin/orgs"
-        className="block border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] p-4 hover:bg-[var(--surface-2)]"
+        className="group card flex items-center gap-4 p-5 md:p-6 no-underline text-[var(--ink)] transition-colors hover:bg-[var(--hover)]"
       >
-        <div className="text-[15px] font-[600]">Organizations →</div>
-        <div className="text-[13px] text-[var(--muted)]">
-          View every tenant, create manual orgs, and manage members.
-        </div>
+        <span className="flex items-center justify-center size-10 shrink-0 rounded-[var(--r)] bg-[var(--surface-2)] text-[var(--ink-2)]">
+          <BuildingsIcon aria-hidden="true" className="size-5" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block type-heading">Organizations</span>
+          <span className="block mt-0.5 text-[14px] text-[var(--muted)]">
+            View every tenant, create manual orgs, and manage members.
+          </span>
+        </span>
+        <ArrowRightIcon
+          aria-hidden="true"
+          className="size-5 shrink-0 text-[var(--muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--ink)]"
+        />
       </Link>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="border border-[var(--line)] rounded-[var(--r)] bg-[var(--surface)] p-4">
-      <div className="text-[10px] font-[var(--font-mono)] tracking-[.06em] uppercase text-[var(--muted)] mb-1">
-        {label}
-      </div>
-      <div className="text-[28px] font-[700] tracking-[-0.02em]">{value}</div>
     </div>
   );
 }

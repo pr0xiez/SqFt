@@ -33,33 +33,45 @@ export function NavMenu({
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex items-center gap-3 px-4 py-2.5 rounded-[var(--r)]",
-          "text-[13px] transition-colors duration-150",
+          "group flex items-center gap-3 h-10 md:h-9 px-2.5 rounded-[var(--r)] no-underline",
+          "text-[14.5px] md:text-[14px] transition-[background-color,color,box-shadow] duration-150",
           active
-            ? "text-[var(--accent)] font-[600] bg-[var(--surface-2)]"
-            : "text-[var(--ink)] hover:bg-[var(--surface-2)]"
+            ? "bg-[var(--surface)] text-[var(--ink)] font-[620] shadow-[inset_0_0_0_1px_var(--line)]"
+            : "text-[var(--ink-2)] font-[500] hover:bg-[var(--hover)] hover:text-[var(--ink)]"
         )}
       >
-        <NavIcon icon={item.icon} active={active} size={18} />
-        <span>{item.label}</span>
+        <span
+          className={cn(
+            "flex",
+            active
+              ? "text-[var(--accent)]"
+              : "text-[var(--muted)] group-hover:text-[var(--ink-2)]"
+          )}
+        >
+          <NavIcon icon={item.icon} active={active} size={19} />
+        </span>
+        <span className="truncate">{item.label}</span>
       </Link>
     );
   }
 
   return (
     <nav aria-label="Main navigation" className="flex flex-col gap-0.5">
-      {groups.map((group) => (
-        <div key={group.id}>
-          <div className="font-[var(--font-mono)] text-[9px] tracking-[var(--ls-cap)] uppercase text-[var(--muted)] px-4 pt-3 pb-1">
-            {group.label}
-          </div>
+      {groups.map((group, i) => (
+        <div key={group.id} className="flex flex-col gap-0.5">
+          {/* The first group (Overview) reads fine without a heading. */}
+          {i > 0 && (
+            <div className="px-2.5 pt-4 pb-1 text-[12.5px] font-[560] text-[var(--muted)]">
+              {group.label}
+            </div>
+          )}
           {group.items.map((item) => (
             <Row key={item.href} item={item} />
           ))}
         </div>
       ))}
       {(canSeeSettings(role) || isSuperAdmin) && (
-        <div className="mt-2 pt-2 border-t border-[var(--line)]">
+        <div className="mt-3 pt-3 border-t border-[var(--line)] flex flex-col gap-0.5">
           {canSeeSettings(role) && <Row item={SETTINGS_ITEM} />}
           {isSuperAdmin && <Row item={ADMIN_ITEM} />}
         </div>

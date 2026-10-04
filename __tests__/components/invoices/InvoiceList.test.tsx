@@ -95,7 +95,7 @@ describe("InvoiceListView", () => {
     await waitFor(() => expect(lastUrl).toContain("status=paid"));
   });
 
-  it("marks overdue partial rows with accent color but not paid rows", async () => {
+  it("marks overdue partial rows with accent-ink color but not paid rows", async () => {
     // Use a past date that is unambiguously overdue in any timezone.
     // Derive the expected rendered text the same way the component does so the
     // assertion is timezone-safe.
@@ -157,16 +157,16 @@ describe("InvoiceListView", () => {
     );
     expect(dueDateCells.length).toBeGreaterThan(0);
 
-    // The overdue partial row's cell should carry the accent class
+    // The overdue partial row's cell should carry the accent-ink class
     const overdueDueCell = dueDateCells.find((el) =>
-      el.className.includes("text-[var(--accent)]")
+      el.className.includes("text-[var(--accent-ink)]")
     );
     expect(overdueDueCell).toBeDefined();
 
-    // The paid row's due cell should NOT carry the accent class (muted instead)
+    // The paid row's due cell should NOT carry the accent-ink class (muted instead)
     const paidDueCell = dueDateCells.find(
       (el) =>
-        !el.className.includes("text-[var(--accent)]") &&
+        !el.className.includes("text-[var(--accent-ink)]") &&
         el.className.includes("text-[var(--muted)]")
     );
     expect(paidDueCell).toBeDefined();
@@ -227,8 +227,10 @@ describe("InvoiceListView", () => {
     );
     expect(dueDateCell).toBeDefined();
 
-    // Due today → NOT overdue: no accent class, no title="Overdue"
-    expect(dueDateCell?.className.includes("text-[var(--accent)]")).toBe(false);
+    // Due today → NOT overdue: no accent-ink class, no title="Overdue"
+    expect(dueDateCell?.className.includes("text-[var(--accent-ink)]")).toBe(
+      false
+    );
     expect(dueDateCell?.getAttribute("title")).not.toBe("Overdue");
 
     vi.useRealTimers();
@@ -289,8 +291,10 @@ describe("InvoiceListView", () => {
     );
     expect(dueDateCell).toBeDefined();
 
-    // Due yesterday → overdue: accent class present, title="Overdue"
-    expect(dueDateCell?.className.includes("text-[var(--accent)]")).toBe(true);
+    // Due yesterday → overdue: accent-ink class present, title="Overdue"
+    expect(dueDateCell?.className.includes("text-[var(--accent-ink)]")).toBe(
+      true
+    );
     expect(dueDateCell?.getAttribute("title")).toBe("Overdue");
 
     vi.useRealTimers();

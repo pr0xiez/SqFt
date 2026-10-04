@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { ArrowCounterClockwiseIcon } from "@/components/ui/icons";
 import { useReviseEstimate } from "@/lib/hooks/useEstimates";
 
 export function ReviseButton({ estimateId }: { estimateId: number }) {
@@ -18,13 +20,14 @@ export function ReviseButton({ estimateId }: { estimateId: number }) {
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ink"
       onClick={onClick}
       disabled={revise.isPending || revise.isSuccess}
-      className="py-2.5 px-4 bg-[var(--accent)] text-white border-0 rounded-md text-[13px] font-[600] inline-flex items-center gap-1.5 disabled:opacity-60"
     >
+      <ArrowCounterClockwiseIcon aria-hidden="true" />
       {revise.isPending ? "Revising…" : "Revise"}
-    </button>
+    </Button>
   );
 }

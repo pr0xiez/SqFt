@@ -65,37 +65,37 @@ export function estimateStatusTone(status: EstimateStatus | string): {
   switch (status) {
     case "approved":
       return {
-        fg: "var(--sage)",
-        border: "color-mix(in srgb, var(--sage) 50%, transparent)",
-        bg: "color-mix(in srgb, var(--sage) 10%, transparent)",
+        fg: "var(--ok)",
+        border: "color-mix(in oklab, var(--ok) 50%, transparent)",
+        bg: "color-mix(in oklab, var(--ok) 10%, transparent)",
         label: "Approved",
       };
     case "sent":
       return {
-        fg: "var(--gold)",
-        border: "color-mix(in srgb, var(--gold) 45%, transparent)",
-        bg: "color-mix(in srgb, var(--gold) 10%, transparent)",
+        fg: "var(--warn)",
+        border: "color-mix(in oklab, var(--warn) 45%, transparent)",
+        bg: "color-mix(in oklab, var(--warn) 10%, transparent)",
         label: "Sent",
       };
     case "viewed":
       return {
-        fg: "var(--gold)",
-        border: "color-mix(in srgb, var(--gold) 65%, transparent)",
-        bg: "color-mix(in srgb, var(--gold) 14%, transparent)",
+        fg: "var(--warn)",
+        border: "color-mix(in oklab, var(--warn) 65%, transparent)",
+        bg: "color-mix(in oklab, var(--warn) 14%, transparent)",
         label: "Viewed",
       };
     case "declined":
       return {
-        fg: "var(--accent)",
-        border: "color-mix(in srgb, var(--accent) 45%, transparent)",
-        bg: "color-mix(in srgb, var(--accent) 9%, transparent)",
+        fg: "var(--accent-ink)",
+        border: "color-mix(in oklab, var(--accent) 45%, transparent)",
+        bg: "color-mix(in oklab, var(--accent) 9%, transparent)",
         label: "Declined",
       };
     default:
       return {
-        fg: "var(--muted)",
+        fg: "var(--ink-2)",
         border: "var(--line)",
-        bg: "transparent",
+        bg: "var(--surface-2)",
         label: "Draft",
       };
   }

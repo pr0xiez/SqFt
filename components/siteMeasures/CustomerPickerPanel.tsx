@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { buttonClasses } from "@/components/ui/Button";
+import { XIcon } from "@/components/ui/icons";
+import { Tag } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/cn";
 import type { Customer } from "@/lib/hooks/useCustomers";
 
@@ -74,32 +77,34 @@ export function CustomerPickerPanel({
       role="dialog"
       aria-label="Change customer"
       style={{ top, left, width: PANEL_WIDTH }}
-      className="fixed z-[601] bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg overflow-hidden"
+      className="fixed z-[300] max-w-[calc(100vw-24px)] bg-[var(--paper)] border border-[var(--line)] rounded-[var(--r)] shadow-[var(--shadow-md)] overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--line)] bg-[var(--surface-2)]">
-        <div className="font-[var(--font-mono)] text-[11px] uppercase tracking-[.06em] text-[var(--muted)]">
-          Change customer
-        </div>
+      <div className="flex items-center justify-between gap-3 pl-4 pr-2 py-2 border-b border-[var(--line)]">
+        <div className="text-[14.5px] font-[600]">Change customer</div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="bg-transparent border-none text-[var(--muted)] cursor-pointer text-[14px] leading-none hover:text-[var(--ink)] px-1"
+          className={buttonClasses({
+            variant: "ghost",
+            size: "icon-sm",
+          })}
         >
-          ✕
+          <XIcon aria-hidden="true" />
         </button>
       </div>
 
       {/* Search */}
-      <div className="px-3.5 py-2.5 border-b border-[var(--line)]">
+      <div className="px-4 py-3 border-b border-[var(--line)]">
         <input
           ref={searchRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name, phone, email…"
-          className="w-full font-[var(--font-mono)] text-[12px] py-[7px] px-2.5 border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] rounded-[6px] tracking-[.01em] placeholder:text-[var(--muted)] focus:outline-none focus:border-[var(--ink-2)]"
+          aria-label="Search customers"
+          className="field min-h-[36px] h-[36px]"
         />
       </div>
 
@@ -119,22 +124,18 @@ export function CustomerPickerPanel({
                   onClose();
                 }}
                 className={cn(
-                  "w-full flex flex-col items-start gap-0.5 px-3.5 py-2.5 border-b border-[var(--line)] last:border-b-0 text-left transition-colors duration-[120ms]",
+                  "w-full flex flex-col items-start gap-0.5 px-4 py-2.5 min-h-[44px] border-b border-[var(--line)] last:border-b-0 text-left transition-colors duration-150",
                   isCurrent
-                    ? "bg-[rgba(61,107,74,0.06)] border-l-[3px] border-l-[var(--sage)] cursor-default"
-                    : "hover:bg-[var(--surface-2)] border-l-[3px] border-l-transparent cursor-pointer"
+                    ? "bg-[var(--surface-2)] cursor-default"
+                    : "hover:bg-[var(--hover)] cursor-pointer"
                 )}
               >
-                <span className="text-[13px] font-[600] tracking-[-0.01em]">
+                <span className="flex items-center gap-2 text-[14px] font-[600] tracking-[-0.01em]">
                   {c.name}
-                  {isCurrent ? (
-                    <span className="ml-2 font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] font-[400]">
-                      current
-                    </span>
-                  ) : null}
+                  {isCurrent ? <Tag>current</Tag> : null}
                 </span>
                 {c.phone ? (
-                  <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+                  <span className="type-figure text-[13px] text-[var(--muted)]">
                     {c.phone}
                   </span>
                 ) : null}
@@ -142,7 +143,7 @@ export function CustomerPickerPanel({
             );
           })
         ) : (
-          <div className="px-3.5 py-5 text-center font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+          <div className="px-4 py-5 text-center text-[13.5px] text-[var(--muted)]">
             {query.trim() ? `No customers match "${query}".` : "No customers."}
           </div>
         )}

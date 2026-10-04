@@ -64,9 +64,9 @@ export function WorkspaceSettingsView({ initial }: Props) {
   return (
     <>
       <Masthead companyName={form.name} licenseNumber={initial.licenseNumber} />
-      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-14 max-w-[1180px] mx-auto px-12 pt-10 pb-[200px]">
+      <div className="grid grid-cols-1 md:grid-cols-[170px_minmax(0,1fr)] gap-8 lg:gap-12 pb-[120px]">
         <Toc />
-        <main className="min-w-0">
+        <div className="min-w-0">
           <IdentitySection form={form} onChange={onChange} />
           <BrandSection
             form={form}
@@ -74,7 +74,7 @@ export function WorkspaceSettingsView({ initial }: Props) {
             onChange={onChange}
           />
           <DefaultsSection form={form} onChange={onChange} />
-        </main>
+        </div>
       </div>
       <SaveBar
         dirty={dirty}

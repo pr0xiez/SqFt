@@ -13,7 +13,14 @@ import {
   EventFormPanel,
 } from "@/components/schedule/EventFormPanel";
 import { Button } from "@/components/ui/Button";
-import { CrewAvatar } from "@/components/ui/CrewAvatar";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  PlusIcon,
+} from "@/components/ui/icons";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { useAssignableUsers } from "@/lib/hooks/useAssignableUsers";
@@ -40,17 +47,14 @@ import {
 } from "@/lib/schedule/grid";
 import { addDays, dateStr, getWeekStart, todayStr } from "@/lib/utils";
 
-const EVENT_BG: Record<string, string> = {
-  job: "bg-[var(--accent)]",
-  visit: "bg-[var(--gold)]",
-  other: "bg-[var(--sage)]",
+// Event blocks: an opaque surface with the type tint layered on top, so the
+// hour lines never show through, and a 3px type-coloured left edge.
+const EVENT_BLOCK: Record<string, string> = {
+  job: "[background-image:linear-gradient(var(--accent-wash),var(--accent-wash))] border-l-[var(--accent)]",
+  visit:
+    "[background-image:linear-gradient(color-mix(in_oklab,var(--warn)_16%,transparent),color-mix(in_oklab,var(--warn)_16%,transparent))] border-l-[var(--warn)]",
+  other: "bg-[var(--surface-2)] border-l-[var(--line-2)]",
 };
-
-// Today-tint for the header cell. Layered as a gradient over the solid
-// surface color rather than a translucent background-color, so the cell stays
-// opaque against whatever sits behind it.
-const TODAY_HEADER_TINT =
-  "[background-image:linear-gradient(rgba(192,52,26,0.04),rgba(192,52,26,0.04))] [html[data-theme=dark]_&]:[background-image:linear-gradient(rgba(255,106,68,0.06),rgba(255,106,68,0.06))]";
 
 export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   const [weekStart, setWeekStart] = useState<Date | null>(null);
@@ -168,7 +172,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   function scheduleCandidate(c: SchedulableCandidate) {
     openNewEvent(today, {
       type: "job",
-      title: `Install — ${c.customerName}`,
+      title: `Install: ${c.customerName}`,
       customerId: c.customerId ?? undefined,
       estimateId: c.id,
     });
@@ -193,55 +197,53 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
 
   const weekLabel =
     days.length > 0
-      ? `Week of ${days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${days[days.length - 1].toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${days[days.length - 1].getFullYear()}`
+      ? `Week of ${days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${days[days.length - 1].toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${days[days.length - 1].getFullYear()}`
       : "";
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
-        <div>
-          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Schedule Manager
-          </h1>
-          <div className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mt-2">
-            {weekLabel}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            onClick={() =>
-              setWeekStart((d) => (d ? addDays(d, -daysToShow) : d))
-            }
-          >
-            ←
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setWeekStart(getWeekStart(new Date()))}
-          >
-            Today
-          </Button>
-          <Button
-            size="sm"
-            onClick={() =>
-              setWeekStart((d) => (d ? addDays(d, daysToShow) : d))
-            }
-          >
-            →
-          </Button>
-          {canEdit && (
+      <PageHeader
+        title="Schedule Manager"
+        meta={weekLabel || null}
+        actions={
+          <>
             <Button
-              variant="primary"
-              size="sm"
-              onClick={() => openNewEvent(today)}
+              size="icon-sm"
+              aria-label="Previous week"
+              onClick={() =>
+                setWeekStart((d) => (d ? addDays(d, -daysToShow) : d))
+              }
             >
-              + Add Event
+              <CaretLeftIcon aria-hidden="true" weight="bold" />
             </Button>
-          )}
-        </div>
-      </div>
+            <Button
+              size="sm"
+              onClick={() => setWeekStart(getWeekStart(new Date()))}
+            >
+              Today
+            </Button>
+            <Button
+              size="icon-sm"
+              aria-label="Next week"
+              onClick={() =>
+                setWeekStart((d) => (d ? addDays(d, daysToShow) : d))
+              }
+            >
+              <CaretRightIcon aria-hidden="true" weight="bold" />
+            </Button>
+            {canEdit && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => openNewEvent(today)}
+              >
+                <PlusIcon aria-hidden="true" />
+                Add Event
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* Unscheduled-jobs backlog */}
       {canEdit && (
@@ -269,7 +271,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
           classic-scrollbar platforms. The page (`<main>`) does the scrolling. */}
       <div
         className={cn(
-          "bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden",
+          "card overflow-hidden",
           crewFilter !== "all" && "cal-crew-focus"
         )}
       >
@@ -280,8 +282,8 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
           }}
         >
           {/* Header row */}
-          <div className="bg-[var(--surface-2)] border-b border-r border-[var(--line)] px-1.5 py-2 text-right">
-            <span className="font-[var(--font-mono)] text-[9px] text-[var(--muted)] uppercase tracking-[.06em]">
+          <div className="border-b border-r border-[var(--line)] px-1.5 py-2 text-right">
+            <span className="text-[12px] font-[500] text-[var(--muted)]">
               {days[0]?.toLocaleDateString("en-US", { month: "short" })}
             </span>
           </div>
@@ -293,19 +295,23 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                 key={ds}
                 type="button"
                 className={cn(
-                  "px-2.5 py-2 text-center border-b border-l border-[var(--line)] bg-[var(--surface)] transition-colors w-full",
-                  canEdit && "cursor-pointer hover:bg-[var(--surface-2)]",
-                  isToday && TODAY_HEADER_TINT
+                  "px-2 py-2 text-center border-b border-l border-[var(--line)] transition-colors w-full",
+                  canEdit && "cursor-pointer hover:bg-[var(--hover)]"
                 )}
                 onClick={() => canEdit && openNewEvent(ds)}
               >
-                <div className="font-[var(--font-mono)] text-[9px] text-[var(--muted)] uppercase tracking-[.06em] mb-0.5">
+                <div
+                  className={cn(
+                    "text-[12.5px] font-[500] mb-0.5",
+                    isToday ? "text-[var(--accent-ink)]" : "text-[var(--muted)]"
+                  )}
+                >
                   {d.toLocaleDateString("en-US", { weekday: "short" })}
                 </div>
                 <div
                   className={cn(
-                    "text-[18px] font-[600] leading-tight tracking-[-0.01em]",
-                    isToday ? "text-[var(--accent)]" : "text-[var(--ink)]"
+                    "type-figure text-[18px] font-[600] leading-tight",
+                    isToday ? "text-[var(--accent-ink)]" : "text-[var(--ink)]"
                   )}
                 >
                   {d.getDate()}
@@ -322,7 +328,10 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
             {GRID_HOURS.map((hour) => (
               <div
                 key={hour}
-                className="absolute right-2 font-[var(--font-mono)] text-[9px] text-[var(--muted)] -translate-y-1/2"
+                className={cn(
+                  "absolute right-2 type-figure text-[12px] leading-none text-[var(--muted)]",
+                  hour === START_HOUR ? "translate-y-1" : "-translate-y-1/2"
+                )}
                 style={{ top: (hour - START_HOUR) * PX_PER_HOUR }}
               >
                 {hour % 12 === 0 ? 12 : hour % 12}
@@ -350,7 +359,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                   "relative border-l border-[var(--line)]",
                   canEdit && "cursor-pointer",
                   isToday &&
-                    "bg-[rgba(192,52,26,0.02)] [html[data-theme=dark]_&]:bg-[rgba(255,106,68,0.04)]"
+                    "bg-[color-mix(in_oklab,var(--accent)_3%,transparent)]"
                 )}
                 style={{ height: BODY_HEIGHT }}
                 onClick={(e) => {
@@ -387,7 +396,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                     style={{ top: nowTop }}
                   >
                     <div className="border-t-2 border-[var(--accent)]" />
-                    <div className="absolute left-0 -top-[3px] w-[6px] h-[6px] rounded-full bg-[var(--accent)]" />
+                    <div className="absolute -left-[4px] -top-[3px] size-2 rounded-full bg-[var(--accent)]" />
                   </div>
                 )}
                 {/* Events */}
@@ -409,7 +418,7 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                       <button
                         key={ev.id}
                         type="button"
-                        title={`${ev.title} · ${ev.startTime}–${ev.endTime}`}
+                        title={`${ev.title} · ${ev.startTime}-${ev.endTime}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (canEdit) openEditEvent(ev);
@@ -424,39 +433,33 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
                         className={cn(
                           "cal-event",
                           matches && "crew-match",
-                          "rounded-[4px] px-[7px] py-[5px] text-left text-white overflow-hidden cursor-pointer border-l-[3px] border-l-black/20 transition-[filter,box-shadow,opacity] duration-[120ms] hover:brightness-105 hover:z-10 hover:shadow-[var(--shadow)]",
-                          EVENT_BG[ev.type] ?? EVENT_BG.other
+                          "rounded-[var(--r-in)] px-[7px] py-[5px] text-left text-[var(--ink)] bg-[var(--surface)] overflow-hidden cursor-pointer border-l-[3px] transition-[opacity,outline-color] duration-[120ms] outline outline-1 outline-transparent -outline-offset-1 hover:outline-[var(--line-2)] hover:z-10",
+                          EVENT_BLOCK[ev.type] ?? EVENT_BLOCK.other
                         )}
                       >
-                        <div className="text-[11px] font-[600] leading-[1.2] tracking-[-0.01em] truncate">
-                          {clippedStart && "↑ "}
-                          {clippedEnd && !clippedStart && "↓ "}
-                          {ev.title}
+                        <div className="flex items-center gap-1 text-[12.5px] font-[600] leading-[1.2] tracking-[-0.01em]">
+                          {clippedStart && (
+                            <ArrowUpIcon
+                              aria-hidden="true"
+                              className="size-3 shrink-0 text-[var(--muted)]"
+                            />
+                          )}
+                          {clippedEnd && !clippedStart && (
+                            <ArrowDownIcon
+                              aria-hidden="true"
+                              className="size-3 shrink-0 text-[var(--muted)]"
+                            />
+                          )}
+                          <span className="truncate">{ev.title}</span>
                         </div>
                         {height > 30 && (
-                          <div className="font-[var(--font-mono)] text-[9px] opacity-85 mt-0.5 whitespace-nowrap">
-                            {ev.startTime}–{ev.endTime}
+                          <div className="type-figure text-[12px] text-[var(--ink-2)] mt-0.5 whitespace-nowrap truncate">
+                            {ev.startTime}-{ev.endTime}
                           </div>
                         )}
                         {height > 46 && ev.assignees.length > 0 && (
-                          <div className="font-[var(--font-mono)] text-[9px] opacity-75 mt-px flex items-center gap-1 truncate">
-                            <span className="flex items-center gap-[2px] flex-shrink-0">
-                              {ev.assignees.slice(0, 3).map((m) => (
-                                <CrewAvatar
-                                  key={m.id}
-                                  name={m.name}
-                                  size="sm"
-                                />
-                              ))}
-                              {ev.assignees.length > 3 && (
-                                <span className="ml-[2px]">
-                                  +{ev.assignees.length - 3}
-                                </span>
-                              )}
-                            </span>
-                            <span className="truncate">
-                              {ev.assignees.map((m) => m.name).join(" · ")}
-                            </span>
+                          <div className="text-[12px] text-[var(--muted)] mt-0.5 truncate">
+                            {ev.assignees.map((m) => m.name).join(" · ")}
                           </div>
                         )}
                       </button>

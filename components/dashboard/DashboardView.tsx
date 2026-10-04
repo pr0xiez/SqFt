@@ -8,6 +8,7 @@ import { KpiPipeline } from "@/components/dashboard/KpiPipeline";
 import { RevenueCard } from "@/components/dashboard/RevenueCard";
 import { ScheduleCard } from "@/components/dashboard/ScheduleCard";
 import { SiteMeasuresTable } from "@/components/dashboard/SiteMeasuresTable";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useDashboardKPIs } from "@/lib/hooks/useDashboardKPIs";
 import { useDashboardRevenue } from "@/lib/hooks/useDashboardRevenue";
 import { useEvents } from "@/lib/hooks/useEvents";
@@ -48,42 +49,33 @@ export function DashboardView() {
 
   return (
     <>
-      {/* Page header */}
-      <div className="mb-8 pb-6 border-b border-[var(--line)]">
-        <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.06em] uppercase mb-2 flex items-center gap-2.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full animate-pulse"
-            style={{
-              background: "var(--sage)",
-              boxShadow: "0 0 0 4px rgba(61,107,74,.12)",
-            }}
-          />
-          {dateLabel}
-        </div>
-        <h1 className="text-[40px] font-[700] leading-[1.02] tracking-[-0.03em]">
-          {greeting},{" "}
-          <span className="font-[400] text-[var(--ink-2)]">{firstName}.</span>
-        </h1>
-      </div>
+      <PageHeader
+        kicker={<span suppressHydrationWarning>{dateLabel || "\u00a0"}</span>}
+        title={
+          <>
+            {greeting || "Hello"},{" "}
+            <span className="text-[var(--muted)] font-[560]">{firstName}.</span>
+          </>
+        }
+      />
 
-      {/* KPI Pipeline */}
-      {kpis && <KpiPipeline kpis={kpis} />}
+      {kpis ? (
+        <KpiPipeline kpis={kpis} />
+      ) : (
+        <div className="card h-[130px] mb-6 animate-pulse" aria-hidden="true" />
+      )}
 
-      {/* Main grid: schedule (full-width since inbox is removed) */}
-      <div className="mb-6">
+      <div className="grid gap-6 mb-6 lg:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] items-start">
         <ScheduleCard events={events} />
-      </div>
-
-      {/* Ops strip: revenue + crew */}
-      <div
-        className="grid gap-6 mb-6"
-        style={{ gridTemplateColumns: "2fr 1fr" }}
-      >
-        {revenue && <RevenueCard revenue={revenue} />}
         <CrewCard events={events} />
       </div>
 
-      {/* Site measures table */}
+      {revenue && (
+        <div className="mb-6">
+          <RevenueCard revenue={revenue} />
+        </div>
+      )}
+
       <SiteMeasuresTable siteMeasures={recentEstimates} />
     </>
   );

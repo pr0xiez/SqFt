@@ -4,7 +4,7 @@ import { InvoiceListView } from "@/components/invoices/InvoiceList";
 import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Invoices — SqFt" };
+export const metadata = { title: "Invoices" };
 
 export default async function InvoicesPage() {
   const session = await requireSession();

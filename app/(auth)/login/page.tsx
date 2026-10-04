@@ -3,6 +3,13 @@
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { type FormEvent, useState } from "react";
+import { buttonClasses } from "@/components/ui/Button";
+import {
+  ArrowRightIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  WarningCircleIcon,
+} from "@/components/ui/icons";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,31 +53,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full max-w-[380px]">
-      <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] tracking-[.04em] mb-[10px]">
+    <div className="w-full max-w-[400px]">
+      <p className="text-[15px] font-[500] text-[var(--muted)] mb-3">
         Welcome back
-      </div>
-
-      <h1 className="text-[34px] font-[700] tracking-[-0.025em] leading-[1.05] mb-2">
-        Sign in to <span className="font-[400] text-[var(--ink-2)]">SqFt</span>
+      </p>
+      <h1 className="type-display text-[clamp(2.2rem,1.8rem+1.6vw,3rem)] mb-3">
+        Sign in to SqFt
       </h1>
-
-      <p className="font-[var(--font-mono)] text-[12px] text-[var(--muted)] mb-8">
+      <p className="text-[16px] text-[var(--ink-2)] mb-9">
         Flooring site measures, jobs, and crews.
       </p>
 
-      <form onSubmit={handleSubmit} autoComplete="on" noValidate>
+      <form
+        onSubmit={handleSubmit}
+        autoComplete="on"
+        noValidate
+        className="flex flex-col gap-5"
+      >
         {error && (
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)] mb-[14px] px-3 py-2 border border-[var(--accent)] border-l-[3px] rounded-[5px] bg-[rgba(192,52,26,0.04)] dark:bg-[rgba(255,106,68,0.06)] animate-[slideDown_0.2s_ease_both] tracking-[.02em]">
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 px-3.5 py-3 rounded-[var(--r)] bg-[var(--accent-wash)] text-[14px] font-[560] text-[var(--accent-ink)] animate-[slideDown_0.24s_var(--ease)_both]"
+          >
+            <WarningCircleIcon
+              aria-hidden="true"
+              className="size-[18px] shrink-0 mt-px"
+            />
             {error}
           </div>
         )}
 
-        <div className="mb-[18px]">
-          <label
-            htmlFor="email"
-            className="block font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-2"
-          >
+        <div>
+          <label htmlFor="email" className="field-label">
             Email
           </label>
           <input
@@ -81,15 +95,13 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@yourcompany.com"
-            className="w-full text-[15px] border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] px-[14px] py-[11px] rounded-[6px] transition-[border-color] duration-150 focus:outline-none focus:border-[var(--ink-2)] placeholder:text-[var(--muted)]"
+            aria-invalid={error ? true : undefined}
+            className="field h-12 text-[16px] bg-[var(--surface)]"
           />
         </div>
 
-        <div className="mb-[18px]">
-          <label
-            htmlFor="password"
-            className="block font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-2"
-          >
+        <div>
+          <label htmlFor="password" className="field-label">
             Password
           </label>
           <div className="relative">
@@ -100,16 +112,22 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full text-[15px] border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] pl-[14px] pr-[54px] py-[11px] rounded-[6px] transition-[border-color] duration-150 focus:outline-none focus:border-[var(--ink-2)] placeholder:text-[var(--muted)]"
+              aria-invalid={error ? true : undefined}
+              className="field h-12 text-[16px] pr-14 bg-[var(--surface)]"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[10px] uppercase tracking-[.04em] text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)] transition-colors duration-150 bg-transparent border-0 cursor-pointer px-2 py-1.5 rounded-[4px]"
               aria-label="Show password"
+              aria-pressed={showPassword}
+              title={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-9 rounded-[var(--r-in)] flex items-center justify-center text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--hover)] transition-colors cursor-pointer"
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword ? (
+                <EyeSlashIcon aria-hidden="true" className="size-[18px]" />
+              ) : (
+                <EyeIcon aria-hidden="true" className="size-[18px]" />
+              )}
             </button>
           </div>
         </div>
@@ -117,21 +135,27 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full font-[var(--font-mono)] text-[12px] font-[500] tracking-[.04em] uppercase py-[13px] bg-[var(--ink)] text-[var(--bg)] border-none cursor-pointer rounded-[6px] transition-colors duration-150 hover:bg-[var(--ink-2)] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed mt-[6px] relative"
+          className={buttonClasses({
+            variant: "primary",
+            size: "lg",
+            className: "group w-full mt-2 relative",
+          })}
         >
-          {loading ? (
-            <span className="invisible">Sign in →</span>
-          ) : (
-            <>
-              Sign in{" "}
-              <span className="ml-1.5 inline-block transition-transform duration-150 group-hover:translate-x-0.5">
-                →
-              </span>
-            </>
-          )}
+          <span
+            className={
+              loading ? "invisible" : "inline-flex items-center gap-2.5"
+            }
+          >
+            Sign in
+            <ArrowRightIcon
+              aria-hidden="true"
+              className="transition-transform duration-300 ease-[var(--ease)] group-hover:translate-x-[3px]"
+            />
+          </span>
           {loading && (
             <span className="absolute inset-0 flex items-center justify-center">
-              <span className="w-4 h-4 border-2 border-[var(--bg)] border-t-transparent rounded-full animate-spin" />
+              <span className="size-[18px] border-2 border-[var(--on-accent)] border-t-transparent rounded-full animate-spin" />
+              <span className="sr-only">Signing in</span>
             </span>
           )}
         </button>

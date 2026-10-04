@@ -1,3 +1,5 @@
+import { CheckCircleIcon, XCircleIcon } from "@/components/ui/icons";
+
 interface Props {
   status: "approved" | "declined";
   approvedAt?: Date | string | null;
@@ -24,15 +26,17 @@ export function EstimateLockBanner({
         })
       : "";
     return (
-      <div className="mb-6 flex items-center gap-3 p-4 rounded-md bg-[rgba(61,107,74,0.10)] border border-[var(--sage)]">
-        <div className="w-8 h-8 rounded-full bg-[var(--sage)] text-white flex items-center justify-center font-[700]">
-          ✓
-        </div>
-        <div className="flex-1">
-          <div className="text-[14px] font-[600] text-[var(--sage)]">
+      <div className="mb-6 flex items-start gap-3 px-4 py-3.5 rounded-[var(--r)] bg-[color-mix(in_oklab,var(--ok)_10%,transparent)] border border-[color-mix(in_oklab,var(--ok)_35%,transparent)]">
+        <CheckCircleIcon
+          aria-hidden="true"
+          weight="fill"
+          className="size-[22px] shrink-0 text-[var(--ok)]"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-[600] text-[var(--ok)]">
             Approved{date ? ` on ${date}` : ""}
           </div>
-          <div className="text-[12px] text-[var(--ink-2)]">
+          <div className="mt-0.5 text-[13.5px] text-[var(--ink-2)]">
             This estimate is locked. Use Revise to make changes.
           </div>
         </div>
@@ -57,22 +61,24 @@ export function EstimateLockBanner({
     : `Declined by customer${date ? ` on ${date}` : ""}`;
 
   return (
-    <div className="mb-6 p-4 rounded-md bg-[rgba(192,52,26,0.06)] border border-[var(--accent)]">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-[var(--accent)] text-white flex items-center justify-center font-[700]">
-          ✗
-        </div>
-        <div className="flex-1">
-          <div className="text-[14px] font-[600] text-[var(--accent)]">
+    <div className="mb-6 px-4 py-3.5 rounded-[var(--r)] bg-[var(--accent-wash)] border border-[color-mix(in_oklab,var(--accent-ink)_35%,transparent)]">
+      <div className="flex items-start gap-3">
+        <XCircleIcon
+          aria-hidden="true"
+          weight="fill"
+          className="size-[22px] shrink-0 text-[var(--accent-ink)]"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-[600] text-[var(--accent-ink)]">
             {heading}
           </div>
-          <div className="text-[12px] text-[var(--ink-2)]">
+          <div className="mt-0.5 text-[13.5px] text-[var(--ink-2)]">
             This estimate is locked. Use Revise to send a new version.
           </div>
         </div>
       </div>
       {!isSuperseded && declineReason ? (
-        <div className="mt-3 pl-11 text-[16px] italic text-[var(--ink)]">
+        <div className="mt-2.5 pl-[34px] text-[15px] italic text-[var(--ink)]">
           "{declineReason}"
         </div>
       ) : null}

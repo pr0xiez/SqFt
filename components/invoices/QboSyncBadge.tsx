@@ -3,11 +3,17 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect } from "react";
+import {
+  ArrowsClockwiseIcon,
+  ProhibitIcon,
+  WarningCircleIcon,
+} from "@/components/ui/icons";
+import { Tag } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import type { InvoiceDetail } from "@/lib/hooks/useInvoices";
 import { useQboSyncNow } from "@/lib/hooks/useQbo";
 
-/** Poll fast while a just-queued sync settles, then back off, then stop —
+/** Poll fast while a just-queued sync settles, then back off, then stop:
  *  the cron sweeper owns anything that takes longer than this window. */
 const POLL_FAST_MS = 2_500;
 const POLL_SLOW_MS = 10_000;
@@ -54,70 +60,63 @@ export function QboSyncBadge({
 
   if (!qboSync) return null;
 
-  const base =
-    "self-center inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[.05em] px-2 py-0.5 rounded-full";
+  const inlineAction =
+    "underline underline-offset-2 font-[600] hover:no-underline disabled:opacity-50";
 
   if (qboSync.state === "synced") {
     return (
-      <span
-        className={`${base} bg-[var(--surface-2)] text-[var(--sage)]`}
+      <Tag
+        tone={qboSync.lastError ? "pending" : "ok"}
         title={qboSync.lastError ?? "This invoice is synced to QuickBooks"}
       >
         {qboSync.lastError
           ? "QuickBooks · synced with warning"
           : "QuickBooks ✓"}
-      </span>
+      </Tag>
     );
   }
 
   if (qboSync.state === "void_synced") {
     return (
-      <span
-        className={`${base} bg-[var(--surface-2)] text-[var(--muted)]`}
-        title="This invoice is voided in QuickBooks"
-      >
+      <Tag icon={ProhibitIcon} title="This invoice is voided in QuickBooks">
         QuickBooks · voided
-      </span>
+      </Tag>
     );
   }
 
   if (qboSync.state === "pending") {
     return (
-      <span
-        className={`${base} bg-[var(--surface-2)] text-[var(--muted)]`}
-        title="Waiting to sync to QuickBooks"
-      >
+      <Tag icon={ArrowsClockwiseIcon} title="Waiting to sync to QuickBooks">
         QuickBooks · syncing…
-      </span>
+      </Tag>
     );
   }
 
   if (qboSync.state === "auth_required") {
     return (
-      <span
-        className={`${base} bg-[var(--surface-2)] text-[var(--accent)]`}
-        title="The QuickBooks connection needs to be reauthorized — this sync is held until then"
+      <Tag
+        tone="bad"
+        icon={WarningCircleIcon}
+        title="The QuickBooks connection needs to be reauthorized. This sync is held until then"
       >
         QuickBooks · reconnect
-        <Link
-          href="/settings/integrations"
-          className="underline normal-case tracking-normal"
-        >
+        <Link href="/settings/integrations" className={`ml-1 ${inlineAction}`}>
           Open settings
         </Link>
-      </span>
+      </Tag>
     );
   }
 
   return (
-    <span
-      className={`${base} bg-[var(--surface-2)] text-[var(--accent)]`}
+    <Tag
+      tone="bad"
+      icon={WarningCircleIcon}
       title={qboSync.lastError ?? "QuickBooks sync failed"}
     >
       QuickBooks · failed
       <button
         type="button"
-        className="underline normal-case tracking-normal"
+        className={`ml-1 ${inlineAction}`}
         disabled={syncNow.isPending}
         onClick={() =>
           syncNow.mutate(undefined, {
@@ -128,6 +127,6 @@ export function QboSyncBadge({
       >
         {syncNow.isPending ? "Retrying…" : "Retry"}
       </button>
-    </span>
+    </Tag>
   );
 }

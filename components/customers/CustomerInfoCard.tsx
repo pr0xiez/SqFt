@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { SourceBadge } from "@/components/ui/SourceBadge";
+import { useId, useState } from "react";
 
 interface Props {
   customer: {
@@ -24,73 +23,76 @@ export function CustomerInfoCard({ customer, onField }: Props) {
     customer.name.trim().split(/\s+/).slice(1).join(" ")
   );
 
+  const uid = useId();
+
   function saveName() {
     onField("name", `${firstName.trim()} ${lastName.trim()}`.trim());
   }
 
   return (
-    <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg p-6 mb-4">
-      <div className="flex items-end gap-3 mb-5">
-        <div className="grid grid-cols-2 gap-3 flex-1 min-w-0">
-          <div>
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
-              First name
-            </div>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              onBlur={saveName}
-              placeholder="Jordan"
-              className="w-full text-[14px] font-[600] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
-            />
-          </div>
-          <div>
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
-              Last name
-            </div>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              onBlur={saveName}
-              placeholder="Henderson"
-              className="w-full text-[14px] font-[600] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
-            />
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+    <section className="card p-5 md:p-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
         <div>
-          <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
-            Phone
-          </div>
+          <label htmlFor={`${uid}-first`} className="field-label">
+            First name
+          </label>
           <input
+            id={`${uid}-first`}
+            type="text"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            onBlur={saveName}
+            placeholder="Jordan"
+            className="field"
+          />
+        </div>
+        <div>
+          <label htmlFor={`${uid}-last`} className="field-label">
+            Last name
+          </label>
+          <input
+            id={`${uid}-last`}
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            onBlur={saveName}
+            placeholder="Henderson"
+            className="field"
+          />
+        </div>
+        <div>
+          <label htmlFor={`${uid}-phone`} className="field-label">
+            Phone
+          </label>
+          <input
+            id={`${uid}-phone`}
             type="tel"
             defaultValue={customer.phone ?? ""}
             onBlur={(e) => onField("phone", e.target.value)}
-            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+            className="field"
           />
         </div>
         <div>
-          <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+          <label htmlFor={`${uid}-email`} className="field-label">
             Email
-          </div>
+          </label>
           <input
+            id={`${uid}-email`}
             type="email"
             defaultValue={customer.email ?? ""}
             onBlur={(e) => onField("email", e.target.value)}
-            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+            className="field"
           />
         </div>
         <div>
-          <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+          <label htmlFor={`${uid}-source`} className="field-label">
             Source
-          </div>
+          </label>
           <select
+            id={`${uid}-source`}
             defaultValue={customer.source}
             onChange={(e) => onField("source", e.target.value)}
-            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+            className="field"
           >
             <option value="phone">Phone call</option>
             <option value="online">Online lead</option>
@@ -100,17 +102,18 @@ export function CustomerInfoCard({ customer, onField }: Props) {
           </select>
         </div>
         <div className="md:col-span-2">
-          <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+          <label htmlFor={`${uid}-notes`} className="field-label">
             Notes
-          </div>
+          </label>
           <textarea
+            id={`${uid}-notes`}
             rows={2}
             defaultValue={customer.notes ?? ""}
             onBlur={(e) => onField("notes", e.target.value)}
-            className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2.5 py-2 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 resize-y"
+            className="field resize-y"
           />
         </div>
       </div>
-    </div>
+    </section>
   );
 }

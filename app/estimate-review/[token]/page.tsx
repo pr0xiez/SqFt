@@ -16,7 +16,7 @@ import { isValidTokenShape, trackPublicView } from "@/lib/tokens";
 import { parseQtyMode, parseRoomSegments } from "@/lib/utils";
 
 export const metadata = {
-  title: "Estimate — SqFt",
+  title: "Estimate",
   // Public token URLs must not be indexed.
   robots: { index: false, follow: false },
 };

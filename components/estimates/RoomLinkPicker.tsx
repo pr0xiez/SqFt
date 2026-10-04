@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { buttonClasses } from "@/components/ui/Button";
+import { XIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { type RoomItem, roomPerimeter, roomSqft } from "@/lib/utils";
 
@@ -110,20 +112,21 @@ export function RoomLinkPicker({
       role="dialog"
       aria-label="Link rooms"
       style={{ top, left, width: PANEL_WIDTH }}
-      className="fixed z-[601] bg-[var(--surface)] border border-[var(--line)] rounded-lg shadow-lg overflow-hidden"
+      className="fixed z-[300] max-w-[calc(100vw-24px)] bg-[var(--paper)] border border-[var(--line)] rounded-[var(--r)] shadow-[var(--shadow-md)] overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--line)] bg-[var(--surface-2)]">
-        <div className="font-[var(--font-mono)] text-[11px] uppercase tracking-[.06em] text-[var(--muted)]">
-          Link rooms
-        </div>
+      <div className="flex items-center justify-between gap-3 pl-4 pr-2 py-2 border-b border-[var(--line)]">
+        <div className="text-[14.5px] font-[600]">Link rooms</div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="bg-transparent border-none text-[var(--muted)] cursor-pointer text-[14px] leading-none hover:text-[var(--ink)] px-1"
+          className={buttonClasses({
+            variant: "ghost",
+            size: "icon-sm",
+          })}
         >
-          ✕
+          <XIcon aria-hidden="true" />
         </button>
       </div>
 
@@ -143,10 +146,10 @@ export function RoomLinkPicker({
                 type="button"
                 onClick={() => toggle(r.id)}
                 className={cn(
-                  "w-full flex items-center gap-2.5 px-3.5 py-2.5 border-b border-[var(--line)] last:border-b-0 cursor-pointer text-left transition-colors duration-[120ms]",
+                  "w-full flex items-center gap-3 px-4 min-h-[44px] py-2 border-b border-[var(--line)] last:border-b-0 cursor-pointer text-left transition-colors duration-150",
                   checked
-                    ? "bg-[rgba(61,107,74,0.06)] border-l-[3px] border-l-[var(--sage)]"
-                    : "hover:bg-[var(--surface-2)] border-l-[3px] border-l-transparent"
+                    ? "bg-[color-mix(in_oklab,var(--ok)_9%,transparent)]"
+                    : "hover:bg-[var(--hover)]"
                 )}
               >
                 <input
@@ -154,94 +157,77 @@ export function RoomLinkPicker({
                   checked={checked}
                   readOnly
                   tabIndex={-1}
-                  className="accent-[var(--sage)] cursor-pointer"
+                  className="size-4 shrink-0 cursor-pointer"
                 />
-                <span className="text-[13px] font-[500] flex-1">
+                <span className="text-[14px] font-[500] flex-1 min-w-0 truncate">
                   {r.name || "Untitled room"}
                 </span>
-                <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+                <span className="type-figure text-[13px] text-[var(--muted)]">
                   {displayAmount} {unitLabel}
                 </span>
               </button>
             );
           })
         ) : (
-          <div className="px-3.5 py-5 text-center font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            No rooms — add rooms in the site measure to enable room-linked
-            items.
+          <div className="px-4 py-5 text-center text-[13.5px] text-[var(--muted)]">
+            No rooms. Add rooms in the site measure to enable room-linked items.
           </div>
         )}
       </div>
 
-      {/* Waste row */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-t border-[var(--line)] bg-[var(--surface-2)]">
-        <label
-          htmlFor="rp-waste"
-          className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em]"
-        >
-          Waste
-        </label>
-        <select
-          id="rp-waste"
-          value={wastePct}
-          onChange={(e) => setWastePct(Number(e.target.value))}
-          className="font-[var(--font-mono)] text-[11px] px-2 py-1 border border-[var(--line)] rounded-[4px] bg-[var(--surface)] text-[var(--ink)] cursor-pointer focus:outline-none focus:border-[var(--sage)]"
-        >
-          {WASTE_OPTIONS.map((v) => (
-            <option key={v} value={v}>
-              {v === 0 ? "0%" : `+${v}%`}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Waste + measure */}
+      <div className="px-4 py-3 border-t border-[var(--line)] space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor="rp-waste" className="type-label">
+            Waste
+          </label>
+          <select
+            id="rp-waste"
+            value={wastePct}
+            onChange={(e) => setWastePct(Number(e.target.value))}
+            className="field type-figure min-h-[34px] h-[34px] w-[96px] pl-2.5 pr-8 bg-[position:right_9px_center]"
+          >
+            {WASTE_OPTIONS.map((v) => (
+              <option key={v} value={v}>
+                {v === 0 ? "0%" : `+${v}%`}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {/* Measure toggle */}
-      <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-t border-[var(--line)] bg-[var(--surface-2)]">
-        <span className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] uppercase tracking-[.04em]">
-          Measure
-        </span>
-        <fieldset
-          aria-label="Measure mode"
-          className="inline-flex border border-[var(--line)] rounded-[4px] overflow-hidden bg-[var(--surface)] p-0 m-0"
-        >
-          <button
-            type="button"
-            onClick={() => setMeasure("area")}
-            aria-pressed={measure === "area"}
-            className={cn(
-              "font-[var(--font-mono)] text-[11px] px-2.5 py-1 cursor-pointer transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sage)]",
-              measure === "area"
-                ? "bg-[var(--sage)] text-white"
-                : "bg-transparent text-[var(--muted)] hover:text-[var(--ink)]"
-            )}
-          >
-            Area (sqft)
-          </button>
-          <button
-            type="button"
-            onClick={() => setMeasure("perimeter")}
-            aria-pressed={measure === "perimeter"}
-            className={cn(
-              "font-[var(--font-mono)] text-[11px] px-2.5 py-1 cursor-pointer transition-colors duration-150 border-l border-[var(--line)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sage)]",
-              measure === "perimeter"
-                ? "bg-[var(--sage)] text-white"
-                : "bg-transparent text-[var(--muted)] hover:text-[var(--ink)]"
-            )}
-          >
-            Perimeter (lf)
-          </button>
-        </fieldset>
+        <div className="flex items-center justify-between gap-3">
+          <span className="type-label">Measure</span>
+          <fieldset aria-label="Measure mode" className="seg m-0 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMeasure("area")}
+              aria-pressed={measure === "area"}
+            >
+              Area (sqft)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMeasure("perimeter")}
+              aria-pressed={measure === "perimeter"}
+            >
+              Perimeter (lf)
+            </button>
+          </fieldset>
+        </div>
       </div>
 
       {/* Preview */}
-      <div className="px-3.5 py-2.5 border-t border-[var(--line)] font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
+      <div className="px-4 py-2.5 border-t border-[var(--line)] text-[13.5px] text-[var(--muted)]">
         {selectedCount === 0 ? (
           "No rooms selected"
         ) : (
           <>
-            <span className="text-[var(--ink)]">{selectedCount}</span> room
+            <span className="type-figure text-[var(--ink)]">
+              {selectedCount}
+            </span>{" "}
+            room
             {selectedCount === 1 ? "" : "s"} ·{" "}
-            <span className="text-[var(--ink)]">
+            <span className="type-figure text-[var(--ink)]">
               {measure === "perimeter"
                 ? baseAmount.toFixed(1)
                 : Math.round(baseAmount)}
@@ -250,8 +236,8 @@ export function RoomLinkPicker({
             {wastePct > 0 ? (
               <>
                 {" "}
-                × {wastePct}% ={" "}
-                <span className="text-[var(--sage)] font-[600]">
+                × <span className="type-figure">{wastePct}%</span> ={" "}
+                <span className="type-figure text-[var(--ok)] font-[600]">
                   {totalAmount.toFixed(1)}
                 </span>{" "}
                 {unitLabel}
@@ -262,11 +248,11 @@ export function RoomLinkPicker({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-t border-[var(--line)] bg-[var(--surface-2)]">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-[var(--line)]">
         <button
           type="button"
           onClick={handleClear}
-          className="font-[var(--font-mono)] text-[11px] px-2.5 py-1.5 bg-transparent border border-[var(--line)] rounded-[4px] text-[var(--muted)] cursor-pointer hover:text-[var(--ink)] hover:border-[var(--ink-2)]"
+          className={buttonClasses({ variant: "ghost", size: "sm" })}
         >
           Clear
         </button>
@@ -274,7 +260,7 @@ export function RoomLinkPicker({
           type="button"
           onClick={handleApply}
           disabled={selectedCount === 0}
-          className="font-[var(--font-mono)] text-[11px] px-3 py-1.5 border rounded-[4px] cursor-pointer transition-colors duration-150 border-[var(--sage)] text-white bg-[var(--sage)] hover:bg-[var(--sage-l)] hover:border-[var(--sage-l)] disabled:opacity-40 disabled:cursor-not-allowed"
+          className={buttonClasses({ variant: "primary", size: "sm" })}
         >
           Apply
         </button>

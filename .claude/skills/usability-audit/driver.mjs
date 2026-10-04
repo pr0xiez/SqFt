@@ -121,10 +121,10 @@ const STOPS = [
     run: async (page) => {
       await page.goto(`${BASE_URL}/customers`);
       await settle(page);
-      // Customer rows are full-width buttons with a left source-accent border
-      // (`border-l-[3px]`) — a class the sort headers and filter chips lack,
-      // so this reliably lands on a real customer, not a column toggle.
-      await page.locator('main button[class*="border-l-"]').first().click();
+      // Customer rows are full-width buttons tagged `data-customer-row` — an
+      // attribute the sort headers and filter chips lack, so this reliably
+      // lands on a real customer, not a column toggle.
+      await page.locator("main button[data-customer-row]").first().click();
       await settle(page);
     },
   },

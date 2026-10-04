@@ -5,11 +5,23 @@ import {
   type QuickCreateKind,
   useQuickCreate,
 } from "@/components/quick-create/QuickCreateProvider";
+import { buttonClasses } from "@/components/ui/Button";
+import {
+  CaretDownIcon,
+  FileTextIcon,
+  type Icon,
+  PlusIcon,
+  ReceiptIcon,
+} from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
-const ENTRIES: ReadonlyArray<{ kind: QuickCreateKind; label: string }> = [
-  { kind: "estimate", label: "New estimate" },
-  { kind: "invoice", label: "New invoice" },
+const ENTRIES: ReadonlyArray<{
+  kind: QuickCreateKind;
+  label: string;
+  icon: Icon;
+}> = [
+  { kind: "estimate", label: "New estimate", icon: FileTextIcon },
+  { kind: "invoice", label: "New invoice", icon: ReceiptIcon },
 ];
 
 /**
@@ -54,19 +66,29 @@ export function NewMenu({ collapsed = false }: { collapsed?: boolean }) {
         aria-expanded={menuOpen}
         aria-label="New"
         title="New"
-        className={cn(
-          "inline-flex items-center justify-center gap-[7px]",
-          "font-[var(--font-mono)] text-[11px] font-[500] tracking-[.02em]",
-          "text-white bg-[var(--accent)] border border-[var(--accent)] rounded-[6px]",
-          "cursor-pointer hover:bg-[var(--accent-l)] transition-colors",
-          collapsed ? "w-9 h-9 text-[15px]" : "w-full px-3.5 py-2"
-        )}
+        className={buttonClasses({
+          variant: "primary",
+          size: "md",
+          className: collapsed
+            ? "size-10 px-0"
+            : "w-full justify-between pl-3.5 pr-3",
+        })}
       >
         {collapsed ? (
-          "+"
+          <PlusIcon aria-hidden="true" weight="bold" />
         ) : (
           <>
-            + New <span className="opacity-70">▾</span>
+            <span className="inline-flex items-center gap-2">
+              <PlusIcon aria-hidden="true" weight="bold" />
+              New
+            </span>
+            <CaretDownIcon
+              aria-hidden="true"
+              className={cn(
+                "size-[14px]! opacity-70 transition-transform duration-200",
+                menuOpen && "rotate-180"
+              )}
+            />
           </>
         )}
       </button>
@@ -75,23 +97,30 @@ export function NewMenu({ collapsed = false }: { collapsed?: boolean }) {
         <div
           role="menu"
           className={cn(
-            "absolute z-[300] w-[210px] p-[5px]",
-            "bg-[var(--surface)] border border-[var(--line-2)] rounded-[8px]",
-            "shadow-[0_8px_24px_rgba(26,26,23,0.12)]",
+            "absolute z-[300] w-[220px] p-1.5",
+            "bg-[var(--paper)] border border-[var(--line)] rounded-[var(--r)]",
+            "shadow-[var(--shadow-md)] animate-[slideDown_.2s_var(--ease)_both]",
             collapsed ? "left-full top-0 ml-2" : "left-0 top-full mt-1.5"
           )}
         >
-          {ENTRIES.map((e) => (
-            <button
-              key={e.kind}
-              type="button"
-              role="menuitem"
-              onClick={() => choose(e.kind)}
-              className="w-full text-left px-2.5 py-2.5 rounded-[6px] text-[13px] font-[600] text-[var(--ink)] cursor-pointer hover:bg-[var(--surface-2)]"
-            >
-              {e.label}
-            </button>
-          ))}
+          {ENTRIES.map((e) => {
+            const EntryIcon = e.icon;
+            return (
+              <button
+                key={e.kind}
+                type="button"
+                role="menuitem"
+                onClick={() => choose(e.kind)}
+                className="w-full flex items-center gap-2.5 text-left px-2.5 h-10 rounded-[var(--r-in)] text-[14px] font-[560] text-[var(--ink)] cursor-pointer hover:bg-[var(--hover)]"
+              >
+                <EntryIcon
+                  aria-hidden="true"
+                  className="size-[17px] text-[var(--muted)]"
+                />
+                {e.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

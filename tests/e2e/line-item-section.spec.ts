@@ -75,7 +75,7 @@ test.describe("18.1 Line item section — rows", () => {
     expect(body1.lineItems[0].qty).toBe(5);
     expect(body1.lineItems[0].rate).toBe(10);
 
-    // Remove the line item (✕ button).
+    // Remove the line item ("Remove line item" icon button).
     const [delPatch] = await Promise.all([
       page.waitForResponse(
         (r) =>
@@ -83,7 +83,7 @@ test.describe("18.1 Line item section — rows", () => {
           r.request().method() === "PATCH" &&
           r.status() === 200
       ),
-      page.getByRole("button", { name: "✕" }).click(),
+      page.getByRole("button", { name: "Remove line item" }).click(),
     ]);
     expect(delPatch.status()).toBe(200);
     const get2 = await ctx.request.get(`/api/estimates/${estimate.id}`);

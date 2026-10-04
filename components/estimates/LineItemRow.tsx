@@ -1,16 +1,57 @@
 "use client";
 
+import type { ReactNode } from "react";
+import { buttonClasses } from "@/components/ui/Button";
 import { DecimalInput } from "@/components/ui/DecimalInput";
+import { CaretDownIcon, WarningIcon, XIcon } from "@/components/ui/icons";
+import { Tag } from "@/components/ui/StatusBadge";
 import { cn } from "@/lib/cn";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 import { fmtDollar, isLinkedQtyMode, QtyMode, roomSqft } from "@/lib/utils";
+
+/**
+ * Column template shared by the line-item header, rows and totals. The grid
+ * only kicks in at xl; below that each line item stacks its controls.
+ */
+export const LINE_GRID =
+  "xl:grid-cols-[minmax(0,1fr)_150px_172px_128px_128px_44px]";
+
+/** Dense field: the builder's grid runs on 34px controls. */
+const DENSE_FIELD = "field min-h-[34px] h-[34px] px-2.5";
+
+/** Locked estimates read as plain text rather than disabled boxes. */
+const READ_ONLY_FIELD =
+  "disabled:bg-transparent disabled:border-transparent disabled:text-[var(--ink)] disabled:cursor-default";
 
 /** Normalize legacy "ft²" unit label to "sqft" for toggle UI. */
 function normalizeUnit(label: string): "sqft" | "lf" | "other" {
   if (label === "sqft" || label === "ft²") return "sqft";
   if (label === "lf") return "lf";
   return "other";
+}
+
+/** One grid cell; below xl it carries its own label above the control. */
+function Cell({
+  label,
+  align = "left",
+  children,
+}: {
+  label: string;
+  align?: "left" | "right";
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 xl:px-2.5 xl:py-2.5",
+        align === "right" && "xl:text-right"
+      )}
+    >
+      <div className="type-label mb-1.5 xl:hidden">{label}</div>
+      {children}
+    </div>
+  );
 }
 
 interface Props {
@@ -59,23 +100,38 @@ export function LineItemRow({
   return (
     <div
       className={cn(
-        "border-b border-[var(--line)] last:border-b-0 transition-[background] duration-[120ms] hover:bg-[var(--surface-2)]",
+        "relative border-b border-[var(--line)] last:border-b-0",
         unresolved
-          ? "border-l-[3px] border-l-[var(--gold)] bg-[rgba(176,122,26,0.06)]"
-          : linked && "border-l-[3px] border-l-[var(--sage)]"
+          ? "shadow-[inset_3px_0_0_var(--warn)] bg-[color-mix(in_oklab,var(--warn)_6%,transparent)]"
+          : linked && "shadow-[inset_3px_0_0_var(--ok)]"
       )}
     >
-      {/* Main row */}
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1.1fr_1fr_1fr_1fr_40px] items-start">
-        <div className="px-3.5 py-[11px] space-y-1.5">
-          <div className="flex items-center gap-2">
+      {/* Main row: a grid at xl, stacked label/control pairs below it */}
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-x-3 gap-y-3 px-4 py-3.5 items-start",
+          "xl:gap-0 xl:px-1.5 xl:py-0",
+          LINE_GRID
+        )}
+      >
+        <div
+          className={cn(
+            "col-span-2 xl:col-span-1 min-w-0 space-y-1.5 xl:px-2.5 xl:py-2.5",
+            !readOnly && "pr-10 xl:pr-2.5"
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-2">
             <input
               type="text"
               value={li.name}
               onChange={(e) => onEditText({ name: e.target.value })}
               onBlur={onSaveBlur}
               disabled={readOnly}
-              className="text-[14px] font-[500] flex-1 min-w-0 border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2 py-1 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default"
+              className={cn(
+                DENSE_FIELD,
+                READ_ONLY_FIELD,
+                "flex-[2] min-w-[160px] w-auto font-[560] disabled:px-0"
+              )}
             />
             {!readOnly && templates.length > 0 && (
               <select
@@ -86,7 +142,10 @@ export function LineItemRow({
                   if (val) onApplyTemplate(Number(val));
                   e.target.value = "";
                 }}
-                className="font-[var(--font-mono)] text-[10px] px-1.5 py-1 border border-[var(--line)] rounded-[4px] bg-[var(--surface)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)] cursor-pointer"
+                className={cn(
+                  DENSE_FIELD,
+                  "flex-1 min-w-[130px] w-auto pr-8 bg-[position:right_9px_center] text-[var(--ink-2)]"
+                )}
               >
                 <option value="">Use template…</option>
                 {templates.map((t) => (
@@ -97,21 +156,28 @@ export function LineItemRow({
               </select>
             )}
           </div>
-          <textarea
-            value={li.description ?? ""}
-            onChange={(e) =>
-              onEditText({
-                description: e.target.value || null,
-              })
-            }
-            onBlur={onSaveBlur}
-            disabled={readOnly}
-            placeholder={readOnly ? "" : "Description (optional)"}
-            rows={1}
-            className="text-[12px] text-[var(--muted)] w-full border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2 py-1 resize-y focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default placeholder:text-[var(--muted)] placeholder:opacity-60"
-          />
+          {(!readOnly || li.description) && (
+            <textarea
+              value={li.description ?? ""}
+              onChange={(e) =>
+                onEditText({
+                  description: e.target.value || null,
+                })
+              }
+              onBlur={onSaveBlur}
+              disabled={readOnly}
+              placeholder={readOnly ? "" : "Description (optional)"}
+              rows={1}
+              className={cn(
+                "field min-h-[34px] px-2.5 py-[6px] md:text-[13.5px] text-[var(--ink-2)]",
+                READ_ONLY_FIELD,
+                "disabled:px-0 disabled:text-[var(--ink-2)]"
+              )}
+            />
+          )}
         </div>
-        <div className="px-3 py-2">
+
+        <Cell label="Scope">
           <button
             type="button"
             onClick={(e) =>
@@ -119,51 +185,66 @@ export function LineItemRow({
             }
             disabled={readOnly}
             className={cn(
-              "font-[var(--font-mono)] text-[10px] px-2.5 py-1 border rounded-[4px] transition-colors duration-150 inline-flex items-center gap-[5px]",
-              readOnly ? "cursor-default opacity-70" : "cursor-pointer",
+              "inline-flex items-center gap-1.5 max-w-full h-[34px] px-2.5 rounded-[var(--r)] border text-[13.5px] font-[560] whitespace-nowrap transition-colors duration-150",
+              readOnly ? "cursor-default" : "cursor-pointer",
               linked
-                ? "border-[var(--sage)] text-[var(--sage)] bg-[rgba(61,107,74,0.08)]"
-                : "border-[var(--line)] text-[var(--muted)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
+                ? "border-[color-mix(in_oklab,var(--ok)_40%,transparent)] text-[var(--ok)] bg-[color-mix(in_oklab,var(--ok)_10%,transparent)]"
+                : readOnly
+                  ? "border-transparent px-0 text-[var(--ink-2)]"
+                  : "border-[var(--field-border)] text-[var(--ink-2)] hover:border-[var(--ink)] hover:text-[var(--ink)] hover:bg-[var(--hover)]"
             )}
           >
-            {linked
-              ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"} · ${linkedUnit}`
-              : li.qtyMode === QtyMode.Manual
-                ? `Manual · ${li.unitLabel || ""}`
-                : "Set scope…"}
+            <span className="truncate">
+              {linked
+                ? `🔗 ${linkedRooms.length} room${linkedRooms.length === 1 ? "" : "s"} · ${linkedUnit}`
+                : li.qtyMode === QtyMode.Manual
+                  ? `Manual · ${li.unitLabel || ""}`
+                  : "Set scope…"}
+            </span>
+            {!readOnly && (
+              <CaretDownIcon
+                aria-hidden="true"
+                className="size-[13px] shrink-0 opacity-70"
+              />
+            )}
           </button>
-        </div>
-        <div className="px-3.5 py-[11px]">
+        </Cell>
+
+        <Cell label="Quantity">
           {linked ? (
-            <div className="flex items-baseline gap-[5px]">
+            <div className="flex items-baseline gap-1.5 h-[34px] pt-[7px]">
               <span
                 className={cn(
-                  "text-[14px] font-[600]",
-                  unresolved ? "text-[var(--gold)]" : "text-[var(--sage)]"
+                  "type-figure text-[14.5px] font-[600]",
+                  unresolved ? "text-[var(--warn)]" : "text-[var(--ok)]"
                 )}
               >
-                {effectiveQty !== null ? effectiveQty.toFixed(1) : "—"}
+                {effectiveQty !== null ? effectiveQty.toFixed(1) : "-"}
               </span>
               <span
                 className={cn(
-                  "font-[var(--font-mono)] text-[10px] opacity-80",
-                  unresolved ? "text-[var(--gold)]" : "text-[var(--sage)]"
+                  "text-[13px]",
+                  unresolved ? "text-[var(--warn)]" : "text-[var(--ok)]"
                 )}
               >
                 {linkedUnit}
               </span>
             </div>
           ) : (
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-center gap-1.5">
               <DecimalInput
                 value={li.qty}
                 onCommit={(next) => onUpdate({ qty: next })}
                 allowEmpty
                 disabled={readOnly}
-                className="w-[64px] text-[14px] font-[500] border border-[var(--line)] bg-[var(--surface)] rounded-[5px] px-2 py-1 focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:px-0 disabled:py-0 disabled:cursor-default"
+                className={cn(
+                  DENSE_FIELD,
+                  READ_ONLY_FIELD,
+                  "type-figure text-right flex-1 min-w-0 xl:flex-none xl:w-[78px]"
+                )}
               />
               {unitKind === "other" ? (
-                <span className="font-[var(--font-mono)] text-[10px] text-[var(--muted)]">
+                <span className="text-[13px] text-[var(--muted)]">
                   {li.unitLabel}
                 </span>
               ) : (
@@ -171,7 +252,12 @@ export function LineItemRow({
                   value={unitKind}
                   onChange={(e) => onUpdate({ unitLabel: e.target.value })}
                   disabled={readOnly}
-                  className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] bg-transparent border-none focus:outline-none disabled:cursor-default cursor-pointer hover:text-[var(--ink)]"
+                  aria-label="Unit"
+                  className={cn(
+                    DENSE_FIELD,
+                    READ_ONLY_FIELD,
+                    "w-[74px] shrink-0 pl-2.5 pr-7 bg-[position:right_8px_center] disabled:bg-none"
+                  )}
                 >
                   <option value="sqft">sqft</option>
                   <option value="lf">lf</option>
@@ -179,83 +265,102 @@ export function LineItemRow({
               )}
             </div>
           )}
-        </div>
-        <div className="px-3.5 py-[11px] relative">
-          <span className="absolute left-[22px] top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none z-[1]">
-            $
-          </span>
-          <DecimalInput
-            value={li.rate}
-            onCommit={(next) => onUpdate({ rate: next ?? 0 })}
-            formatOnBlur
-            disabled={readOnly}
-            className="w-full text-[14px] font-[500] pl-5 pr-2 py-1 border border-[var(--line)] bg-[var(--surface)] rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 disabled:border-transparent disabled:bg-transparent disabled:cursor-default"
-          />
-        </div>
-        <div className="px-3.5 py-[11px] relative">
+        </Cell>
+
+        <Cell label="Rate" align="right">
+          <div className="relative">
+            <span
+              aria-hidden="true"
+              className="type-figure absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-[var(--muted)] pointer-events-none z-[1]"
+            >
+              $
+            </span>
+            <DecimalInput
+              value={li.rate}
+              onCommit={(next) => onUpdate({ rate: next ?? 0 })}
+              formatOnBlur
+              disabled={readOnly}
+              className={cn(
+                DENSE_FIELD,
+                READ_ONLY_FIELD,
+                "type-figure text-right pl-6"
+              )}
+            />
+          </div>
+        </Cell>
+
+        <Cell label="Subtotal" align="right">
           {canEditSubtotal ? (
-            <>
-              <span className="absolute left-[22px] top-1/2 -translate-y-1/2 font-[var(--font-mono)] text-[11px] text-[var(--muted)] pointer-events-none z-[1]">
+            <div className="relative">
+              <span
+                aria-hidden="true"
+                className="type-figure absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-[var(--muted)] pointer-events-none z-[1]"
+              >
                 $
               </span>
               <DecimalInput
                 value={sub ?? 0}
                 onCommit={(next) => onCommitSubtotal(next)}
                 formatOnBlur
-                title="Edit subtotal — rate will be recalculated from quantity"
+                title="Edit subtotal: rate will be recalculated from quantity"
                 className={cn(
-                  "w-full text-[14px] font-[600] tracking-[-0.01em] pl-5 pr-2 py-1 border border-[var(--line)] bg-[var(--surface)] rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150",
-                  sub && sub > 0 ? "text-[var(--accent)]" : ""
+                  DENSE_FIELD,
+                  "type-figure text-right font-[600] pl-6"
                 )}
               />
-            </>
+            </div>
           ) : unresolved ? (
-            <span
-              title="This line has no quantity, so it won't be billed"
-              className="inline-block font-[var(--font-mono)] text-[10px] font-[600] text-[var(--gold)] bg-[rgba(176,122,26,0.12)] border border-[var(--gold)] rounded-[4px] px-2 py-0.5 whitespace-nowrap"
-            >
-              ⚠ Quantity unset
-            </span>
+            <div className="flex xl:justify-end h-[34px] items-center">
+              <Tag
+                tone="pending"
+                icon={WarningIcon}
+                title="This line has no quantity, so it won't be billed"
+              >
+                Quantity unset
+              </Tag>
+            </div>
           ) : (
-            <span
-              className={cn(
-                "text-[14px] font-[600] tracking-[-0.01em]",
-                sub && sub > 0 ? "text-[var(--accent)]" : ""
-              )}
-            >
-              {fmtDollar(sub ?? 0)}
-            </span>
+            <div className="h-[34px] flex items-center xl:justify-end xl:pr-2.5">
+              <span className="type-figure text-[14.5px] font-[600]">
+                {fmtDollar(sub ?? 0)}
+              </span>
+            </div>
           )}
-        </div>
-        {!readOnly && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="px-[11px] py-[11px] bg-transparent border-none text-[var(--muted)] cursor-pointer text-[14px] leading-none hover:text-[var(--accent)]"
-          >
-            ✕
-          </button>
+        </Cell>
+
+        {!readOnly ? (
+          <div className="absolute top-3.5 right-3 xl:static xl:flex xl:justify-center xl:py-2.5">
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label="Remove line item"
+              className={buttonClasses({
+                variant: "ghost",
+                size: "icon-sm",
+                className:
+                  "text-[var(--ink-2)] hover:text-[var(--accent-ink)] hover:bg-[var(--accent-wash)]",
+              })}
+            >
+              <XIcon aria-hidden="true" weight="bold" />
+            </button>
+          </div>
+        ) : (
+          <div className="hidden xl:block" />
         )}
-        {readOnly && <div />}
       </div>
 
-      {/* Room tags */}
+      {/* Linked rooms */}
       {linked && linkedRooms.length > 0 && (
-        <div className="px-3.5 py-[7px] bg-[var(--surface-2)] border-t border-[var(--line)] flex gap-1.5 flex-wrap items-center">
+        <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3.5 xl:px-4 xl:pb-3 -mt-1 xl:mt-0">
           {linkedRooms.map((r) => (
-            <span
-              key={r.id}
-              className="font-[var(--font-mono)] text-[10px] px-2 py-0.5 border border-[var(--sage)] text-[var(--sage)] bg-[rgba(61,107,74,0.06)] rounded-[4px] inline-flex items-center gap-[5px]"
-            >
+            <Tag key={r.id} tone="ok">
               {r.name}{" "}
-              <span className="opacity-70">({Math.round(roomSqft(r))})</span>
-            </span>
+              <span className="type-figure opacity-75">
+                ({Math.round(roomSqft(r))})
+              </span>
+            </Tag>
           ))}
-          {li.wastePct > 0 && (
-            <span className="font-[var(--font-mono)] text-[10px] text-[var(--gold)] px-2 py-0.5 border border-[var(--gold)] bg-[rgba(176,122,26,0.06)] rounded-[4px] ml-1">
-              +{li.wastePct}% waste
-            </span>
-          )}
+          {li.wastePct > 0 && <Tag tone="pending">+{li.wastePct}% waste</Tag>}
         </div>
       )}
     </div>

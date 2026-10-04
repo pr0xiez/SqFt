@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CrewAvatar } from "@/components/ui/CrewAvatar";
+import { CheckIcon } from "@/components/ui/icons";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { cn } from "@/lib/cn";
 import { useAssignableUsers } from "@/lib/hooks/useAssignableUsers";
@@ -39,11 +40,6 @@ interface EventFormPanelProps {
   onDelete: (id: number) => Promise<void>;
 }
 
-const inputClass =
-  "w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150";
-const labelClass =
-  "font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]";
-
 export function EventFormPanel({
   open,
   onClose,
@@ -68,6 +64,7 @@ export function EventFormPanel({
   const [saving, setSaving] = useState(false);
 
   const { data: crew = [], isLoading: crewLoading } = useAssignableUsers();
+  const fid = useId();
 
   const ev = editingEvent;
   const customerEstimates = useMemo(
@@ -148,38 +145,34 @@ export function EventFormPanel({
       footer={
         <>
           {ev && (
-            <Button onClick={() => onDelete(ev.id)} className="justify-center">
+            <Button variant="danger" onClick={() => onDelete(ev.id)}>
               Delete
             </Button>
           )}
-          <Button onClick={onClose} className="flex-1 justify-center">
+          <Button onClick={onClose} className="flex-1">
             Cancel
           </Button>
           <Button
-            variant="accent"
+            variant="primary"
             onClick={handleSave}
             disabled={!canSave || saving}
-            className="flex-1 justify-center"
+            className="flex-1"
           >
             {saving ? "Saving…" : ev ? "Update" : "Save"}
           </Button>
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Type selector */}
-        <div className="grid grid-cols-3 gap-px bg-[var(--line)] border border-[var(--line)] rounded-[5px] overflow-hidden mb-4">
+        <div className="seg w-full flex">
           {(["visit", "job", "other"] as const).map((t) => (
             <button
               key={t}
               type="button"
+              aria-pressed={type === t}
               onClick={() => setType(t)}
-              className={cn(
-                "py-2 px-1 font-[var(--font-mono)] text-[9px] tracking-[.04em] uppercase cursor-pointer transition-colors duration-150 border-none",
-                type === t
-                  ? "bg-[var(--ink)] text-[var(--bg)]"
-                  : "bg-[var(--surface)] text-[var(--muted)]"
-              )}
+              className="flex-1 min-h-[34px] capitalize"
             >
               {t}
             </button>
@@ -187,28 +180,32 @@ export function EventFormPanel({
         </div>
 
         {/* Title */}
-        <div className="mb-4">
-          <div className={labelClass}>Title</div>
+        <div>
+          <label htmlFor={`${fid}-title`} className="field-label">
+            Title
+          </label>
           <input
+            id={`${fid}-title`}
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className={inputClass}
+            className="field"
           />
         </div>
 
         {/* Customer */}
-        <div className="mb-4">
-          <div className={labelClass}>
+        <div>
+          <label htmlFor={`${fid}-customer`} className="field-label">
             Customer{" "}
             {type !== "other" && (
-              <span className="text-[var(--accent)]">*</span>
+              <span className="text-[var(--accent-ink)]">*</span>
             )}
             {type === "other" && (
               <span className="text-[var(--muted)] font-[400]">(optional)</span>
             )}
-          </div>
+          </label>
           <select
+            id={`${fid}-customer`}
             value={customerId ?? ""}
             onChange={(e) => {
               setCustomerId(
@@ -216,10 +213,10 @@ export function EventFormPanel({
               );
               setEstimateId(undefined);
             }}
-            className={inputClass}
+            className="field"
           >
             <option value="">
-              {type === "other" ? "— No customer —" : "— Select customer —"}
+              {type === "other" ? "No customer" : "Select customer"}
             </option>
             {customers.map((c) => (
               <option key={c.id} value={c.id}>
@@ -231,27 +228,28 @@ export function EventFormPanel({
 
         {/* Estimate (only for jobs) */}
         {type === "job" && (
-          <div className="mb-4">
-            <div className={labelClass}>
-              Estimate <span className="text-[var(--accent)]">*</span>
-            </div>
+          <div>
+            <label htmlFor={`${fid}-estimate`} className="field-label">
+              Estimate <span className="text-[var(--accent-ink)]">*</span>
+            </label>
             <select
+              id={`${fid}-estimate`}
               value={estimateId ?? ""}
               onChange={(e) =>
                 setEstimateId(
                   e.target.value ? parseInt(e.target.value, 10) : undefined
                 )
               }
-              className={inputClass}
+              className="field"
               disabled={!customerId}
             >
               {!customerId ? (
-                <option value="">— Pick a customer first —</option>
+                <option value="">Pick a customer first</option>
               ) : customerEstimates.length === 0 ? (
-                <option value="">— No estimates for this customer —</option>
+                <option value="">No estimates for this customer</option>
               ) : (
                 <>
-                  <option value="">— Select estimate —</option>
+                  <option value="">Select estimate</option>
                   {customerEstimates.map((q) => (
                     <option key={q.id} value={q.id}>
                       Estimate #{q.estimateNumber}
@@ -261,7 +259,7 @@ export function EventFormPanel({
               )}
             </select>
             {missingEstimate && customerId && customerEstimates.length > 0 && (
-              <div className="text-[11px] text-[var(--muted)] mt-1">
+              <div className="field-hint">
                 Select the estimate this job is for.
               </div>
             )}
@@ -269,64 +267,78 @@ export function EventFormPanel({
         )}
 
         {/* Date / End Date */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <div className={labelClass}>Start Date</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="min-w-0">
+            <label htmlFor={`${fid}-date`} className="field-label">
+              Start Date
+            </label>
             <input
+              id={`${fid}-date`}
               type="date"
               value={date}
               onChange={(e) => {
                 setDate(e.target.value);
                 if (endDate < e.target.value) setEndDate(e.target.value);
               }}
-              className={inputClass}
+              className="field type-figure"
             />
           </div>
-          <div>
-            <div className={labelClass}>End Date</div>
+          <div className="min-w-0">
+            <label htmlFor={`${fid}-end-date`} className="field-label">
+              End Date
+            </label>
             <input
+              id={`${fid}-end-date`}
               type="date"
               value={endDate}
               min={date}
               onChange={(e) => setEndDate(e.target.value)}
-              className={inputClass}
+              className="field type-figure"
             />
           </div>
         </div>
 
         {/* Start / End */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <div className={labelClass}>Start</div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="min-w-0">
+            <label htmlFor={`${fid}-start`} className="field-label">
+              Start
+            </label>
             <input
+              id={`${fid}-start`}
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              className={inputClass}
+              aria-invalid={timeInvalid || undefined}
+              className="field type-figure"
             />
           </div>
-          <div>
-            <div className={labelClass}>End</div>
+          <div className="min-w-0">
+            <label htmlFor={`${fid}-end`} className="field-label">
+              End
+            </label>
             <input
+              id={`${fid}-end`}
               type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              className={inputClass}
+              aria-invalid={timeInvalid || undefined}
+              className="field type-figure"
             />
           </div>
           {timeInvalid && (
-            <div className="col-span-2 text-[11px] text-[var(--accent)]">
+            <div className="col-span-2 field-error -mt-1.5">
               End time must be after start time.
             </div>
           )}
         </div>
 
         {/* Crew */}
-        <div className="mb-4">
-          <div className={labelClass}>
+        <div>
+          <div className="field-label">
             Crew{" "}
-            <span className="text-[var(--muted)] font-[400] normal-case tracking-normal">
-              (tap to assign — multiple OK)
+            <span className="text-[var(--muted)] font-[400]">
+              (tap to assign, multiple OK)
             </span>
           </div>
           {crewLoading ? (
@@ -334,12 +346,12 @@ export function EventFormPanel({
               {[0, 1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-[36px] rounded-[6px] bg-[var(--surface-2)] animate-pulse"
+                  className="h-10 rounded-[var(--r)] bg-[var(--surface-2)] animate-pulse"
                 />
               ))}
             </div>
           ) : crew.length === 0 ? (
-            <div className="text-[12px] text-[var(--muted)]">
+            <div className="text-[13.5px] text-[var(--muted)]">
               No people to assign yet.
             </div>
           ) : (
@@ -350,6 +362,7 @@ export function EventFormPanel({
                   <button
                     key={m.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => {
                       const next = new Set(crewMemberIds);
                       if (active) next.delete(m.id);
@@ -357,25 +370,33 @@ export function EventFormPanel({
                       setCrewMemberIds(next);
                     }}
                     className={cn(
-                      "inline-flex items-center gap-2 px-2.5 py-2 rounded-[6px]",
-                      "text-[13px] font-[500] tracking-[-0.005em] text-left transition-[background,border-color] duration-150",
-                      "border",
+                      "inline-flex items-center gap-2 min-h-10 px-2.5 rounded-[var(--r)] min-w-0",
+                      "text-[14px] font-[560] text-left cursor-pointer border",
+                      "transition-[background-color,border-color,color,transform] duration-200 ease-[var(--ease)] active:scale-[0.98]",
                       active
                         ? "bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]"
-                        : "bg-[var(--surface)] text-[var(--ink-2)] border-[var(--line)] hover:bg-[var(--surface-2)] hover:border-[var(--ink-2)]"
+                        : "bg-transparent text-[var(--ink-2)] border-[var(--line-2)] hover:border-[var(--ink-2)] hover:text-[var(--ink)]"
                     )}
                   >
-                    <CrewAvatar name={m.name} size="lg" />
+                    <CrewAvatar
+                      name={m.name}
+                      size="lg"
+                      className={active ? "ring-1 ring-[var(--bg)]" : undefined}
+                    />
                     <span className="truncate">{m.name}</span>
                     {active && (
-                      <span className="ml-auto text-[12px] font-[600]">✓</span>
+                      <CheckIcon
+                        aria-hidden="true"
+                        weight="bold"
+                        className="ml-auto size-4 shrink-0"
+                      />
                     )}
                   </button>
                 );
               })}
             </div>
           )}
-          <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-2 tracking-[0.02em]">
+          <div className="field-hint">
             {crewMemberIds.size === 0
               ? "No crew assigned"
               : `${crewMemberIds.size} assigned`}
@@ -383,13 +404,16 @@ export function EventFormPanel({
         </div>
 
         {/* Notes */}
-        <div className="mb-4">
-          <div className={labelClass}>Notes</div>
+        <div>
+          <label htmlFor={`${fid}-notes`} className="field-label">
+            Notes
+          </label>
           <textarea
+            id={`${fid}-notes`}
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className={`${inputClass} resize-none`}
+            className="field resize-none"
           />
         </div>
       </div>

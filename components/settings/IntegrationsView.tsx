@@ -4,6 +4,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { QuickBooksCard } from "@/components/settings/QuickBooksCard";
 import { SyncHealthPanel } from "@/components/settings/SyncHealthPanel";
+import { EmptyState, LoadingLine } from "@/components/ui/EmptyState";
+import { PlugsIcon } from "@/components/ui/icons";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/components/ui/Toast";
 import { useQboStatus } from "@/lib/hooks/useQbo";
 
@@ -23,31 +26,34 @@ export function IntegrationsView() {
         ? "QuickBooks connected"
         : params.get("reason") === "realm_in_use"
           ? "That QuickBooks company is already connected to another SqFt organization"
-          : "QuickBooks connection failed — try again"
+          : "QuickBooks connection failed. Try again."
     );
     window.history.replaceState(null, "", window.location.pathname);
   }, [qc, showToast]);
 
   return (
-    <div className="max-w-[760px] mx-auto px-4 py-8">
-      <h1 className="text-[24px] font-[700] tracking-[-0.02em] mb-1">
-        Integrations
-      </h1>
-      <p className="text-[13px] text-[var(--muted)] mb-6">
-        Keep your books in sync without double entry.
-      </p>
+    <div className="max-w-[760px]">
+      <PageHeader
+        title="Integrations"
+        meta="Keep your books in sync without double entry."
+      />
 
       {isLoading || !data ? (
-        <p className="text-[13px] text-[var(--muted)]">Loading…</p>
+        <div className="card px-5 py-4">
+          <LoadingLine />
+        </div>
       ) : !data.configured ? (
-        <p className="text-[13px] text-[var(--muted)]">
-          No integrations are available on this deployment.
-        </p>
+        <div className="card">
+          <EmptyState
+            icon={PlugsIcon}
+            title="No integrations are available on this deployment."
+          />
+        </div>
       ) : (
-        <>
+        <div className="flex flex-col gap-4">
           <QuickBooksCard status={data} />
           <SyncHealthPanel status={data} />
-        </>
+        </div>
       )}
     </div>
   );

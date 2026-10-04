@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { useToast } from "@/components/ui/Toast";
-import { cn } from "@/lib/cn";
 import {
   type CreateCustomerInput,
   useCreateCustomer,
@@ -27,6 +26,7 @@ const SOURCE_LABELS: Record<string, string> = {
 export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
   const createCustomer = useCreateCustomer();
   const { showToast } = useToast();
+  const uid = useId();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -81,7 +81,7 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
             Cancel
           </Button>
           <Button
-            variant="accent"
+            variant="primary"
             onClick={handleSave}
             disabled={
               (!firstName.trim() && !lastName.trim()) ||
@@ -94,55 +94,53 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
         </>
       }
     >
-      <div className="space-y-4">
-        {/* Source selector */}
-        <div className="grid grid-cols-5 gap-px bg-[var(--line)] border border-[var(--line)] rounded-[5px] overflow-hidden mb-4">
-          {SOURCES.map((src) => (
-            <button
-              key={src}
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, source: src }))}
-              className={cn(
-                "py-2 px-1 font-[var(--font-mono)] text-[9px] tracking-[.04em] uppercase cursor-pointer transition-colors duration-150 border-none",
-                form.source === src
-                  ? "bg-[var(--ink)] text-[var(--bg)]"
-                  : "bg-[var(--surface)] text-[var(--muted)]"
-              )}
-            >
-              {SOURCE_LABELS[src]}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col gap-4">
+        <fieldset className="min-w-0 border-0 p-0 m-0">
+          <legend className="field-label">Source</legend>
+          <div className="seg flex w-full">
+            {SOURCES.map((src) => (
+              <button
+                key={src}
+                type="button"
+                aria-pressed={form.source === src}
+                onClick={() => setForm((f) => ({ ...f, source: src }))}
+                className="flex-1 min-w-0 min-h-[34px] px-1 cursor-pointer"
+              >
+                {SOURCE_LABELS[src]}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
-        {/* Name */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+            <label htmlFor={`${uid}-first`} className="field-label">
               First name
-            </div>
+            </label>
             <input
+              id={`${uid}-first`}
               type="text"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Jordan"
-              className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+              className="field"
             />
           </div>
           <div>
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+            <label htmlFor={`${uid}-last`} className="field-label">
               Last name
-            </div>
+            </label>
             <input
+              id={`${uid}-last`}
               type="text"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Henderson"
-              className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+              className="field"
             />
           </div>
         </div>
 
-        {/* Fields */}
         {[
           {
             field: "phone" as const,
@@ -155,31 +153,33 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
             placeholder: "name@email.com",
           },
         ].map(({ field, label, placeholder }) => (
-          <div key={field} className="mb-4">
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+          <div key={field}>
+            <label htmlFor={`${uid}-${field}`} className="field-label">
               {label}
-            </div>
+            </label>
             <input
+              id={`${uid}-${field}`}
               type="text"
               value={(form[field] as string) ?? ""}
               onChange={(e) =>
                 setForm((f) => ({ ...f, [field]: e.target.value }))
               }
               placeholder={placeholder}
-              className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150"
+              className="field"
             />
           </div>
         ))}
 
-        <div className="mb-4">
-          <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.06em] mb-[5px]">
+        <div>
+          <label htmlFor={`${uid}-notes`} className="field-label">
             Notes
-          </div>
+          </label>
           <textarea
+            id={`${uid}-notes`}
             rows={3}
             value={form.notes ?? ""}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            className="w-full text-[14px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-2 rounded-[5px] focus:outline-none focus:border-[var(--ink-2)] transition-[border-color] duration-150 resize-none"
+            className="field resize-none"
           />
         </div>
       </div>

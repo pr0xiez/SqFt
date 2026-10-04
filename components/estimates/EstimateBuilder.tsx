@@ -8,6 +8,14 @@ import { ReviseButton } from "@/components/estimates/ReviseButton";
 import { SendEstimateDialog } from "@/components/estimates/SendEstimateDialog";
 import { InvoicesSection } from "@/components/invoices/InvoicesSection";
 import { Button } from "@/components/ui/Button";
+import { ErrorState, LoadingLine } from "@/components/ui/EmptyState";
+import {
+  ArrowCounterClockwiseIcon,
+  ArrowRightIcon,
+  PaperPlaneTiltIcon,
+} from "@/components/ui/icons";
+import { BackLink, MetaSep, PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { isEstimateLocked } from "@/lib/estimateStatus";
 import { computeEstimateView } from "@/lib/estimateView";
@@ -27,19 +35,11 @@ export function EstimateBuilderView({ estimateId }: Props) {
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
 
   if (isLoading) {
-    return (
-      <p className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] py-8">
-        Loading estimate…
-      </p>
-    );
+    return <LoadingLine label="Loading estimate…" className="py-8" />;
   }
 
   if (!estimate) {
-    return (
-      <p className="font-[var(--font-mono)] text-[11px] text-[var(--accent)] py-8">
-        Estimate not found.
-      </p>
-    );
+    return <ErrorState message="Estimate not found." className="px-0" />;
   }
 
   const locked = isEstimateLocked(estimate.status);
@@ -55,56 +55,86 @@ export function EstimateBuilderView({ estimateId }: Props) {
     depositPct: estimate.depositPct,
   });
 
+  const customer = estimate.siteMeasure.location?.customer;
+  const address = estimate.siteMeasure.location?.address;
+  const hasRevisions =
+    Boolean(estimate.revisedFrom) || (estimate.revisedBy?.length ?? 0) > 0;
+
   return (
     <>
-      {/* Revision chain links */}
-      {(estimate.revisedFrom ||
-        (estimate.revisedBy && estimate.revisedBy.length > 0)) && (
-        <div className="mb-3 font-[var(--font-mono)] text-[11px] text-[var(--muted)] flex gap-3 flex-wrap">
-          {estimate.revisedFrom && (
-            <a
-              href={`/estimates/${estimate.revisedFrom.id}`}
-              className="text-[var(--accent)] underline"
-            >
-              ← Revision of E#{estimate.revisedFrom.estimateNumber}
-            </a>
-          )}
-          {estimate.revisedBy?.map((rev) => (
-            <a
-              key={rev.id}
-              href={`/estimates/${rev.id}`}
-              className="text-[var(--accent)] underline"
-            >
-              Revised by E#{rev.estimateNumber} →
-            </a>
-          ))}
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between mb-7 gap-5">
-        <div>
-          <h1 className="text-[36px] font-[700] leading-[1.05] tracking-[-0.025em]">
-            Estimate #{estimate.estimateNumber}{" "}
-            <span className="font-[400] text-[var(--ink-2)]">
-              · {estimate.status}
-            </span>
-          </h1>
-        </div>
-        <div className="flex gap-2">
-          <Link href={`/site-measures/${estimate.siteMeasureId}`}>
-            <Button variant="ghost">← Back to site measure</Button>
-          </Link>
-          {!locked && (
+      <PageHeader
+        kicker={
+          <>
+            <BackLink href={`/site-measures/${estimate.siteMeasureId}`}>
+              Back to site measure
+            </BackLink>
+            {/* Revision chain links */}
+            {hasRevisions && <MetaSep />}
+            {estimate.revisedFrom && (
+              <Link
+                href={`/estimates/${estimate.revisedFrom.id}`}
+                className="inline-flex items-center gap-1.5 font-[500] text-[var(--accent-ink)] hover:underline"
+              >
+                <ArrowCounterClockwiseIcon
+                  aria-hidden="true"
+                  className="size-[14px]"
+                />
+                Revision of E
+                <span className="type-figure">
+                  #{estimate.revisedFrom.estimateNumber}
+                </span>
+              </Link>
+            )}
+            {estimate.revisedBy?.map((rev) => (
+              <Link
+                key={rev.id}
+                href={`/estimates/${rev.id}`}
+                className="group inline-flex items-center gap-1.5 font-[500] text-[var(--accent-ink)] hover:underline"
+              >
+                Revised by E
+                <span className="type-figure">#{rev.estimateNumber}</span>
+                <ArrowRightIcon
+                  aria-hidden="true"
+                  className="size-[14px] transition-transform duration-300 ease-[var(--ease)] group-hover:translate-x-0.5"
+                />
+              </Link>
+            ))}
+          </>
+        }
+        title={`Estimate #${estimate.estimateNumber}`}
+        meta={
+          <>
+            {/* Locked estimates carry their status in the lock banner. */}
+            {!locked && <StatusBadge status={estimate.status} />}
+            {customer && (
+              <>
+                {!locked && <MetaSep />}
+                <span className="font-[560] text-[var(--ink-2)]">
+                  {customer.name}
+                </span>
+              </>
+            )}
+            {customer && address && (
+              <>
+                <MetaSep />
+                <span>{address}</span>
+              </>
+            )}
+          </>
+        }
+        actions={
+          locked ? (
+            <ReviseButton estimateId={estimate.id} />
+          ) : (
             <Button variant="primary" onClick={() => setSendDialogOpen(true)}>
-              Send to customer →
+              <PaperPlaneTiltIcon aria-hidden="true" />
+              Send to customer
             </Button>
-          )}
-          {locked && <ReviseButton estimateId={estimate.id} />}
-        </div>
-      </div>
+          )
+        }
+      />
 
-      {/* Lock banner — shown when estimate is accepted or declined */}
+      {/* Lock banner: shown when the estimate is approved or declined */}
       {locked && (
         <EstimateLockBanner
           status={estimate.status as "approved" | "declined"}
@@ -120,23 +150,6 @@ export function EstimateBuilderView({ estimateId }: Props) {
             )?.supersededByEstimateNumber ?? null
           }
         />
-      )}
-
-      {/* Customer bar */}
-      {estimate.siteMeasure.location?.customer && (
-        <div className="flex items-center gap-3.5 px-[18px] py-[14px] bg-[var(--surface)] border border-[var(--line)] border-l-[3px] border-l-[var(--accent)] rounded-lg mb-4">
-          <div className="flex-1">
-            <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.04em] mb-0.5">
-              Customer
-            </div>
-            <div className="text-[16px] font-[600] tracking-[-0.01em]">
-              {estimate.siteMeasure.location.customer.name}
-            </div>
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-0.5">
-              {estimate.siteMeasure.location.address ?? ""}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Line Items + inline totals/settings */}
@@ -161,6 +174,7 @@ export function EstimateBuilderView({ estimateId }: Props) {
         estimateId={estimateId}
         estimateTotal={estimateView.total}
         defaultDepositPct={estimate.org?.defaultDepositPct ?? 0.3}
+        emphasize={estimate.status === "approved"}
       />
 
       <SendEstimateDialog

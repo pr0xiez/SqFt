@@ -3,7 +3,7 @@ import { LineItemTemplatesView } from "@/components/settings/LineItemTemplatesVi
 import { hasMinRole, homePathFor } from "@/lib/auth/permissions";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Line item templates · Settings · SqFt" };
+export const metadata = { title: "Line item templates" };
 
 export default async function LineItemTemplatesPage() {
   const session = await requireSession();

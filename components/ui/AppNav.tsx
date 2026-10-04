@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { MobileTabBar } from "@/components/ui/MobileTabBar";
 import { NavDrawer } from "@/components/ui/NavDrawer";
 import { SideNav } from "@/components/ui/SideNav";
@@ -26,14 +27,12 @@ export function AppNav() {
         <header
           className={cn(
             "md:hidden order-1 shrink-0 z-[60]",
-            "flex items-center justify-between h-[52px] px-4",
-            "bg-[var(--surface)] border-b border-[var(--line)]",
-            "transition-[background,border-color] duration-[250ms]"
+            "flex items-center justify-between h-14 px-4",
+            "bg-[color-mix(in_oklab,var(--bg)_92%,transparent)] backdrop-blur-md",
+            "border-b border-[var(--line)]"
           )}
         >
-          <span className="text-[18px] font-[800] tracking-[-0.025em] leading-none">
-            <em className="not-italic text-[var(--accent)]">Sq</em>Ft
-          </span>
+          <BrandMark />
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -41,11 +40,11 @@ export function AppNav() {
             aria-haspopup="dialog"
             aria-expanded={drawerOpen}
             className={cn(
-              "w-[34px] h-[34px] rounded-full",
-              "bg-[var(--surface-2)] border border-[var(--line)]",
+              "size-9 rounded-full",
+              "bg-[var(--ink)] text-[var(--bg)]",
               "flex items-center justify-center cursor-pointer",
-              "font-[var(--font-mono)] text-[11px] font-[600] text-[var(--accent)]",
-              "hover:border-[var(--accent)] transition-colors"
+              "text-[12.5px] font-[700]",
+              "transition-transform active:scale-95"
             )}
           >
             {getInitials(session?.user?.name, session?.user?.email)}

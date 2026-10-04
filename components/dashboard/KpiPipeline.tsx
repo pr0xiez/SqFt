@@ -1,11 +1,13 @@
+import { Stat } from "@/components/ui/Stat";
 import type { DashboardKpis } from "@/lib/hooks/useDashboardKPIs";
+
+type Trend = "up" | "down" | "flat";
 
 interface KpiCell {
   label: string;
   value: string;
   delta: string;
-  deltaDir: "up" | "down" | "flat";
-  sparkHeights: number[];
+  trend: Trend;
 }
 
 function formatRevenue(n: number): string {
@@ -13,116 +15,103 @@ function formatRevenue(n: number): string {
   return `$${n.toFixed(0)}`;
 }
 
-function formatDelta(n: number, prefix = ""): string {
-  if (n > 0) return `↑ ${prefix}${Math.abs(n)} vs last wk`;
-  if (n < 0) return `↓ ${prefix}${Math.abs(n)} vs last wk`;
-  return "— same as last wk";
+function formatDelta(n: number, unit = " vs last week"): string {
+  if (n > 0) return `+${n}${unit}`;
+  if (n < 0) return `${n}${unit}`.replace("-", "−");
+  return "Same as last week";
 }
 
-function deltaDir(n: number): "up" | "down" | "flat" {
+function trendOf(n: number): Trend {
   return n > 0 ? "up" : n < 0 ? "down" : "flat";
 }
 
 function buildCells(kpis: DashboardKpis): KpiCell[] {
   return [
     {
-      label: "Site Measures",
+      label: "Site measures",
       value: String(kpis.estimatesTotal),
       delta: formatDelta(kpis.estimatesDelta),
-      deltaDir: deltaDir(kpis.estimatesDelta),
-      sparkHeights: [30, 50, 35, 65, 48, 80, 90],
+      trend: trendOf(kpis.estimatesDelta),
     },
     {
-      label: "Estimates Sent",
+      label: "Estimates sent",
       value: String(kpis.estimatesSentTotal),
       delta: formatDelta(kpis.estimatesSentDelta),
-      deltaDir: deltaDir(kpis.estimatesSentDelta),
-      sparkHeights: [60, 55, 62, 58, 60, 65, 60],
+      trend: trendOf(kpis.estimatesSentDelta),
     },
     {
-      label: "Awaiting Signature",
+      label: "Awaiting signature",
       value: String(kpis.awaitingSignature),
       delta:
         kpis.expiringSoonCount > 0
           ? `${kpis.expiringSoonCount} expiring soon`
-          : "none expiring soon",
-      deltaDir: kpis.expiringSoonCount > 0 ? "down" : "flat",
-      sparkHeights: [25, 40, 45, 55, 50, 70, 75],
+          : "None expiring soon",
+      trend: kpis.expiringSoonCount > 0 ? "down" : "flat",
     },
     {
-      label: "Win Rate (30d)",
+      label: "Win rate, 30 days",
       value: `${kpis.winRate30d}%`,
-      delta: formatDelta(kpis.winRateDelta, "").replace("vs last wk", "pt"),
-      deltaDir: deltaDir(kpis.winRateDelta),
-      sparkHeights: [45, 55, 60, 50, 65, 70, 80],
+      delta:
+        kpis.winRateDelta === 0
+          ? "Same as last week"
+          : formatDelta(kpis.winRateDelta, " pts"),
+      trend: trendOf(kpis.winRateDelta),
     },
     {
-      label: "Booked Revenue (MTD)",
+      label: "Booked this month",
       value: formatRevenue(kpis.bookedRevenueMtd),
       delta:
-        kpis.bookedRevenueDelta >= 0
-          ? `↑ ${formatRevenue(kpis.bookedRevenueDelta)}`
-          : `↓ ${formatRevenue(Math.abs(kpis.bookedRevenueDelta))}`,
-      deltaDir: deltaDir(kpis.bookedRevenueDelta),
-      sparkHeights: [20, 35, 45, 55, 70, 80, 95],
+        kpis.bookedRevenueDelta === 0
+          ? "Same as last week"
+          : kpis.bookedRevenueDelta > 0
+            ? `+${formatRevenue(kpis.bookedRevenueDelta)} vs last week`
+            : `−${formatRevenue(Math.abs(kpis.bookedRevenueDelta))} vs last week`,
+      trend: trendOf(kpis.bookedRevenueDelta),
     },
   ];
 }
 
-const deltaColor: Record<"up" | "down" | "flat", string> = {
-  up: "var(--sage)",
-  down: "var(--accent)",
-  flat: "var(--muted)",
+const trendColor: Record<Trend, string> = {
+  up: "text-[var(--ok)]",
+  down: "text-[var(--accent-ink)]",
+  flat: "text-[var(--muted)]",
 };
 
 interface Props {
   kpis: DashboardKpis;
 }
 
+/**
+ * The KPI strip. Five figures in one bordered band, divided by hairlines; it
+ * folds to a 2-column grid on phones instead of scrolling sideways.
+ */
 export function KpiPipeline({ kpis }: Props) {
   const cells = buildCells(kpis);
 
   return (
-    <div
-      className="grid bg-[var(--surface)] border border-[var(--line)] rounded-[10px] overflow-hidden mb-7"
-      style={{ gridTemplateColumns: `repeat(${cells.length}, 1fr)` }}
-    >
-      {cells.map((cell, i) => (
-        <div
-          key={cell.label}
-          className="group px-6 py-[22px] relative transition-colors hover:bg-[var(--surface-2)]"
-          style={{
-            borderRight:
-              i < cells.length - 1 ? "1px solid var(--line)" : undefined,
-          }}
-        >
-          <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] uppercase tracking-[.08em] mb-2">
-            {cell.label}
-          </div>
-          <div className="text-[30px] font-[700] tracking-[-0.025em] leading-none mb-1.5">
-            {cell.value}
-          </div>
+    <div className="card grid grid-cols-2 lg:grid-cols-5 overflow-hidden mb-6">
+      {cells.map((cell, i) => {
+        const isLast = i === cells.length - 1;
+        return (
           <div
-            className="font-[var(--font-mono)] text-[11px] flex items-center gap-1.5"
-            style={{ color: deltaColor[cell.deltaDir] }}
+            key={cell.label}
+            className={[
+              "px-5 py-5 md:px-6 md:py-6 border-[var(--line)]",
+              // hairlines between cells: 2 columns on phones, 5 from lg up
+              i % 2 === 0 && !isLast ? "border-r" : "",
+              isLast ? "col-span-2 lg:col-span-1" : "lg:border-r",
+              i >= 2 ? "border-t lg:border-t-0" : "",
+            ].join(" ")}
           >
-            {cell.delta}
+            <Stat
+              label={cell.label}
+              value={cell.value}
+              size="md"
+              sub={<span className={trendColor[cell.trend]}>{cell.delta}</span>}
+            />
           </div>
-          <div className="flex items-end gap-0.5 mt-2 h-6">
-            {cell.sparkHeights.map((h, idx) => (
-              <span
-                // biome-ignore lint/suspicious/noArrayIndexKey: static decorative bars
-                key={idx}
-                className="flex-1 rounded-[1px] transition-colors duration-200 group-hover:bg-[var(--accent)]"
-                style={{
-                  height: `${h}%`,
-                  background: "var(--line-2)",
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

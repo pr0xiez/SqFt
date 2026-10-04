@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { CELL } from "@/components/ui/table";
+import { cn } from "@/lib/cn";
 import { useUpdateMember } from "@/lib/hooks/useMembers";
 import type { MemberRole, MemberRow as Row } from "./types";
 
 const ROLES: MemberRole[] = ["admin", "lead", "crew"];
+
+/** Column template shared by the members table header and its rows. */
+export const MEMBER_GRID =
+  "md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_150px_112px]";
 
 export function MemberRow({
   row,
@@ -42,13 +49,34 @@ export function MemberRow({
     "·";
 
   return (
-    <div className="grid grid-cols-[1fr_1.5fr_140px_90px] items-center gap-3 px-4 py-3 border-b border-[var(--line)] last:border-b-0">
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-[var(--surface-2)] border border-[var(--line)] flex items-center justify-center text-[11px] font-[var(--font-mono)] font-[600] text-[var(--ink)]">
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-y-2 py-3 border-b border-[var(--line)] last:border-b-0",
+        MEMBER_GRID,
+        row.archived && "text-[var(--ink-2)]"
+      )}
+    >
+      <div
+        className={cn(
+          CELL,
+          "col-span-2 md:col-span-1 flex items-center gap-3 min-w-0"
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "size-8 shrink-0 rounded-full flex items-center justify-center text-[12px] font-[650] leading-none",
+            row.archived
+              ? "bg-[var(--surface-2)] text-[var(--muted)]"
+              : "bg-[var(--ink)] text-[var(--bg)]"
+          )}
+        >
           {initials}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[14px] font-[500] truncate">{row.name}</div>
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14.5px] font-[600] tracking-[-0.01em] truncate">
+            {row.name}
+          </div>
           <input
             defaultValue={row.title ?? ""}
             placeholder="Add title"
@@ -58,22 +86,27 @@ export function MemberRow({
                 patch({ id: row.id, title: next || null });
               }
             }}
-            className="mt-0.5 w-full text-[12px] text-[var(--muted)] bg-transparent border border-transparent hover:border-[var(--line)] focus:border-[var(--line)] rounded-[3px] px-1 py-0.5"
+            className="-ml-1.5 mt-0.5 w-full max-w-[260px] h-7 px-1.5 text-[13px] text-[var(--muted)] placeholder:text-[var(--muted)] bg-transparent border border-transparent rounded-[var(--r-in)] hover:border-[var(--field-border)] focus:border-[var(--accent)] focus:text-[var(--ink)] focus:outline-none transition-colors"
             aria-label={`Title for ${row.name}`}
           />
         </div>
       </div>
-      <div className="text-[12px] text-[var(--muted)] truncate">
+      <div
+        className={cn(
+          CELL,
+          "col-span-2 md:col-span-1 pl-[58px] md:pl-3.5 text-[13.5px] text-[var(--muted)] truncate"
+        )}
+      >
         {row.email}
       </div>
-      <div>
+      <div className={cn(CELL, "pl-[58px] md:pl-3.5")}>
         <select
           value={row.role}
           onChange={(e) =>
             patch({ id: row.id, role: e.target.value as MemberRole })
           }
           disabled={isSelf || row.archived || mutation.isPending}
-          className="w-full text-[13px] border border-[var(--line)] bg-[var(--surface)] text-[var(--ink)] px-2 py-1.5 rounded-[5px] disabled:opacity-60"
+          className="field min-h-[34px] h-[34px] pl-2.5 text-[14px] max-w-[180px] md:max-w-none"
           aria-label={`Role for ${row.name}`}
         >
           {ROLES.map((r) => (
@@ -83,19 +116,27 @@ export function MemberRow({
           ))}
         </select>
         {error && (
-          <div className="text-[11px] text-[var(--accent)] mt-1">{error}</div>
+          <div className="field-error mt-1.5" role="alert">
+            {error}
+          </div>
         )}
       </div>
-      <div className="text-right">
+      <div className={cn(CELL, "text-right")}>
         {!isSelf && (
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant={row.archived ? "default" : "ghost"}
+            className={
+              row.archived
+                ? undefined
+                : "hover:text-[var(--accent-ink)] hover:bg-[var(--accent-wash)]"
+            }
             onClick={() => patch({ id: row.id, archived: !row.archived })}
             disabled={mutation.isPending}
-            className="text-[11px] font-[var(--font-mono)] uppercase tracking-[.04em] px-2 py-1 border border-[var(--line)] rounded-[5px] hover:bg-[var(--surface-2)] disabled:opacity-50"
           >
             {row.archived ? "Restore" : "Archive"}
-          </button>
+          </Button>
         )}
       </div>
     </div>

@@ -5,12 +5,30 @@ import { useState } from "react";
 import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
-import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingRows,
+} from "@/components/ui/EmptyState";
 import { FilterPill } from "@/components/ui/FilterPill";
+import { PlusIcon, UsersIcon } from "@/components/ui/icons";
+import { ListToolbar } from "@/components/ui/ListToolbar";
+import { MetaSep, PageHeader } from "@/components/ui/PageHeader";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { SortableHeader } from "@/components/ui/SortableHeader";
 import { SourceBadge } from "@/components/ui/SourceBadge";
+import { Tag } from "@/components/ui/StatusBadge";
+import {
+  CELL,
+  CELL_FIGURE,
+  CELL_META,
+  CELL_PRIMARY,
+  CELL_SUB,
+  TABLE_HEAD,
+  TABLE_ROW,
+  TABLE_SHELL,
+} from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { isOpenEstimate } from "@/lib/estimateStatus";
 import {
@@ -32,14 +50,6 @@ const SOURCES = [
   "website",
 ] as const;
 
-const SOURCE_ROW_BORDERS: Record<string, string> = {
-  phone: "border-l-[var(--sage)]",
-  online: "border-l-[var(--gold)]",
-  referral: "border-l-[var(--accent)]",
-  walkin: "border-l-[var(--muted)]",
-  website: "border-l-[var(--ink-2)]",
-};
-
 const PIPELINE_FILTERS = [
   { id: "any", label: "Any pipeline" },
   { id: "open", label: "Open estimate" },
@@ -50,6 +60,8 @@ const PIPELINE_FILTERS = [
 type PipelineFilter = (typeof PIPELINE_FILTERS)[number]["id"];
 
 type SortKey = "name" | "source" | "siteMeasures" | "open" | "createdAt";
+
+const GRID_COLS = "md:grid-cols-[minmax(0,1fr)_128px_88px_80px_120px]";
 
 interface CustomerSummary {
   open: number;
@@ -137,6 +149,8 @@ export function CustomerListView() {
 
   const totals = data?.summary ?? { openEstimates: 0, won: 0, withOpen: 0 };
   const total = data?.total ?? 0;
+  const unfiltered =
+    query.trim() === "" && filter === "all" && pipeline === "any";
 
   const handleSort = (key: SortKey) => {
     setSort(cycleSort(sort, key, key === "createdAt" ? "desc" : "asc"));
@@ -146,92 +160,97 @@ export function CustomerListView() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between mb-6 gap-5">
-        <div>
-          <h1 className="text-[40px] font-[700] leading-[1.02] tracking-[-0.03em]">
-            Customers
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-[var(--font-mono)] text-[11px] text-[var(--muted)] mt-2.5 uppercase tracking-[.08em]">
+      <PageHeader
+        title="Customers"
+        meta={
+          <>
             <span>
-              <span className="text-[var(--ink)] font-[600]">{total}</span>{" "}
+              <span className="type-figure text-[var(--ink-2)]">{total}</span>{" "}
               total
             </span>
-            <span className="w-px h-3 bg-[var(--line-2)]" />
+            <MetaSep />
             <span>
               <span
                 className={cn(
-                  "font-[600]",
+                  "type-figure",
                   totals.openEstimates > 0
-                    ? "text-[var(--gold)]"
-                    : "text-[var(--muted)]"
+                    ? "text-[var(--warn)]"
+                    : "text-[var(--ink-2)]"
                 )}
               >
                 {totals.openEstimates}
               </span>{" "}
               open
             </span>
-            <span className="w-px h-3 bg-[var(--line-2)]" />
+            <MetaSep />
             <span>
               <span
                 className={cn(
-                  "font-[600]",
-                  totals.won > 0 ? "text-[var(--sage)]" : "text-[var(--muted)]"
+                  "type-figure",
+                  totals.won > 0 ? "text-[var(--ok)]" : "text-[var(--ink-2)]"
                 )}
               >
                 {totals.won}
               </span>{" "}
               won
             </span>
-          </div>
-        </div>
-        <Button variant="primary" onClick={() => setPanelOpen(true)}>
-          + New Customer
-        </Button>
-      </div>
+          </>
+        }
+        actions={
+          <Button variant="primary" onClick={() => setPanelOpen(true)}>
+            <PlusIcon aria-hidden="true" />
+            New Customer
+          </Button>
+        }
+      />
 
-      <div className="flex flex-col gap-2.5 mb-4">
-        <div className="flex flex-wrap items-center gap-2">
+      <ListToolbar
+        className="mb-2.5"
+        search={
           <SearchInput
             value={query}
             onChange={setQuery}
             placeholder="Search name, phone, email…"
           />
-          {SOURCES.map((src) => (
-            <FilterPill
-              key={src}
-              active={filter === src}
-              count={sourceCounts[src] ?? 0}
-              onClick={() => setFilter(src)}
-            >
-              {src === "all" ? "All" : sourceName(src)}
-            </FilterPill>
-          ))}
+        }
+        filters={SOURCES.map((src) => (
+          <FilterPill
+            key={src}
+            active={filter === src}
+            count={sourceCounts[src] ?? 0}
+            onClick={() => setFilter(src)}
+          >
+            {src === "all" ? "All" : sourceName(src)}
+          </FilterPill>
+        ))}
+        trailing={
           <DensityToggle
             value={density}
             onChange={setDensity}
-            className="ml-auto"
+            className="hidden md:inline-flex"
           />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-[var(--font-mono)] text-[9.5px] text-[var(--muted)] uppercase tracking-[.1em] mr-1">
-            Pipeline
-          </span>
-          {PIPELINE_FILTERS.map((p) => (
-            <FilterPill
-              key={p.id}
-              active={pipeline === p.id}
-              count={pipelineCounts[p.id]}
-              onClick={() => setPipeline(p.id)}
-              size="sm"
-            >
-              {p.label}
-            </FilterPill>
-          ))}
-        </div>
-      </div>
+        }
+      />
+      <ListToolbar
+        filters={
+          <>
+            <span className="type-label shrink-0 mr-1">Pipeline</span>
+            {PIPELINE_FILTERS.map((p) => (
+              <FilterPill
+                key={p.id}
+                active={pipeline === p.id}
+                count={pipelineCounts[p.id]}
+                onClick={() => setPipeline(p.id)}
+              >
+                {p.label}
+              </FilterPill>
+            ))}
+          </>
+        }
+      />
 
-      <div className="bg-[var(--surface)] border border-[var(--line)] rounded-lg overflow-hidden">
-        <div className="hidden md:grid grid-cols-[1fr_120px_70px_70px_110px_90px] bg-[var(--surface-2)] border-b border-[var(--line)] sticky top-0 z-[1]">
+      <div className={TABLE_SHELL}>
+        <div className={cn(TABLE_HEAD, GRID_COLS)}>
           <SortableHeader
             sortKey="name"
             label="Customer"
@@ -250,7 +269,6 @@ export function CustomerListView() {
             sort={sort}
             onSort={handleSort}
             align="right"
-            className="tabular-nums"
           />
           <SortableHeader
             sortKey="open"
@@ -258,7 +276,6 @@ export function CustomerListView() {
             sort={sort}
             onSort={handleSort}
             align="right"
-            className="tabular-nums"
           />
           <SortableHeader
             sortKey="createdAt"
@@ -266,101 +283,95 @@ export function CustomerListView() {
             sort={sort}
             onSort={handleSort}
           />
-          <div className="px-3.5 py-2.5" />
         </div>
 
         {isLoading ? (
-          <div className="p-6 font-[var(--font-mono)] text-[11px] text-[var(--muted)]">
-            Loading…
-          </div>
+          <LoadingRows />
         ) : isError ? (
-          <div className="p-6 flex flex-col items-start gap-2.5">
-            <div className="font-[var(--font-mono)] text-[11px] text-[var(--accent)]">
-              Something went wrong loading customers.
-            </div>
-            <Button variant="default" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </div>
+          <ErrorState
+            message="Something went wrong loading customers."
+            action={
+              <Button variant="default" size="sm" onClick={() => refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : total === 0 && unfiltered ? (
+          <EmptyState
+            icon={UsersIcon}
+            title="No customers yet."
+            body="Add a lead with New Customer, then measure their site."
+          />
         ) : total === 0 ? (
           <EmptyState noun="customer" query={query} />
         ) : (
           <>
             {summarized.map(({ customer: c, summary }) => {
-              const estCount = summary.siteMeasures;
               const won = summary.accepted > 0;
+              const contact = [c.phone, c.email].filter(Boolean).join(" · ");
               return (
                 <button
                   key={c.id}
                   type="button"
+                  data-customer-row=""
                   onClick={() => router.push(`/customers/${c.id}`)}
-                  className={cn(
-                    "w-full text-left grid grid-cols-1 md:grid-cols-[1fr_120px_70px_70px_110px_90px]",
-                    "items-center border-b border-[var(--line)] last:border-b-0",
-                    "cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--surface-2)]",
-                    "border-l-[3px]",
-                    SOURCE_ROW_BORDERS[c.source] ?? "border-l-transparent"
-                  )}
+                  className={cn(TABLE_ROW, "grid-cols-1", GRID_COLS)}
                 >
-                  <div className={cn("px-3.5 min-w-0", rowPad)}>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-[14px] font-[600] tracking-[-0.01em] truncate">
+                  <div className={cn(CELL, "min-w-0", rowPad)}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={cn(CELL_PRIMARY, "truncate")}>
                         {c.name}
                       </span>
                       {won && (
-                        <span
-                          className="font-[var(--font-mono)] text-[8.5px] uppercase tracking-[.1em] px-1.5 py-[1px] rounded-[3px] border shrink-0"
-                          style={{
-                            color: "var(--sage)",
-                            borderColor:
-                              "color-mix(in srgb, var(--sage) 50%, transparent)",
-                            background:
-                              "color-mix(in srgb, var(--sage) 8%, transparent)",
-                          }}
-                        >
+                        <Tag tone="ok" className="shrink-0">
                           Won
-                        </span>
+                        </Tag>
                       )}
                     </div>
-                    <div className="font-[var(--font-mono)] text-[10px] text-[var(--muted)] truncate">
-                      {c.phone}
-                      {c.email ? ` · ${c.email}` : ""}
+                    {contact && <div className={CELL_SUB}>{contact}</div>}
+                    {/* phones: the columns fold into one meta line */}
+                    <div className="md:hidden mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[var(--muted)]">
+                      <SourceBadge source={c.source} />
+                      {summary.open > 0 && (
+                        <span>
+                          <span className="type-figure text-[var(--warn)]">
+                            {summary.open}
+                          </span>{" "}
+                          open
+                        </span>
+                      )}
+                      <span>Added {formatShortDate(c.createdAt)}</span>
                     </div>
                   </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
+                  <div className={cn(CELL, "hidden md:block", rowPad)}>
                     <SourceBadge source={c.source} />
                   </div>
                   <div
-                    className={cn(
-                      "px-3.5 hidden md:block text-right text-[15px] font-[600] tabular-nums",
-                      rowPad
-                    )}
+                    className={cn(CELL, "hidden md:block text-right", rowPad)}
                   >
-                    {estCount}
+                    <span className={cn(CELL_FIGURE, "font-[600]")}>
+                      {summary.siteMeasures}
+                    </span>
                   </div>
                   <div
-                    className={cn(
-                      "px-3.5 hidden md:block text-right text-[15px] font-[700] tabular-nums",
-                      rowPad
-                    )}
-                    style={{
-                      color: summary.open > 0 ? "var(--gold)" : "var(--muted)",
-                    }}
+                    className={cn(CELL, "hidden md:block text-right", rowPad)}
                   >
-                    {summary.open || "—"}
+                    <span
+                      className={cn(
+                        CELL_FIGURE,
+                        "font-[600]",
+                        summary.open > 0
+                          ? "text-[var(--warn)]"
+                          : "text-[var(--muted)]"
+                      )}
+                    >
+                      {summary.open || "-"}
+                    </span>
                   </div>
                   <div
-                    className={cn(
-                      "px-3.5 hidden md:block font-[var(--font-mono)] text-[11px] text-[var(--muted)] tabular-nums",
-                      rowPad
-                    )}
+                    className={cn(CELL, CELL_META, "hidden md:block", rowPad)}
                   >
                     {formatShortDate(c.createdAt)}
-                  </div>
-                  <div className={cn("px-3.5 hidden md:block", rowPad)}>
-                    <span className="inline-block whitespace-nowrap font-[var(--font-mono)] text-[10px] px-3 py-[5px] border border-[var(--line)] bg-transparent text-[var(--muted)] rounded-[5px] hover:border-[var(--ink)] hover:text-[var(--ink)] transition-colors duration-150">
-                      Open →
-                    </span>
                   </div>
                 </button>
               );

@@ -99,7 +99,7 @@ describe("PublicInvoiceView", () => {
     // Without a session id to verify against Stripe, no "Payment received"
     // banner may render — otherwise anyone could screenshot a fake confirmation.
     renderInvoice({ payResult: "success", sessionId: null });
-    expect(screen.queryByText("Payment received — thank you!")).toBeNull();
+    expect(screen.queryByText("Payment received. Thank you!")).toBeNull();
   });
 
   it("shows the cancelled note when payResult is 'cancelled'", () => {

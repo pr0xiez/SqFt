@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { PaperPlaneTiltIcon } from "@/components/ui/icons";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { useSendEstimate } from "@/lib/hooks/useEstimates";
@@ -58,7 +59,7 @@ export function SendEstimateDialog({
       } else {
         showToast(
           "Estimate sent",
-          "Couldn't update the customer's saved email — try again from their profile."
+          "Couldn't update the customer's saved email. Try again from their profile."
         );
       }
       onClose();
@@ -75,53 +76,45 @@ export function SendEstimateDialog({
       sub="They'll get an email with a link to review and sign."
       maxWidth="480px"
     >
-      <label
-        className="block text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-1"
-        htmlFor="send-to"
-      >
+      <label className="field-label" htmlFor="send-to">
         To
       </label>
       <input
         id="send-to"
         type="email"
-        className="w-full text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded mb-3 focus:outline-none focus:border-[var(--ink)]"
+        className="field mb-4"
         value={to}
         onChange={(e) => setTo(e.target.value)}
         placeholder="janet@example.com"
         required
       />
 
-      <label
-        className="block text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-1"
-        htmlFor="send-subject"
-      >
+      <label className="field-label" htmlFor="send-subject">
         Subject
       </label>
       <input
         id="send-subject"
         type="text"
-        className="w-full text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded mb-3 focus:outline-none focus:border-[var(--ink)]"
+        className="field mb-4"
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
       />
 
-      <label
-        className="block text-[10px] font-[var(--font-mono)] uppercase tracking-[.06em] text-[var(--muted)] mb-1"
-        htmlFor="send-message"
-      >
+      <label className="field-label" htmlFor="send-message">
         Message (optional)
       </label>
       <textarea
         id="send-message"
-        className="w-full text-[14px] border border-[var(--line-2)] bg-[var(--surface)] px-3 py-2 rounded mb-3 min-h-[96px] resize-y focus:outline-none focus:border-[var(--ink)]"
+        className="field mb-4 min-h-[96px]"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Hi Janet — here's the estimate we discussed."
+        placeholder="Hi Janet, here's the estimate we discussed."
       />
 
       {hasToken && (
-        <label className="flex items-center gap-2 text-[12px] text-[var(--ink-2)] mb-4">
+        <label className="flex items-center gap-2.5 min-h-[36px] text-[14px] text-[var(--ink-2)] mb-4 cursor-pointer">
           <input
+            className="size-4 shrink-0"
             type="checkbox"
             checked={regenerate}
             onChange={(e) => setRegenerate(e.target.checked)}
@@ -130,7 +123,7 @@ export function SendEstimateDialog({
         </label>
       )}
 
-      <div className="flex justify-end gap-2 mt-2">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 mt-2">
         <Button variant="ghost" onClick={onClose} type="button">
           Cancel
         </Button>
@@ -140,7 +133,8 @@ export function SendEstimateDialog({
           disabled={!canSend}
           type="button"
         >
-          {send.isPending ? "Sending…" : "Send estimate →"}
+          <PaperPlaneTiltIcon aria-hidden="true" />
+          {send.isPending ? "Sending…" : "Send estimate"}
         </Button>
       </div>
     </Modal>

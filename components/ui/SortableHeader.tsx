@@ -1,7 +1,12 @@
 "use client";
 
+import {
+  CaretDownIcon,
+  CaretUpDownIcon,
+  CaretUpIcon,
+} from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
-import type { SortDirection, SortState } from "@/lib/sort";
+import type { SortState } from "@/lib/sort";
 
 type SortableHeaderProps<K extends string> = {
   sortKey: K;
@@ -30,62 +35,39 @@ export function SortableHeader<K extends string>({
       ? "sorted ascending"
       : "sorted descending";
 
+  const Glyph =
+    direction === "asc"
+      ? CaretUpIcon
+      : direction === "desc"
+        ? CaretDownIcon
+        : CaretUpDownIcon;
+
   return (
     <button
       type="button"
       onClick={() => onSort(sortKey)}
       aria-label={`Sort by ${label}, ${stateSuffix}`}
       className={cn(
-        "w-full h-full px-3.5 py-2.5",
-        "font-[var(--font-mono)] text-[10px] uppercase tracking-[.06em]",
+        "group w-full h-full px-3.5 py-2.5",
+        "text-[13px] font-[500] text-left whitespace-nowrap",
         "transition-colors duration-150 cursor-pointer",
-        "flex items-center gap-1.5",
+        "flex items-center gap-1",
         align === "right" && "justify-end",
         active
           ? "text-[var(--ink)]"
-          : "text-[var(--muted)] hover:text-[var(--ink-2)]",
+          : "text-[var(--muted)] hover:text-[var(--ink)]",
         className
       )}
     >
       <span>{label}</span>
-      <SortGlyph direction={direction} />
+      <Glyph
+        aria-hidden="true"
+        weight={active ? "bold" : "regular"}
+        className={cn(
+          "size-[12px] shrink-0 transition-opacity",
+          active ? "opacity-100" : "opacity-40 group-hover:opacity-80"
+        )}
+      />
     </button>
-  );
-}
-
-function SortGlyph({ direction }: { direction: SortDirection | null }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "inline-flex flex-col items-center justify-center",
-        "w-[8px] leading-none transition-opacity duration-150",
-        direction ? "opacity-100" : "opacity-30"
-      )}
-    >
-      <svg
-        viewBox="0 0 8 4"
-        className={cn(
-          "w-[8px] h-[4px]",
-          direction === "asc" ? "text-[var(--ink)]" : "text-[var(--muted)]"
-        )}
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path d="M4 0L8 4H0z" />
-      </svg>
-      <span className="block h-[1px]" />
-      <svg
-        viewBox="0 0 8 4"
-        className={cn(
-          "w-[8px] h-[4px]",
-          direction === "desc" ? "text-[var(--ink)]" : "text-[var(--muted)]"
-        )}
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path d="M0 0L8 0L4 4z" />
-      </svg>
-    </span>
   );
 }

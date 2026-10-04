@@ -52,35 +52,38 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Backdrop — click to dismiss. */}
+    <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center">
+      {/* Backdrop: click to dismiss. */}
       <div
-        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-[3px] animate-[fade-in_.24s_ease_both]"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Panel */}
+      {/* Panel: a bottom sheet on phones, a centred dialog from sm up. */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="relative bg-[var(--paper)] rounded-lg p-8 w-[calc(100%-32px)] shadow-2xl"
+        className={cn(
+          "relative w-full sm:w-[calc(100%-32px)] max-h-[calc(100dvh-24px)] overflow-y-auto",
+          "bg-[var(--paper)] border border-[var(--line)] shadow-[var(--shadow-md)]",
+          "rounded-t-[var(--r)] sm:rounded-[var(--r)]",
+          "px-5 pt-6 pb-[calc(20px+env(safe-area-inset-bottom,0px))] sm:p-7",
+          "animate-[slideUp_.32s_var(--ease)_both] focus-visible:outline-none"
+        )}
         style={{ maxWidth }}
       >
         <h2
           id={titleId}
-          className={cn(
-            "text-[20px] font-[700] tracking-[-0.02em]",
-            sub ? "mb-1" : "mb-4"
-          )}
+          className={cn("type-display text-[22px]", sub ? "mb-1.5" : "mb-5")}
         >
           {title}
         </h2>
         {sub ? (
-          <p className="text-[13px] text-[var(--ink-2)] mb-4">{sub}</p>
+          <p className="text-[14px] text-[var(--ink-2)] mb-5">{sub}</p>
         ) : null}
         {children}
       </div>

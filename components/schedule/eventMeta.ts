@@ -1,7 +1,8 @@
+/** The thin type stripe on agenda cards and the job sheet. */
 export const EVENT_ACCENT: Record<string, string> = {
   job: "bg-[var(--accent)]",
-  visit: "bg-[var(--gold)]",
-  other: "bg-[var(--sage)]",
+  visit: "bg-[var(--warn)]",
+  other: "bg-[var(--line-2)]",
 };
 
 export const EVENT_LABEL: Record<string, string> = {

@@ -3,7 +3,7 @@ import { WorkspaceSettingsView } from "@/components/settings/workspace/Workspace
 import { getOrgSettingsOrThrow } from "@/lib/repositories/organizationRepo";
 import { requireSession } from "@/lib/tenant";
 
-export const metadata = { title: "Workspace · Settings · SqFt" };
+export const metadata = { title: "Workspace settings" };
 
 export default async function WorkspaceSettingsPage() {
   const session = await requireSession();

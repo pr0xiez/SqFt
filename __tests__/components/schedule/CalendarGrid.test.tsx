@@ -133,7 +133,7 @@ describe("ScheduleView unscheduled backlog", () => {
     // The event form opens pre-filled: job type, seeded title, the backlog
     // estimate selected (merged into the options despite the picker fetch
     // returning nothing).
-    const title = screen.getByDisplayValue("Install — Henderson");
+    const title = screen.getByDisplayValue("Install: Henderson");
     expect(title).toBeTruthy();
     expect(screen.getByDisplayValue("Estimate #5006")).toBeTruthy();
 

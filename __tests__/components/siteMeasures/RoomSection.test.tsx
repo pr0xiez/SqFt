@@ -90,8 +90,8 @@ describe("RoomSection", () => {
   it("edits width/length: derived sqft and gross-area total update on commit", () => {
     renderSection([room({ w: null, l: null })]);
     // The room exists (so the summary bar renders) but has no dimensions yet,
-    // so the gross-area total reads "—" rather than a sqft figure.
-    expect(grossArea()).toContain("—");
+    // so the gross-area total reads "-" rather than a sqft figure.
+    expect(grossArea()).toBe("-");
 
     // Dimension fields are DecimalInputs: they hold a draft while typing and
     // commit on blur.

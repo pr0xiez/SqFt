@@ -18,32 +18,30 @@ const LOCALES = ["en-US", "en-CA", "es-MX"];
 
 export function IdentitySection({ form, onChange }: Props) {
   return (
-    <section className="mb-16 scroll-mt-20" id="identity">
-      <SectionHead n="01" title="Identity" kicker="Who you are on paper" />
+    <section className="mb-14 scroll-mt-8" id="identity">
+      <SectionHead title="Identity" kicker="Who you are on paper" />
 
-      <FieldRow label="Company name">
+      <FieldRow label="Company name" htmlFor="ws-company-name">
         <input
+          id="ws-company-name"
           type="text"
           value={form.name}
           onChange={(e) => onChange({ name: e.target.value })}
-          className="w-full px-3 py-2 border border-[var(--line)] rounded bg-transparent text-[14px] focus:outline-none focus:border-[var(--ink-2)]"
+          className="field bg-[var(--surface)]"
         />
       </FieldRow>
 
       <FieldRow label="Timezone & locale">
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <SelWrap>
             <select
+              aria-label="Timezone"
               value={form.timezone}
               onChange={(e) => onChange({ timezone: e.target.value })}
-              className="w-full px-3 py-2 border border-[var(--line)] rounded bg-transparent font-mono text-[13px] tracking-[.02em] cursor-pointer pr-8 appearance-none focus:outline-none focus:border-[var(--ink-2)]"
+              className="field bg-[var(--surface)]"
             >
               {TIMEZONES.map((tz) => (
-                <option
-                  key={tz}
-                  value={tz}
-                  className="bg-[var(--surface)] text-[var(--ink)]"
-                >
+                <option key={tz} value={tz}>
                   {tz}
                 </option>
               ))}
@@ -51,16 +49,13 @@ export function IdentitySection({ form, onChange }: Props) {
           </SelWrap>
           <SelWrap>
             <select
+              aria-label="Locale"
               value={form.locale}
               onChange={(e) => onChange({ locale: e.target.value })}
-              className="w-full px-3 py-2 border border-[var(--line)] rounded bg-transparent font-mono text-[13px] tracking-[.02em] cursor-pointer pr-8 appearance-none focus:outline-none focus:border-[var(--ink-2)]"
+              className="field bg-[var(--surface)]"
             >
               {LOCALES.map((l) => (
-                <option
-                  key={l}
-                  value={l}
-                  className="bg-[var(--surface)] text-[var(--ink)]"
-                >
+                <option key={l} value={l}>
                   {l}
                 </option>
               ))}

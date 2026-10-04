@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { CaretLeftIcon, CaretRightIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { PER_PAGE_OPTIONS } from "@/lib/pagination/constants";
 
@@ -38,19 +39,17 @@ export function Pagination({
   return (
     <div
       className={cn(
-        "border-t border-[var(--line)] bg-[var(--surface-2)]",
-        "px-3.5 py-3 grid gap-3",
+        "border-t border-[var(--line)]",
+        "px-4 py-3 grid gap-x-5 gap-y-3",
         "grid-cols-1 md:grid-cols-[auto_1fr_auto]",
         "items-center",
         className
       )}
     >
-      {/* LEFT — rows per page */}
-      <div className="flex items-center gap-2">
-        <span className="font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.1em] text-[var(--muted)]">
-          Rows
-        </span>
-        <div className="flex items-center gap-px rounded-[5px] border border-[var(--line)] bg-[var(--surface)] overflow-hidden">
+      {/* LEFT: rows per page */}
+      <div className="flex items-center gap-2.5">
+        <span className="text-[13px] font-[500] text-[var(--muted)]">Rows</span>
+        <div className="seg p-[2px] [&>*]:min-h-[26px] [&>*]:px-2.5">
           {perPageOptions.map((n) => {
             const active = n === perPage;
             return (
@@ -62,14 +61,8 @@ export function Pagination({
                   onPerPageChange(n);
                 }}
                 disabled={!onPerPageChange}
-                className={cn(
-                  "font-[var(--font-mono)] text-[11px] tabular-nums px-2.5 py-[5px]",
-                  "transition-colors duration-150 cursor-pointer",
-                  "disabled:cursor-not-allowed",
-                  active
-                    ? "bg-[var(--ink)] text-[var(--bg)]"
-                    : "bg-transparent text-[var(--muted)] hover:text-[var(--ink)] hover:bg-[var(--surface-2)]"
-                )}
+                aria-pressed={active}
+                className="type-figure text-[12.5px] disabled:cursor-not-allowed"
               >
                 {n}
               </button>
@@ -78,18 +71,19 @@ export function Pagination({
         </div>
       </div>
 
-      {/* CENTER — tape-measure ruler */}
+      {/* CENTER: tape-measure ruler */}
       <div className="flex flex-col gap-1.5 min-w-0">
-        <div className="flex items-center justify-between gap-3 font-[var(--font-mono)] text-[10px] uppercase tracking-[.08em] text-[var(--muted)] tabular-nums">
+        <div className="flex items-center justify-between gap-3 text-[13px] text-[var(--muted)]">
           <span>
-            <span className="text-[var(--ink)] font-[600]">
-              {startIdx.toLocaleString()}–{endIdx.toLocaleString()}
+            <span className="type-figure text-[var(--ink)] font-[600]">
+              {startIdx.toLocaleString()}-{endIdx.toLocaleString()}
             </span>{" "}
-            of {total.toLocaleString()} {noun}
+            of <span className="type-figure">{total.toLocaleString()}</span>{" "}
+            {noun}
             {total === 1 ? "" : "s"}
           </span>
-          <span className="hidden sm:inline text-[var(--muted)]">
-            tape · {pageCount} {pageCount === 1 ? "page" : "pages"}
+          <span className="hidden sm:inline">
+            {pageCount} {pageCount === 1 ? "page" : "pages"}
           </span>
         </div>
         <TapeMeasure
@@ -104,21 +98,17 @@ export function Pagination({
         />
       </div>
 
-      {/* RIGHT — prev / page / next */}
+      {/* RIGHT: prev / page / next */}
       <div className="flex items-center gap-2 justify-self-end">
         <NavButton
           direction="prev"
           disabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
         />
-        <div className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--ink)] min-w-[64px] text-center">
-          <span className="font-[600]">
-            {String(safePage).padStart(2, "0")}
-          </span>
-          <span className="text-[var(--line-2)] mx-1">/</span>
-          <span className="text-[var(--muted)]">
-            {String(pageCount).padStart(2, "0")}
-          </span>
+        <div className="type-figure text-[13px] text-[var(--ink)] min-w-[64px] text-center">
+          <span className="font-[600]">{safePage}</span>
+          <span className="text-[var(--muted)] mx-1">/</span>
+          <span className="text-[var(--muted)]">{pageCount}</span>
         </div>
         <NavButton
           direction="next"
@@ -130,7 +120,7 @@ export function Pagination({
   );
 }
 
-/* ── TAPE-MEASURE RULER ───────────────────────────────────────────────── */
+/* ── TAPE-MEASURE RULER ─────────────────────────────────────────────────── */
 
 type TapeMeasureProps = {
   page: number;
@@ -193,10 +183,9 @@ function TapeMeasure({
 
       {/* progress fill from start to current page */}
       <div
-        className="absolute left-0 top-1/2 h-px bg-[var(--ink)]"
+        className="absolute left-0 top-1/2 h-[2px] -mt-px bg-[var(--accent)] transition-[width] duration-300 ease-[var(--ease)]"
         style={{
-          width: `${(page / pageCount) * 100}%`,
-          transition: "width 250ms cubic-bezier(.4,0,.2,1)",
+          width: `${((page - 1) / Math.max(1, pageCount - 1)) * 100}%`,
         }}
       />
 
@@ -212,9 +201,9 @@ function TapeMeasure({
             key={p}
             type="button"
             onClick={() => onPageChange(p)}
-            aria-label={`Page ${p} (${noun}s ${rangeStart}–${rangeEnd})`}
+            aria-label={`Page ${p} (${noun}s ${rangeStart}-${rangeEnd})`}
             aria-current={isCurrent ? "page" : undefined}
-            title={`Page ${p} · ${noun}s ${rangeStart.toLocaleString()}–${rangeEnd.toLocaleString()}`}
+            title={`Page ${p}: ${noun}s ${rangeStart.toLocaleString()}-${rangeEnd.toLocaleString()}`}
             className={cn(
               "absolute top-0 bottom-0 -translate-x-1/2",
               "w-[14px] flex items-center justify-center",
@@ -226,7 +215,7 @@ function TapeMeasure({
               className={cn(
                 "block w-px transition-all duration-150",
                 isCurrent
-                  ? "h-[16px] w-[2px] bg-[var(--ink)]"
+                  ? "h-[16px] w-[2px] bg-[var(--accent)]"
                   : isMajor
                     ? "h-[10px] bg-[var(--ink-2)] group-hover:bg-[var(--ink)]"
                     : "h-[6px] bg-[var(--line-2)] group-hover:bg-[var(--ink-2)]"
@@ -235,7 +224,7 @@ function TapeMeasure({
             {isCurrent && (
               <span
                 aria-hidden="true"
-                className="absolute -top-[3px] left-1/2 -translate-x-1/2 w-[6px] h-[6px] rounded-full bg-[var(--ink)]"
+                className="absolute -top-[3px] left-1/2 -translate-x-1/2 w-[7px] h-[7px] bg-[var(--accent)]"
               />
             )}
           </button>
@@ -245,7 +234,7 @@ function TapeMeasure({
   );
 }
 
-/* ── PREV / NEXT BUTTONS ─────────────────────────────────────────────── */
+/* ── PREV / NEXT BUTTONS ─────────────────────────────────────────────────── */
 
 function NavButton({
   direction,
@@ -264,30 +253,19 @@ function NavButton({
       aria-label={direction === "prev" ? "Previous page" : "Next page"}
       className={cn(
         "inline-flex items-center justify-center",
-        "w-[30px] h-[30px] rounded-[5px]",
-        "border border-[var(--line)] bg-[var(--surface)]",
-        "text-[var(--ink-2)] cursor-pointer",
-        "transition-colors duration-150",
-        "hover:border-[var(--ink-2)] hover:text-[var(--ink)]",
-        "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--line)] disabled:hover:text-[var(--ink-2)]"
+        "size-[34px] rounded-[var(--r)]",
+        "border border-[color-mix(in_oklab,var(--ink)_28%,transparent)] bg-transparent",
+        "text-[var(--ink)] cursor-pointer",
+        "transition-[background-color,border-color,transform] duration-200 ease-[var(--ease)]",
+        "hover:border-[var(--ink)] hover:bg-[var(--hover)] active:scale-[0.96]",
+        "disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:active:scale-100"
       )}
     >
-      <svg
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.6}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="w-[11px] h-[11px]"
-        aria-hidden="true"
-      >
-        {direction === "prev" ? (
-          <path d="M10 3L5 8l5 5" />
-        ) : (
-          <path d="M6 3l5 5-5 5" />
-        )}
-      </svg>
+      {direction === "prev" ? (
+        <CaretLeftIcon aria-hidden="true" className="size-[15px]" />
+      ) : (
+        <CaretRightIcon aria-hidden="true" className="size-[15px]" />
+      )}
     </button>
   );
 }

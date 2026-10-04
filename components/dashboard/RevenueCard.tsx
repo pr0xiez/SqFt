@@ -1,85 +1,57 @@
 "use client";
 
+import { Card } from "@/components/ui/Card";
+import { TapeMeter } from "@/components/ui/TapeMeter";
+import { cn } from "@/lib/cn";
 import type {
   DashboardRevenue,
   WeekSummary,
 } from "@/lib/hooks/useDashboardRevenue";
 import { fmtWholeDollar } from "@/lib/utils";
 
-interface WeekBarProps {
+function WeekCell({
+  week,
+  maxAmount,
+}: {
   week: WeekSummary;
   maxAmount: number;
-}
-
-function WeekBar({ week, maxAmount }: WeekBarProps) {
+}) {
   const pct =
     maxAmount > 0 ? Math.min((week.amount / maxAmount) * 100, 100) : 0;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 min-w-0">
       <div
-        className="font-[var(--font-mono)] text-[9.5px] uppercase tracking-[.06em]"
-        style={{
-          color: week.isCurrent ? "var(--accent)" : "var(--muted)",
-          fontWeight: week.isCurrent ? 600 : 400,
-        }}
+        className={cn(
+          "text-[12.5px] whitespace-nowrap",
+          week.isCurrent
+            ? "font-[620] text-[var(--accent-ink)]"
+            : "font-[500] text-[var(--muted)]"
+        )}
       >
         {week.label}
       </div>
-      <div className="font-[var(--font-mono)] text-[14px] font-[600] tracking-[-0.02em]">
-        {week.isFuture ? (
-          <span style={{ color: "var(--muted)", fontWeight: 500 }}>
-            <span
-              style={{
-                color: "var(--muted)",
-                fontSize: "12px",
-                marginRight: "1px",
-              }}
-            >
-              $
-            </span>
-            {fmtWholeDollar(week.amount)}{" "}
-            <span
-              style={{
-                color: "var(--muted)",
-                fontWeight: 400,
-                fontSize: "12px",
-              }}
-            >
-              to go
-            </span>
-          </span>
-        ) : (
-          <>
-            <span
-              style={{
-                color: "var(--muted)",
-                fontWeight: 500,
-                fontSize: "12px",
-                marginRight: "1px",
-              }}
-            >
-              $
-            </span>
-            {fmtWholeDollar(week.amount)}
-          </>
+      <div
+        className={cn(
+          "type-figure text-[15px] font-[600] tracking-[-0.02em]",
+          week.isFuture && "text-[var(--muted)] font-[500]"
+        )}
+      >
+        ${fmtWholeDollar(week.amount)}
+        {week.isFuture && (
+          <span className="font-sans text-[12.5px] font-[400]"> to go</span>
         )}
       </div>
-      <div
-        className="h-[5px] rounded-[3px] relative overflow-hidden"
-        style={{ background: "var(--surface-2)" }}
-      >
-        <div
-          className="absolute inset-y-0 left-0 rounded-[3px]"
-          style={{
-            width: `${pct}%`,
-            background: week.isFuture
-              ? "repeating-linear-gradient(45deg,var(--line),var(--line) 3px,var(--surface-2) 3px,var(--surface-2) 6px)"
-              : week.isCurrent
-                ? "var(--accent)"
-                : "var(--ink-2)",
-          }}
-        />
+      <div className="h-[3px] relative bg-[var(--line)]">
+        {!week.isFuture && pct > 0 && (
+          <div
+            className={cn(
+              "absolute inset-y-0 left-0",
+              week.isCurrent ? "bg-[var(--accent)]" : "bg-[var(--ink-2)]"
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        )}
       </div>
     </div>
   );
@@ -91,109 +63,60 @@ interface Props {
 
 export function RevenueCard({ revenue }: Props) {
   const { mtdTotal, monthGoal, daysLeft, totalDays, weeks } = revenue;
-  const goalPct = Math.min((mtdTotal / monthGoal) * 100, 100);
+  const goalRatio = monthGoal > 0 ? mtdTotal / monthGoal : 0;
   const daysElapsed = totalDays - daysLeft;
-  const pacePct = (daysElapsed / totalDays) * 100;
+  const paceRatio = totalDays > 0 ? daysElapsed / totalDays : 0;
   const maxAmount = Math.max(
     ...weeks.filter((w) => !w.isFuture).map((w) => w.amount),
     1
   );
+  const aheadOfPace = goalRatio >= paceRatio;
 
   return (
-    <article
-      className="bg-[var(--surface)] border border-[var(--line)] rounded-[10px] p-6"
-      style={{ boxShadow: "var(--shadow)" }}
-    >
-      <div className="flex justify-between items-end mb-2">
-        <div>
-          <div
-            className="font-[var(--font-mono)] text-[10px] uppercase tracking-[.08em] mb-2"
-            style={{ color: "var(--muted)" }}
-          >
-            Booked revenue · month-to-date
-          </div>
-          <div className="text-[40px] font-[700] tracking-[-0.03em] leading-none">
-            <span
-              style={{
-                fontSize: "22px",
-                color: "var(--muted)",
-                fontWeight: 500,
-                marginRight: "2px",
-              }}
-            >
-              $
-            </span>
-            {fmtWholeDollar(mtdTotal)}
-          </div>
-        </div>
-        <div
-          className="text-right font-[var(--font-mono)] text-[11px]"
-          style={{ color: "var(--muted)" }}
-        >
-          Target ${fmtWholeDollar(monthGoal)}
-          <br />
-          <span style={{ color: "var(--sage)", fontWeight: 600 }}>
-            {Math.round(goalPct)}% of goal
-          </span>{" "}
-          · {daysLeft} days left
-        </div>
-      </div>
-
-      <div
-        className="relative h-3.5 rounded-[7px] my-5"
-        style={{ background: "var(--surface-2)" }}
-      >
-        <div
-          className="absolute inset-y-0 left-0 rounded-[7px]"
-          style={{ width: `${goalPct}%`, background: "var(--accent)" }}
-        />
-        <div
-          className="absolute top-[-6px] bottom-[-6px] w-0.5"
-          style={{ left: `${pacePct}%`, background: "var(--ink)" }}
-        >
+    <Card
+      title="Booked revenue"
+      sub="Approved estimates this month"
+      action={
+        <div className="text-right text-[13px] text-[var(--muted)] leading-snug">
           <span
-            className="absolute font-[var(--font-mono)] text-[9px] uppercase tracking-[.06em] whitespace-nowrap"
-            style={{
-              top: "-16px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              color: "var(--ink)",
-              background: "var(--surface)",
-              padding: "0 4px",
-            }}
+            className={cn(
+              "font-[620]",
+              aheadOfPace ? "text-[var(--ok)]" : "text-[var(--ink-2)]"
+            )}
           >
-            pace
+            {Math.round(goalRatio * 100)}% of goal
           </span>
+          <br />
+          {daysLeft} days left
         </div>
-      </div>
-
-      <div
-        className="flex justify-between font-[var(--font-mono)] text-[10px] mb-6"
-        style={{ color: "var(--muted)" }}
-      >
-        <span>
-          <strong style={{ color: "var(--ink)", fontWeight: 600 }}>
-            ${fmtWholeDollar(mtdTotal)}
-          </strong>{" "}
-          booked
+      }
+    >
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="type-stat text-[clamp(2rem,1.5rem+1.6vw,2.75rem)]">
+          ${fmtWholeDollar(mtdTotal)}
         </span>
-        <span>
-          of{" "}
-          <strong style={{ color: "var(--ink)", fontWeight: 600 }}>
-            ${fmtWholeDollar(monthGoal)}
-          </strong>{" "}
+        <span className="text-[14px] text-[var(--muted)]">
+          of <span className="type-figure">${fmtWholeDollar(monthGoal)}</span>{" "}
           goal
         </span>
       </div>
 
+      <TapeMeter
+        className="mt-9 mb-7"
+        value={goalRatio}
+        marker={paceRatio}
+        markerLabel="Pace"
+        label="Booked revenue toward this month's goal"
+      />
+
       <div
-        className="grid gap-4 pt-[18px] border-t border-[var(--line)]"
-        style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)` }}
+        className="grid gap-x-4 gap-y-5 pt-5 border-t border-[var(--line)] grid-cols-2 sm:grid-cols-[repeat(var(--weeks),minmax(0,1fr))]"
+        style={{ "--weeks": weeks.length } as React.CSSProperties}
       >
         {weeks.map((week) => (
-          <WeekBar key={week.label} week={week} maxAmount={maxAmount} />
+          <WeekCell key={week.label} week={week} maxAmount={maxAmount} />
         ))}
       </div>
-    </article>
+    </Card>
   );
 }

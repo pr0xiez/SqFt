@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { cn } from "@/lib/cn";
 
 const ENTRIES = [
-  { id: "identity", n: "01", label: "Identity" },
-  { id: "brand", n: "02", label: "Brand & Estimate Style" },
-  { id: "defaults", n: "03", label: "Estimating Defaults" },
+  { id: "identity", label: "Identity" },
+  { id: "brand", label: "Brand & estimate style" },
+  { id: "defaults", label: "Estimating defaults" },
 ];
 
 export function Toc() {
@@ -49,10 +50,10 @@ export function Toc() {
 
   return (
     <aside
-      className="sticky top-20 self-start h-max hidden md:block"
+      className="sticky top-8 self-start h-max hidden md:block"
       aria-label="Settings sections"
     >
-      <div className="font-mono text-[10px] tracking-[.2em] uppercase text-[var(--muted)] pb-3 mb-3.5 border-b border-[var(--line)]">
+      <div className="type-label pb-2.5 mb-2 border-b border-[var(--line)]">
         Contents
       </div>
       <ol className="list-none p-0 m-0">
@@ -62,29 +63,15 @@ export function Toc() {
             <li key={e.id}>
               <a
                 href={`#${e.id}`}
-                className={[
-                  "flex items-baseline gap-3 py-[7px] no-underline transition-colors",
+                aria-current={isActive ? "true" : undefined}
+                className={cn(
+                  "flex items-center min-h-9 pl-3 -ml-px border-l-2 text-[14px] no-underline transition-colors",
                   isActive
-                    ? "text-[var(--ink)]"
-                    : "text-[var(--muted)] hover:text-[var(--ink-2)]",
-                ].join(" ")}
+                    ? "border-[var(--accent)] text-[var(--ink)] font-[600]"
+                    : "border-transparent text-[var(--muted)] hover:text-[var(--ink)]"
+                )}
               >
-                <span
-                  className={[
-                    "font-mono text-[10px] w-[22px] tabular-nums transition-colors",
-                    isActive ? "text-[var(--accent)]" : "text-[var(--line-2)]",
-                  ].join(" ")}
-                >
-                  {e.n}
-                </span>
-                <span
-                  className={[
-                    "text-[13px] tracking-[-.01em]",
-                    isActive ? "font-[600]" : "",
-                  ].join(" ")}
-                >
-                  {e.label}
-                </span>
+                {e.label}
               </a>
             </li>
           );
