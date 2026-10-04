@@ -17,7 +17,27 @@ vi.mock("@/lib/hooks/useEstimates", () => ({
   useCreateEstimate: () => ({ mutateAsync, isPending: false }),
 }));
 
+const createSiteMeasure = vi.fn();
+vi.mock("@/lib/hooks/useLocations", () => ({
+  useLocationSearch: () => ({
+    data: [
+      {
+        id: 31,
+        address: "142 Maple Dr",
+        label: "Rental",
+        customer: { id: 1, name: "Henderson, J." },
+        _count: { siteMeasures: 2 },
+      },
+    ],
+    isFetching: false,
+  }),
+}));
+
 vi.mock("@/lib/hooks/useSiteMeasures", () => ({
+  useCreateSiteMeasure: () => ({
+    mutateAsync: createSiteMeasure,
+    isPending: false,
+  }),
   useSiteMeasures: () => ({
     data: {
       items: [
@@ -58,11 +78,13 @@ vi.mock("@/lib/hooks/useInvoiceableEstimates", () => ({
 
 import { QuickEstimatePanel } from "@/components/quick-create/QuickEstimatePanel";
 import { QuickInvoicePanel } from "@/components/quick-create/QuickInvoicePanel";
+import { QuickSiteMeasurePanel } from "@/components/quick-create/QuickSiteMeasurePanel";
 
 beforeEach(() => {
   push.mockReset();
   showToast.mockReset();
   mutateAsync.mockReset();
+  createSiteMeasure.mockReset();
 });
 
 describe("QuickEstimatePanel", () => {
@@ -104,6 +126,29 @@ describe("QuickInvoicePanel", () => {
       unbilled: 5210.4,
       defaultDepositPct: 0.3,
     });
+    expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe("QuickSiteMeasurePanel", () => {
+  it("starts a site measure at the picked location and opens it", async () => {
+    createSiteMeasure.mockResolvedValue({ id: 88 });
+    const onClose = vi.fn();
+    render(<QuickSiteMeasurePanel onClose={onClose} />);
+
+    expect(
+      screen.getByText(/142 Maple Dr \(Rental\) · 2 site measures/)
+    ).toBeDefined();
+    const start = screen.getByRole("button", { name: /Start measuring/ });
+    expect((start as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByText("Henderson, J."));
+    fireEvent.click(start);
+
+    await waitFor(() =>
+      expect(createSiteMeasure).toHaveBeenCalledWith({ locationId: 31 })
+    );
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/site-measures/88"));
     expect(onClose).toHaveBeenCalled();
   });
 });

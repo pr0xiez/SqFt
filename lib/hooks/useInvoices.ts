@@ -100,6 +100,13 @@ export interface InvoiceDetail {
   sentAt: string | null;
   sentToEmail: string | null;
   customerEmail: string | null;
+  /** Parent records up the chain, for the page's breadcrumb trail. */
+  trail: {
+    customer: { id: number; name: string };
+    siteMeasure: { id: number; siteMeasureNumber: number | null };
+    estimate: { id: number; estimateNumber: number };
+    address: string;
+  };
   viewedAt: string | null;
   paidAt: string | null;
   voidedAt: string | null;

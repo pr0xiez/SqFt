@@ -111,11 +111,22 @@ export function ScheduleView({ canEdit }: { canEdit: boolean }) {
   const [today, setToday] = useState("");
   const [nowMin, setNowMin] = useState<number | null>(null);
 
+  // `?date=YYYY-MM-DD` (links from an estimate's or customer's schedule)
+  // opens on that day's week; otherwise this week.
   useEffect(() => {
     const t = todayStr();
     setToday(t);
-    setSelectedDate(t);
-    setWeekStart(getWeekStart(new Date()));
+    const param = new URLSearchParams(window.location.search).get("date");
+    const focus = param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : t;
+    setSelectedDate(focus);
+    // Phones show three days from the start, so open on the day itself.
+    const day = new Date(`${focus}T12:00:00`);
+    const narrow =
+      param !== null &&
+      (window.matchMedia?.("(max-width: 767px)").matches ?? false);
+    setWeekStart(
+      param && narrow ? new Date(day.setHours(0, 0, 0, 0)) : getWeekStart(day)
+    );
   }, []);
 
   // Current-time line, refreshed each minute (client-only, like `today`).

@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { useQuickCreate } from "@/components/quick-create/QuickCreateProvider";
 import { AccountBlock } from "@/components/ui/AccountBlock";
 import { BrandMark } from "@/components/ui/BrandMark";
-import { buttonClasses } from "@/components/ui/Button";
-import { PlusIcon, XIcon } from "@/components/ui/icons";
+import { XIcon } from "@/components/ui/icons";
 import { NavMenu } from "@/components/ui/NavMenu";
-import { hasMinRole } from "@/lib/auth/permissions";
 import { cn } from "@/lib/cn";
 
 export function NavDrawer({
@@ -23,9 +20,6 @@ export function NavDrawer({
   pathname: string;
   isSuperAdmin: boolean;
 }) {
-  const { open: openQuickCreate } = useQuickCreate();
-  const canQuickCreate = hasMinRole(role, "lead");
-
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
@@ -80,35 +74,6 @@ export function NavDrawer({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-3 pb-3">
-          {canQuickCreate && (
-            <div className="pb-3 mb-2 border-b border-[var(--line)]">
-              <div className="grid grid-cols-2 gap-2">
-                {(
-                  [
-                    ["estimate", "New estimate"],
-                    ["invoice", "New invoice"],
-                  ] as const
-                ).map(([kind, label]) => (
-                  <button
-                    key={kind}
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      openQuickCreate(kind);
-                    }}
-                    className={buttonClasses({
-                      variant: kind === "estimate" ? "primary" : "default",
-                      size: "md",
-                      className: "w-full",
-                    })}
-                  >
-                    <PlusIcon aria-hidden="true" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
           <NavMenu
             role={role}
             pathname={pathname}

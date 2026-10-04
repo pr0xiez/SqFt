@@ -303,8 +303,15 @@ describe("voidInvoice", () => {
       id: 1,
       status: "void",
       estimate: {
+        id: 7,
+        estimateNumber: 5007,
         siteMeasure: {
-          location: { customer: { email: "janet@example.com" } },
+          id: 3,
+          siteMeasureNumber: 1003,
+          location: {
+            address: "1 Main St",
+            customer: { id: 9, name: "Janet", email: "janet@example.com" },
+          },
         },
       },
     });
@@ -336,6 +343,12 @@ describe("voidInvoice", () => {
       id: 1,
       status: "void",
       customerEmail: "janet@example.com",
+      trail: {
+        customer: { id: 9, name: "Janet" },
+        siteMeasure: { id: 3, siteMeasureNumber: 1003 },
+        estimate: { id: 7, estimateNumber: 5007 },
+        address: "1 Main St",
+      },
     });
   });
 

@@ -8,14 +8,26 @@ import {
   useMemo,
   useState,
 } from "react";
+import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
 import { CreateInvoiceDialog } from "@/components/invoices/CreateInvoiceDialog";
 import { QuickEstimatePanel } from "@/components/quick-create/QuickEstimatePanel";
 import {
   QuickInvoicePanel,
   type QuickInvoiceTarget,
 } from "@/components/quick-create/QuickInvoicePanel";
+import { QuickSiteMeasurePanel } from "@/components/quick-create/QuickSiteMeasurePanel";
+import type { EventFormDefaults } from "@/components/schedule/EventFormPanel";
+import { ScheduleEventPanel } from "@/components/schedule/ScheduleEventPanel";
 
-export type QuickCreateKind = "estimate" | "invoice";
+export type QuickCreateKind =
+  | "customer"
+  | "siteMeasure"
+  | "estimate"
+  | "invoice"
+  | "event";
+
+/** Module-level so the event form isn't re-seeded on every render. */
+const NEW_EVENT_DEFAULTS: EventFormDefaults = { type: "visit" };
 
 interface QuickCreateContextValue {
   /** Open the quick-create slide-over for the given record kind. */
@@ -25,10 +37,11 @@ interface QuickCreateContextValue {
 const QuickCreateContext = createContext<QuickCreateContextValue | null>(null);
 
 /**
- * Hosts the global quick-create launcher state: the estimate/invoice search
- * slide-overs, and the hand-off into the existing invoice dialog once a
- * billable estimate is chosen. Mount once, above the app shell, so the "+ New"
- * triggers in the sidebar and mobile drawer can open it from anywhere.
+ * Hosts the global quick-create launcher state: the new-customer panel, the
+ * site-measure/estimate/invoice search slide-overs, the new-event form, and
+ * the hand-off into the existing invoice dialog once a billable estimate is
+ * chosen. Mount once, above the app shell, so the "+ New" triggers in the
+ * sidebar, mobile tab bar and drawer can open it from anywhere.
  */
 export function QuickCreateProvider({ children }: { children: ReactNode }) {
   const [kind, setKind] = useState<QuickCreateKind | null>(null);
@@ -43,6 +56,12 @@ export function QuickCreateProvider({ children }: { children: ReactNode }) {
     <QuickCreateContext.Provider value={value}>
       {children}
 
+      {kind === "customer" && (
+        <NewCustomerPanel open onClose={() => setKind(null)} />
+      )}
+      {kind === "siteMeasure" && (
+        <QuickSiteMeasurePanel onClose={() => setKind(null)} />
+      )}
       {kind === "estimate" && (
         <QuickEstimatePanel onClose={() => setKind(null)} />
       )}
@@ -52,6 +71,12 @@ export function QuickCreateProvider({ children }: { children: ReactNode }) {
           onPick={setInvoiceTarget}
         />
       )}
+
+      <ScheduleEventPanel
+        open={kind === "event"}
+        onClose={() => setKind(null)}
+        defaults={NEW_EVENT_DEFAULTS}
+      />
 
       {invoiceTarget && (
         <CreateInvoiceDialog

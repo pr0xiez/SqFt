@@ -1,4 +1,6 @@
 import { Prisma } from "@/app/generated/prisma/client";
+import type { CustomerLocationInput } from "@/lib/customers/schema";
+import { locationAddressColumns } from "@/lib/locations/formatAddress";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { assertDeletable } from "@/lib/repositories/deleteGuards";
@@ -24,6 +26,7 @@ const DETAIL_ESTIMATE_SELECT = {
   approvedAt: true,
   declinedAt: true,
   createdAt: true,
+  total: true,
   _count: { select: { lineItems: true } },
 } as const;
 
@@ -246,11 +249,39 @@ export async function getCustomer(
   });
 }
 
+/**
+ * Create a customer, plus their first Location when the intake form captured
+ * an address. One nested create, so a failed address never leaves a customer
+ * behind without the location the user typed.
+ */
 export async function createCustomer(
   orgId: string,
-  data: Omit<Prisma.CustomerUncheckedCreateInput, "orgId">
+  data: Omit<Prisma.CustomerUncheckedCreateInput, "orgId" | "locations"> & {
+    location?: CustomerLocationInput;
+  }
 ) {
-  return prisma.customer.create({ data: { ...data, orgId } });
+  const { location, ...customer } = data;
+  return prisma.customer.create({
+    data: {
+      ...customer,
+      orgId,
+      ...(location
+        ? {
+            locations: {
+              create: {
+                orgId,
+                ...locationAddressColumns(location),
+                label: location.label ?? null,
+                notes: location.notes ?? null,
+              },
+            },
+          }
+        : {}),
+    },
+    include: {
+      locations: { select: { id: true, address: true } },
+    },
+  });
 }
 
 export async function updateCustomer(

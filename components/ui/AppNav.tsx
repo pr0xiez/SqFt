@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { NewSheet } from "@/components/quick-create/NewSheet";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { MobileTabBar } from "@/components/ui/MobileTabBar";
 import { NavDrawer } from "@/components/ui/NavDrawer";
@@ -14,6 +15,7 @@ export function AppNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [newSheetOpen, setNewSheetOpen] = useState(false);
   const role = session?.user?.role ?? "crew";
   const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
   const isCrew = role === "crew";
@@ -51,7 +53,17 @@ export function AppNav() {
           </button>
         </header>
       ) : (
-        <MobileTabBar pathname={pathname} onMore={() => setDrawerOpen(true)} />
+        <>
+          <MobileTabBar
+            pathname={pathname}
+            onMore={() => setDrawerOpen(true)}
+            onNew={() => setNewSheetOpen(true)}
+          />
+          <NewSheet
+            open={newSheetOpen}
+            onClose={() => setNewSheetOpen(false)}
+          />
+        </>
       )}
 
       <NavDrawer

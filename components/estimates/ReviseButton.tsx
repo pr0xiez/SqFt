@@ -1,11 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
+import { Button, type ButtonVariant } from "@/components/ui/Button";
 import { ArrowCounterClockwiseIcon } from "@/components/ui/icons";
 import { useReviseEstimate } from "@/lib/hooks/useEstimates";
 
-export function ReviseButton({ estimateId }: { estimateId: number }) {
+export function ReviseButton({
+  estimateId,
+  variant = "ink",
+}: {
+  estimateId: number;
+  /** "primary" when revising is the page's next step (a declined estimate). */
+  variant?: ButtonVariant;
+}) {
   const router = useRouter();
   const revise = useReviseEstimate();
 
@@ -22,7 +29,7 @@ export function ReviseButton({ estimateId }: { estimateId: number }) {
   return (
     <Button
       type="button"
-      variant="ink"
+      variant={variant}
       onClick={onClick}
       disabled={revise.isPending || revise.isSuccess}
     >

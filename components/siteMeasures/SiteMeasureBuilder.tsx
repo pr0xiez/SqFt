@@ -6,7 +6,12 @@ import { SiteMeasureEstimatesCard } from "@/components/siteMeasures/SiteMeasureE
 import { Button } from "@/components/ui/Button";
 import { ErrorState, LoadingLine } from "@/components/ui/EmptyState";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import { BackLink, MetaSep, PageHeader } from "@/components/ui/PageHeader";
+import {
+  Breadcrumbs,
+  MetaSep,
+  PageHeader,
+  recordTrail,
+} from "@/components/ui/PageHeader";
 import { useToast } from "@/components/ui/Toast";
 import { useCreateEstimate } from "@/lib/hooks/useEstimates";
 import {
@@ -50,7 +55,9 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
   return (
     <>
       <PageHeader
-        kicker={<BackLink href="/site-measures">All site measures</BackLink>}
+        kicker={
+          <Breadcrumbs items={recordTrail({ customer: location?.customer })} />
+        }
         title={`Site Measure #${siteMeasure.siteMeasureNumber ?? siteMeasure.id}`}
         meta={
           <>

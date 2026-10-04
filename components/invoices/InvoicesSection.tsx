@@ -21,14 +21,13 @@ export function InvoicesSection({
   estimateId,
   estimateTotal,
   defaultDepositPct,
-  emphasize = false,
+  className = "mt-8",
 }: {
   estimateId: number;
   estimateTotal: number;
+  /** The estimate's own deposit share, seeding the dialog's % option. */
   defaultDepositPct: number;
-  /** Make "Create invoice" the page's primary action (once the estimate is
-   *  approved and sending it is no longer the next step). */
-  emphasize?: boolean;
+  className?: string;
 }) {
   const { data, isLoading, error } = useInvoices(estimateId);
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,10 +47,10 @@ export function InvoicesSection({
   return (
     <Card
       title="Invoices"
-      className="mt-8"
+      className={className}
       action={
         <Button
-          variant={emphasize ? "primary" : "default"}
+          variant="default"
           size="sm"
           type="button"
           onClick={() => setCreateOpen(true)}

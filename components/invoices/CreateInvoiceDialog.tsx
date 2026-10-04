@@ -19,6 +19,11 @@ interface Props {
   estimateId: number;
   unbilled: number;
   defaultDepositPct: number; // decimal, e.g. 0.3
+  /** How the form opens: "pct" pre-sizes a deposit, "remaining" (the
+   *  default) bills the whole balance. */
+  initialMode?: Mode;
+  /** Pre-filled memo, e.g. "Deposit" or "Final balance". */
+  initialMemo?: string;
   open: boolean;
   onClose: () => void;
 }
@@ -27,6 +32,8 @@ export function CreateInvoiceDialog({
   estimateId,
   unbilled,
   defaultDepositPct,
+  initialMode = "remaining",
+  initialMemo = "",
   open,
   onClose,
 }: Props) {
@@ -34,27 +41,27 @@ export function CreateInvoiceDialog({
   const { showToast } = useToast();
   const create = useCreateInvoice(estimateId);
 
-  const [mode, setMode] = useState<Mode>("remaining");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [pct, setPct] = useState(String(Math.round(defaultDepositPct * 100)));
   const [flat, setFlat] = useState("0");
   const [dueDate, setDueDate] = useState("");
-  const [memo, setMemo] = useState("");
+  const [memo, setMemo] = useState(initialMemo);
   const [coverNote, setCoverNote] = useState("");
   const [terms, setTerms] = useState("");
   const [showMore, setShowMore] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setMode("remaining");
+      setMode(initialMode);
       setPct(String(Math.round(defaultDepositPct * 100)));
       setFlat("0");
       setDueDate("");
-      setMemo("");
+      setMemo(initialMemo);
       setCoverNote("");
       setTerms("");
       setShowMore(false);
     }
-  }, [open, defaultDepositPct]);
+  }, [open, defaultDepositPct, initialMode, initialMemo]);
 
   const amount = deriveInvoiceAmount({ mode, unbilled, pct, flat });
   const leaves = invoiceLeaves(unbilled, amount);

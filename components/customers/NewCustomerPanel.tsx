@@ -1,6 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
+import {
+  AddressFields,
+  type AddressValue,
+  EMPTY_ADDRESS,
+  isAddressBlank,
+  isAddressComplete,
+  trimAddress,
+} from "@/components/customers/AddressFields";
 import { Button } from "@/components/ui/Button";
 import { SlidePanel } from "@/components/ui/SlidePanel";
 import { useToast } from "@/components/ui/Toast";
@@ -23,7 +32,14 @@ const SOURCE_LABELS: Record<string, string> = {
   website: "Website",
 };
 
+/**
+ * Lead intake in one pass: contact details plus (optionally) the job address,
+ * which becomes the customer's first location. Saving opens the new
+ * customer's page, where scheduling a visit or starting a site measure is one
+ * click away.
+ */
 export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
+  const router = useRouter();
   const createCustomer = useCreateCustomer();
   const { showToast } = useToast();
   const uid = useId();
@@ -36,11 +52,13 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
     source: "phone",
     notes: "",
   });
+  const [address, setAddress] = useState<AddressValue>(EMPTY_ADDRESS);
 
   function resetForm() {
     setFirstName("");
     setLastName("");
     setForm({ phone: "", email: "", source: "phone", notes: "" });
+    setAddress(EMPTY_ADDRESS);
   }
 
   async function handleSave() {
@@ -49,11 +67,24 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
       showToast("Name required", "Please enter a name");
       return;
     }
+    const hasAddress = !isAddressBlank(address);
+    if (hasAddress && !isAddressComplete(address)) {
+      showToast(
+        "Finish the address",
+        "Add street, city, state and ZIP, or clear it"
+      );
+      return;
+    }
     try {
-      const created = await createCustomer.mutateAsync({ ...form, name });
+      const created = await createCustomer.mutateAsync({
+        ...form,
+        name,
+        ...(hasAddress ? { location: trimAddress(address) } : {}),
+      });
       onClose();
       resetForm();
       showToast("Customer saved", created.name);
+      router.push(`/customers/${created.id}`);
     } catch {
       showToast("Failed to create customer");
     }
@@ -169,6 +200,18 @@ export function NewCustomerPanel({ open, onClose }: NewCustomerPanelProps) {
             />
           </div>
         ))}
+
+        <fieldset className="min-w-0 border-0 p-0 m-0 pt-1">
+          <legend className="type-heading text-[15px] mb-1">Job address</legend>
+          <p className="field-hint mt-0 mb-3">
+            Optional. Saves as their first location, ready for a site measure.
+          </p>
+          <AddressFields
+            value={address}
+            onChange={setAddress}
+            required={false}
+          />
+        </fieldset>
 
         <div>
           <label htmlFor={`${uid}-notes`} className="field-label">

@@ -40,4 +40,29 @@ describe("MobileTabBar", () => {
     fireEvent.click(screen.getByRole("button", { name: /More/ }));
     expect(onMore).toHaveBeenCalledTimes(1);
   });
+
+  it("hides the New cell unless a quick-create handler is given", () => {
+    render(<MobileTabBar pathname="/" onMore={() => {}} />);
+    expect(screen.queryByRole("button", { name: /^New$/ })).toBeNull();
+  });
+
+  it("puts New in the middle of the bar and calls onNew", () => {
+    const onNew = vi.fn();
+    render(<MobileTabBar pathname="/" onMore={() => {}} onNew={onNew} />);
+    const cells = Array.from(
+      screen
+        .getByRole("navigation", { name: "Primary" })
+        .querySelectorAll("a, button")
+    ).map((el) => el.textContent);
+    expect(cells).toEqual([
+      "Home",
+      "Customers",
+      "New",
+      "Estimates",
+      "Schedule",
+      "More",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: /^New$/ }));
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
 });

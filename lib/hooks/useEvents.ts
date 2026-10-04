@@ -9,10 +9,15 @@ import {
 import { apiFetch } from "@/lib/hooks/apiFetch";
 import { SCHEDULABLE_ESTIMATES_KEY } from "@/lib/hooks/useSchedulableEstimates";
 
-/** Event mutations also move estimates in/out of the unscheduled backlog. */
+/** Event mutations also move estimates in/out of the unscheduled backlog,
+ *  and change the customer hub's upcoming list and timeline. */
 function invalidateEventQueries(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ["events"] });
   qc.invalidateQueries({ queryKey: SCHEDULABLE_ESTIMATES_KEY });
+  qc.invalidateQueries({
+    predicate: (q) =>
+      q.queryKey[0] === "customers" && q.queryKey[2] === "activity",
+  });
 }
 
 export interface AssigneeSummary {

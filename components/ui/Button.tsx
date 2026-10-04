@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
  * - `danger`: outlined, orange-ink text. Destructive actions.
  * `accent` is kept as an alias of `primary`.
  */
-type ButtonVariant =
+export type ButtonVariant =
   | "default"
   | "primary"
   | "accent"

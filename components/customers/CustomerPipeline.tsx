@@ -11,7 +11,7 @@ import {
   relativeTime,
 } from "@/lib/estimateStatus";
 import type { CustomerSiteMeasureSummary } from "@/lib/hooks/useCustomers";
-import { formatShortDate } from "@/lib/utils";
+import { fmtDollar, formatShortDate } from "@/lib/utils";
 
 type PipelineSiteMeasure = CustomerSiteMeasureSummary & {
   locationId: number;
@@ -31,7 +31,7 @@ interface Props {
 function OpenHint() {
   return (
     <span className="inline-flex items-center gap-1 text-[13px] font-[500] text-[var(--muted)] transition-colors group-hover:text-[var(--ink)]">
-      Open
+      <span className="hidden sm:inline">Open</span>
       <CaretRightIcon
         aria-hidden="true"
         className="size-3.5 transition-transform group-hover:translate-x-0.5"
@@ -123,6 +123,11 @@ function SiteMeasureRow({
                       {q._count.lineItems === 1 ? "" : "s"}
                     </span>
                   </div>
+                  {q.total != null && (
+                    <span className="type-figure text-[13.5px] font-[560] text-[var(--ink-2)] shrink-0">
+                      {fmtDollar(q.total)}
+                    </span>
+                  )}
                   <OpenHint />
                 </button>
               </li>

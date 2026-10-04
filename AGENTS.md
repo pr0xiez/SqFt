@@ -54,7 +54,8 @@ with the file that owns it.
   full-menu **`NavDrawer`**; crew get a slim top bar instead of the bottom bar.
   `SideNav` and `NavDrawer` share `NavMenu` + `AccountBlock`; icons live in
   `nav-icons.tsx` keyed by `IconId`. (The old `MobileSessionSheet` is gone.)
-  Both also host the lead+ **"+ New" quick-create launcher** (`NewMenu`); see
+  The lead+ **"+ New" quick-create launcher** is `NewMenu` in the `SideNav`
+  and, on phones, the tab bar's center New cell (opening `NewSheet`); see
   *Quick Create* in `CONTEXT.md`. The super-admin-only **`ADMIN_ITEM`** link to
   `/admin` is rendered by `NavMenu`/`SideNav`/`NavDrawer` when
   `session.user.isSuperAdmin` is true.
@@ -84,6 +85,19 @@ with the file that owns it.
   `mtdTotal` + weekly buckets) call it instead of each defining its own
   "what counts as MTD approved revenue" — add any future MTD-revenue logic
   here, not by re-deriving it in either dashboard function.
+- `lib/customers/activity.ts` — **customer hub projections** (pure, client
+  run): money summary, upcoming events and the activity timeline over the
+  `GET /api/customers/[id]/activity` feed
+  (`lib/repositories/customerActivityRepo.ts`). See *Customer Hub* in
+  `CONTEXT.md`.
+- `lib/estimates/jobProgress.ts` — **an estimate's next step**
+  (`computeJobProgress`): drives the estimate page's primary button and the
+  `JobProgressStrip`. See *Job Progress* in `CONTEXT.md`.
+- **Record trail** — detail pages in the chain put `Breadcrumbs` +
+  `recordTrail()` (`components/ui/PageHeader.tsx`) in their `kicker`
+  (Customers → customer → site measure → estimate); the invoice API returns
+  the parents as `trail`. Use it for any new page in the chain instead of a
+  one-off back link.
 - `lib/quickCreate/` — **pure quick-create logic** (`toInvoiceableCandidates`):
   projects estimates to billable candidates (`unbilled > 0`) for the
   quick-invoice search. The global **"+ New" launcher** UI lives in
