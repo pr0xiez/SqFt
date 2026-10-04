@@ -106,6 +106,34 @@ A physical site address belonging to a customer (`address`, optional `label`
 and `notes`). Site measures hang off a Location, not directly off the
 Customer, so addresses live in one place and a customer's multiple sites stay
 distinct. Org-scoped like everything else. Repo: `lib/repositories/locationRepo.ts`.
+A customer's **first** location can be created with the customer itself:
+`POST /api/customers` accepts an optional `location` (the
+`customerLocationSchema` in `lib/customers/schema.ts`) and `createCustomer`
+writes both in one nested create, so lead intake (`NewCustomerPanel`) is one
+pass. `searchLocations` (`GET /api/locations/search?q=`) matches customer
+name/phone/email or the address, for the quick-create site-measure picker.
+The street/city/state/ZIP form with autocomplete is shared as
+`components/customers/AddressFields.tsx`.
+
+## Customer Hub
+
+The customer page (`components/customers/CustomerDetail.tsx`) is the hub for
+one customer: one-tap contact in the header, next actions (Schedule visit, New
+site measure), a stat strip (open/approved estimates with value, balance due,
+last activity), the pipeline, all their invoices, an upcoming-schedule card and
+an activity timeline. Everything beyond the customer payload comes from
+`GET /api/customers/[id]/activity` (`getCustomerActivity` in
+`lib/repositories/customerActivityRepo.ts`): site measures, estimates with
+their history events, invoices with payments and events, and every schedule
+Event tied to the customer directly (`customerId`) or through one of their
+estimates. The projections are pure in `lib/customers/activity.ts`, run on the
+client with the browser's local "today": `summarizeCustomerActivity` (balance
+due = live outstanding on sent/viewed/partial invoices; drafts aren't owed),
+`upcomingEvents`, and `buildCustomerTimeline` (newest first; repeat opens of a
+document collapse into its first view; `link_rotated` and `payment_recorded`
+are skipped, payments come from the ledger; an auto-declined sibling reads as
+"closed", not a customer decline). Event mutations invalidate the activity
+query; it also revalidates on every mount.
 
 ## Site Measure
 
@@ -223,6 +251,25 @@ Two customer surfaces consume the fold:
   their frozen historical form and are never rewritten.
 - **Invoice** — `prorateInvoice` distributes the folded line prices by the bill
   ratio and emits no "Markup" row (see **Invoice**).
+
+## Job Progress
+
+Once approved, an estimate becomes a job, and the estimate page leads with
+where it stands. `computeJobProgress` (`lib/estimates/jobProgress.ts`, pure)
+takes the status, the estimate's own `depositPct`, `computeEstimateBilling`
+and its `job` Events, and returns the **one next action** (the page's primary
+header button) plus the steps for `JobProgressStrip`: Deposit (omitted when
+the deposit is $0), Install, Final invoice, Paid in full. Next actions: draft →
+Send, sent/viewed → Resend, declined → Revise; approved → **Bill deposit**
+while nothing is billed, then **Schedule job** until a job event exists, then
+**Bill balance** once every job event's last day has passed; otherwise none
+(waiting on the install or on payment). Billing opens `CreateInvoiceDialog`
+pre-set (`initialMode`/`initialMemo`); the deposit is always seeded from the
+estimate's `depositPct` (what the customer saw), never the org default.
+Scheduling opens `ScheduleEventPanel` (`components/schedule/`), the
+create-only event form usable outside the Schedule Manager; the estimate's
+events list in `EstimateScheduleCard` and link to `/schedule?date=`, which
+opens the grid on that day's week.
 
 ## Estimate Approval
 
@@ -630,13 +677,19 @@ link exists yet, not what it is.
 
 ## Quick Create
 
-A global **"+ New" launcher** (sidebar + mobile drawer, lead+ only) opens a
-slide-over that creates the next record in the chain by searching a customer
-and picking the linkable parent — no separate "choose a customer, then choose a
-site measure" steps. Two flows, one shell (`components/quick-create/`,
-`QuickCreatePanel` is the presentational shell; `QuickCreateProvider` mounts the
-panels and owns the hand-off):
+A global **"+ New" launcher** (sidebar dropdown `NewMenu`; on phones the tab
+bar's center New cell opens `NewSheet`; lead+ only) lists every record in the
+chain (`QUICK_CREATE_ENTRIES` in `components/quick-create/entries.ts`). New
+customer opens `NewCustomerPanel` (contact + optional first address, then lands
+on the customer's page); New event opens `ScheduleEventPanel`. The other three
+open a slide-over that creates the next record by searching a customer and
+picking the linkable parent — no separate "choose a customer, then choose a
+site measure" steps. One shell (`components/quick-create/`, `QuickCreatePanel`
+is the presentational shell; `QuickCreateProvider` mounts the panels and owns
+the hand-off):
 
+- **Quick site measure** — search locations (`useLocationSearch`), pick one,
+  create the site measure and open it.
 - **Quick estimate** — search site measures (`useSiteMeasures`), pick one,
   create the estimate and open its (blank) builder — the same
   create-and-open action `SiteMeasureBuilder` exposes.

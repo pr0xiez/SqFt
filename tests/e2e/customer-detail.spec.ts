@@ -29,7 +29,8 @@ test.describe("17.1 Customer detail — info card", () => {
     await page.goto(`/customers/${customer.id}`);
     await expect(page.getByText("Loading…")).toHaveCount(0);
 
-    // The info-card inputs have no accessible labels, so target by type.
+    // Contact details are read-only until Edit opens the form.
+    await page.getByRole("button", { name: "Edit" }).click();
     const phoneInput = page.locator('input[type="tel"]');
     const [patch] = await Promise.all([
       page.waitForResponse(
@@ -47,6 +48,11 @@ test.describe("17.1 Customer detail — info card", () => {
 
     await reloadFresh(page);
     await expect(page.getByText("Loading…")).toHaveCount(0);
+    // The saved number shows in the header and the Contact card, as a call link.
+    await expect(
+      page.getByRole("link", { name: "555-0100" }).first()
+    ).toHaveAttribute("href", "tel:555-0100");
+    await page.getByRole("button", { name: "Edit" }).click();
     await expect(page.locator('input[type="tel"]')).toHaveValue("555-0100");
 
     await ctx.close();
@@ -73,14 +79,13 @@ test.describe("17.2 Customer detail — stats & pipeline", () => {
     await page.goto(`/customers/${customer.id}`);
     await expect(page.getByText("Loading…")).toHaveCount(0);
 
-    // "Accepted" stat shows 1; the declined hint reads "1 declined".
-    // Exact match avoids the "✓ Accepted" pill in the site-measure row.
-    await expect(page.getByText("Accepted", { exact: true })).toBeVisible();
-    await expect(page.getByText("1 declined")).toBeVisible();
-    // Site Measures stat label (scoped to main to avoid the nav link / title).
-    await expect(
-      page.getByRole("main").getByText("Site Measures", { exact: true })
-    ).toBeVisible();
+    // The stat strip counts one open and one approved estimate, and the
+    // approved hint carries the declined count.
+    const stats = page.getByTestId("customer-stats");
+    await expect(stats.getByText("Open estimates")).toBeVisible();
+    await expect(stats.getByText("Approved", { exact: true })).toBeVisible();
+    await expect(stats.getByText("1 declined")).toBeVisible();
+    await expect(stats.getByText("Balance due")).toBeVisible();
 
     await ctx.close();
   });
@@ -207,6 +212,36 @@ test.describe("17.3 Customer detail — locations & start site measure", () => {
     await expect(page.getByText("Add a location first")).toBeVisible();
     // Stays on the customer page (no navigation).
     await expect(page).toHaveURL(new RegExp(`/customers/${customer.id}$`));
+
+    await ctx.close();
+  });
+});
+
+test.describe("17.4 Customer detail — hub", () => {
+  test("17.4.1 activity timeline and invoices reflect the record chain", async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext();
+    const page = await loginAsWorkerOrg(browser, ctx);
+    const customer = await createCustomer(ctx.request, {
+      name: `Hub ${Date.now()}`,
+    });
+    const sm = await createSiteMeasure(ctx.request, customer.id);
+    const { estimateId } = await seedApprovedEstimate(ctx.request, sm.id);
+
+    await page.goto(`/customers/${customer.id}`);
+    await expect(page.getByText("Loading…")).toHaveCount(0);
+
+    const activity = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Activity", exact: true }),
+    });
+    await expect(activity.getByText("Customer added")).toBeVisible();
+    await expect(
+      activity.getByText(/^Site measure #\d+ started$/)
+    ).toBeVisible();
+    await expect(activity.getByText(/^Estimate #\d+ approved$/)).toBeVisible();
+    await activity.getByText(/^Estimate #\d+ approved$/).click();
+    await expect(page).toHaveURL(new RegExp(`/estimates/${estimateId}$`));
 
     await ctx.close();
   });

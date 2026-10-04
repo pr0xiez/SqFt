@@ -37,6 +37,37 @@ vi.mock("@/lib/hooks/useLineItemTemplates", () => ({
 vi.mock("@/components/invoices/InvoicesSection", () => ({
   InvoicesSection: () => null,
 }));
+// The header's billing action opens this dialog; stub its mutation stack.
+vi.mock("@/components/invoices/CreateInvoiceDialog", () => ({
+  CreateInvoiceDialog: () => null,
+}));
+
+// The next-step header reads the estimate's invoices and schedule events.
+type InvoiceRow = {
+  id: number;
+  amount: number;
+  status: string;
+  payments: { amount: number }[];
+};
+type EventRow = {
+  id: number;
+  type: "job" | "visit" | "other";
+  estimateId: number;
+  title: string;
+  date: string;
+  endDate?: string | null;
+  startTime: string;
+  endTime: string;
+  assignees: { id: string; name: string }[];
+};
+let invoiceRows: InvoiceRow[] = [];
+let eventRows: EventRow[] = [];
+vi.mock("@/lib/hooks/useInvoices", () => ({
+  useInvoices: () => ({ data: invoiceRows }),
+}));
+vi.mock("@/lib/hooks/useEvents", () => ({
+  useEvents: () => ({ data: eventRows }),
+}));
 
 vi.mock("@/components/ui/Toast", () => ({
   useToast: () => ({ showToast }),
@@ -106,6 +137,8 @@ beforeEach(() => {
   mutateAsync.mockClear();
   showToast.mockClear();
   estimateDetail = makeEstimate();
+  invoiceRows = [];
+  eventRows = [];
 });
 
 function renderBuilder() {
@@ -237,5 +270,89 @@ describe("EstimateBuilderView — save affordance / lock state", () => {
     fireEvent.change(nameInput, { target: { value: "Tampered" } });
     fireEvent.blur(nameInput);
     expect(mutateAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe("EstimateBuilderView — next step in the header", () => {
+  // One $50 line (10 × $5) with a 30% deposit → a $15 deposit.
+  const job: EventRow = {
+    id: 1,
+    type: "job",
+    estimateId: 42,
+    title: "Install: Acme Co",
+    date: "2999-01-10T00:00:00.000Z",
+    startTime: "08:00",
+    endTime: "17:00",
+    assignees: [],
+  };
+
+  function primaryButton() {
+    return document.querySelector("header .bg-\\[var\\(--accent\\)\\]");
+  }
+
+  it("a draft's next step is sending it", () => {
+    renderBuilder();
+    expect(primaryButton()?.textContent).toMatch(/Send to customer/);
+  });
+
+  it("a sent or viewed estimate offers Resend", () => {
+    estimateDetail = makeEstimate({ status: "viewed" });
+    renderBuilder();
+    expect(primaryButton()?.textContent).toMatch(/Resend/);
+  });
+
+  it("a freshly approved estimate bills the deposit, with scheduling beside it", () => {
+    estimateDetail = makeEstimate({ status: "approved" });
+    renderBuilder();
+    expect(primaryButton()?.textContent).toMatch(/Bill deposit/);
+    expect(screen.getAllByRole("button", { name: /Schedule job/ }).length).toBe(
+      2 // header secondary + the Schedule card's action
+    );
+    expect(screen.getByRole("button", { name: /^Revise$/ })).toBeDefined();
+    expect(screen.getByRole("list", { name: "Job progress" })).toBeDefined();
+  });
+
+  it("once the deposit is billed, scheduling the job is next", () => {
+    estimateDetail = makeEstimate({ status: "approved" });
+    invoiceRows = [
+      { id: 1, amount: 15, status: "paid", payments: [{ amount: 15 }] },
+    ];
+    renderBuilder();
+    expect(primaryButton()?.textContent).toMatch(/Schedule job/);
+  });
+
+  it("with the deposit billed and the job booked ahead, there's no primary action", () => {
+    estimateDetail = makeEstimate({ status: "approved" });
+    invoiceRows = [{ id: 1, amount: 15, status: "sent", payments: [] }];
+    eventRows = [job];
+    renderBuilder();
+    expect(primaryButton()).toBeNull();
+    expect(screen.getByText("Install: Acme Co")).toBeDefined();
+  });
+
+  it("after the install, billing the balance is next", () => {
+    estimateDetail = makeEstimate({ status: "approved" });
+    invoiceRows = [
+      { id: 1, amount: 15, status: "paid", payments: [{ amount: 15 }] },
+    ];
+    eventRows = [{ ...job, date: "2001-01-10T00:00:00.000Z" }];
+    renderBuilder();
+    expect(primaryButton()?.textContent).toMatch(/Bill balance/);
+  });
+
+  it("a declined estimate's next step is revising it", () => {
+    estimateDetail = makeEstimate({ status: "declined" });
+    renderBuilder();
+    expect(primaryButton()?.textContent).toMatch(/Revise/);
+  });
+
+  it("links the customer and shows the record trail", () => {
+    renderBuilder();
+    const customerLinks = screen
+      .getAllByRole("link", { name: "Acme Co" })
+      .map((a) => a.getAttribute("href"));
+    expect(customerLinks).toContain("/customers/9");
+    const trail = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(trail.querySelector('a[href="/site-measures/7"]')).not.toBeNull();
   });
 });

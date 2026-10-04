@@ -20,6 +20,8 @@ export interface CustomerEstimateSummary {
   approvedAt: string | null;
   declinedAt: string | null;
   createdAt: string;
+  /** Cached estimate total; null when the estimate has no line items. */
+  total: number | null;
   _count: { lineItems: number };
 }
 
@@ -93,12 +95,30 @@ export interface CustomerDetail extends Customer {
   locations?: CustomerLocationSummary[];
 }
 
+/** The customer's first address, created as a Location alongside them. */
+export interface CreateCustomerLocationInput {
+  street: string;
+  unit?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  lat?: number;
+  lon?: number;
+  label?: string;
+}
+
 export interface CreateCustomerInput {
   name: string;
   phone?: string;
   email?: string;
   source?: string;
   notes?: string;
+  location?: CreateCustomerLocationInput;
+}
+
+/** POST /api/customers response: the customer plus any location created. */
+export interface CreatedCustomer extends Customer {
+  locations: { id: number; address: string }[];
 }
 
 export interface CustomerListParams {
@@ -160,7 +180,7 @@ export function useCreateCustomer() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateCustomerInput) =>
-      apiFetch<Customer>(
+      apiFetch<CreatedCustomer>(
         "/api/customers",
         {
           method: "POST",
@@ -169,14 +189,17 @@ export function useCreateCustomer() {
         },
         "Failed to create customer"
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["locations"] });
+    },
   });
 }
 
 export function useUpdateCustomer(id: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<CreateCustomerInput>) =>
+    mutationFn: (data: Partial<Omit<CreateCustomerInput, "location">>) =>
       apiFetch<Customer>(
         `/api/customers/${id}`,
         {

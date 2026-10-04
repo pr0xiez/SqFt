@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { NewCustomerPanel } from "@/components/customers/NewCustomerPanel";
+import { useQuickCreate } from "@/components/quick-create/QuickCreateProvider";
 import { Button } from "@/components/ui/Button";
 import { DensityToggle, ROW_PADDING } from "@/components/ui/DensityToggle";
 import {
@@ -92,7 +92,7 @@ export function CustomerListView() {
   const [filter, setFilterState] = useState<string>("all");
   const [pipeline, setPipelineState] = useState<PipelineFilter>("any");
   const [query, setQueryState] = useState<string>("");
-  const [panelOpen, setPanelOpen] = useState(false);
+  const { open: openQuickCreate } = useQuickCreate();
   const debouncedQuery = useDebouncedValue(query, 300);
 
   const {
@@ -197,7 +197,7 @@ export function CustomerListView() {
           </>
         }
         actions={
-          <Button variant="primary" onClick={() => setPanelOpen(true)}>
+          <Button variant="primary" onClick={() => openQuickCreate("customer")}>
             <PlusIcon aria-hidden="true" />
             New Customer
           </Button>
@@ -387,8 +387,6 @@ export function CustomerListView() {
           </>
         )}
       </div>
-
-      <NewCustomerPanel open={panelOpen} onClose={() => setPanelOpen(false)} />
     </>
   );
 }

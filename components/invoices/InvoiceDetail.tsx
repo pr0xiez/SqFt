@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { QboSyncBadge } from "@/components/invoices/QboSyncBadge";
 import { RecordPaymentDialog } from "@/components/invoices/RecordPaymentDialog";
@@ -15,7 +16,12 @@ import {
   PaperPlaneTiltIcon,
   ProhibitIcon,
 } from "@/components/ui/icons";
-import { BackLink, MetaSep, PageHeader } from "@/components/ui/PageHeader";
+import {
+  Breadcrumbs,
+  MetaSep,
+  PageHeader,
+  recordTrail,
+} from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { TapeMeter } from "@/components/ui/TapeMeter";
@@ -126,12 +132,19 @@ export function InvoiceDetail({
   return (
     <div className="max-w-[1040px]">
       <PageHeader
-        kicker={<BackLink href={`/estimates/${estimateId}`}>Estimate</BackLink>}
+        kicker={<Breadcrumbs items={recordTrail(inv.trail)} />}
         title={`Invoice #${inv.invoiceNumber}`}
         meta={
           <>
             <StatusBadge status={overdue ? "overdue" : inv.status} />
             <QboSyncBadge invoiceId={inv.id} qboSync={inv.qboSync} />
+            <MetaSep />
+            <Link
+              href={`/customers/${inv.trail.customer.id}`}
+              className="font-[560] text-[var(--ink-2)] no-underline hover:text-[var(--ink)] hover:underline underline-offset-[3px]"
+            >
+              {inv.trail.customer.name}
+            </Link>
             {inv.sentToEmail ? (
               <>
                 <MetaSep />

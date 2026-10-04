@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PlusIcon } from "@/components/ui/icons";
 import { NavIcon } from "@/components/ui/nav-icons";
 import { cn } from "@/lib/cn";
 import {
@@ -26,14 +27,58 @@ function ActiveMark() {
   );
 }
 
+/** The center "New" cell: the quick-create launcher, one tap from any screen. */
+function NewCell({ onNew }: { onNew: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onNew}
+      aria-haspopup="dialog"
+      className={cn(
+        cellBase,
+        "bg-transparent border-none cursor-pointer text-[var(--ink)] active:scale-[0.96]"
+      )}
+    >
+      <span className="size-[30px] -my-[3px] rounded-[var(--r)] bg-[var(--accent)] text-[var(--on-accent)] flex items-center justify-center">
+        <PlusIcon aria-hidden="true" weight="bold" className="size-[17px]" />
+      </span>
+      <span>New</span>
+    </button>
+  );
+}
+
 export function MobileTabBar({
   pathname,
   onMore,
+  onNew,
 }: {
   pathname: string;
   onMore: () => void;
+  /** Opens the quick-create sheet; omit to hide the New cell. */
+  onNew?: () => void;
 }) {
   const moreActive = isMoreActive(pathname);
+  const half = Math.ceil(BOTTOM_BAR_SHORTCUTS.length / 2);
+  const shortcut = (s: (typeof BOTTOM_BAR_SHORTCUTS)[number]) => {
+    const active = isItemActive(s.href, pathname);
+    return (
+      <Link
+        key={s.href}
+        href={s.href}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          cellBase,
+          active ? "text-[var(--ink)]" : "text-[var(--muted)]"
+        )}
+      >
+        {active && <ActiveMark />}
+        <span className={active ? "text-[var(--accent)]" : undefined}>
+          <NavIcon icon={s.icon} active={active} size={23} />
+        </span>
+        <span>{s.label}</span>
+      </Link>
+    );
+  };
   return (
     <nav
       aria-label="Primary"
@@ -44,27 +89,15 @@ export function MobileTabBar({
         "pt-1.5 px-1 pb-[calc(6px+env(safe-area-inset-bottom,0px))]"
       )}
     >
-      <div className="grid grid-cols-5 gap-0.5 max-w-[680px] mx-auto">
-        {BOTTOM_BAR_SHORTCUTS.map((s) => {
-          const active = isItemActive(s.href, pathname);
-          return (
-            <Link
-              key={s.href}
-              href={s.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                cellBase,
-                active ? "text-[var(--ink)]" : "text-[var(--muted)]"
-              )}
-            >
-              {active && <ActiveMark />}
-              <span className={active ? "text-[var(--accent)]" : undefined}>
-                <NavIcon icon={s.icon} active={active} size={23} />
-              </span>
-              <span>{s.label}</span>
-            </Link>
-          );
-        })}
+      <div
+        className={cn(
+          "grid gap-0.5 max-w-[680px] mx-auto",
+          onNew ? "grid-cols-6" : "grid-cols-5"
+        )}
+      >
+        {BOTTOM_BAR_SHORTCUTS.slice(0, half).map(shortcut)}
+        {onNew && <NewCell onNew={onNew} />}
+        {BOTTOM_BAR_SHORTCUTS.slice(half).map(shortcut)}
         <button
           type="button"
           onClick={onMore}

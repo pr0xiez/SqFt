@@ -48,3 +48,36 @@ export function listLocationsForCustomer(orgId: string, customerId: number) {
 export function getLocation(orgId: string, id: number) {
   return prisma.location.findFirst({ where: { orgId, id } });
 }
+
+/**
+ * Locations matching a search box (customer name, phone or email, or the
+ * address itself), newest first, for the quick-create "New site measure"
+ * picker. An empty query returns the most recently added locations.
+ */
+export function searchLocations(orgId: string, q: string, take = 8) {
+  const term = q.trim();
+  return prisma.location.findMany({
+    where: {
+      orgId,
+      ...(term
+        ? {
+            OR: [
+              { address: { contains: term, mode: "insensitive" } },
+              { customer: { name: { contains: term, mode: "insensitive" } } },
+              { customer: { phone: { contains: term } } },
+              { customer: { email: { contains: term, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: {
+      id: true,
+      address: true,
+      label: true,
+      customer: { select: { id: true, name: true } },
+      _count: { select: { siteMeasures: true } },
+    },
+  });
+}

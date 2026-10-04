@@ -50,6 +50,12 @@ const partiallyPaidInvoice = {
     },
   ],
   invoiceEvents: [],
+  trail: {
+    customer: { id: 4, name: "Dana Whitfield" },
+    siteMeasure: { id: 2, siteMeasureNumber: 1002 },
+    estimate: { id: 3, estimateNumber: 5003 },
+    address: "12 Elm St",
+  },
 };
 
 beforeEach(() => {

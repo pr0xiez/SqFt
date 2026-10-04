@@ -18,3 +18,7 @@ export const locationListQuery = z.object({
 });
 
 export type LocationCreateInput = z.infer<typeof locationCreateSchema>;
+
+export const locationSearchQuery = z.object({
+  q: z.string().max(200).default(""),
+});

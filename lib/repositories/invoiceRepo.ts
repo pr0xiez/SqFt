@@ -104,14 +104,24 @@ const INVOICE_SELECT = {
   invoiceEvents: { orderBy: { createdAt: "desc" } },
 } satisfies Prisma.InvoiceSelect;
 
-/** Detail select also pulls the customer email so the send form can prefill it. */
+/** Detail select also walks up the record chain: the customer email so the
+ *  send form can prefill it, and the parent records for the page's trail. */
 const INVOICE_DETAIL_SELECT = {
   ...INVOICE_SELECT,
   estimate: {
     select: {
+      id: true,
+      estimateNumber: true,
       siteMeasure: {
         select: {
-          location: { select: { customer: { select: { email: true } } } },
+          id: true,
+          siteMeasureNumber: true,
+          location: {
+            select: {
+              address: true,
+              customer: { select: { id: true, name: true, email: true } },
+            },
+          },
         },
       },
     },
@@ -122,9 +132,19 @@ export type InvoiceWithDetails = Prisma.InvoiceGetPayload<{
   select: typeof INVOICE_SELECT;
 }>;
 
-/** A single invoice plus the customer email derived from its estimate chain. */
+/** The parent records an invoice hangs off, for the detail page's trail. */
+export interface InvoiceTrail {
+  customer: { id: number; name: string };
+  siteMeasure: { id: number; siteMeasureNumber: number | null };
+  estimate: { id: number; estimateNumber: number };
+  address: string;
+}
+
+/** A single invoice plus the customer email and parent records derived from
+ *  its estimate chain. */
 export type InvoiceDetailRecord = InvoiceWithDetails & {
   customerEmail: string | null;
+  trail: InvoiceTrail;
 };
 
 /** Sum recorded payments → InvoiceLike for billing math. */
@@ -161,9 +181,20 @@ export async function getInvoice(
   });
   if (!invoice) return null;
   const { estimate, ...rest } = invoice;
+  const { siteMeasure } = estimate;
+  const { customer } = siteMeasure.location;
   return {
     ...rest,
-    customerEmail: estimate.siteMeasure.location.customer.email,
+    customerEmail: customer.email,
+    trail: {
+      customer: { id: customer.id, name: customer.name },
+      siteMeasure: {
+        id: siteMeasure.id,
+        siteMeasureNumber: siteMeasure.siteMeasureNumber,
+      },
+      estimate: { id: estimate.id, estimateNumber: estimate.estimateNumber },
+      address: siteMeasure.location.address,
+    },
   };
 }
 

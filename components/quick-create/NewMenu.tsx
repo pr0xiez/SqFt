@@ -1,28 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { QUICK_CREATE_ENTRIES } from "@/components/quick-create/entries";
 import {
   type QuickCreateKind,
   useQuickCreate,
 } from "@/components/quick-create/QuickCreateProvider";
 import { buttonClasses } from "@/components/ui/Button";
-import {
-  CaretDownIcon,
-  FileTextIcon,
-  type Icon,
-  PlusIcon,
-  ReceiptIcon,
-} from "@/components/ui/icons";
+import { CaretDownIcon, PlusIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
-
-const ENTRIES: ReadonlyArray<{
-  kind: QuickCreateKind;
-  label: string;
-  icon: Icon;
-}> = [
-  { kind: "estimate", label: "New estimate", icon: FileTextIcon },
-  { kind: "invoice", label: "New invoice", icon: ReceiptIcon },
-];
 
 /**
  * The "+ New" launcher: a button that drops a menu of quick-create actions.
@@ -97,13 +83,13 @@ export function NewMenu({ collapsed = false }: { collapsed?: boolean }) {
         <div
           role="menu"
           className={cn(
-            "absolute z-[300] w-[220px] p-1.5",
+            "absolute z-[300] w-[248px] p-1.5",
             "bg-[var(--paper)] border border-[var(--line)] rounded-[var(--r)]",
             "shadow-[var(--shadow-md)] animate-[slideDown_.2s_var(--ease)_both]",
             collapsed ? "left-full top-0 ml-2" : "left-0 top-full mt-1.5"
           )}
         >
-          {ENTRIES.map((e) => {
+          {QUICK_CREATE_ENTRIES.map((e) => {
             const EntryIcon = e.icon;
             return (
               <button

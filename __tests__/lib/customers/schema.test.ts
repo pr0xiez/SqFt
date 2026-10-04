@@ -166,3 +166,26 @@ describe("customerUpdateSchema", () => {
     ).toBe(false);
   });
 });
+
+describe("customerCreateSchema — first location", () => {
+  const location = {
+    street: "742 Evergreen Terrace",
+    city: "Springfield",
+    state: "OH",
+    postalCode: "45501",
+  };
+
+  it("accepts an optional address for the customer's first location", () => {
+    const r = customerCreateSchema.safeParse({ name: "Rae", location });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.location).toMatchObject(location);
+  });
+
+  it("rejects an incomplete address", () => {
+    const r = customerCreateSchema.safeParse({
+      name: "Rae",
+      location: { ...location, city: "" },
+    });
+    expect(r.success).toBe(false);
+  });
+});
