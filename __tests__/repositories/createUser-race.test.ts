@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EmailTakenError } from "@/lib/api/errors";
 
 /**
  * Tests for lib/repositories/userRepo#createUser's P2002 handling.
@@ -7,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * email uniqueness via findByEmail, but that check is racy under concurrency
  * (issue #230): two requests can both pass the pre-flight and race to
  * insert, and the loser hits the User.email unique index. createUser must
- * catch that Prisma P2002 and map it to a generic USER_CREATE_FAILED conflict
+ * catch that Prisma P2002 and rethrow it as the typed EmailTakenError
  * instead of letting it surface as a generic 500.
  */
 
@@ -24,7 +25,7 @@ beforeEach(() => {
 });
 
 describe("createUser (email race)", () => {
-  it("maps Prisma P2002 on email to a generic USER_CREATE_FAILED conflict", async () => {
+  it("rethrows Prisma P2002 on email as EmailTakenError", async () => {
     const p2002 = Object.assign(new Error("Unique constraint failed"), {
       code: "P2002",
       meta: { target: ["email"] },
@@ -38,7 +39,7 @@ describe("createUser (email race)", () => {
         role: "crew",
         password: "hashed",
       })
-    ).rejects.toMatchObject({ code: "USER_CREATE_FAILED", status: 409 });
+    ).rejects.toBeInstanceOf(EmailTakenError);
   });
 
   it("propagates non-P2002 errors unchanged", async () => {

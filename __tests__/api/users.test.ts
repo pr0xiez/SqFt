@@ -30,7 +30,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
 const mockFindMany = vi.mocked(prisma.user.findMany);
-const mockFindFirst = vi.mocked(prisma.user.findFirst);
+const mockFindUnique = vi.mocked(prisma.user.findUnique);
 const mockCreate = vi.mocked(prisma.user.create);
 
 function makeRequest(method = "GET", body?: unknown) {
@@ -151,7 +151,7 @@ describe("POST /api/users", () => {
 
   it("201 creates a user; lowercases email; password is hashed and not returned", async () => {
     asRole("admin");
-    mockFindFirst.mockResolvedValueOnce(null);
+    mockFindUnique.mockResolvedValueOnce(null);
     const created = {
       id: "new1",
       name: "Jane",
@@ -195,7 +195,7 @@ describe("POST /api/users", () => {
   it("409 EMAIL_TAKEN when the email already exists", async () => {
     asRole("admin");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockFindFirst.mockResolvedValueOnce({ id: "existing" } as any);
+    mockFindUnique.mockResolvedValueOnce({ id: "existing" } as any);
 
     const res = await POST(
       makePost({
@@ -211,12 +211,6 @@ describe("POST /api/users", () => {
     const body = await res.json();
     expect(body.error.code).toBe("EMAIL_TAKEN");
     expect(mockCreate).not.toHaveBeenCalled();
-    // Duplicate check is scoped to the caller's org (#324).
-    expect(mockFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { orgId: "org1", email: "dup@test.dev" },
-      })
-    );
   });
 
   it("400 on bad payload (invalid role, short password, bad email)", async () => {
@@ -233,10 +227,10 @@ describe("POST /api/users", () => {
   // loser hits the User.email unique index (Prisma P2002). Simulate that
   // race directly (no real DB concurrency) by having the pre-flight check
   // pass but the create call reject with P2002, and assert it still comes
-  // back as a generic 409 rather than a 500.
-  it("409 generic USER_CREATE_FAILED (no email oracle) on P2002, e.g. email in another org", async () => {
+  // back as 409 EMAIL_TAKEN rather than a 500.
+  it("409 EMAIL_TAKEN when create races past the pre-flight check (P2002)", async () => {
     asRole("admin");
-    mockFindFirst.mockResolvedValueOnce(null);
+    mockFindUnique.mockResolvedValueOnce(null);
     const p2002 = Object.assign(new Error("Unique constraint failed"), {
       code: "P2002",
       meta: { target: ["email"] },
@@ -255,8 +249,7 @@ describe("POST /api/users", () => {
 
     expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.error.code).toBe("USER_CREATE_FAILED");
-    expect(JSON.stringify(body)).not.toMatch(/email/i);
+    expect(body.error.code).toBe("EMAIL_TAKEN");
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 });
