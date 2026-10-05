@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import type { InvoiceStatus } from "@/lib/invoices/status";
 import type { InvoiceStatusFilter } from "@/lib/invoices/statusFilter";
 import type { InvoiceSnapshot } from "@/lib/invoices/types";
 import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
@@ -83,7 +84,7 @@ export interface InvoiceDetail {
   id: number;
   estimateId: number;
   invoiceNumber: number;
-  status: string;
+  status: InvoiceStatus;
   amount: number;
   pct: number | null;
   memo: string | null;
