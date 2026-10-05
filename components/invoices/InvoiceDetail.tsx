@@ -36,6 +36,7 @@ import {
   isInvoiceOverdue,
   paymentsPaidTotal,
 } from "@/lib/invoices";
+import { canPay, canResend, canSend, canVoid } from "@/lib/invoices/status";
 import { fmtDollar } from "@/lib/utils";
 
 function fmtDate(iso: string | null): string {
@@ -113,8 +114,7 @@ export function InvoiceDetail({
   const lines = inv.snapshot?.lines ?? [];
   const isVoid = inv.status === "void";
   const isDraft = inv.status === "draft";
-  const isPaid = inv.status === "paid";
-  const canPay = !isDraft && !isVoid && !isPaid;
+  const mayPay = canPay(inv.status);
   const overdue = isInvoiceOverdue(inv);
   const paidShare = inv.amount > 0 ? paid / inv.amount : 0;
 
@@ -172,7 +172,7 @@ export function InvoiceDetail({
         actions={
           isVoid ? null : (
             <>
-              {isDraft ? (
+              {canSend(inv.status) ? (
                 <Button
                   variant="primary"
                   type="button"
@@ -182,7 +182,7 @@ export function InvoiceDetail({
                   Send
                 </Button>
               ) : null}
-              {canPay ? (
+              {mayPay ? (
                 <Button
                   variant="primary"
                   type="button"
@@ -192,7 +192,7 @@ export function InvoiceDetail({
                   Record payment
                 </Button>
               ) : null}
-              {!isDraft ? (
+              {canResend(inv.status) ? (
                 <Button
                   variant="default"
                   type="button"
@@ -202,7 +202,7 @@ export function InvoiceDetail({
                   Resend
                 </Button>
               ) : null}
-              {!isPaid ? (
+              {canVoid(inv.status) ? (
                 <Button
                   variant="danger"
                   type="button"
