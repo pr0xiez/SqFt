@@ -6,6 +6,10 @@ import { DecimalInput } from "@/components/ui/DecimalInput";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RulerIcon, TrashIcon, XIcon } from "@/components/ui/icons";
 import type { SiteMeasure } from "@/lib/hooks/useSiteMeasures";
+import {
+  isPresetRoomName,
+  ROOM_NAME_GROUPS,
+} from "@/lib/siteMeasures/roomNames";
 import type { RoomItem, RoomSegment } from "@/lib/utils";
 import { roomSegments, roomSqft, segmentSqft } from "@/lib/utils";
 
@@ -30,6 +34,23 @@ type EditorItem = Omit<RoomItem, "segments"> & {
 
 const dimInputClass =
   "field type-figure min-h-[36px] h-[36px] w-[72px] px-2 text-center font-[600]";
+
+/** Room-name picker value for "type your own name". */
+const CUSTOM_ROOM = "__custom__";
+
+/** A field that should grab focus once on the next render: a just-added
+ *  room's name picker, or the name input revealed by choosing "Custom…". */
+type FocusTarget = { id: number; field: "picker" | "custom" };
+
+/** Open the native dropdown straight away where the browser allows it (it
+ *  needs the Add Room click's user activation); focus alone is the fallback. */
+function openPicker(el: HTMLSelectElement) {
+  try {
+    el.showPicker?.();
+  } catch {
+    // Unsupported, or no user activation: the focused picker is enough.
+  }
+}
 
 /** Normalize a persisted room to the segments representation the editor uses:
  *  legacy w/l become a single box, and the scalar w/l are cleared. (The repo
@@ -57,8 +78,16 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
   const [items, setItems] = useState<EditorItem[]>(() =>
     (siteMeasure.items ?? []).map(toEditorItem)
   );
-  // Id of a just-added room whose name input should grab focus once.
-  const [focusId, setFocusId] = useState<number | null>(null);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
+  // Rooms switched to "Custom…" this session. A saved name outside the presets
+  // is custom on its own; this also keeps the text input up while a custom
+  // name is still empty or happens to match a preset.
+  const [customIds, setCustomIds] = useState<ReadonlySet<number>>(
+    () => new Set()
+  );
+
+  const isFocusTarget = (id: number, field: FocusTarget["field"]) =>
+    focusTarget?.id === id && focusTarget.field === field;
 
   const save = useCallback(
     async (newItems: EditorItem[]) => {
@@ -79,7 +108,7 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
       {
         id,
         type: "room",
-        name: "New Room",
+        name: "",
         shape: "rect",
         w: null,
         l: null,
@@ -87,7 +116,23 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
         note: "",
       },
     ]);
-    setFocusId(id);
+    setFocusTarget({ id, field: "picker" });
+  }
+
+  function pickRoomName(room: EditorItem, value: string) {
+    if (value === CUSTOM_ROOM) {
+      // Keep the current name so it can be tweaked; the input selects it all,
+      // so typing straight away replaces it.
+      setCustomIds((ids) => new Set(ids).add(room.id));
+      setFocusTarget({ id: room.id, field: "custom" });
+      return;
+    }
+    setCustomIds((ids) => {
+      const next = new Set(ids);
+      next.delete(room.id);
+      return next;
+    });
+    updateRoom(room.id, { name: value });
   }
 
   function removeItem(id: number) {
@@ -172,42 +217,83 @@ export function RoomSection({ siteMeasure, onSave }: Props) {
 
         const boxes = item.segments ?? [];
         const roomTotal = roomSqft(item);
+        const isCustom =
+          customIds.has(item.id) ||
+          (!!item.name && !isPresetRoomName(item.name));
         return (
           <div key={item.id} className="card p-4 md:p-5">
-            {/* Room header */}
-            <div className="flex items-center gap-2 mb-4">
-              <input
-                type="text"
-                value={item.name ?? ""}
-                // Focus a just-added room's name once; the matching onFocus
-                // clears focusId so later renders can't steal focus back (and
-                // no setState runs during render).
-                ref={(el) => {
-                  if (el && focusId === item.id) {
-                    el.focus();
-                    el.select();
+            {/* Room header: pick a common name, or "Custom…" to type one */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2">
+                <select
+                  value={isCustom ? CUSTOM_ROOM : (item.name ?? "")}
+                  // Focus a just-added room's picker once; the matching
+                  // onFocus clears focusTarget so later renders can't steal
+                  // focus back (and no setState runs during render).
+                  ref={(el) => {
+                    if (el && isFocusTarget(item.id, "picker")) {
+                      el.focus();
+                      openPicker(el);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (isFocusTarget(item.id, "picker")) setFocusTarget(null);
+                  }}
+                  onChange={(e) => pickRoomName(item, e.target.value)}
+                  aria-label="Room name"
+                  className="field flex-1 min-w-0 w-auto font-[600]"
+                >
+                  {!isCustom && !item.name && (
+                    <option value="" disabled hidden>
+                      Choose a room…
+                    </option>
+                  )}
+                  <option value={CUSTOM_ROOM}>Custom…</option>
+                  {ROOM_NAME_GROUPS.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.names.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removeItem(item.id)}
+                  className={buttonClasses({
+                    variant: "ghost",
+                    size: "sm",
+                    className:
+                      "text-[var(--muted)] hover:text-[var(--accent-ink)]",
+                  })}
+                >
+                  <TrashIcon aria-hidden="true" />
+                  Remove
+                </button>
+              </div>
+              {isCustom && (
+                <input
+                  type="text"
+                  value={item.name ?? ""}
+                  ref={(el) => {
+                    if (el && isFocusTarget(item.id, "custom")) {
+                      el.focus();
+                      el.select();
+                    }
+                  }}
+                  onFocus={() => {
+                    if (isFocusTarget(item.id, "custom")) setFocusTarget(null);
+                  }}
+                  onChange={(e) =>
+                    updateRoom(item.id, { name: e.target.value })
                   }
-                }}
-                onFocus={() => {
-                  if (focusId === item.id) setFocusId(null);
-                }}
-                onChange={(e) => updateRoom(item.id, { name: e.target.value })}
-                placeholder="Room name"
-                className="field flex-1 min-w-0 w-auto font-[600]"
-              />
-              <button
-                type="button"
-                onClick={() => removeItem(item.id)}
-                className={buttonClasses({
-                  variant: "ghost",
-                  size: "sm",
-                  className:
-                    "text-[var(--muted)] hover:text-[var(--accent-ink)]",
-                })}
-              >
-                <TrashIcon aria-hidden="true" />
-                Remove
-              </button>
+                  placeholder="Type a room name"
+                  aria-label="Custom room name"
+                  className="field mt-2 font-[600]"
+                />
+              )}
             </div>
 
             {/* Dimensions: one row per box; areas sum to the room total */}

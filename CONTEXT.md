@@ -153,6 +153,9 @@ Square footage and perimeter are the single source of truth in `roomSqft` /
 walls); linked line quantities read those.
 The measurement UI lives in `components/siteMeasures/` and
 `app/(app)/site-measures/`; the repo is `lib/repositories/siteMeasureRepo.ts`.
+Room names are picked from the common-room presets in
+`lib/siteMeasures/roomNames.ts` (or "Custom…" to type one); the list is UI-only,
+so the server accepts any name and a non-preset name renders as Custom.
 
 ## Estimate View
 
