@@ -72,6 +72,15 @@ export async function createUser(
   }
 }
 
+/** Org-scoped email lookup. Tenant-facing routes must use this, never the
+ *  global `findByEmail`, so they can't reveal other orgs' membership. */
+export function findByEmailInOrg(email: string, orgId: string) {
+  return prisma.user.findFirst({
+    where: { email, orgId },
+    select: { id: true },
+  });
+}
+
 export function findByEmail(email: string) {
   return prisma.user.findUnique({ where: { email }, select: { id: true } });
 }
