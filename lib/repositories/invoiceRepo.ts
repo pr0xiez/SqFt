@@ -22,7 +22,10 @@ import { logError } from "@/lib/logger";
 import { round2 } from "@/lib/money";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
-import { enqueueQboTaskTx } from "@/lib/repositories/qboRepo";
+import {
+  enqueueQboTasksTx,
+  enqueueQboTaskTx,
+} from "@/lib/repositories/qboRepo";
 import { buildSearchWhere, computeFacets } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 
@@ -492,8 +495,12 @@ export async function markInvoiceSent(
       where: { invoiceId: id, invoice: { orgId } },
       select: { id: true },
     });
-    for (const payment of payments)
-      await enqueueQboTaskTx(tx, orgId, "sync_payment", payment.id);
+    await enqueueQboTasksTx(
+      tx,
+      orgId,
+      "sync_payment",
+      payments.map((p) => p.id)
+    );
     return true;
   });
 }
