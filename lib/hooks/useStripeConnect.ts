@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 import {
   connectPhase,
   connectPollInterval,
@@ -9,8 +10,6 @@ import {
 } from "@/lib/stripe/connectPhase";
 
 export type { StripeConnectStatus };
-
-export const STRIPE_CONNECT_QUERY_KEY = ["stripe-connect"];
 
 /**
  * The org's Stripe Connect status. `pollWindowOpenedAt` (epoch ms) is when the
@@ -25,7 +24,7 @@ export function useStripeConnect(opts?: {
 }) {
   const openedAt = opts?.pollWindowOpenedAt ?? null;
   return useQuery({
-    queryKey: STRIPE_CONNECT_QUERY_KEY,
+    queryKey: keys.stripeConnect,
     queryFn: () =>
       apiFetch<StripeConnectStatus>(
         "/api/org/stripe/connect",

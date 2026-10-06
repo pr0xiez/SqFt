@@ -7,16 +7,15 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
-import { SCHEDULABLE_ESTIMATES_KEY } from "@/lib/hooks/useSchedulableEstimates";
+import { keys } from "@/lib/hooks/queryKeys";
 
 /** Event mutations also move estimates in/out of the unscheduled backlog,
  *  and change the customer hub's upcoming list and timeline. */
 function invalidateEventQueries(qc: QueryClient) {
-  qc.invalidateQueries({ queryKey: ["events"] });
-  qc.invalidateQueries({ queryKey: SCHEDULABLE_ESTIMATES_KEY });
+  qc.invalidateQueries({ queryKey: keys.events.all });
+  qc.invalidateQueries({ queryKey: keys.estimates.schedulable });
   qc.invalidateQueries({
-    predicate: (q) =>
-      q.queryKey[0] === "customers" && q.queryKey[2] === "activity",
+    predicate: (q) => keys.customers.isActivity(q.queryKey),
   });
 }
 
@@ -61,7 +60,7 @@ export interface CreateEventInput {
 
 export function useEvents() {
   return useQuery({
-    queryKey: ["events"],
+    queryKey: keys.events.all,
     queryFn: () =>
       apiFetch<CalEvent[]>("/api/events", undefined, "Failed to fetch events"),
   });

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/icons";
 import { Tag } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
+import { keys } from "@/lib/hooks/queryKeys";
 import type { InvoiceDetail } from "@/lib/hooks/useInvoices";
 import { useQboSyncNow } from "@/lib/hooks/useQbo";
 
@@ -48,7 +49,7 @@ export function QboSyncBadge({
     const tick = () => {
       const elapsed = Date.now() - startedAt;
       if (elapsed > POLL_DEADLINE_MS) return;
-      qc.invalidateQueries({ queryKey: ["invoices", invoiceId] });
+      qc.invalidateQueries({ queryKey: keys.invoices.detail(invoiceId) });
       timer = setTimeout(
         tick,
         elapsed < POLL_FAST_WINDOW_MS ? POLL_FAST_MS : POLL_SLOW_MS

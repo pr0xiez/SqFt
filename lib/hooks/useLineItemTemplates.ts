@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export interface LineItemTemplate {
   id: number;
@@ -34,7 +35,7 @@ export interface UpdateLineItemTemplateInput {
 export function useLineItemTemplates(opts: { includeArchived?: boolean } = {}) {
   const includeArchived = opts.includeArchived ?? false;
   return useQuery({
-    queryKey: ["line-item-templates", { includeArchived }],
+    queryKey: keys.lineItemTemplates.list(includeArchived),
     queryFn: () =>
       apiFetch<LineItemTemplate[]>(
         includeArchived
@@ -60,7 +61,7 @@ export function useCreateLineItemTemplate() {
         "Failed to create template"
       ),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["line-item-templates"] }),
+      qc.invalidateQueries({ queryKey: keys.lineItemTemplates.all }),
   });
 }
 
@@ -78,7 +79,7 @@ export function useUpdateLineItemTemplate(id: number) {
         "Failed to update template"
       ),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["line-item-templates"] }),
+      qc.invalidateQueries({ queryKey: keys.lineItemTemplates.all }),
   });
 }
 
@@ -92,6 +93,6 @@ export function useDeleteLineItemTemplate() {
         "Failed to delete template"
       ),
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["line-item-templates"] }),
+      qc.invalidateQueries({ queryKey: keys.lineItemTemplates.all }),
   });
 }
