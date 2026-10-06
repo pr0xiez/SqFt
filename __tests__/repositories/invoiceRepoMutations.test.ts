@@ -596,6 +596,30 @@ describe("markInvoiceSent", () => {
     expect(invoiceUpdate).not.toHaveBeenCalled();
   });
 
+  it("enqueues payment syncs with a single connection lookup (no N+1)", async () => {
+    invoiceFindFirst.mockResolvedValue({ id: 1, status: "sent", sentAt: null });
+    invoiceUpdate.mockResolvedValue({});
+    invoiceEventCreate.mockResolvedValue({});
+    qboConnectionFindUnique.mockResolvedValue({ status: "active" });
+    vi.mocked(tx.payment.findMany).mockResolvedValueOnce([
+      { id: 10 },
+      { id: 11 },
+      { id: 12 },
+    ] as never);
+
+    await markInvoiceSent(1, "org1", sentInput);
+
+    // 1 lookup for sync_invoice + 1 for the whole payment batch.
+    expect(qboConnectionFindUnique).toHaveBeenCalledTimes(2);
+    expect(qboSyncTaskUpsert).toHaveBeenCalledTimes(4);
+    const payIds = qboSyncTaskUpsert.mock.calls
+      .map((c) => c[0].where.orgId_kind_entityId)
+      .filter((w) => w.kind === "sync_payment")
+      .map((w) => w.entityId);
+    expect(payIds).toEqual([10, 11, 12]);
+    qboConnectionFindUnique.mockResolvedValue(null);
+  });
+
   it("flips a draft to sent and logs a 'sent' event on first send", async () => {
     invoiceFindFirst.mockResolvedValue({
       id: 1,
