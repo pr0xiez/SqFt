@@ -6,6 +6,7 @@ import type {
   MemberRow,
 } from "@/components/settings/members/types";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export type CreateAdminUserInput = {
   name: string;
@@ -21,8 +22,6 @@ export type UpdateAdminUserInput = {
   archived?: boolean;
 };
 
-const key = (orgId: string) => ["admin", "orgs", orgId, "users"] as const;
-
 export function useCreateAdminOrgMember(orgId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -36,7 +35,8 @@ export function useCreateAdminOrgMember(orgId: string) {
         },
         "Failed to add user"
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: key(orgId) }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.admin.orgUsers(orgId) }),
   });
 }
 
@@ -53,6 +53,7 @@ export function useUpdateAdminOrgMember(orgId: string) {
         },
         "Failed to update user"
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: key(orgId) }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: keys.admin.orgUsers(orgId) }),
   });
 }

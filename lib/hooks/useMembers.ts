@@ -7,6 +7,7 @@ import type {
   UpdateMemberInput,
 } from "@/components/settings/members/types";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export function useUpdateMember() {
   const qc = useQueryClient();
@@ -23,7 +24,7 @@ export function useUpdateMember() {
         "Failed to update member"
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users.all }),
   });
 }
 
@@ -40,6 +41,6 @@ export function useCreateMember() {
         },
         "Failed to add member"
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.users.all }),
   });
 }

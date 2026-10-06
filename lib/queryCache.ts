@@ -1,3 +1,5 @@
+import { LINE_ITEM_TEMPLATES_ROOT } from "@/lib/hooks/queryKeys";
+
 /**
  * Persisted react-query cache policy, in one place so the provider that writes
  * the cache and the sign-out button that has to drop it agree on the key.
@@ -19,7 +21,7 @@ export const QUERY_CACHE_BUSTER = "2026-09-session-data-not-persisted";
 
 /** Only explicitly reviewed, non-personal configuration may outlive a session.
  * New query families are not persisted by default: many carry nested PII. */
-const PERSISTABLE = new Set<string>(["line-item-templates"]);
+const PERSISTABLE = new Set<string>([LINE_ITEM_TEMPLATES_ROOT]);
 
 export function isPersistableQueryKey(queryKey: readonly unknown[]): boolean {
   return PERSISTABLE.has(String(queryKey[0]));

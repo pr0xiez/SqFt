@@ -167,6 +167,9 @@ with the file that owns it.
   `res.json()` (204 → `undefined`) in one place, so every query/mutation
   surfaces the server's real `{code, message}` instead of a fixed generic
   string. New hooks should call it rather than hand-rolling the fetch dance.
+  **All react-query keys come from the `keys` factory in
+  `lib/hooks/queryKeys.ts`** (queries and `invalidateQueries` alike) — never
+  inline a key literal; `lib/queryCache.ts` imports its persisted root from there.
   Shared dialog DOM hooks (`useFocusTrap`, `useScrollLock`) live here too.
 - `lib/env.ts` — validated server configuration for DB, email, Stripe, public URLs,
   address lookup, and the admin allowlist. Blank optional values retain disabled

@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import type { OperatorEstimateStatus } from "@/lib/estimateStatus";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 import type { SortDirection } from "@/lib/sort";
 import type { LineItemCalc, RoomItem } from "@/lib/utils";
 
@@ -124,7 +125,7 @@ function estimatesQueryString(p: EstimateListParams): string {
 
 export function useEstimates(params: EstimateListParams) {
   return useQuery({
-    queryKey: ["estimates", params],
+    queryKey: keys.estimates.list(params),
     queryFn: () =>
       apiFetch<EstimateListResponse>(
         `/api/estimates?${estimatesQueryString(params)}`,
@@ -137,7 +138,7 @@ export function useEstimates(params: EstimateListParams) {
 
 export function useEstimate(id: number) {
   return useQuery({
-    queryKey: ["estimates", id],
+    queryKey: keys.estimates.detail(id),
     queryFn: () =>
       apiFetch<EstimateDetail>(
         `/api/estimates/${id}`,
@@ -162,9 +163,11 @@ export function useCreateEstimate() {
         "Failed to create estimate"
       ),
     onSuccess: (q) => {
-      qc.invalidateQueries({ queryKey: ["estimates"] });
-      qc.invalidateQueries({ queryKey: ["siteMeasures", q.siteMeasureId] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.estimates.all });
+      qc.invalidateQueries({
+        queryKey: keys.siteMeasures.detail(q.siteMeasureId),
+      });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }
@@ -183,9 +186,9 @@ export function useUpdateEstimate(id: number) {
         "Failed to save estimate"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["estimates"] });
-      qc.invalidateQueries({ queryKey: ["estimates", id] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.estimates.all });
+      qc.invalidateQueries({ queryKey: keys.estimates.detail(id) });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }
@@ -211,9 +214,9 @@ export function useSendEstimate(estimateId: number) {
         "Send failed"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["estimates"] });
-      qc.invalidateQueries({ queryKey: ["estimates", estimateId] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.estimates.all });
+      qc.invalidateQueries({ queryKey: keys.estimates.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }
@@ -233,8 +236,8 @@ export function useReviseEstimate() {
         "Failed to revise"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["estimates"] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.estimates.all });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }
@@ -249,8 +252,8 @@ export function useDeleteEstimate() {
         "Estimate has scheduled events"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["estimates"] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.estimates.all });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }

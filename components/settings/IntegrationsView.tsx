@@ -8,6 +8,7 @@ import { EmptyState, LoadingLine } from "@/components/ui/EmptyState";
 import { PlugsIcon } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useToast } from "@/components/ui/Toast";
+import { keys } from "@/lib/hooks/queryKeys";
 import { useQboStatus } from "@/lib/hooks/useQbo";
 
 export function IntegrationsView() {
@@ -20,7 +21,7 @@ export function IntegrationsView() {
     const params = new URLSearchParams(window.location.search);
     const outcome = params.get("qbo");
     if (!outcome) return;
-    qc.invalidateQueries({ queryKey: ["qbo-status"] });
+    qc.invalidateQueries({ queryKey: keys.qboStatus });
     showToast(
       outcome === "connected"
         ? "QuickBooks connected"
