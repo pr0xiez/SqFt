@@ -643,6 +643,12 @@ concurrent sends) and returns `{ customerEmailSaved: boolean }`. The send
 route folds that into the response as `{ ok: true, customerEmailSaved }` so a
 failed persist is visible in the API contract, not only in logs.
 
+Degenerate data is pinned, not blocked, by `__tests__/lib/send/adapters.test.ts`:
+an estimate whose lines are all unresolved is emailed with `totalDollars: 0`,
+and the invoice snapshot then freezes `lines: []` with `balanceDue = amount`.
+Changing that (e.g. refusing to send) is a product decision; update the test
+with it.
+
 No Prisma crosses the pipeline's seam — persistence arrives through the
 adapter's functions — so the spine's ordering/error tests
 (`__tests__/lib/send/pipeline.test.ts`) run against an in-memory fake with no
