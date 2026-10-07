@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
   ConflictError,
@@ -27,10 +26,7 @@ import {
   toSchedulableCandidates,
 } from "@/lib/schedule/backlog";
 import type { SortDirection } from "@/lib/sort";
-
-function generateToken(): string {
-  return randomBytes(32).toString("base64url");
-}
+import { generateToken } from "@/lib/tokens";
 
 /** Minimal hydrate shape `syncEstimateTotal` needs — matches the input of
  *  `fromPrismaEstimate` (markup/deposit rates + lineItems + siteMeasure
