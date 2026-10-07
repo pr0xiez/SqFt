@@ -172,7 +172,7 @@ with the file that owns it.
   address lookup, and the admin allowlist. Blank optional values retain disabled
   feature behavior; Auth.js reads `AUTH_SECRET` itself.
 - `lib/email/` — React-Email templates + Resend senders.
-- `lib/tokens.ts` — `isValidTokenShape` (the 43-char base64url shape check for
+- `lib/tokens.ts` — `generateToken` (the one public-token generator) and `isValidTokenShape` (the 43-char base64url shape check for
   `generateToken()` output) and `trackPublicView`, the shared status-gated
   view-tracking spine used by `estimate-review`/`invoice-review`; request
   metadata is read during render, and writes finish via Next's `after()` with
