@@ -322,4 +322,109 @@ describe("buildCustomerTimeline", () => {
     });
     expect(titles).not.toContain("Walkthrough");
   });
+
+  it("handles invoice events: resent, collapsed views, void, failed payment", () => {
+    const ev = (id: number, type: string, at: string, to: string | null) => ({
+      id,
+      type,
+      createdAt: at,
+      to,
+    });
+    const t = buildCustomerTimeline(
+      activity({
+        invoices: [
+          invoice({
+            id: 2,
+            invoiceNumber: 7002,
+            events: [
+              ev(30, "resent", "2026-09-09T10:00:00.000Z", "a@b.co"),
+              ev(31, "viewed", "2026-09-09T11:00:00.000Z", null),
+              ev(32, "viewed", "2026-09-09T12:00:00.000Z", null),
+              ev(33, "payment_failed", "2026-09-09T13:00:00.000Z", null),
+              ev(34, "voided", "2026-09-09T14:00:00.000Z", null),
+              ev(35, "link_rotated", "2026-09-09T15:00:00.000Z", null),
+            ],
+          }),
+        ],
+      }),
+      "2026-10-04"
+    );
+    const byId = (id: string) => t.find((e) => e.id === id);
+    expect(byId("inv-ev-30")).toMatchObject({
+      kind: "sent",
+      title: "Invoice #7002 resent",
+      detail: "To a@b.co",
+      href: "/invoices/2",
+      tone: "default",
+    });
+    expect(byId("inv-ev-31")).toMatchObject({
+      kind: "viewed",
+      detail: "Opened 2 times",
+      tone: "warn",
+    });
+    expect(byId("inv-ev-32")).toBeUndefined();
+    expect(byId("inv-ev-33")).toMatchObject({
+      kind: "paymentFailed",
+      title: "Payment failed on invoice #7002",
+      tone: "bad",
+    });
+    expect(byId("inv-ev-34")).toMatchObject({
+      kind: "voided",
+      title: "Invoice #7002 voided",
+      tone: "bad",
+    });
+    expect(byId("inv-ev-35")).toBeUndefined();
+  });
+
+  it("reports a customer decline with its reason and a revision's source", () => {
+    const base = {
+      siteMeasureId: 3,
+      status: "declined",
+      total: null,
+      createdAt: "2026-09-03T10:00:00.000Z",
+    };
+    const e = (
+      id: number,
+      type: string,
+      over: Record<string, unknown> = {}
+    ) => ({
+      id,
+      type,
+      source: "customer",
+      createdAt: "2026-09-04T10:00:00.000Z",
+      to: null,
+      reason: null,
+      relatedEstimateNumber: null,
+      ...over,
+    });
+    const t = buildCustomerTimeline(
+      activity({
+        estimates: [
+          {
+            ...base,
+            id: 20,
+            estimateNumber: 5020,
+            events: [e(40, "declined", { reason: "Too pricey" })],
+          },
+          {
+            ...base,
+            id: 21,
+            estimateNumber: 5021,
+            events: [e(41, "revised_from", { relatedEstimateNumber: 5020 })],
+          },
+        ],
+      }),
+      "2026-10-04"
+    );
+    expect(t.find((x) => x.id === "est-ev-40")).toMatchObject({
+      kind: "declined",
+      title: "Estimate #5020 declined",
+      detail: '"Too pricey"',
+      tone: "bad",
+    });
+    expect(t.find((x) => x.id === "est-21")).toMatchObject({
+      detail: "Revision of estimate #5020",
+    });
+    expect(t.find((x) => x.id === "est-ev-41")).toBeUndefined();
+  });
 });
