@@ -46,6 +46,11 @@ with the file that owns it.
   management** — add user, change role, archive/restore — via
   `/api/admin/orgs/[orgId]/users[/[userId]]`, all gated by
   `apiRoute({ superAdmin: true })`.
+- **Error boundaries** — `app/error.tsx` (root: auth + public review pages),
+  `app/(app)/error.tsx` and `app/(admin)/error.tsx` (render inside the group
+  layout so the nav survives) all delegate to `components/ui/RouteError.tsx`
+  (retry via Next's `unstable_retry` + a safe link home); `app/global-error.tsx`
+  is the self-contained root-layout fallback. `app/not-found.tsx` is the 404.
 - **Navigation** is defined once in `lib/nav/items.ts` (grouped destinations,
   role-gating via `navGroupsFor`, the mobile bottom-bar shortcuts, and the
   `isItemActive`/`isMoreActive` helpers) and rendered by
