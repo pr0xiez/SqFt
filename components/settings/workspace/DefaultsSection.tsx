@@ -1,4 +1,6 @@
-"use client";
+import { fromDisplayPercent, toDisplayPercent } from "@/lib/percent";
+
+("use client");
 
 import { FieldRow, SectionHead } from "./_ui";
 import type { WorkspaceSettingsForm } from "./types";
@@ -18,7 +20,7 @@ const UNITS: {
 ];
 
 export function DefaultsSection({ form, onChange }: Props) {
-  const depositPct = Math.round(form.defaultDepositPct * 100);
+  const depositPct = toDisplayPercent(form.defaultDepositPct);
 
   return (
     <section className="mb-14 scroll-mt-8" id="defaults">
@@ -38,7 +40,9 @@ export function DefaultsSection({ form, onChange }: Props) {
               step={1}
               value={depositPct}
               onChange={(e) =>
-                onChange({ defaultDepositPct: Number(e.target.value) / 100 })
+                onChange({
+                  defaultDepositPct: fromDisplayPercent(Number(e.target.value)),
+                })
               }
               className="w-full h-10 accent-[var(--accent)] cursor-pointer"
             />
