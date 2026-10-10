@@ -15,6 +15,13 @@ const organizationUpdate = vi.fn();
 const locationFindFirst = vi.fn();
 const eventCount = vi.fn();
 const invoiceCount = vi.fn();
+const itemFindMany = vi.fn();
+const itemUpdate = vi.fn();
+const txEstimateFindMany = vi.fn();
+const txEstimateFindFirst = vi.fn();
+const txEstimateUpdate = vi.fn();
+const lineItemFindMany = vi.fn();
+const lineItemUpdate = vi.fn();
 
 const txMock = {
   siteMeasure: {
@@ -27,9 +34,17 @@ const txMock = {
   event: { count: eventCount },
   invoice: { count: invoiceCount },
   siteMeasureItem: {
+    findMany: itemFindMany,
+    update: itemUpdate,
     deleteMany: estimateItemDeleteMany,
     createMany: estimateItemCreateMany,
   },
+  estimate: {
+    findMany: txEstimateFindMany,
+    findFirst: txEstimateFindFirst,
+    update: txEstimateUpdate,
+  },
+  lineItem: { findMany: lineItemFindMany, update: lineItemUpdate },
   organization: {
     findUnique: organizationFindUnique,
     update: organizationUpdate,
@@ -67,7 +82,11 @@ const {
   deleteSiteMeasure,
 } = await import("@/lib/repositories/siteMeasureRepo");
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  itemFindMany.mockResolvedValue([]);
+  txEstimateFindMany.mockResolvedValue([]);
+});
 
 // ── listSiteMeasures ─────────────────────────────────────────────────────────────
 
@@ -335,7 +354,7 @@ describe("saveSiteMeasure", () => {
     expect(estimateItemDeleteMany).not.toHaveBeenCalled();
   });
 
-  it("replaces items wholesale when items provided", async () => {
+  it("creates new rooms and deletes none when nothing existed", async () => {
     estimateCount.mockResolvedValue(1);
     estimateFindFirst.mockResolvedValue({ id: 1 });
 
@@ -352,12 +371,64 @@ describe("saveSiteMeasure", () => {
       ],
     });
 
-    expect(estimateItemDeleteMany).toHaveBeenCalledWith({
-      where: { siteMeasureId: 1 },
-    });
+    expect(estimateItemDeleteMany).not.toHaveBeenCalled();
     expect(estimateItemCreateMany).toHaveBeenCalledWith({
       data: [expect.objectContaining({ siteMeasureId: 1, name: "Living" })],
     });
+  });
+
+  it("preserves ids of surviving rooms, strips removed ids from links, resyncs totals", async () => {
+    estimateCount.mockResolvedValue(1);
+    itemFindMany.mockResolvedValue([{ id: 10 }, { id: 11 }]);
+    txEstimateFindMany.mockResolvedValue([{ id: 5 }]);
+    lineItemFindMany.mockResolvedValue([{ id: 70, linkedRoomIds: [10, 11] }]);
+    txEstimateFindFirst.mockResolvedValue({
+      markupPct: 0,
+      depositPct: 0,
+      lineItems: [],
+      siteMeasure: { items: [] },
+    });
+    estimateFindFirst.mockResolvedValue({ id: 1 });
+
+    await saveSiteMeasure(1, "org1", {
+      items: [
+        {
+          id: 10,
+          type: "room",
+          name: "Kitchen",
+          shape: "rect",
+          w: 5,
+          l: 6,
+          sortOrder: 0,
+        },
+        { type: "room", name: "New", shape: "rect", w: 3, l: 3, sortOrder: 1 },
+      ],
+    });
+
+    expect(itemUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 10 } })
+    );
+    expect(estimateItemDeleteMany).toHaveBeenCalledWith({
+      where: { siteMeasureId: 1, id: { in: [11] } },
+    });
+    expect(estimateItemCreateMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ name: "New" })],
+    });
+    expect(lineItemUpdate).toHaveBeenCalledWith({
+      where: { id: 70 },
+      data: { linkedRoomIds: [10] },
+    });
+    expect(txEstimateUpdate).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: { total: null },
+    });
+    expect(txEstimateFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { notIn: ["approved", "declined"] },
+        }),
+      })
+    );
   });
 });
 
