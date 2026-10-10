@@ -145,6 +145,11 @@ scalar `w`/`l`. `saveSiteMeasure` canonicalizes on write so the DB never holds
 both: a single box persists as scalar `w`/`l` (`segments` NULL), only a
 multi-box room persists `segments` (scalars NULL). Reads narrow the JSON
 column through `parseRoomSegments` (`lib/utils.ts`) — never a bare cast.
+`saveSiteMeasure` **upserts rooms by id** (room ids are referenced by
+`LineItem.linkedRoomIds` with no FK, so they must stay stable); only rooms
+absent from the payload are deleted. In the same transaction
+`reconcileEstimatesForRoomChange` (`estimateRepo.ts`) strips deleted ids from
+non-locked estimates' `linkedRoomIds` and re-syncs their stored `total`.
 Rooms are rectangles-only: the `shape` column is a legacy no-op (the old
 triangle-area special-case was removed, and writes only accept `"rect"`).
 Square footage and perimeter are the single source of truth in `roomSqft` /
