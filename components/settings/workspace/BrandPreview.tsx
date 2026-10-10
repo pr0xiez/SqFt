@@ -1,4 +1,6 @@
-"use client";
+import { formatPercent } from "@/lib/percent";
+
+("use client");
 
 import type { CSSProperties } from "react";
 import { fmtDollar } from "@/lib/utils";
@@ -57,7 +59,7 @@ export function BrandPreview({ form, licenseNumber }: Props) {
               <span>
                 Deposit ·{" "}
                 <span className="type-figure">
-                  {Math.round(form.defaultDepositPct * 100)}%
+                  {formatPercent(form.defaultDepositPct)}
                 </span>
               </span>
               <span className="type-figure">

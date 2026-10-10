@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import type { JobProgress, JobStep } from "@/lib/estimates/jobProgress";
 import type { EstimateBilling } from "@/lib/invoices";
 import { OVERBILL_EPSILON } from "@/lib/invoices";
+import { formatPercent } from "@/lib/percent";
 import { fmtDollar } from "@/lib/utils";
 
 const STEP_LABELS: Record<JobStep["key"], string> = {
@@ -29,7 +30,7 @@ function stepSub(
       if (step.state === "done")
         return `${fmtDollar(progress.depositAmount)} paid`;
       if (billed) return "Billed, awaiting payment";
-      return `${Math.round(depositPct * 100)}%, ${fmtDollar(progress.depositAmount)}`;
+      return `${formatPercent(depositPct)}, ${fmtDollar(progress.depositAmount)}`;
     case "schedule":
       if (!progress.jobStart) return "Not scheduled";
       return progress.jobFinished

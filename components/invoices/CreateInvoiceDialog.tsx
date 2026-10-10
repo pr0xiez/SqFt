@@ -1,4 +1,6 @@
-"use client";
+import { toDisplayPercent } from "@/lib/percent";
+
+("use client");
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -42,7 +44,7 @@ export function CreateInvoiceDialog({
   const create = useCreateInvoice(estimateId);
 
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [pct, setPct] = useState(String(Math.round(defaultDepositPct * 100)));
+  const [pct, setPct] = useState(String(toDisplayPercent(defaultDepositPct)));
   const [flat, setFlat] = useState("0");
   const [dueDate, setDueDate] = useState("");
   const [memo, setMemo] = useState(initialMemo);
@@ -53,7 +55,7 @@ export function CreateInvoiceDialog({
   useEffect(() => {
     if (open) {
       setMode(initialMode);
-      setPct(String(Math.round(defaultDepositPct * 100)));
+      setPct(String(toDisplayPercent(defaultDepositPct)));
       setFlat("0");
       setDueDate("");
       setMemo(initialMemo);

@@ -17,6 +17,7 @@ import {
 } from "@/lib/estimateDraft";
 import { computeEstimateView } from "@/lib/estimateView";
 import type { LineItemTemplate } from "@/lib/hooks/useLineItemTemplates";
+import { fromDisplayPercent, toDisplayPercent } from "@/lib/percent";
 import type { RoomItem } from "@/lib/utils";
 import { QtyMode, roomSqft } from "@/lib/utils";
 
@@ -97,7 +98,7 @@ export function LineItemSection({
   const { subtotal, markup: markupAmt, total, deposit } = view;
 
   // EstimateTotals speaks display percentages; the Draft holds storage form.
-  const depositDisplayPct = Math.round(draft.depositPct * 1000) / 10;
+  const depositDisplayPct = toDisplayPercent(draft.depositPct);
 
   return (
     <div className="space-y-3">
@@ -216,7 +217,10 @@ export function LineItemSection({
               dispatch({ type: "setMarkupPct", value: next })
             }
             onCommitDeposit={(next) =>
-              dispatch({ type: "setDepositPct", value: next / 100 })
+              dispatch({
+                type: "setDepositPct",
+                value: fromDisplayPercent(next),
+              })
             }
           />
         )}
