@@ -32,6 +32,7 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useSiteMeasures } from "@/lib/hooks/useSiteMeasures";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
 import { cycleSort } from "@/lib/sort";
+import { formatShortDate } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: SiteMeasureStatus; label: string }[] = [
   { value: "all", label: "All" },
@@ -194,11 +195,7 @@ export function SiteMeasureListView() {
         ) : (
           <>
             {siteMeasures.map((est) => {
-              const dateLabel = new Date(est.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              });
+              const dateLabel = formatShortDate(est.date);
               return (
                 <button
                   key={est.id}

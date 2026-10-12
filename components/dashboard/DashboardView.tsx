@@ -13,7 +13,7 @@ import { useDashboardKPIs } from "@/lib/hooks/useDashboardKPIs";
 import { useDashboardRevenue } from "@/lib/hooks/useDashboardRevenue";
 import { useEvents } from "@/lib/hooks/useEvents";
 import { useSiteMeasures } from "@/lib/hooks/useSiteMeasures";
-import { getGreeting } from "@/lib/utils";
+import { formatLongDateWithWeekday, getGreeting } from "@/lib/utils";
 
 export function DashboardView() {
   const { data: session } = useSession();
@@ -34,14 +34,7 @@ export function DashboardView() {
 
   useEffect(() => {
     setGreeting(getGreeting());
-    setDateLabel(
-      new Date().toLocaleDateString("en-US", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    );
+    setDateLabel(formatLongDateWithWeekday(new Date()));
   }, []);
 
   const firstName = session?.user?.name?.split(" ")[0] ?? "there";

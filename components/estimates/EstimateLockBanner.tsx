@@ -1,4 +1,5 @@
 import { CheckCircleIcon, XCircleIcon } from "@/components/ui/icons";
+import { formatLongDate } from "@/lib/utils";
 
 interface Props {
   status: "approved" | "declined";
@@ -18,13 +19,7 @@ export function EstimateLockBanner({
   supersededByEstimateNumber,
 }: Props) {
   if (status === "approved") {
-    const date = approvedAt
-      ? new Date(approvedAt).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : "";
+    const date = approvedAt ? formatLongDate(approvedAt) : "";
     return (
       <div className="mb-6 flex items-start gap-3 px-4 py-3.5 rounded-[var(--r)] bg-[color-mix(in_oklab,var(--ok)_10%,transparent)] border border-[color-mix(in_oklab,var(--ok)_35%,transparent)]">
         <CheckCircleIcon
@@ -44,13 +39,7 @@ export function EstimateLockBanner({
     );
   }
 
-  const date = declinedAt
-    ? new Date(declinedAt).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : "";
+  const date = declinedAt ? formatLongDate(declinedAt) : "";
   const isSuperseded = declineSource === "system_supersede";
   const heading = isSuperseded
     ? `Auto-declined${

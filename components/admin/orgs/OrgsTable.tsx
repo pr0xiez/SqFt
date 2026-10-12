@@ -15,6 +15,7 @@ import {
   TABLE_SHELL,
 } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
+import { formatShortDate } from "@/lib/utils";
 import type { AdminOrgRow, SubscriptionStatus } from "./types";
 
 const STATUS_TONES: Record<SubscriptionStatus, StatusTone> = {
@@ -27,15 +28,6 @@ const STATUS_TONES: Record<SubscriptionStatus, StatusTone> = {
 };
 
 const GRID_COLS = "md:grid-cols-[minmax(0,1.5fr)_120px_160px_140px_80px]";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 export function OrgsTable({ rows }: { rows: AdminOrgRow[] }) {
   if (rows.length === 0) {
@@ -94,15 +86,15 @@ export function OrgsTable({ rows }: { rows: AdminOrgRow[] }) {
                   </span>{" "}
                   users
                 </span>
-                <span>Created {formatDate(row.createdAt)}</span>
+                <span>Created {formatShortDate(row.createdAt)}</span>
               </div>
             </div>
             <div className={cn(CELL, "py-3.5 hidden md:block")}>{status}</div>
             <div className={cn(CELL, CELL_META, "py-3.5 hidden md:block")}>
-              {formatDate(renewal)}
+              {formatShortDate(renewal)}
             </div>
             <div className={cn(CELL, CELL_META, "py-3.5 hidden md:block")}>
-              {formatDate(row.createdAt)}
+              {formatShortDate(row.createdAt)}
             </div>
             <div className={cn(CELL, "py-3.5 hidden md:block text-right")}>
               <span className={cn(CELL_FIGURE, "font-[600]")}>

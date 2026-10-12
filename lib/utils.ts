@@ -32,11 +32,6 @@ export function fmtDollar(n: number | null | undefined): string {
   return `$${n.toFixed(2)}`;
 }
 
-/** Deep copy an object via JSON serialization */
-export function deepCopy<T>(x: T): T {
-  return JSON.parse(JSON.stringify(x));
-}
-
 // ── Room area calculations ────────────────────────────────────────────────
 
 export interface RoomSegment {
@@ -211,11 +206,31 @@ export function fmtDayHead(date: Date): string {
 }
 
 /** "Mar 3, 2026" — short, human date. Returns "—" for null/undefined. */
-export function formatShortDate(iso: string | null | undefined): string {
+export function formatShortDate(iso: string | Date | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** "March 3, 2026" — long month. Returns "" for null/undefined (inline-sentence use). */
+export function formatLongDate(iso: string | Date | null | undefined): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+/** "Tuesday, March 3, 2026" — long date with weekday, for page headers. */
+export function formatLongDateWithWeekday(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
     year: "numeric",
   });
 }
