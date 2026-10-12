@@ -36,11 +36,7 @@ import {
   isInvoiceOverdue,
   paymentsPaidTotal,
 } from "@/lib/invoices";
-import { fmtDollar } from "@/lib/utils";
-
-function fmtDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleDateString("en-US") : "-";
-}
+import { fmtDollar, formatShortDate } from "@/lib/utils";
 
 type Payment = Invoice["payments"][number];
 
@@ -84,7 +80,7 @@ function PaymentRow({ p }: { p: Payment }) {
         )}
       </div>
       <div className="shrink-0 text-[13px] text-[var(--muted)]">
-        {fmtDate(p.paidAt)}
+        {formatShortDate(p.paidAt)}
       </div>
     </div>
   );
@@ -219,7 +215,7 @@ export function InvoiceDetail({
 
       {isVoid ? (
         <p className="-mt-2 mb-6 text-[14px] text-[var(--muted)]">
-          This invoice was voided on {fmtDate(inv.voidedAt)}.
+          This invoice was voided on {formatShortDate(inv.voidedAt)}.
         </p>
       ) : null}
 
@@ -230,7 +226,7 @@ export function InvoiceDetail({
           <Stat label="Outstanding" value={fmtDollar(outstanding)} />
           <Stat
             label="Due"
-            value={fmtDate(inv.dueDate)}
+            value={formatShortDate(inv.dueDate)}
             size="sm"
             valueClassName="mt-2.5"
             sub={
@@ -335,7 +331,7 @@ export function InvoiceDetail({
                       </span>
                     ) : null}
                     <div className="mt-0.5 text-[13px] text-[var(--muted)]">
-                      {fmtDate(e.createdAt)}
+                      {formatShortDate(e.createdAt)}
                     </div>
                   </li>
                 ))}

@@ -18,7 +18,7 @@ import {
   useSiteMeasure,
   useUpdateSiteMeasure,
 } from "@/lib/hooks/useSiteMeasures";
-import { estTotalArea } from "@/lib/utils";
+import { estTotalArea, formatShortDate } from "@/lib/utils";
 
 interface Props {
   siteMeasureId: number;
@@ -61,13 +61,7 @@ export function SiteMeasureBuilderView({ siteMeasureId }: Props) {
         title={`Site Measure #${siteMeasure.siteMeasureNumber ?? siteMeasure.id}`}
         meta={
           <>
-            <span>
-              {new Date(siteMeasure.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </span>
+            <span>{formatShortDate(siteMeasure.date)}</span>
             <MetaSep />
             <span>
               <span className="type-figure text-[var(--ink-2)]">

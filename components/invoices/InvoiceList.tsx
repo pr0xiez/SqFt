@@ -34,7 +34,7 @@ import { useInvoiceList } from "@/lib/hooks/useInvoices";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
 import { isInvoiceOverdue } from "@/lib/invoices";
 import { cycleSort } from "@/lib/sort";
-import { fmtDollar } from "@/lib/utils";
+import { fmtDollar, formatShortDate } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: InvoiceStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -48,15 +48,6 @@ const GRID_COLS =
   "md:grid-cols-[84px_minmax(0,1fr)_120px_120px_112px_116px_116px]";
 
 type SortKey = "number" | "customer" | "amount" | "dueDate" | "sentAt";
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return "-";
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export function InvoiceListView() {
   const router = useRouter();
@@ -301,12 +292,12 @@ export function InvoiceListView() {
                     )}
                     title={overdue ? "Overdue" : undefined}
                   >
-                    {fmtDate(row.dueDate)}
+                    {formatShortDate(row.dueDate)}
                   </div>
                   <div
                     className={cn(CELL, CELL_META, "hidden md:block", rowPad)}
                   >
-                    {fmtDate(row.sentAt)}
+                    {formatShortDate(row.sentAt)}
                   </div>
                 </button>
               );
