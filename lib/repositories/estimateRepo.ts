@@ -12,7 +12,7 @@ import {
   type OperatorEstimateStatus,
 } from "@/lib/estimateStatus";
 import type { EstimateStatusFilter } from "@/lib/estimates/statusFilter";
-import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { type fromPrismaEstimate, viewFromPrisma } from "@/lib/estimateView";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import {
@@ -54,9 +54,7 @@ async function syncEstimateTotal(
   hydrated: HydratedForTotal
 ): Promise<number | null> {
   const total =
-    hydrated.lineItems.length === 0
-      ? null
-      : computeEstimateView(fromPrismaEstimate(hydrated)).total;
+    hydrated.lineItems.length === 0 ? null : viewFromPrisma(hydrated).total;
   await tx.estimate.update({ where: { id: estimateId }, data: { total } });
   return total;
 }

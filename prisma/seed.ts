@@ -9,7 +9,7 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "../app/generated/prisma/client";
-import { computeEstimateView, fromPrismaEstimate } from "../lib/estimateView";
+import { viewFromPrisma } from "../lib/estimateView";
 import { locationAddressColumns } from "../lib/locations/formatAddress";
 import { createOrganization } from "../lib/onboarding/createOrganization";
 
@@ -32,7 +32,7 @@ type SeedEstimate = Awaited<ReturnType<typeof prisma.estimate.create>>;
 
 /** Populate the denormalized Estimate.total on a seeded estimate, mirroring
  *  syncEstimateTotal in lib/repositories/estimateRepo.ts — null when there are
- *  no line items, else computeEstimateView(fromPrismaEstimate(...)).total. */
+ *  no line items, else viewFromPrisma(...).total. */
 async function setEstimateTotal(estimateId: number) {
   const hydrated = await prisma.estimate.findUniqueOrThrow({
     where: { id: estimateId },
@@ -44,9 +44,7 @@ async function setEstimateTotal(estimateId: number) {
     },
   });
   const total =
-    hydrated.lineItems.length === 0
-      ? null
-      : computeEstimateView(fromPrismaEstimate(hydrated)).total;
+    hydrated.lineItems.length === 0 ? null : viewFromPrisma(hydrated).total;
   await prisma.estimate.update({ where: { id: estimateId }, data: { total } });
 }
 
