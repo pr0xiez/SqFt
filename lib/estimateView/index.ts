@@ -11,3 +11,4 @@ export type {
   LineView,
   RoomItem,
 } from "./types";
+export { viewFromPrisma } from "./viewFromPrisma";

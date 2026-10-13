@@ -1,11 +1,11 @@
-import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { viewFromPrisma } from "@/lib/estimateView";
 import { prisma } from "@/lib/prisma";
 
 /**
  * One-off backfill for the denormalized Estimate.total column (added in the
  * `pagination` migration). Recomputes every estimate's total the same way
  * `syncEstimateTotal` does on write: null when there are no line items, else
- * `computeEstimateView(fromPrismaEstimate(...)).total`. Idempotent — safe to
+ * `viewFromPrisma(...).total`. Idempotent — safe to
  * re-run.
  *
  * Run with: npm run backfill:estimate-total
@@ -22,10 +22,7 @@ async function main() {
   });
   let updated = 0;
   for (const e of estimates) {
-    const total =
-      e.lineItems.length === 0
-        ? null
-        : computeEstimateView(fromPrismaEstimate(e)).total;
+    const total = e.lineItems.length === 0 ? null : viewFromPrisma(e).total;
     await prisma.estimate.update({ where: { id: e.id }, data: { total } });
     updated++;
   }

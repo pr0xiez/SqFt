@@ -181,7 +181,9 @@ float drift.
 
 Callers map their concrete representation (Prisma row, public payload, editor
 form state) to `EstimateInput` at the seam. The Prisma adapter lives at
-`lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`).
+`lib/estimateView/fromPrisma.ts` (`fromPrismaEstimate`). Prisma callers use the
+composed `viewFromPrisma(estimate)` (`lib/estimateView/viewFromPrisma.ts`) rather
+than hand-wiring `computeEstimateView(fromPrismaEstimate(...))`.
 
 `computeEstimateView` lines carry their `id` (`LineView.id`), and consumers
 that re-attach side-channel metadata to computed math **join by id, never by
