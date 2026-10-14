@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SqFt
 
-## Getting Started
+**From tape measure to paid invoice.**
 
-First, run the development server:
+Software for flooring contractors. Measure the rooms, price the job, get it signed, get paid.
 
-```bash
+[sqft.dev](https://www.sqft.dev)
+
+![SqFt](docs/media/hero.jpg)
+
+## what it does
+
+- **measure**: room-by-room site measures, per location, per customer
+- **quote**: estimates built from the measure, with markup, revisions and one-link customer approval
+- **bill**: progress invoices, proration, card + ACH checkout through Stripe Connect
+- **sync**: one-way push to QuickBooks Online
+- **schedule**: crew calendar, backlog of unscheduled jobs, mobile day view for installers
+- **run it**: multi-tenant orgs, admin / lead / crew roles, super-admin console, PDF + email out
+
+## stack
+
+Next.js 16 · React 19 · Prisma 7 / Postgres (Neon) · Auth.js · Stripe Connect · QuickBooks Online · Resend · react-pdf · TanStack Query · Tailwind 4 · Vitest · Playwright · Vercel
+
+## run
+
+```sh
+npm install
+cp .env.example .env    # add DATABASE_URL
+npm run migrate:dev
+npm run seed:dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm test` · `npm run test:e2e` · `npm run lint:ci` · `npm run typecheck`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## read next
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [CONTEXT.md](CONTEXT.md): domain glossary, the estimate math, lifecycles
+- [AGENTS.md](AGENTS.md): codebase map and gotchas
+- [docs/design-system.md](docs/design-system.md): tokens, type, primitives
+- [`www/`](www): the marketing site
