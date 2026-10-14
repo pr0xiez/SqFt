@@ -29,7 +29,7 @@ const estimate = {
   siteMeasure: {
     items: [],
     location: {
-      address: "3722 Amity Lane",
+      address: "100 Example Street",
       customer: { id: 5, name: "Alex", email: "alex@x.com", phone: null },
     },
   },

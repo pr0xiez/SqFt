@@ -45,7 +45,7 @@ describe("PublicInvoiceView", () => {
       memo: "Deposit",
       terms: "50% to schedule, bal upon compl",
       paymentInstructions: "WARNING…",
-      customer: { name: "Mr. Alex Hall", address: "3722 Amity Lane" },
+      customer: { name: "Mr. Alex Hall", address: "100 Example Street" },
       lines: [
         {
           name: "Carpet Tear Out",

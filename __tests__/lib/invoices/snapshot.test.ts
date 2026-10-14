@@ -27,7 +27,7 @@ describe("snapshotInvoice", () => {
       amount: 153.5,
       customer: {
         name: "Alex Hall",
-        address: "3722 Amity Lane",
+        address: "100 Example Street",
         email: null,
         phone: null,
       },

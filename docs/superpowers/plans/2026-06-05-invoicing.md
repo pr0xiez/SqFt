@@ -650,7 +650,7 @@ describe("snapshotInvoice", () => {
       paymentInstructions: "WARNING! cards via link…",
       pct: 0.5,
       amount: 153.5,
-      customer: { name: "Alex Hall", address: "3722 Amity Lane", email: null, phone: null },
+      customer: { name: "Alex Hall", address: "100 Example Street", email: null, phone: null },
       org: { name: "All About Hardwood", address: null, phone: null, licenseNumber: null, logoUrl: null },
       stripePaymentLinkUrl: "https://pay.example/abc",
     });
@@ -1931,7 +1931,7 @@ const estimate = {
   convenienceFeeRate: 0,
   depositPct: 0.5,
   lineItems: [{ id: 1, name: "Carpet", description: "tear out", rate: 307, qtyMode: "manual", qty: 1, wastePct: 0, unitLabel: "job", linkedRoomIds: [], sortOrder: 0 }],
-  siteMeasure: { items: [], location: { address: "3722 Amity Lane", customer: { id: 5, name: "Alex", email: "alex@x.com", phone: null } } },
+  siteMeasure: { items: [], location: { address: "100 Example Street", customer: { id: 5, name: "Alex", email: "alex@x.com", phone: null } } },
 };
 vi.mock("@/lib/repositories", () => ({
   getInvoiceForSend: vi.fn(async () => ({
@@ -2248,7 +2248,7 @@ describe("PublicInvoiceView", () => {
           paymentInstructions: "WARNING…",
           payUrl: null,
           org: { name: "All About Hardwood", phone: null, address: null, logo: null },
-          customer: { name: "Mr. Alex Hall", address: "3722 Amity Lane" },
+          customer: { name: "Mr. Alex Hall", address: "100 Example Street" },
           lines: [{ name: "Carpet Tear Out", description: "Remove carpet", amount: 153.5 }],
         }}
       />
