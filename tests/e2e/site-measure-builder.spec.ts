@@ -48,7 +48,7 @@ test.describe
               {
                 id: Date.now(),
                 type: "room",
-                name: "New Room",
+                name: "",
                 shape: "rect",
                 w: null,
                 l: null,
@@ -63,7 +63,7 @@ test.describe
       expect(body.items).toHaveLength(1);
       expect(body.items[0]).toMatchObject({
         type: "room",
-        name: "New Room",
+        name: "",
         shape: "rect",
         w: null,
         l: null,
@@ -163,6 +163,16 @@ test.describe
     let page: Page;
     let siteMeasureId: number;
 
+    /** The first room's name as the server has it. */
+    async function savedRoomName() {
+      const r = await ctx.request.get(`/api/site-measures/${siteMeasureId}`);
+      const body = await r.json();
+      const room = (body.items as Array<{ type: string; name: string }>).find(
+        (i) => i.type === "room"
+      );
+      return room?.name;
+    }
+
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
       page = await loginAsWorkerOrg(browser, ctx);
@@ -189,7 +199,10 @@ test.describe
         page.getByRole("button", { name: /add room/i }).click(),
       ]);
       expect(response.status()).toBe(200);
-      await expect(page.getByPlaceholder("Room name")).toHaveValue("New Room");
+      // A new room starts unnamed, on the name picker's placeholder.
+      await expect(page.getByLabel("Room name", { exact: true })).toHaveValue(
+        ""
+      );
     });
 
     test("3.2.2 the new room persists across reload", async () => {
@@ -208,33 +221,40 @@ test.describe
         .toBeGreaterThan(0);
 
       await reloadFresh(page);
-      await expect(page.getByPlaceholder("Room name")).toHaveValue("New Room");
+      await expect(page.getByLabel("Room name", { exact: true })).toHaveCount(
+        1
+      );
     });
 
-    test("3.2.3 editing the room name and blurring saves successfully", async () => {
+    test("3.2.3 picking a room name from the dropdown saves it", async () => {
       await page.goto(`/site-measures/${siteMeasureId}`);
-      const input = page.getByPlaceholder("Room name");
-      // RoomSection saves on every onChange, so fill fires the PATCH; blur is a
-      // no-op now. expect.poll retries until the server converges under CI load.
-      await input.fill("Living Room");
-      await input.blur();
+      const picker = page.getByLabel("Room name", { exact: true });
+      // RoomSection saves on every change; expect.poll retries until the
+      // server converges under CI load.
+      await picker.selectOption("Living Room");
 
-      await expect
-        .poll(async () => {
-          const r = await ctx.request.get(
-            `/api/site-measures/${siteMeasureId}`
-          );
-          const body = await r.json();
-          const room = (
-            body.items as Array<{ type: string; name: string }>
-          ).find((i) => i.type === "room");
-          return room?.name;
-        })
-        .toBe("Living Room");
+      await expect.poll(() => savedRoomName()).toBe("Living Room");
 
       await reloadFresh(page);
-      await expect(page.getByPlaceholder("Room name")).toHaveValue(
+      await expect(page.getByLabel("Room name", { exact: true })).toHaveValue(
         "Living Room"
+      );
+    });
+
+    test("3.2.3b choosing Custom lets you type a room name", async () => {
+      await page.goto(`/site-measures/${siteMeasureId}`);
+      await page
+        .getByLabel("Room name", { exact: true })
+        .selectOption({ label: "Custom…" });
+      const custom = page.getByLabel("Custom room name");
+      await custom.fill("Sewing Room");
+
+      await expect.poll(() => savedRoomName()).toBe("Sewing Room");
+
+      // A saved name outside the presets reloads as Custom + its text.
+      await reloadFresh(page);
+      await expect(page.getByLabel("Custom room name")).toHaveValue(
+        "Sewing Room"
       );
     });
 
@@ -323,8 +343,10 @@ test.describe
       ]);
 
       await reloadFresh(page);
-      // After removing the only room, no room-name input remains.
-      await expect(page.getByPlaceholder("Room name")).toHaveCount(0);
+      // After removing the only room, no room-name picker remains.
+      await expect(page.getByLabel("Room name", { exact: true })).toHaveCount(
+        0
+      );
     });
 
     test("3.2.8 creates a estimate from the siteMeasure page and lands on the estimate builder", async () => {
