@@ -5,7 +5,7 @@ import {
   InvoiceOverbillError,
   InvoiceOverpayError,
 } from "@/lib/api/errors";
-import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { type fromPrismaEstimate, viewFromPrisma } from "@/lib/estimateView";
 import {
   computeEstimateBilling,
   invoiceOutstanding,
@@ -39,7 +39,7 @@ export function buildInvoiceProrationSource(
     lineItems: Array<{ id: number; name: string; description: string | null }>;
   }
 ): ProrationSource {
-  const view = computeEstimateView(fromPrismaEstimate(estimate));
+  const view = viewFromPrisma(estimate);
   return {
     view,
     lineMeta: estimate.lineItems.map((li) => ({
@@ -235,7 +235,7 @@ export async function createInvoice(orgId: string, input: CreateInvoiceInput) {
     });
     if (!estimate) return null;
 
-    const view = computeEstimateView(fromPrismaEstimate(estimate));
+    const view = viewFromPrisma(estimate);
     const estimateTotal = view.total;
 
     const { amount, pct } = computeInvoiceAmount({

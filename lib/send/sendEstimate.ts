@@ -4,7 +4,7 @@ import {
   sendEstimateEmail,
 } from "@/lib/email/sendEstimateEmail";
 import { isEstimateLocked } from "@/lib/estimateStatus";
-import { computeEstimateView, fromPrismaEstimate } from "@/lib/estimateView";
+import { viewFromPrisma } from "@/lib/estimateView";
 import { logError } from "@/lib/logger";
 import {
   getEstimateForSend,
@@ -50,9 +50,7 @@ function buildEstimateSendable(customerEmailResult: {
       const org = await getOrgSendInfo(estimate.orgId);
       // The emailed total is the live Estimate View — single source of truth.
       const total =
-        estimate.lineItems.length === 0
-          ? 0
-          : computeEstimateView(fromPrismaEstimate(estimate)).total;
+        estimate.lineItems.length === 0 ? 0 : viewFromPrisma(estimate).total;
       return {
         to: req.to,
         subject: req.subject,

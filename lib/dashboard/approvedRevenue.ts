@@ -3,14 +3,13 @@
 // Shared query + reduction for "approved estimate revenue in a date range" —
 // the piece that `getDashboardKpis` (bookedRevenueMtd) and `getDashboardRevenue`
 // (mtdTotal + weekly buckets) both need. Extracted so the expensive
-// `computeEstimateView(fromPrismaEstimate(...))` reduction has exactly one
+// `viewFromPrisma(...)` reduction has exactly one
 // implementation; each caller still runs its own query (kpis.ts also needs a
 // prior-period comparison range revenue.ts doesn't), but both derive their
 // numbers from this single code path instead of two independently-maintained
 // copies.
 
-import { computeEstimateView } from "@/lib/estimateView/compute";
-import { fromPrismaEstimate } from "@/lib/estimateView/fromPrisma";
+import { viewFromPrisma } from "@/lib/estimateView/viewFromPrisma";
 import { listApprovedEstimatesForRevenue } from "@/lib/repositories/estimateRepo";
 
 export { approvedRevenueSelect } from "@/lib/repositories/approvedRevenueSelect";
@@ -31,7 +30,7 @@ export async function getApprovedEstimateRevenueRows(
 
   return rows.map((q) => ({
     approvedAt: q.approvedAt,
-    total: computeEstimateView(fromPrismaEstimate(q)).total,
+    total: viewFromPrisma(q).total,
   }));
 }
 
