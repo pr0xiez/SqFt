@@ -147,6 +147,7 @@ with the file that owns it.
   `x-vercel-forwarded-for`/`x-real-ip` over the spoofable client-supplied
   `X-Forwarded-For` for audit/view-tracking IPs).
 - `lib/money.ts` — shared cents rounding (`round2`, `residualTargetIndex`).
+- `lib/percent.ts` — decimal-rate <-> display-percent (`toDisplayPercent`, `fromDisplayPercent`, `formatPercent`); the only place `depositPct`-style rates cross to percentages (not `markupPct`/`wastePct`, already whole percents).
 - `lib/repositories/loginRepo.ts` — credentials lookup and atomic failed-login
   counters; `lib/auth/login.ts` owns lockout policy, called by `authorizeCredentials`.
 - `lib/queryCache.ts` — persisted react-query cache policy (localStorage key,

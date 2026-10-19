@@ -1,3 +1,4 @@
+import { formatPercent } from "@/lib/percent";
 import { fmtDollar } from "@/lib/utils";
 
 interface Props {
@@ -22,9 +23,7 @@ export function TotalsBlock(props: Props) {
             {fmtDollar(props.deposit)}
           </span>{" "}
           (
-          <span className="type-figure">
-            {Math.round(props.depositPct * 100)}%
-          </span>
+          <span className="type-figure">{formatPercent(props.depositPct)}</span>
           )
         </div>
       )}
