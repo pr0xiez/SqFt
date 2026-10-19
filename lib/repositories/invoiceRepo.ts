@@ -548,6 +548,29 @@ export interface RecordPaymentInput {
   recordedByName: string;
 }
 
+/**
+ * Row-lock the invoice (SELECT ... FOR UPDATE) and then load it with its
+ * payments. Every path that appends a Payment and recomputes status from the
+ * paid total MUST read through this: under Postgres' default READ COMMITTED
+ * isolation, two concurrent writers otherwise compute status/overpayment from
+ * the same stale `payments` sum (lost update — issue #206, #350). Returns null
+ * when the invoice doesn't exist in `orgId`.
+ */
+async function lockInvoiceWithPayments(
+  tx: Prisma.TransactionClient,
+  invoiceId: number,
+  orgId: string
+) {
+  const locked = await tx.$queryRaw<
+    { id: number }[]
+  >`SELECT id FROM "Invoice" WHERE id = ${invoiceId} AND "orgId" = ${orgId} FOR UPDATE`;
+  if (locked.length === 0) return null;
+  return tx.invoice.findFirst({
+    where: { id: invoiceId, orgId },
+    include: { payments: { select: { amount: true } } },
+  });
+}
+
 /** Append a Payment, recompute status + paidAt, log payment_recorded. */
 export async function recordPayment(
   invoiceId: number,
@@ -555,21 +578,7 @@ export async function recordPayment(
   input: RecordPaymentInput
 ) {
   return prisma.$transaction(async (tx) => {
-    // Row-lock the invoice before reading its payments so a concurrent
-    // recordPayment on the same invoice blocks here instead of both
-    // transactions computing a status from the same stale `payments` sum
-    // (lost update — issue #206). Postgres' default READ COMMITTED
-    // isolation doesn't protect this on its own; an explicit
-    // SELECT ... FOR UPDATE does.
-    const locked = await tx.$queryRaw<
-      { id: number }[]
-    >`SELECT id FROM "Invoice" WHERE id = ${invoiceId} AND "orgId" = ${orgId} FOR UPDATE`;
-    if (locked.length === 0) return null;
-
-    const inv = await tx.invoice.findFirst({
-      where: { id: invoiceId, orgId },
-      include: { payments: { select: { amount: true } } },
-    });
+    const inv = await lockInvoiceWithPayments(tx, invoiceId, orgId);
     if (!inv) return null;
     if (inv.status === "void") throw new InvoiceLockedError();
 
@@ -725,10 +734,13 @@ export async function recordStripePayment(
         return { recorded: false, overpaid: false };
       }
 
-      const inv = await tx.invoice.findFirst({
-        where: { id: input.invoiceId, orgId: input.orgId },
-        include: { payments: { select: { amount: true } } },
-      });
+      // Same row lock as recordPayment, so a webhook racing a manual payment
+      // (or a second charge) serializes instead of reading a stale paid total.
+      const inv = await lockInvoiceWithPayments(
+        tx,
+        input.invoiceId,
+        input.orgId
+      );
       if (!inv) return { recorded: false, overpaid: false };
 
       // A captured charge is real money. Record it even when the invoice was
