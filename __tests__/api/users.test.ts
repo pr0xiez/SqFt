@@ -30,7 +30,7 @@ const mockAuth = vi.mocked(auth) as unknown as ReturnType<
   typeof vi.fn<() => Promise<Session | null>>
 >;
 const mockFindMany = vi.mocked(prisma.user.findMany);
-const mockFindUnique = vi.mocked(prisma.user.findUnique);
+const mockFindFirst = vi.mocked(prisma.user.findFirst);
 const mockCreate = vi.mocked(prisma.user.create);
 
 function makeRequest(method = "GET", body?: unknown) {
@@ -151,7 +151,7 @@ describe("POST /api/users", () => {
 
   it("201 creates a user; lowercases email; password is hashed and not returned", async () => {
     asRole("admin");
-    mockFindUnique.mockResolvedValueOnce(null);
+    mockFindFirst.mockResolvedValueOnce(null);
     const created = {
       id: "new1",
       name: "Jane",
@@ -195,7 +195,7 @@ describe("POST /api/users", () => {
   it("409 EMAIL_TAKEN when the email already exists", async () => {
     asRole("admin");
     // biome-ignore lint/suspicious/noExplicitAny: test stub
-    mockFindUnique.mockResolvedValueOnce({ id: "existing" } as any);
+    mockFindFirst.mockResolvedValueOnce({ id: "existing" } as any);
 
     const res = await POST(
       makePost({
@@ -211,6 +211,11 @@ describe("POST /api/users", () => {
     const body = await res.json();
     expect(body.error.code).toBe("EMAIL_TAKEN");
     expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { email: "dup@test.dev", orgId: "org1" },
+      })
+    );
   });
 
   it("400 on bad payload (invalid role, short password, bad email)", async () => {
@@ -228,9 +233,9 @@ describe("POST /api/users", () => {
   // race directly (no real DB concurrency) by having the pre-flight check
   // pass but the create call reject with P2002, and assert it still comes
   // back as 409 EMAIL_TAKEN rather than a 500.
-  it("409 EMAIL_TAKEN when create races past the pre-flight check (P2002)", async () => {
+  it("generic 400 (not EMAIL_TAKEN) when the email belongs to another org (P2002)", async () => {
     asRole("admin");
-    mockFindUnique.mockResolvedValueOnce(null);
+    mockFindFirst.mockResolvedValueOnce(null);
     const p2002 = Object.assign(new Error("Unique constraint failed"), {
       code: "P2002",
       meta: { target: ["email"] },
@@ -247,9 +252,11 @@ describe("POST /api/users", () => {
       noParams
     );
 
-    expect(res.status).toBe(409);
+    // Issue #324: a collision with another org must not be an oracle.
+    expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error.code).toBe("EMAIL_TAKEN");
+    expect(body.error.code).toBe("VALIDATION_FAILED");
+    expect(JSON.stringify(body)).not.toMatch(/EMAIL_TAKEN|already/i);
     expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 });
