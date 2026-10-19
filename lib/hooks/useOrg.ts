@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export interface Org {
   id: string;
@@ -23,7 +24,7 @@ export interface Org {
 
 export function useOrg() {
   return useQuery({
-    queryKey: ["org"],
+    queryKey: keys.org,
     queryFn: () => apiFetch<Org>("/api/org", undefined, "Failed to fetch org"),
   });
 }

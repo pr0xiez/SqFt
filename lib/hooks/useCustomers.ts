@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import type { EstimateStatus } from "@/lib/estimateStatus";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 import type { SortDirection } from "@/lib/sort";
 
 export interface CustomerEstimateSummary {
@@ -152,7 +153,7 @@ function customersQueryString(p: CustomerListParams): string {
 
 export function useCustomers(params: CustomerListParams) {
   return useQuery({
-    queryKey: ["customers", params],
+    queryKey: keys.customers.list(params),
     queryFn: () =>
       apiFetch<CustomerListResponse>(
         `/api/customers?${customersQueryString(params)}`,
@@ -165,7 +166,7 @@ export function useCustomers(params: CustomerListParams) {
 
 export function useCustomer(id: number) {
   return useQuery({
-    queryKey: ["customers", id],
+    queryKey: keys.customers.detail(id),
     queryFn: () =>
       apiFetch<CustomerDetail>(
         `/api/customers/${id}`,
@@ -190,8 +191,8 @@ export function useCreateCustomer() {
         "Failed to create customer"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      qc.invalidateQueries({ queryKey: ["locations"] });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
+      qc.invalidateQueries({ queryKey: keys.locations.all });
     },
   });
 }
@@ -210,8 +211,8 @@ export function useUpdateCustomer(id: number) {
         "Failed to update customer"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      qc.invalidateQueries({ queryKey: ["customers", id] });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
+      qc.invalidateQueries({ queryKey: keys.customers.detail(id) });
     },
   });
 }
@@ -225,6 +226,6 @@ export function useDeleteCustomer() {
         { method: "DELETE" },
         "Failed to delete customer"
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.customers.all }),
   });
 }

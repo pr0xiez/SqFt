@@ -3,12 +3,13 @@
 import { useQuery } from "@tanstack/react-query";
 import type { DashboardKpis } from "@/lib/dashboard/kpis";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export type { DashboardKpis };
 
 export function useDashboardKPIs() {
   return useQuery({
-    queryKey: ["dashboard", "kpis"],
+    queryKey: keys.dashboard.kpis,
     queryFn: () =>
       apiFetch<DashboardKpis>(
         "/api/dashboard/kpis",

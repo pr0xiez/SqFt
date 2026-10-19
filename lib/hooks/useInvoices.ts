@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 import type { InvoiceStatusFilter } from "@/lib/invoices/statusFilter";
 import type { InvoiceSnapshot } from "@/lib/invoices/types";
 import type { InvoiceListRow as InvoiceListRowDb } from "@/lib/repositories/invoiceRepo";
@@ -122,7 +123,7 @@ export interface InvoiceDetail {
 
 export function useInvoices(estimateId: number) {
   return useQuery({
-    queryKey: ["invoices", "estimate", estimateId],
+    queryKey: keys.invoices.byEstimate(estimateId),
     queryFn: () =>
       apiFetch<InvoiceListItem[]>(
         `/api/estimates/${estimateId}/invoices`,
@@ -135,7 +136,7 @@ export function useInvoices(estimateId: number) {
 
 export function useInvoiceList(params: InvoiceListParams) {
   return useQuery({
-    queryKey: ["invoices", "list", params],
+    queryKey: keys.invoices.list(params),
     queryFn: () =>
       apiFetch<InvoiceListResponse>(
         `/api/invoices?${invoiceListQueryString(params)}`,
@@ -148,7 +149,7 @@ export function useInvoiceList(params: InvoiceListParams) {
 
 export function useInvoice(id: number) {
   return useQuery({
-    queryKey: ["invoices", id],
+    queryKey: keys.invoices.detail(id),
     queryFn: () =>
       apiFetch<InvoiceDetail>(
         `/api/invoices/${id}`,
@@ -181,9 +182,9 @@ export function useCreateInvoice(estimateId: number) {
         "Failed to create invoice"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
-      qc.invalidateQueries({ queryKey: ["estimates", estimateId] });
-      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
+      qc.invalidateQueries({ queryKey: keys.invoices.byEstimate(estimateId) });
+      qc.invalidateQueries({ queryKey: keys.estimates.detail(estimateId) });
+      qc.invalidateQueries({ queryKey: keys.invoices.lists });
     },
   });
 }
@@ -201,7 +202,7 @@ export function useInvoicePublicToken(id: number) {
         "Failed to generate link"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices", id] });
+      qc.invalidateQueries({ queryKey: keys.invoices.detail(id) });
     },
   });
 }
@@ -225,9 +226,9 @@ export function useSendInvoice(id: number, estimateId: number) {
         "Send failed"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices", id] });
-      qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
-      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
+      qc.invalidateQueries({ queryKey: keys.invoices.detail(id) });
+      qc.invalidateQueries({ queryKey: keys.invoices.byEstimate(estimateId) });
+      qc.invalidateQueries({ queryKey: keys.invoices.lists });
     },
   });
 }
@@ -254,9 +255,9 @@ export function useRecordPayment(id: number, estimateId: number) {
         "Failed to record payment"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices", id] });
-      qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
-      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
+      qc.invalidateQueries({ queryKey: keys.invoices.detail(id) });
+      qc.invalidateQueries({ queryKey: keys.invoices.byEstimate(estimateId) });
+      qc.invalidateQueries({ queryKey: keys.invoices.lists });
     },
   });
 }
@@ -271,9 +272,9 @@ export function useVoidInvoice(id: number, estimateId: number) {
         "Failed to void invoice"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices", id] });
-      qc.invalidateQueries({ queryKey: ["invoices", "estimate", estimateId] });
-      qc.invalidateQueries({ queryKey: ["invoices", "list"] });
+      qc.invalidateQueries({ queryKey: keys.invoices.detail(id) });
+      qc.invalidateQueries({ queryKey: keys.invoices.byEstimate(estimateId) });
+      qc.invalidateQueries({ queryKey: keys.invoices.lists });
     },
   });
 }

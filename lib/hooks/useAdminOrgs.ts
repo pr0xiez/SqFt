@@ -7,12 +7,11 @@ import type {
   CreateAdminOrgResult,
 } from "@/components/admin/orgs/types";
 import { apiFetch } from "@/lib/hooks/apiFetch";
-
-const ADMIN_ORGS_KEY = ["admin", "orgs"] as const;
+import { keys } from "@/lib/hooks/queryKeys";
 
 export function useListAdminOrgs(initial: AdminOrgRow[]) {
   return useQuery({
-    queryKey: ADMIN_ORGS_KEY,
+    queryKey: keys.admin.orgs,
     initialData: initial,
     queryFn: () =>
       apiFetch<AdminOrgRow[]>(
@@ -36,6 +35,6 @@ export function useCreateAdminOrg() {
         },
         "Failed to create organization"
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ADMIN_ORGS_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.admin.orgs }),
   });
 }

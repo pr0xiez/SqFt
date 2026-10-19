@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export interface Location {
   id: number;
@@ -40,7 +41,7 @@ export interface CreateLocationInput {
 
 export function useLocations(customerId: number) {
   return useQuery({
-    queryKey: ["locations", customerId],
+    queryKey: keys.locations.byCustomer(customerId),
     queryFn: () =>
       apiFetch<Location[]>(
         `/api/locations?customerId=${customerId}`,
@@ -62,7 +63,7 @@ export interface LocationSearchResult {
 
 export function useLocationSearch(q: string) {
   return useQuery({
-    queryKey: ["locations", "search", q],
+    queryKey: keys.locations.search(q),
     queryFn: () =>
       apiFetch<LocationSearchResult[]>(
         `/api/locations/search?q=${encodeURIComponent(q)}`,
@@ -87,8 +88,8 @@ export function useCreateLocation() {
         "Failed to create location"
       ),
     onSuccess: (loc) => {
-      qc.invalidateQueries({ queryKey: ["locations"] });
-      qc.invalidateQueries({ queryKey: ["customers", loc.customerId] });
+      qc.invalidateQueries({ queryKey: keys.locations.all });
+      qc.invalidateQueries({ queryKey: keys.customers.detail(loc.customerId) });
     },
   });
 }

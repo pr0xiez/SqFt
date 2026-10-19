@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 import type { SortDirection } from "@/lib/sort";
 import type { RoomItem } from "@/lib/utils";
 
@@ -76,7 +77,7 @@ function siteMeasuresQueryString(p: SiteMeasureListParams): string {
 
 export function useSiteMeasures(params: SiteMeasureListParams) {
   return useQuery({
-    queryKey: ["siteMeasures", params],
+    queryKey: keys.siteMeasures.list(params),
     queryFn: () =>
       apiFetch<SiteMeasureListResponse>(
         `/api/site-measures?${siteMeasuresQueryString(params)}`,
@@ -89,7 +90,7 @@ export function useSiteMeasures(params: SiteMeasureListParams) {
 
 export function useSiteMeasure(id: number) {
   return useQuery({
-    queryKey: ["siteMeasures", id],
+    queryKey: keys.siteMeasures.detail(id),
     queryFn: () =>
       apiFetch<SiteMeasure>(
         `/api/site-measures/${id}`,
@@ -114,8 +115,8 @@ export function useCreateSiteMeasure() {
         "Failed to create siteMeasure"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["siteMeasures"] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.siteMeasures.all });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }
@@ -134,9 +135,9 @@ export function useUpdateSiteMeasure(id: number) {
         "Failed to save siteMeasure"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["siteMeasures"] });
-      qc.invalidateQueries({ queryKey: ["siteMeasures", id] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.siteMeasures.all });
+      qc.invalidateQueries({ queryKey: keys.siteMeasures.detail(id) });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }
@@ -151,8 +152,8 @@ export function useDeleteSiteMeasure() {
         "Failed to delete site measure"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["siteMeasures"] });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: keys.siteMeasures.all });
+      qc.invalidateQueries({ queryKey: keys.customers.all });
     },
   });
 }

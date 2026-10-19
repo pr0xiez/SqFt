@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 import type { InvoiceableCandidate } from "@/lib/quickCreate/candidates";
 
 export interface InvoiceableEstimatesResponse {
@@ -17,7 +18,7 @@ export interface InvoiceableEstimatesResponse {
  */
 export function useInvoiceableEstimates(q: string) {
   return useQuery({
-    queryKey: ["estimates", "invoiceable", q],
+    queryKey: keys.estimates.invoiceable(q),
     queryFn: () =>
       apiFetch<InvoiceableEstimatesResponse>(
         `/api/estimates/invoiceable?q=${encodeURIComponent(q)}`,

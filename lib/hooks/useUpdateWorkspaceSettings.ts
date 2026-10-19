@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 import type { Org } from "@/lib/hooks/useOrg";
 
 export type WorkspaceSettingsPatch = Partial<{
@@ -34,7 +35,7 @@ export function useUpdateWorkspaceSettings() {
   return useMutation({
     mutationFn: patchOrg,
     onSuccess: (org) => {
-      qc.setQueryData(["org"], org);
+      qc.setQueryData(keys.org, org);
     },
   });
 }

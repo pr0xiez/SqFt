@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/hooks/apiFetch";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export interface AssignableUser {
   id: string;
@@ -11,7 +12,7 @@ export interface AssignableUser {
 
 export function useAssignableUsers() {
   return useQuery({
-    queryKey: ["users", "assignable"],
+    queryKey: keys.users.assignable,
     queryFn: () =>
       apiFetch<AssignableUser[]>(
         "/api/users/assignable",

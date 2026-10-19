@@ -6,8 +6,8 @@ import { Button, buttonClasses } from "@/components/ui/Button";
 import { ArrowUpRightIcon, CreditCardIcon } from "@/components/ui/icons";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { type StatusTone, Tag } from "@/components/ui/StatusBadge";
+import { keys } from "@/lib/hooks/queryKeys";
 import {
-  STRIPE_CONNECT_QUERY_KEY,
   useStartStripeOnboarding,
   useStripeConnect,
 } from "@/lib/hooks/useStripeConnect";
@@ -113,7 +113,7 @@ export function PaymentsSettingsView() {
       `${window.location.pathname}${qs ? `?${qs}` : ""}`
     );
 
-    qc.invalidateQueries({ queryKey: STRIPE_CONNECT_QUERY_KEY });
+    qc.invalidateQueries({ queryKey: keys.stripeConnect });
 
     // `refresh` means Stripe's link expired before onboarding finished: nothing
     // is being verified, and nothing can change until a new link is minted, so

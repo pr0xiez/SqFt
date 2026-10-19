@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { readApiError } from "@/lib/api/errors";
+import { keys } from "@/lib/hooks/queryKeys";
 
 export interface QboStatus {
   configured: boolean;
@@ -39,7 +40,7 @@ async function jsonOrThrow<T>(res: Response, fallback: string): Promise<T> {
 
 export function useQboStatus() {
   return useQuery({
-    queryKey: ["qbo-status"],
+    queryKey: keys.qboStatus,
     queryFn: async () =>
       jsonOrThrow<QboStatus>(
         await fetch("/api/qbo/status"),
@@ -71,7 +72,7 @@ export function useQboDisconnect() {
         "Failed to disconnect QuickBooks"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["qbo-status"] });
+      qc.invalidateQueries({ queryKey: keys.qboStatus });
     },
   });
 }
@@ -88,8 +89,8 @@ export function useQboSyncNow(invoiceId: number) {
         "Failed to queue the QuickBooks sync"
       ),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices", invoiceId] });
-      qc.invalidateQueries({ queryKey: ["qbo-status"] });
+      qc.invalidateQueries({ queryKey: keys.invoices.detail(invoiceId) });
+      qc.invalidateQueries({ queryKey: keys.qboStatus });
     },
   });
 }
