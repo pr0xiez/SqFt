@@ -319,6 +319,19 @@ export async function enqueueQboTaskTx(
   kind: QboTaskKind,
   entityId: number
 ): Promise<void> {
+  await enqueueQboTasksTx(tx, orgId, kind, [entityId]);
+}
+
+/** Batch form of `enqueueQboTaskTx`: reads the connection status once, then
+ *  upserts every task (same semantics, same transaction). Use it for loops
+ *  (per-payment) instead of calling the single form N times. */
+export async function enqueueQboTasksTx(
+  tx: Prisma.TransactionClient,
+  orgId: string,
+  kind: QboTaskKind,
+  entityIds: number[]
+): Promise<void> {
+  if (entityIds.length === 0) return;
   const conn = await tx.qboConnection.findUnique({
     where: { orgId },
     select: { status: true },
@@ -326,11 +339,15 @@ export async function enqueueQboTaskTx(
   if (!conn || conn.status === "revoked") return;
   const status = conn.status === "active" ? "pending" : "paused_auth";
   const now = new Date();
-  await tx.qboSyncTask.upsert({
-    where: { orgId_kind_entityId: { orgId, kind, entityId } },
-    create: { orgId, kind, entityId, status, nextAttemptAt: now },
-    update: { ...TASK_RESET, status, nextAttemptAt: now },
-  });
+  await Promise.all(
+    entityIds.map((entityId) =>
+      tx.qboSyncTask.upsert({
+        where: { orgId_kind_entityId: { orgId, kind, entityId } },
+        create: { orgId, kind, entityId, status, nextAttemptAt: now },
+        update: { ...TASK_RESET, status, nextAttemptAt: now },
+      })
+    )
+  );
 }
 
 /** Manual "Sync now": (re-)enqueue everything for one invoice — the invoice
@@ -352,9 +369,12 @@ export async function requeueInvoiceSync(
       invoice.status === "void" ? "void_invoice" : "sync_invoice",
       invoiceId
     );
-    for (const payment of invoice.payments) {
-      await enqueueQboTaskTx(tx, orgId, "sync_payment", payment.id);
-    }
+    await enqueueQboTasksTx(
+      tx,
+      orgId,
+      "sync_payment",
+      invoice.payments.map((p) => p.id)
+    );
   });
   return true;
 }
