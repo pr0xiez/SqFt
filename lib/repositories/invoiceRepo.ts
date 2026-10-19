@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
   InvoiceLockedError,
@@ -25,10 +24,7 @@ import { prisma } from "@/lib/prisma";
 import { enqueueQboTaskTx } from "@/lib/repositories/qboRepo";
 import { buildSearchWhere, computeFacets } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
-
-function generateToken(): string {
-  return randomBytes(32).toString("base64url");
-}
+import { generateToken } from "@/lib/tokens";
 
 /** Hydrated estimate shape the proration source needs (matches fromPrismaEstimate input). */
 type HydratedEstimate = Parameters<typeof fromPrismaEstimate>[0];

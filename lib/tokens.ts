@@ -1,11 +1,20 @@
+import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { type ClientMeta, clientMetaFromHeaders } from "@/lib/http/clientMeta";
 import { logError } from "@/lib/logger";
 
 /**
- * Public-review token shape guard. Tokens are `randomBytes(32).toString("base64url")`
- * (see `generateToken` in `lib/repositories/estimateRepo.ts` / `invoiceRepo.ts`):
+ * Mint a public-review token: `randomBytes(32).toString("base64url")`. The one
+ * generator behind estimate approval tokens and invoice public tokens;
+ * `isValidTokenShape` below is derived from this shape.
+ */
+export function generateToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+/**
+ * Public-review token shape guard. Tokens come from `generateToken` above:
  * unpadded base64url of 32 bytes, always exactly `ceil(32 * 8 / 6) = 43` chars
  * from the base64url alphabet. Reject anything else before hitting the DB.
  */
