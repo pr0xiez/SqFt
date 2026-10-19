@@ -1,7 +1,8 @@
-import type { Prisma } from "@/app/generated/prisma/client";
+import { Prisma } from "@/app/generated/prisma/client";
 import type { Paginated } from "@/lib/pagination/types";
 import { prisma } from "@/lib/prisma";
 import { assertDeletable } from "@/lib/repositories/deleteGuards";
+import { reconcileEstimatesForRoomChange } from "@/lib/repositories/estimateRepo";
 import { buildSearchWhere } from "@/lib/repositories/search";
 import type { SortDirection } from "@/lib/sort";
 import type { RoomSegment } from "@/lib/utils";
@@ -249,22 +250,46 @@ export async function saveSiteMeasure(
     }
 
     if (items !== undefined) {
-      await tx.siteMeasureItem.deleteMany({ where: { siteMeasureId: id } });
-      if (items.length > 0) {
-        await tx.siteMeasureItem.createMany({
-          data: items.map(({ id: _id, ...item }) => {
-            const { segments, ...rest } = canonicalizeRoomDims(item);
-            return {
+      // Upsert by id so surviving rooms keep their ids (LineItem.linkedRoomIds
+      // references them with no FK); only genuinely removed rooms are deleted.
+      const existing = await tx.siteMeasureItem.findMany({
+        where: { siteMeasureId: id },
+        select: { id: true },
+      });
+      const existingIds = new Set(existing.map((e) => e.id));
+      const keptIds = new Set<number>();
+      const toCreate: Prisma.SiteMeasureItemCreateManyInput[] = [];
+      for (const { id: itemId, ...item } of items) {
+        const { segments, ...rest } = canonicalizeRoomDims(item);
+        const segJson =
+          segments == null
+            ? undefined
+            : (segments as unknown as Prisma.InputJsonValue);
+        if (itemId !== undefined && existingIds.has(itemId)) {
+          keptIds.add(itemId);
+          await tx.siteMeasureItem.update({
+            where: { id: itemId },
+            data: {
               ...rest,
-              siteMeasureId: id,
-              segments:
-                segments == null
-                  ? undefined
-                  : (segments as unknown as Prisma.InputJsonValue),
-            };
-          }),
+              // canonicalizeRoomDims nulls segments for single-box rooms;
+              // clear the stored JSON rather than leaving it unchanged.
+              segments: segJson ?? Prisma.DbNull,
+            } as Prisma.SiteMeasureItemUncheckedUpdateInput,
+          });
+        } else {
+          toCreate.push({ ...rest, siteMeasureId: id, segments: segJson });
+        }
+      }
+      const removedIds = [...existingIds].filter((e) => !keptIds.has(e));
+      if (removedIds.length > 0) {
+        await tx.siteMeasureItem.deleteMany({
+          where: { siteMeasureId: id, id: { in: removedIds } },
         });
       }
+      if (toCreate.length > 0) {
+        await tx.siteMeasureItem.createMany({ data: toCreate });
+      }
+      await reconcileEstimatesForRoomChange(tx, id, orgId, removedIds);
     }
 
     return tx.siteMeasure.findFirst({

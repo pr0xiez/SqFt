@@ -61,6 +61,51 @@ async function syncEstimateTotal(
   return total;
 }
 
+/**
+ * After a site measure's rooms change: strip `removedRoomIds` from the
+ * `linkedRoomIds` of every non-locked estimate's line items and recompute each
+ * one's stored total. Locked (approved/declined) estimates are frozen and left
+ * untouched. Runs inside the caller's transaction.
+ */
+export async function reconcileEstimatesForRoomChange(
+  tx: Prisma.TransactionClient,
+  siteMeasureId: number,
+  orgId: string,
+  removedRoomIds: number[]
+): Promise<void> {
+  const estimates = await tx.estimate.findMany({
+    where: {
+      siteMeasureId,
+      orgId,
+      status: { notIn: ["approved", "declined"] },
+    },
+    select: { id: true },
+  });
+  for (const { id } of estimates) {
+    if (removedRoomIds.length > 0) {
+      const stale = await tx.lineItem.findMany({
+        where: { estimateId: id, linkedRoomIds: { hasSome: removedRoomIds } },
+        select: { id: true, linkedRoomIds: true },
+      });
+      for (const li of stale) {
+        await tx.lineItem.update({
+          where: { id: li.id },
+          data: {
+            linkedRoomIds: li.linkedRoomIds.filter(
+              (r) => !removedRoomIds.includes(r)
+            ),
+          },
+        });
+      }
+    }
+    const hydrated = await tx.estimate.findFirst({
+      where: { id, orgId },
+      select: ESTIMATE_DETAILS_SELECT,
+    });
+    if (hydrated) await syncEstimateTotal(tx, id, hydrated);
+  }
+}
+
 /** `revisedFrom` / `revisedBy` pointer selects, shared by the detail include
  *  and the `EstimateWithDetails` payload type. */
 const REVISED_PAIR_SELECT = {
