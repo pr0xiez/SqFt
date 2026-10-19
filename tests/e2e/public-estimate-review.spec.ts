@@ -9,7 +9,7 @@ import {
 test.describe("Public estimate review view", () => {
   test("renders the public estimate for a valid token", async ({ browser }) => {
     const ctx = await browser.newContext();
-    const page = await loginAsWorkerOrg(browser, ctx);
+    await loginAsWorkerOrg(browser, ctx);
     const { siteMeasureId } = await createCustomerAndEstimate(ctx.request);
     const { estimateId } = await seedEstimateWithLineItem(
       ctx.request,
@@ -17,11 +17,19 @@ test.describe("Public estimate review view", () => {
     );
     const token = await getApprovalToken(ctx.request, estimateId);
 
+    // Navigated LOGGED OUT on purpose: customers open the emailed link with no
+    // session, and a logged-in context would mask a missing allowlist entry in
+    // lib/publicRoutes.ts (the proxy would redirect anonymous visitors to
+    // /login). Data is seeded via the authed ctx; the page uses a fresh one.
+    const anonCtx = await browser.newContext();
+    const page = await anonCtx.newPage();
     const res = await page.goto(`/estimate-review/${token}`);
     expect(res?.status()).toBe(200);
+    await expect(page).toHaveURL(new RegExp(`/estimate-review/${token}$`));
     await expect(
       page.getByRole("button", { name: /Approve & get on the schedule/i })
     ).toBeVisible();
+    await anonCtx.close();
     await ctx.close();
   });
 
@@ -54,13 +62,17 @@ test.describe("public estimate hides markup", () => {
     });
     const token = await getApprovalToken(ctx.request, estimateId);
 
-    const page = await ctx.newPage();
+    // Logged-out page (see note above): seed with ctx, render anonymously.
+    const anonCtx = await browser.newContext();
+    const page = await anonCtx.newPage();
     await page.goto(`/estimate-review/${token}`);
+    await expect(page).toHaveURL(new RegExp(`/estimate-review/${token}$`));
     await expect(page.getByText("Line items")).toBeVisible();
     await expect(page.getByText("Markup", { exact: false })).toHaveCount(0);
     await expect(
       page.getByText("Labor & margin", { exact: false })
     ).toHaveCount(0);
+    await anonCtx.close();
     await ctx.close();
   });
 });
