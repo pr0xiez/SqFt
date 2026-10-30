@@ -12,7 +12,7 @@
     "migrate:dev": "dotenv -e .env -- prisma migrate deploy",
     "migrate:prd": "dotenv -e .env.prd.local -- prisma migrate deploy",
     "postinstall": "prisma generate",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "lint:ci": "biome ci .",
