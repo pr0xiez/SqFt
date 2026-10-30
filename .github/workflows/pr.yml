@@ -9,11 +9,16 @@ on:
   push:
     branches: [main]
 
-# Cancel superseded runs when a PR is pushed again — saves time and frees the
-# single self-hosted runner for the latest commit. Pushes to main are never
-# cancelled, so every main commit gets a complete result.
+# PR runs share one group per PR, so pushing again cancels the superseded run
+# — saves time and frees the single self-hosted runner for the latest commit.
+# Pushes to main get a group per commit SHA: a group holds at most one pending
+# run and a newer one replaces it even without cancel-in-progress, so a shared
+# main group would silently skip commits when merges land in quick succession.
 concurrency:
-  group: pr-${{ github.ref }}
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name == 'pull_request'
+    && format('pr-{0}', github.event.pull_request.number)
+    || format('{0}-{1}', github.ref, github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # =============================================================================
