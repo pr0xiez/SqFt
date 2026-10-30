@@ -9,6 +9,7 @@ import type {
   LineItemCalc,
   RoomItem,
 } from "@/lib/utils";
+import { formatShortDate } from "@/lib/utils";
 import { Letterhead } from "./public-estimate/Letterhead";
 import { LineItemsTable } from "./public-estimate/LineItemsTable";
 import { PartiesBlock } from "./public-estimate/PartiesBlock";
@@ -110,10 +111,7 @@ export function PublicEstimateView({ estimate, token, frozenView }: Props) {
             <section className="mt-10 pt-7 border-t border-[var(--line)]">
               <p className="text-[15px] text-[var(--ink-2)]">
                 This estimate was declined on{" "}
-                {new Date(
-                  estimate.declinedAt ?? Date.now()
-                ).toLocaleDateString()}
-                .
+                {formatShortDate(estimate.declinedAt ?? new Date())}.
               </p>
               {estimate.declineReason ? (
                 <p className="mt-2 italic text-[var(--muted)] text-[14.5px]">

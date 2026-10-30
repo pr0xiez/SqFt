@@ -37,7 +37,7 @@ import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useEstimates } from "@/lib/hooks/useEstimates";
 import { useTableQueryState } from "@/lib/hooks/useTableQueryState";
 import { cycleSort } from "@/lib/sort";
-import { fmtBig } from "@/lib/utils";
+import { fmtBig, formatShortDate } from "@/lib/utils";
 
 const STATUS_FILTERS: { value: EstimateStatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -301,11 +301,7 @@ export function EstimateListView() {
                   <div
                     className={cn(CELL, CELL_META, "hidden md:block", rowPad)}
                   >
-                    {new Date(q.date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {formatShortDate(q.date)}
                   </div>
                 </button>
               );

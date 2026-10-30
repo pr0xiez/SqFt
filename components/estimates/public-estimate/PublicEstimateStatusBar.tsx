@@ -1,5 +1,6 @@
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { EstimateStatus } from "@/lib/estimateStatus";
+import { formatShortDate } from "@/lib/utils";
 
 interface Props {
   status: EstimateStatus;
@@ -7,13 +8,6 @@ interface Props {
   approvedAt?: Date | string | null;
   declinedAt?: Date | string | null;
 }
-
-const fmtDate = (d: Date | string) =>
-  new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 
 export function PublicEstimateStatusBar({
   status,
@@ -26,12 +20,12 @@ export function PublicEstimateStatusBar({
 
   if (status === "approved" && approvedAt) {
     badge = <StatusBadge status="approved" />;
-    meta = `Approved ${fmtDate(approvedAt)}`;
+    meta = `Approved ${formatShortDate(approvedAt)}`;
   } else if (status === "declined" && declinedAt) {
     badge = <StatusBadge status="declined" />;
-    meta = `Declined ${fmtDate(declinedAt)}`;
+    meta = `Declined ${formatShortDate(declinedAt)}`;
   } else if (sentAt) {
-    meta = `Sent ${fmtDate(sentAt)}`;
+    meta = `Sent ${formatShortDate(sentAt)}`;
   }
 
   return (

@@ -1,3 +1,5 @@
+import { formatShortDate } from "@/lib/utils";
+
 interface Props {
   estimateNumber: number;
   date: Date | string;
@@ -11,11 +13,7 @@ interface Props {
 }
 
 export function Letterhead({ estimateNumber, date, org }: Props) {
-  const dateLabel = new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const dateLabel = formatShortDate(date);
 
   return (
     <div className="pb-7 sm:pb-8 border-b border-[var(--line)] mb-7 sm:mb-8">
