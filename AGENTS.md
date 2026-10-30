@@ -209,7 +209,8 @@ with the file that owns it.
 - `npm run dev` — dev server.
 - `npm run lint:ci` (`biome ci .`) — **must pass before any commit/PR**;
   `npm run lint:fix` auto-fixes.
-- `npm run typecheck` — `tsc --noEmit`.
+- `npm run typecheck` — `next typegen && tsc --noEmit` (typegen writes the
+  gitignored `next-env.d.ts` + route types, so it works on a clean checkout/CI).
 - `npm test` (`vitest run`) — unit + component tests.
 - `npm run test:e2e` — Playwright. **Run with `--workers=1` locally** to match
   CI and avoid known parallel-contention flakiness.
