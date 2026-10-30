@@ -36,6 +36,13 @@ import {
   isInvoiceOverdue,
   paymentsPaidTotal,
 } from "@/lib/invoices";
+import {
+  canPay,
+  canResend,
+  canSend,
+  canVoid,
+  VOID_BLOCKED_BY_PAYMENTS_MESSAGE,
+} from "@/lib/invoices/status";
 import { fmtDollar } from "@/lib/utils";
 
 function fmtDate(iso: string | null): string {
@@ -113,8 +120,8 @@ export function InvoiceDetail({
   const lines = inv.snapshot?.lines ?? [];
   const isVoid = inv.status === "void";
   const isDraft = inv.status === "draft";
-  const isPaid = inv.status === "paid";
-  const canPay = !isDraft && !isVoid && !isPaid;
+  const mayPay = canPay(inv.status);
+  const hasPayments = inv.payments.length > 0;
   const overdue = isInvoiceOverdue(inv);
   const paidShare = inv.amount > 0 ? paid / inv.amount : 0;
 
@@ -172,7 +179,7 @@ export function InvoiceDetail({
         actions={
           isVoid ? null : (
             <>
-              {isDraft ? (
+              {canSend(inv.status) ? (
                 <Button
                   variant="primary"
                   type="button"
@@ -182,7 +189,7 @@ export function InvoiceDetail({
                   Send
                 </Button>
               ) : null}
-              {canPay ? (
+              {mayPay ? (
                 <Button
                   variant="primary"
                   type="button"
@@ -192,7 +199,7 @@ export function InvoiceDetail({
                   Record payment
                 </Button>
               ) : null}
-              {!isDraft ? (
+              {canResend(inv.status) ? (
                 <Button
                   variant="default"
                   type="button"
@@ -202,7 +209,7 @@ export function InvoiceDetail({
                   Resend
                 </Button>
               ) : null}
-              {!isPaid ? (
+              {canVoid(inv.status, hasPayments) ? (
                 <Button
                   variant="danger"
                   type="button"
@@ -220,6 +227,10 @@ export function InvoiceDetail({
       {isVoid ? (
         <p className="-mt-2 mb-6 text-[14px] text-[var(--muted)]">
           This invoice was voided on {fmtDate(inv.voidedAt)}.
+        </p>
+      ) : hasPayments ? (
+        <p className="-mt-2 mb-6 text-[14px] text-[var(--muted)]">
+          {VOID_BLOCKED_BY_PAYMENTS_MESSAGE}
         </p>
       ) : null}
 

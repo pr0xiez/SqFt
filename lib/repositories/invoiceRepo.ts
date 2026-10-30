@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
+  InvoiceHasPaymentsError,
   InvoiceLockedError,
   InvoiceOverbillError,
   InvoiceOverpayError,
@@ -13,6 +14,7 @@ import {
   OVERBILL_EPSILON,
   paymentsPaidTotal,
 } from "@/lib/invoices/compute";
+import { canVoid, type InvoiceStatus } from "@/lib/invoices/status";
 import {
   type InvoiceStatusFilter,
   OPEN_INVOICE_STATUSES,
@@ -352,21 +354,40 @@ export function classifyStripeCharge(args: {
   };
 }
 
+/**
+ * Void an invoice, under the `canVoid` rule: an invoice with any recorded
+ * payment (manual or Stripe, partial or full) throws INVOICE_HAS_PAYMENTS. A
+ * missing or already-void invoice returns null.
+ */
 export async function voidInvoice(id: number, orgId: string) {
-  const res = await prisma.$transaction(async (tx) => {
-    const updated = await tx.invoice.updateMany({
-      where: { id, orgId, status: { not: "void" } },
+  const voided = await prisma.$transaction(async (tx) => {
+    // Row-lock before reading payments. recordPayment takes the same lock
+    // before writing one, so a manual payment can't land between this check
+    // and the void.
+    const locked = await tx.$queryRaw<
+      { id: number }[]
+    >`SELECT id FROM "Invoice" WHERE id = ${id} AND "orgId" = ${orgId} FOR UPDATE`;
+    if (locked.length === 0) return false;
+
+    const inv = await tx.invoice.findFirst({
+      where: { id, orgId },
+      select: { status: true, payments: { select: { id: true } } },
+    });
+    if (!inv || inv.status === "void") return false;
+    if (!canVoid(inv.status as InvoiceStatus, inv.payments.length > 0))
+      throw new InvoiceHasPaymentsError();
+
+    await tx.invoice.update({
+      where: { id },
       data: { status: "void", voidedAt: new Date() },
     });
-    if (updated.count === 0) return updated;
     await tx.invoiceEvent.create({
       data: { invoiceId: id, type: "voided", source: "builder" },
     });
-    if (updated.count > 0)
-      await enqueueQboTaskTx(tx, orgId, "void_invoice", id);
-    return updated;
+    await enqueueQboTaskTx(tx, orgId, "void_invoice", id);
+    return true;
   });
-  if (res.count === 0) return null;
+  if (!voided) return null;
   return getInvoice(id, orgId);
 }
 

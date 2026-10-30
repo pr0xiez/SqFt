@@ -7,6 +7,7 @@
  * Codes are documented in CONTEXT.md.
  */
 
+import { VOID_BLOCKED_BY_PAYMENTS_MESSAGE } from "@/lib/invoices/status";
 import { fmtDollar } from "@/lib/utils";
 
 export class ApiError extends Error {
@@ -108,6 +109,16 @@ export class InvoiceLockedError extends ConflictError {
 export class InvoiceVoidError extends ConflictError {
   constructor() {
     super("This invoice is void and cannot be sent.", "INVOICE_VOID");
+  }
+}
+
+/**
+ * Thrown when voiding an invoice that has any payment recorded (manual or
+ * Stripe, partial or full) — the `canVoid` rule in `lib/invoices/status.ts`.
+ */
+export class InvoiceHasPaymentsError extends ConflictError {
+  constructor() {
+    super(VOID_BLOCKED_BY_PAYMENTS_MESSAGE, "INVOICE_HAS_PAYMENTS");
   }
 }
 

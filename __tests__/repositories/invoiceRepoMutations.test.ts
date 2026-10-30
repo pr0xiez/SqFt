@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  InvoiceHasPaymentsError,
   InvoiceLockedError,
   InvoiceOverbillError,
   InvoiceOverpayError,
@@ -296,46 +297,59 @@ describe("createInvoice", () => {
 });
 
 describe("voidInvoice", () => {
-  it("voids a non-void invoice, logs the event atomically, and re-reads it", async () => {
-    invoiceUpdateMany.mockResolvedValue({ count: 1 });
-    invoiceEventCreate.mockResolvedValue({});
-    invoiceFindFirst.mockResolvedValue({
-      id: 1,
-      status: "void",
-      estimate: {
-        id: 7,
-        estimateNumber: 5007,
-        siteMeasure: {
-          id: 3,
-          siteMeasureNumber: 1003,
-          location: {
-            address: "1 Main St",
-            customer: { id: 9, name: "Janet", email: "janet@example.com" },
+  /** The in-transaction read: status plus the ids of recorded payments. */
+  function lockedInvoice(status: string, payments: { method: string }[] = []) {
+    return { status, payments: payments.map((p, i) => ({ id: i + 1, ...p })) };
+  }
+
+  it("voids an unpaid invoice under the row lock, logs the event atomically, and re-reads it", async () => {
+    invoiceFindFirst
+      .mockResolvedValueOnce(lockedInvoice("sent"))
+      .mockResolvedValueOnce({
+        id: 1,
+        status: "void",
+        estimate: {
+          id: 7,
+          estimateNumber: 5007,
+          siteMeasure: {
+            id: 3,
+            siteMeasureNumber: 1003,
+            location: {
+              address: "1 Main St",
+              customer: { id: 9, name: "Janet", email: "janet@example.com" },
+            },
           },
         },
-      },
-    });
+      });
+    invoiceUpdate.mockResolvedValue({});
+    invoiceEventCreate.mockResolvedValue({});
 
     const result = await voidInvoice(1, "org1");
 
-    // Both writes happen inside the same $transaction (issue #160), not as
-    // two separate top-level prisma calls.
+    // Lock, check and writes all happen inside one $transaction (issue #160).
     expect($transaction).toHaveBeenCalledTimes(1);
-    expect(invoiceUpdateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 1, orgId: "org1", status: { not: "void" } },
-        data: expect.objectContaining({ status: "void" }),
-      })
-    );
+    expect(queryRaw).toHaveBeenCalledTimes(1);
+    expect(String(queryRaw.mock.calls[0][0])).toContain("FOR UPDATE");
+    expect(invoiceFindFirst).toHaveBeenNthCalledWith(1, {
+      where: { id: 1, orgId: "org1" },
+      select: { status: true, payments: { select: { id: true } } },
+    });
+    expect(invoiceUpdate).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: expect.objectContaining({ status: "void" }),
+    });
     expect(invoiceEventCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ type: "voided", source: "builder" }),
       })
     );
-    // The event write must happen after the status update within the
-    // transaction (mock invokes calls synchronously in call order).
-    const updateOrder = invoiceUpdateMany.mock.invocationCallOrder[0];
+    // Lock → payment check → status update → event, in that order.
+    const lockOrder = queryRaw.mock.invocationCallOrder[0];
+    const readOrder = invoiceFindFirst.mock.invocationCallOrder[0];
+    const updateOrder = invoiceUpdate.mock.invocationCallOrder[0];
     const eventOrder = invoiceEventCreate.mock.invocationCallOrder[0];
+    expect(lockOrder).toBeLessThan(readOrder);
+    expect(readOrder).toBeLessThan(updateOrder);
     expect(updateOrder).toBeLessThan(eventOrder);
     // The post-commit re-read happens outside the transaction, after both
     // writes landed.
@@ -352,13 +366,57 @@ describe("voidInvoice", () => {
     });
   });
 
-  it("returns null and writes no event when the invoice was already void (no-op transaction)", async () => {
-    invoiceUpdateMany.mockResolvedValue({ count: 0 });
+  it.each([
+    {
+      name: "a partially paid invoice",
+      status: "partial",
+      payments: [{ method: "check" }],
+    },
+    {
+      name: "a fully paid invoice",
+      status: "paid",
+      payments: [{ method: "check" }, { method: "stripe" }],
+    },
+    {
+      name: "an invoice paid only by manual payments",
+      status: "paid",
+      payments: [{ method: "cash" }, { method: "ach" }],
+    },
+    {
+      name: "an invoice paid only through Stripe",
+      status: "partial",
+      payments: [{ method: "stripe" }],
+    },
+  ])("refuses to void $name (409 INVOICE_HAS_PAYMENTS), writing nothing", async ({
+    status,
+    payments,
+  }) => {
+    invoiceFindFirst.mockResolvedValueOnce(lockedInvoice(status, payments));
+
+    const err = await voidInvoice(1, "org1").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(InvoiceHasPaymentsError);
+    expect(err).toMatchObject({ code: "INVOICE_HAS_PAYMENTS", status: 409 });
+    expect(invoiceUpdate).not.toHaveBeenCalled();
+    expect(invoiceEventCreate).not.toHaveBeenCalled();
+    expect(qboConnectionFindUnique).not.toHaveBeenCalled();
+  });
+
+  it("returns null and writes nothing when the invoice was already void", async () => {
+    invoiceFindFirst.mockResolvedValueOnce(lockedInvoice("void"));
 
     expect(await voidInvoice(1, "org1")).toBeNull();
-    expect($transaction).toHaveBeenCalledTimes(1);
+    expect(invoiceUpdate).not.toHaveBeenCalled();
     expect(invoiceEventCreate).not.toHaveBeenCalled();
+    // Only the in-transaction read; no post-commit re-read.
+    expect(invoiceFindFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null when the invoice doesn't exist in the org", async () => {
+    queryRaw.mockResolvedValueOnce([]);
+
+    expect(await voidInvoice(1, "org1")).toBeNull();
     expect(invoiceFindFirst).not.toHaveBeenCalled();
+    expect(invoiceUpdate).not.toHaveBeenCalled();
   });
 });
 

@@ -12,15 +12,16 @@ test.describe
     let ctx: BrowserContext;
     let token: string;
     let invoiceId: number;
+    let estimateId: number;
 
     test.beforeAll(async ({ browser }) => {
       ctx = await browser.newContext();
       await loginAsWorkerOrg(browser, ctx);
       const ids = await createCustomerAndEstimate(ctx.request);
-      const { estimateId } = await seedEstimateWithLineItem(
+      ({ estimateId } = await seedEstimateWithLineItem(
         ctx.request,
         ids.siteMeasureId
-      );
+      ));
       const est = await (
         await ctx.request.get(`/api/estimates/${estimateId}`)
       ).json();
@@ -67,17 +68,63 @@ test.describe
       await anonCtx.close();
     });
 
-    // Runs last in the serial block: voiding is terminal. A customer holding a
-    // stale link to a cancelled invoice must not be able to view or pay it.
-    test("a voided invoice's public link is dead — 404, no Pay invoice CTA", async ({
+    // An invoice with a recorded payment can't be voided (INVOICE_HAS_PAYMENTS):
+    // the server refuses, the builder hides Void and says why, and the
+    // customer's link keeps working.
+    test("an invoice with a payment can't be voided — 409, Void hidden, link still live", async ({
       browser,
     }) => {
       const voidRes = await ctx.request.post(`/api/invoices/${invoiceId}/void`);
+      expect(voidRes.status()).toBe(409);
+      expect((await voidRes.json()).error.code).toBe("INVOICE_HAS_PAYMENTS");
+
+      const page = await ctx.newPage();
+      await page.goto(`/invoices/${invoiceId}`);
+      await expect(
+        page.getByRole("button", { name: "Record payment" })
+      ).toBeVisible();
+      await expect(
+        page.getByText(
+          "This invoice has payments recorded, so it can't be voided.",
+          { exact: false }
+        )
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Void", exact: true })
+      ).toHaveCount(0);
+      await page.close();
+
+      const anonCtx = await browser.newContext();
+      const anonPage = await anonCtx.newPage();
+      const res = await anonPage.goto(`/invoice-review/${token}`);
+      expect(res?.status()).toBe(200);
+      await expect(anonPage.getByText("Balance due")).toBeVisible();
+      await anonCtx.close();
+    });
+
+    // A customer holding a stale link to a cancelled invoice must not be able
+    // to view or pay it. Uses its own unpaid invoice: one with payments can't
+    // be voided (see above).
+    test("a voided invoice's public link is dead — 404, no Pay invoice CTA", async ({
+      browser,
+    }) => {
+      const { invoiceId: unpaidId } = await seedInvoice(
+        ctx.request,
+        estimateId,
+        { amount: 20 }
+      );
+      const sendRes = await ctx.request.post(`/api/invoices/${unpaidId}/send`, {
+        data: { to: "customer@example.com", subject: "Invoice #2" },
+      });
+      expect(sendRes.status()).toBe(200);
+      const unpaidToken = await getInvoicePublicToken(ctx.request, unpaidId);
+
+      const voidRes = await ctx.request.post(`/api/invoices/${unpaidId}/void`);
       expect(voidRes.ok()).toBeTruthy();
 
       const anonCtx = await browser.newContext();
       const page = await anonCtx.newPage();
-      const res = await page.goto(`/invoice-review/${token}`);
+      const res = await page.goto(`/invoice-review/${unpaidToken}`);
       expect(res?.status()).toBe(404);
       await expect(page.getByRole("link", { name: "Pay invoice" })).toHaveCount(
         0
