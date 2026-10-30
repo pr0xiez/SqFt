@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { InvoiceAlreadyPaidError, InvoiceOverpayError } from "@/lib/api/errors";
+import { InvoiceHasPaymentsError, InvoiceOverpayError } from "@/lib/api/errors";
 import { makeRequest, params } from "./_helpers";
 
 vi.mock("@/lib/tenant", () => ({
@@ -32,6 +32,7 @@ import { POST as PAY } from "@/app/api/invoices/[id]/payments/route";
 import { POST as TOKEN } from "@/app/api/invoices/[id]/public-token/route";
 import { GET } from "@/app/api/invoices/[id]/route";
 import { POST as VOID } from "@/app/api/invoices/[id]/void/route";
+import { VOID_BLOCKED_BY_PAYMENTS_MESSAGE } from "@/lib/invoices/status";
 import { runQboSyncForOrg } from "@/lib/qbo/runner";
 import {
   getOrCreateInvoicePublicToken,
@@ -66,16 +67,16 @@ describe("invoice detail routes", () => {
         .status
     ).toBe(200);
   });
-  it("void of a paid invoice is a 409 INVOICE_ALREADY_PAID with no QBO sync", async () => {
-    vi.mocked(voidInvoice).mockRejectedValueOnce(
-      new InvoiceAlreadyPaidError("This invoice is paid and can't be voided.")
-    );
+  it("void of an invoice with payments is a 409 INVOICE_HAS_PAYMENTS with no QBO sync", async () => {
+    vi.mocked(voidInvoice).mockRejectedValueOnce(new InvoiceHasPaymentsError());
     const res = await VOID(
       makeRequest("POST", "http://t/api/invoices/9/void"),
       ctx
     );
     expect(res.status).toBe(409);
-    expect((await res.json()).error.code).toBe("INVOICE_ALREADY_PAID");
+    const body = await res.json();
+    expect(body.error.code).toBe("INVOICE_HAS_PAYMENTS");
+    expect(body.error.message).toBe(VOID_BLOCKED_BY_PAYMENTS_MESSAGE);
     expect(runQboSyncForOrg).not.toHaveBeenCalled();
   });
   it("payments records a payment", async () => {

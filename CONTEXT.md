@@ -480,14 +480,17 @@ holding things up — never a Stripe-side error attributed to the user.
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
 **Action gating.** `lib/invoices/status.ts` is the one definition of which
-actions a status allows (`canSend` / `canResend` / `canPay` / `canVoid` /
+actions an invoice allows (`canSend` / `canResend` / `canPay` / `canVoid` /
 `isTerminal`, over the typed `InvoiceStatus`); `InvoiceDetail` renders its
-buttons from it. Only `draft | sent | viewed | partial` can be voided: a
-`paid` invoice can't, because voiding drops it from billing totals while its
-payments stay recorded, which would show collected money as unbilled again.
-`voidInvoice` enforces this with `VOIDABLE_INVOICE_STATUSES` in the UPDATE's
-own WHERE, so a payment that lands concurrently can't be voided away, and
-throws `INVOICE_ALREADY_PAID` for a paid invoice.
+buttons from it. **An invoice with any recorded payment can't be voided** —
+manual or Stripe, partial or full (`canVoid(status, hasPayments)`): voiding
+drops it from billing totals while its payments stay recorded, which would
+show collected money as unbilled again. `InvoiceDetail` hides Void and shows
+`VOID_BLOCKED_BY_PAYMENTS_MESSAGE` instead; SqFt has no way to delete a
+payment or record a refund yet, so once a payment exists the invoice stays
+unvoidable. `voidInvoice` enforces the rule under the same invoice row lock
+(`SELECT … FOR UPDATE`) that `recordPayment` takes before writing a payment,
+and throws `INVOICE_HAS_PAYMENTS`.
 
 **Org-wide list.** `GET /api/invoices` (lead+) lists all org invoices —
 `listInvoices` in `lib/repositories/invoiceRepo.ts` — with pagination, search
@@ -783,10 +786,12 @@ Domain codes:
   A non-Stripe failure stays `INTERNAL`. Thrown by the checkout-session route
   (`app/api/invoice-review/[token]/checkout`).
 - `INVOICE_ALREADY_PAID` (409) — the invoice is already fully paid (or has no
-  remaining balance) when a Stripe checkout session is requested, or a `paid`
-  invoice is voided. Thrown by the checkout-session route
-  (`app/api/invoice-review/[token]/checkout`) and `voidInvoice`
-  (`POST /api/invoices/[id]/void`).
+  remaining balance) when a Stripe checkout session is requested. Thrown by the
+  checkout-session route (`app/api/invoice-review/[token]/checkout`).
+- `INVOICE_HAS_PAYMENTS` (409) — caller tried to void an invoice with any
+  recorded payment (manual or Stripe, partial or full, so this covers `paid`
+  too). Thrown by `voidInvoice` (`POST /api/invoices/[id]/void`); the message
+  is `VOID_BLOCKED_BY_PAYMENTS_MESSAGE` (`lib/invoices/status.ts`).
 - `STRIPE_WEBHOOK_INVALID` (400) — the `stripe-signature` header failed
   verification; the webhook payload was rejected. Thrown by
   `app/api/webhooks/stripe/route.ts`.

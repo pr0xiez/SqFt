@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InvoiceDetail } from "@/components/invoices/InvoiceDetail";
+import { VOID_BLOCKED_BY_PAYMENTS_MESSAGE } from "@/lib/invoices/status";
 
 // InvoiceDetail always mounts its dialogs (closed), whose hooks run before
 // their open-guards — so the dialogs' providers must be satisfied here too.
@@ -120,5 +121,60 @@ describe("InvoiceDetail", () => {
         expect.stringContaining("/invoice-review/fresh-token")
       )
     );
+  });
+
+  describe("Void button", () => {
+    function serve(invoice: object) {
+      vi.mocked(fetch).mockImplementation(
+        async () =>
+          new Response(JSON.stringify(invoice), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          })
+      );
+    }
+
+    it("offers Void on an unpaid invoice, with no payments note", async () => {
+      serve({ ...partiallyPaidInvoice, status: "sent", payments: [] });
+      render(wrap(<InvoiceDetail invoiceId={9} estimateId={3} />));
+      expect(
+        await screen.findByRole("button", { name: /^Void$/ })
+      ).toBeDefined();
+      expect(screen.queryByText(VOID_BLOCKED_BY_PAYMENTS_MESSAGE)).toBeNull();
+    });
+
+    it("hides Void and explains why on a partially paid invoice", async () => {
+      serve(partiallyPaidInvoice);
+      render(wrap(<InvoiceDetail invoiceId={9} estimateId={3} />));
+      expect(
+        await screen.findByText(VOID_BLOCKED_BY_PAYMENTS_MESSAGE)
+      ).toBeDefined();
+      expect(screen.queryByRole("button", { name: /^Void$/ })).toBeNull();
+      // The rest of the action bar is unaffected.
+      expect(
+        screen.getByRole("button", { name: /Record payment/ })
+      ).toBeDefined();
+    });
+
+    it("hides Void and explains why on a fully paid Stripe invoice", async () => {
+      serve({
+        ...partiallyPaidInvoice,
+        status: "paid",
+        payments: [
+          {
+            id: 2,
+            amount: 5000,
+            method: "stripe",
+            reference: null,
+            paidAt: "2026-06-02T00:00:00.000Z",
+          },
+        ],
+      });
+      render(wrap(<InvoiceDetail invoiceId={9} estimateId={3} />));
+      expect(
+        await screen.findByText(VOID_BLOCKED_BY_PAYMENTS_MESSAGE)
+      ).toBeDefined();
+      expect(screen.queryByRole("button", { name: /^Void$/ })).toBeNull();
+    });
   });
 });

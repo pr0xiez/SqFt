@@ -38,16 +38,20 @@ export function canPay(status: InvoiceStatus): boolean {
 }
 
 /**
- * Void: anything not already paid or void. A paid invoice is not voidable:
- * voiding drops it from billing totals while its payments stay recorded, so
- * the estimate would show the collected amount as unbilled again (inviting a
- * second invoice) and QBO would be asked to void an invoice with a payment
- * applied. `voidInvoice` enforces the same rule server-side.
+ * Why Void is unavailable once money is recorded. SqFt has no way to delete a
+ * payment or record a refund, so the copy doesn't promise one. Shared by the
+ * server's INVOICE_HAS_PAYMENTS error and the invoice page.
  */
-export function canVoid(status: InvoiceStatus): boolean {
-  return !isTerminal(status);
-}
+export const VOID_BLOCKED_BY_PAYMENTS_MESSAGE =
+  "This invoice has payments recorded, so it can't be voided. Payments can't be removed or refunded in SqFt yet.";
 
-/** The statuses `voidInvoice` may transition to `void` (see `canVoid`). */
-export const VOIDABLE_INVOICE_STATUSES: readonly InvoiceStatus[] =
-  INVOICE_STATUSES.filter(canVoid);
+/**
+ * Void: not already paid or void, and no payment recorded (manual or Stripe,
+ * partial or full). Voiding drops an invoice from billing totals while its
+ * payments stay recorded, so collected money would show as unbilled again and
+ * QBO would be asked to void an invoice with a payment applied. `voidInvoice`
+ * enforces the same rule server-side.
+ */
+export function canVoid(status: InvoiceStatus, hasPayments: boolean): boolean {
+  return !isTerminal(status) && !hasPayments;
+}

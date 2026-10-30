@@ -74,7 +74,7 @@ with the file that owns it.
   `prorateInvoice`) plus invoice `snapshot.ts` / `schema.ts`, and `status.ts`
   (typed `InvoiceStatus` + `canSend`/`canResend`/`canPay`/`canVoid`/`isTerminal`
   action gating, consumed by `InvoiceDetail`; `voidInvoice` enforces the same
-  `canVoid` rule via `VOIDABLE_INVOICE_STATUSES`).
+  `canVoid` rule: no void once any payment is recorded).
 - `lib/send/` — **the send pipeline**: `runSendPipeline` (the one spine behind
   "email a customer-facing document") plus the per-document `Sendable`
   adapters (`sendEstimate.ts`, `sendInvoice.ts`). Both send routes are thin

@@ -7,6 +7,7 @@
  * Codes are documented in CONTEXT.md.
  */
 
+import { VOID_BLOCKED_BY_PAYMENTS_MESSAGE } from "@/lib/invoices/status";
 import { fmtDollar } from "@/lib/utils";
 
 export class ApiError extends Error {
@@ -111,6 +112,16 @@ export class InvoiceVoidError extends ConflictError {
   }
 }
 
+/**
+ * Thrown when voiding an invoice that has any payment recorded (manual or
+ * Stripe, partial or full) — the `canVoid` rule in `lib/invoices/status.ts`.
+ */
+export class InvoiceHasPaymentsError extends ConflictError {
+  constructor() {
+    super(VOID_BLOCKED_BY_PAYMENTS_MESSAGE, "INVOICE_HAS_PAYMENTS");
+  }
+}
+
 export class InvoiceOverbillError extends ConflictError {
   readonly unbilled: number;
   constructor(unbilled: number) {
@@ -194,8 +205,8 @@ export class StripeCheckoutUnavailableError extends ApiError {
 }
 
 export class InvoiceAlreadyPaidError extends ConflictError {
-  constructor(message = "This invoice is already paid.") {
-    super(message, "INVOICE_ALREADY_PAID");
+  constructor() {
+    super("This invoice is already paid.", "INVOICE_ALREADY_PAID");
   }
 }
 

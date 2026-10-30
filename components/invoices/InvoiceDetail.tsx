@@ -36,7 +36,13 @@ import {
   isInvoiceOverdue,
   paymentsPaidTotal,
 } from "@/lib/invoices";
-import { canPay, canResend, canSend, canVoid } from "@/lib/invoices/status";
+import {
+  canPay,
+  canResend,
+  canSend,
+  canVoid,
+  VOID_BLOCKED_BY_PAYMENTS_MESSAGE,
+} from "@/lib/invoices/status";
 import { fmtDollar } from "@/lib/utils";
 
 function fmtDate(iso: string | null): string {
@@ -115,6 +121,7 @@ export function InvoiceDetail({
   const isVoid = inv.status === "void";
   const isDraft = inv.status === "draft";
   const mayPay = canPay(inv.status);
+  const hasPayments = inv.payments.length > 0;
   const overdue = isInvoiceOverdue(inv);
   const paidShare = inv.amount > 0 ? paid / inv.amount : 0;
 
@@ -202,7 +209,7 @@ export function InvoiceDetail({
                   Resend
                 </Button>
               ) : null}
-              {canVoid(inv.status) ? (
+              {canVoid(inv.status, hasPayments) ? (
                 <Button
                   variant="danger"
                   type="button"
@@ -220,6 +227,10 @@ export function InvoiceDetail({
       {isVoid ? (
         <p className="-mt-2 mb-6 text-[14px] text-[var(--muted)]">
           This invoice was voided on {fmtDate(inv.voidedAt)}.
+        </p>
+      ) : hasPayments ? (
+        <p className="-mt-2 mb-6 text-[14px] text-[var(--muted)]">
+          {VOID_BLOCKED_BY_PAYMENTS_MESSAGE}
         </p>
       ) : null}
 
