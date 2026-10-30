@@ -44,9 +44,10 @@ describe("searchableInt", () => {
 });
 
 describe("buildSearchWhere", () => {
+  type Clause = { name: string } | { number: number };
   const clauses = {
-    customerName: (c: string) => ({ name: c }),
-    number: (n: number) => ({ number: n }),
+    customerName: (c: string): Clause => ({ name: c }),
+    number: (n: number): Clause => ({ number: n }),
   };
 
   it("returns null for empty or whitespace queries", () => {
