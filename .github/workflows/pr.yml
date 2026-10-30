@@ -3,12 +3,18 @@ name: PR Checks
 on:
   pull_request:
     branches: [main]
+  # Also check main itself after merges. PR runs test the PR merged into the
+  # main of that moment; a later merge can still break main, and without this
+  # trigger nothing would notice. E2E is PR-only (see the e2e job).
+  push:
+    branches: [main]
 
 # Cancel superseded runs when a PR is pushed again — saves time and frees the
-# single self-hosted runner for the latest commit.
+# single self-hosted runner for the latest commit. Pushes to main are never
+# cancelled, so every main commit gets a complete result.
 concurrency:
   group: pr-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # =============================================================================
 # RUNNER SELECTION
@@ -82,6 +88,9 @@ jobs:
 
   e2e:
     name: E2E Tests
+    # PR-only: it runs against the PR's Vercel preview deployment (and reads
+    # github.event.pull_request), which a push to main doesn't have.
+    if: github.event_name == 'pull_request'
     runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
     # TEMPORARY (added 2026-10-29): PR previews currently fail to build —
     # the Neon project is at its free-plan branch limit, so the Vercel–Neon
