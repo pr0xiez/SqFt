@@ -11,7 +11,9 @@ jobs:
     # Note: this job fires on PR *close*. If you keep it on self-hosted, a
     # sleeping runner delays cleanup and can leave an orphaned Neon preview
     # branch; ubuntu-latest is the more reliable home for it (~3s job).
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    # Fork PRs always get ubuntu-latest, never the self-hosted runner (see the
+    # RUNNER SELECTION note in pr.yml).
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: neondatabase/delete-branch-action@v3
         with:

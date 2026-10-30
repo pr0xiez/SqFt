@@ -3,12 +3,23 @@ name: PR Checks
 on:
   pull_request:
     branches: [main]
+  # Also check main itself after merges. PR runs test the PR merged into the
+  # main of that moment; a later merge can still break main, and without this
+  # trigger nothing would notice. E2E is PR-only (see the e2e job).
+  push:
+    branches: [main]
 
-# Cancel superseded runs when a PR is pushed again — saves time and frees the
-# single self-hosted runner for the latest commit.
+# PR runs share one group per PR, so pushing again cancels the superseded run
+# — saves time and frees the single self-hosted runner for the latest commit.
+# Pushes to main get a group per commit SHA: a group holds at most one pending
+# run and a newer one replaces it even without cancel-in-progress, so a shared
+# main group would silently skip commits when merges land in quick succession.
 concurrency:
-  group: pr-${{ github.ref }}
-  cancel-in-progress: true
+  group: >-
+    ${{ github.workflow }}-${{ github.event_name == 'pull_request'
+    && format('pr-{0}', github.event.pull_request.number)
+    || format('{0}-{1}', github.ref, github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # =============================================================================
 # RUNNER SELECTION
@@ -24,12 +35,18 @@ concurrency:
 #
 # If CI_RUNNER is unset/empty it defaults to `self-hosted` (so a missing
 # variable never silently burns hosted minutes).
+#
+# Fork PRs never use it: the repo is public, and a `pull_request` run executes
+# the PR's code, so a fork PR on the self-hosted runner would run untrusted
+# code on that machine. Each `runs-on` sends any PR whose head repo isn't this
+# repo (forks, and deleted forks where head.repo is null) to `ubuntu-latest`,
+# whatever CI_RUNNER says. Keep that guard on every job a PR can trigger.
 # =============================================================================
 
 jobs:
   typecheck:
     name: Type Check
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,7 +58,7 @@ jobs:
 
   lint:
     name: Lint & Format
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,7 +70,7 @@ jobs:
 
   test:
     name: Tests
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,7 +82,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -82,7 +99,26 @@ jobs:
 
   e2e:
     name: E2E Tests
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    # PR-only: it runs against the PR's Vercel preview deployment (and reads
+    # github.event.pull_request), which a push to main doesn't have. Skipped for
+    # fork PRs too: they get no secrets (the bypass header) and no preview.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
+    # TEMPORARY (added 2026-10-29): PR previews currently fail to build —
+    # the Neon project is at its free-plan branch limit, so the Vercel–Neon
+    # integration can't create a preview DB branch and `prisma migrate deploy`
+    # gets an empty DATABASE_URL. Until previews deploy again, an E2E failure
+    # is reported (red job) but doesn't fail the PR's workflow run. This also
+    # hides genuine Playwright failures, so remove it as soon as a PR preview
+    # deploys successfully again.
+    continue-on-error: true
+    env:
+      # GitHub deployment environment of the app project. Pinned so we ignore
+      # Preview – sqft-www (marketing site has its own bypass secret and would
+      # 401 here). Must match verbatim, en-dash included.
+      VERCEL_PREVIEW_ENVIRONMENT: Preview – sqft
     permissions:
       contents: read
       pull-requests: read
@@ -131,16 +167,21 @@ jobs:
       - name: Wait for Vercel preview
         id: vercel
         if: steps.changes.outputs.app == 'true'
-        uses: patrickedqvist/wait-for-vercel-preview@v1.3.3
+        # Reads every status of the PR head's Vercel deployment (see the script
+        # for the status semantics): fails at once on failure/error, waits out
+        # a cancel-then-rebuild, and outputs the URL of the successful build.
+        # Replaces patrickedqvist/wait-for-vercel-preview, which read only the
+        # newest status, so a failed build hung until its 10-min timeout and an
+        # `inactive` one either hung or (allow_inactive) gave a cancelled URL.
+        uses: actions/github-script@v7
         with:
-          vercel_protection_bypass_header: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Pin to the app project; ignore Preview – sqft-www (marketing site
-          # has its own bypass secret and would 401 here). Must match the
-          # GitHub deployment environment name verbatim, en-dash included.
-          environment: Preview – sqft
-          max_timeout: 600 # 10 min — bump if your builds are longer
-          check_interval: 5
+          script: |
+            const { waitForVercelPreview } = require("./scripts/wait-for-vercel-preview.cjs");
+            await waitForVercelPreview({
+              github, context, core,
+              environment: process.env.VERCEL_PREVIEW_ENVIRONMENT,
+              sha: context.payload.pull_request.head.sha,
+            });
       - name: Run Playwright
         if: steps.changes.outputs.app == 'true'
         run: npx playwright test
