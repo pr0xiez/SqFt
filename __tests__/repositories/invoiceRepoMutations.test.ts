@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  InvoiceAlreadyPaidError,
   InvoiceLockedError,
   InvoiceOverbillError,
   InvoiceOverpayError,
@@ -323,7 +324,11 @@ describe("voidInvoice", () => {
     expect($transaction).toHaveBeenCalledTimes(1);
     expect(invoiceUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 1, orgId: "org1", status: { not: "void" } },
+        where: {
+          id: 1,
+          orgId: "org1",
+          status: { in: ["draft", "sent", "viewed", "partial"] },
+        },
         data: expect.objectContaining({ status: "void" }),
       })
     );
@@ -354,11 +359,45 @@ describe("voidInvoice", () => {
 
   it("returns null and writes no event when the invoice was already void (no-op transaction)", async () => {
     invoiceUpdateMany.mockResolvedValue({ count: 0 });
+    invoiceFindFirst.mockResolvedValue({ status: "void" });
 
     expect(await voidInvoice(1, "org1")).toBeNull();
     expect($transaction).toHaveBeenCalledTimes(1);
     expect(invoiceEventCreate).not.toHaveBeenCalled();
-    expect(invoiceFindFirst).not.toHaveBeenCalled();
+    expect(qboSyncTaskUpsert).not.toHaveBeenCalled();
+    // Only the in-transaction status probe; no post-commit re-read.
+    expect(invoiceFindFirst).toHaveBeenCalledTimes(1);
+    expect(invoiceFindFirst).toHaveBeenCalledWith({
+      where: { id: 1, orgId: "org1" },
+      select: { status: true },
+    });
+  });
+
+  it("returns null when the invoice doesn't exist in the org", async () => {
+    invoiceUpdateMany.mockResolvedValue({ count: 0 });
+    invoiceFindFirst.mockResolvedValue(null);
+
+    expect(await voidInvoice(1, "org1")).toBeNull();
+    expect(invoiceEventCreate).not.toHaveBeenCalled();
+  });
+
+  it("refuses to void a paid invoice (INVOICE_ALREADY_PAID), writing nothing", async () => {
+    // The status guard is in the UPDATE's WHERE, so a paid row matches nothing.
+    invoiceUpdateMany.mockResolvedValue({ count: 0 });
+    invoiceFindFirst.mockResolvedValue({ status: "paid" });
+
+    const err = await voidInvoice(1, "org1").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(InvoiceAlreadyPaidError);
+    expect(err).toMatchObject({ code: "INVOICE_ALREADY_PAID", status: 409 });
+    expect(invoiceUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: { in: expect.not.arrayContaining(["paid"]) },
+        }),
+      })
+    );
+    expect(invoiceEventCreate).not.toHaveBeenCalled();
+    expect(qboSyncTaskUpsert).not.toHaveBeenCalled();
   });
 });
 

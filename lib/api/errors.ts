@@ -194,8 +194,8 @@ export class StripeCheckoutUnavailableError extends ApiError {
 }
 
 export class InvoiceAlreadyPaidError extends ConflictError {
-  constructor() {
-    super("This invoice is already paid.", "INVOICE_ALREADY_PAID");
+  constructor(message = "This invoice is already paid.") {
+    super(message, "INVOICE_ALREADY_PAID");
   }
 }
 

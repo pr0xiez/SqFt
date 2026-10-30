@@ -37,7 +37,17 @@ export function canPay(status: InvoiceStatus): boolean {
   return OPEN.has(status);
 }
 
-/** Void: anything not already paid or void. */
+/**
+ * Void: anything not already paid or void. A paid invoice is not voidable:
+ * voiding drops it from billing totals while its payments stay recorded, so
+ * the estimate would show the collected amount as unbilled again (inviting a
+ * second invoice) and QBO would be asked to void an invoice with a payment
+ * applied. `voidInvoice` enforces the same rule server-side.
+ */
 export function canVoid(status: InvoiceStatus): boolean {
   return !isTerminal(status);
 }
+
+/** The statuses `voidInvoice` may transition to `void` (see `canVoid`). */
+export const VOIDABLE_INVOICE_STATUSES: readonly InvoiceStatus[] =
+  INVOICE_STATUSES.filter(canVoid);

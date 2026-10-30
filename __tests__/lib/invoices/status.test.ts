@@ -7,6 +7,7 @@ import {
   INVOICE_STATUSES,
   type InvoiceStatus,
   isTerminal,
+  VOIDABLE_INVOICE_STATUSES,
 } from "@/lib/invoices/status";
 
 const table: Record<
@@ -24,6 +25,17 @@ const table: Record<
 describe("invoice action gating", () => {
   it("covers every status", () => {
     expect(Object.keys(table).sort()).toEqual([...INVOICE_STATUSES].sort());
+  });
+
+  it("never voids a paid or already-void invoice", () => {
+    expect(canVoid("paid")).toBe(false);
+    expect(canVoid("void")).toBe(false);
+  });
+
+  it("lets the server void exactly the statuses canVoid allows", () => {
+    expect([...VOIDABLE_INVOICE_STATUSES]).toEqual(
+      INVOICE_STATUSES.filter((s) => table[s].void)
+    );
   });
 
   for (const s of INVOICE_STATUSES) {

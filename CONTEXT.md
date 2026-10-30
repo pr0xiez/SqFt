@@ -479,6 +479,16 @@ holding things up — never a Stripe-side error attributed to the user.
 
 Invoice status values: `draft | sent | viewed | partial | paid | void`.
 
+**Action gating.** `lib/invoices/status.ts` is the one definition of which
+actions a status allows (`canSend` / `canResend` / `canPay` / `canVoid` /
+`isTerminal`, over the typed `InvoiceStatus`); `InvoiceDetail` renders its
+buttons from it. Only `draft | sent | viewed | partial` can be voided: a
+`paid` invoice can't, because voiding drops it from billing totals while its
+payments stay recorded, which would show collected money as unbilled again.
+`voidInvoice` enforces this with `VOIDABLE_INVOICE_STATUSES` in the UPDATE's
+own WHERE, so a payment that lands concurrently can't be voided away, and
+throws `INVOICE_ALREADY_PAID` for a paid invoice.
+
 **Org-wide list.** `GET /api/invoices` (lead+) lists all org invoices —
 `listInvoices` in `lib/repositories/invoiceRepo.ts` — with pagination, search
 (customer name / invoice #), sort, and a `status` filter of
@@ -773,8 +783,10 @@ Domain codes:
   A non-Stripe failure stays `INTERNAL`. Thrown by the checkout-session route
   (`app/api/invoice-review/[token]/checkout`).
 - `INVOICE_ALREADY_PAID` (409) — the invoice is already fully paid (or has no
-  remaining balance) when a Stripe checkout session is requested. Thrown by the
-  checkout-session route (`app/api/invoice-review/[token]/checkout`).
+  remaining balance) when a Stripe checkout session is requested, or a `paid`
+  invoice is voided. Thrown by the checkout-session route
+  (`app/api/invoice-review/[token]/checkout`) and `voidInvoice`
+  (`POST /api/invoices/[id]/void`).
 - `STRIPE_WEBHOOK_INVALID` (400) — the `stripe-signature` header failed
   verification; the webhook payload was rejected. Thrown by
   `app/api/webhooks/stripe/route.ts`.

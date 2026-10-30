@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { Prisma } from "@/app/generated/prisma/client";
 import {
+  InvoiceAlreadyPaidError,
   InvoiceLockedError,
   InvoiceOverbillError,
   InvoiceOverpayError,
@@ -13,6 +14,7 @@ import {
   OVERBILL_EPSILON,
   paymentsPaidTotal,
 } from "@/lib/invoices/compute";
+import { VOIDABLE_INVOICE_STATUSES } from "@/lib/invoices/status";
 import {
   type InvoiceStatusFilter,
   OPEN_INVOICE_STATUSES,
@@ -352,13 +354,29 @@ export function classifyStripeCharge(args: {
   };
 }
 
+/**
+ * Void an invoice. Only `VOIDABLE_INVOICE_STATUSES` (see `canVoid`) move to
+ * `void`, checked in the same statement as the write so a payment landing
+ * concurrently can't be voided out from under. A paid invoice throws
+ * INVOICE_ALREADY_PAID; a missing or already-void one returns null.
+ */
 export async function voidInvoice(id: number, orgId: string) {
   const res = await prisma.$transaction(async (tx) => {
     const updated = await tx.invoice.updateMany({
-      where: { id, orgId, status: { not: "void" } },
+      where: { id, orgId, status: { in: [...VOIDABLE_INVOICE_STATUSES] } },
       data: { status: "void", voidedAt: new Date() },
     });
-    if (updated.count === 0) return updated;
+    if (updated.count === 0) {
+      const current = await tx.invoice.findFirst({
+        where: { id, orgId },
+        select: { status: true },
+      });
+      if (current?.status === "paid")
+        throw new InvoiceAlreadyPaidError(
+          "This invoice is paid and can't be voided."
+        );
+      return updated;
+    }
     await tx.invoiceEvent.create({
       data: { invoiceId: id, type: "voided", source: "builder" },
     });
