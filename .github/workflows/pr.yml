@@ -35,12 +35,18 @@ concurrency:
 #
 # If CI_RUNNER is unset/empty it defaults to `self-hosted` (so a missing
 # variable never silently burns hosted minutes).
+#
+# Fork PRs never use it: the repo is public, and a `pull_request` run executes
+# the PR's code, so a fork PR on the self-hosted runner would run untrusted
+# code on that machine. Each `runs-on` sends any PR whose head repo isn't this
+# repo (forks, and deleted forks where head.repo is null) to `ubuntu-latest`,
+# whatever CI_RUNNER says. Keep that guard on every job a PR can trigger.
 # =============================================================================
 
 jobs:
   typecheck:
     name: Type Check
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,7 +58,7 @@ jobs:
 
   lint:
     name: Lint & Format
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -64,7 +70,7 @@ jobs:
 
   test:
     name: Tests
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -76,7 +82,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -94,9 +100,12 @@ jobs:
   e2e:
     name: E2E Tests
     # PR-only: it runs against the PR's Vercel preview deployment (and reads
-    # github.event.pull_request), which a push to main doesn't have.
-    if: github.event_name == 'pull_request'
-    runs-on: ${{ vars.CI_RUNNER || 'self-hosted' }}
+    # github.event.pull_request), which a push to main doesn't have. Skipped for
+    # fork PRs too: they get no secrets (the bypass header) and no preview.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-latest' || vars.CI_RUNNER || 'self-hosted' }}
     # TEMPORARY (added 2026-10-29): PR previews currently fail to build —
     # the Neon project is at its free-plan branch limit, so the Vercel–Neon
     # integration can't create a preview DB branch and `prisma migrate deploy`
