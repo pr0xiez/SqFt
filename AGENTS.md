@@ -218,6 +218,10 @@ with the file that owns it.
   `npm run seed:dev` — seed the dev DB.
 - `scripts/ignore-app-deploy.sh` — shared Vercel/CI app-change detection;
   checks both merge parents so a no-op merge from main cannot hide PR changes.
+- `scripts/wait-for-vercel-preview.cjs` — the E2E job's preview wait (via
+  `github-script`): reads all of a deployment's GitHub statuses, fails fast on
+  failure/error, waits out Vercel's cancel→rebuild `inactive` status, and
+  outputs the successful build's URL. Tested in `__tests__/scripts/`.
 
 ## Gotchas
 

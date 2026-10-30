@@ -150,63 +150,24 @@ jobs:
           else
             npx playwright install chromium
           fi
-      - name: Check Vercel preview deployment status
-        if: steps.changes.outputs.app == 'true'
-        # wait-for-vercel-preview keeps retrying a deployment that has already
-        # failed until max_timeout (10 min). Watch the PR head's GitHub
-        # deployment ourselves and fail as soon as Vercel reports failure/error;
-        # on success, the wait step below returns almost immediately.
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const environment = process.env.VERCEL_PREVIEW_ENVIRONMENT;
-            const sha = context.payload.pull_request.head.sha;
-            const deadline = Date.now() + 10 * 60 * 1000;
-            while (Date.now() < deadline) {
-              // Newest first, so [0] is the latest (re)deploy of this commit.
-              const { data: deployments } = await github.rest.repos.listDeployments({
-                ...context.repo, sha, environment, per_page: 1,
-              });
-              const deployment = deployments[0];
-              const { data: statuses } = deployment
-                ? await github.rest.repos.listDeploymentStatuses({
-                    ...context.repo, deployment_id: deployment.id, per_page: 1,
-                  })
-                : { data: [] };
-              const status = statuses[0];
-              if (status?.state === "success") {
-                core.info(`Vercel preview ready: ${status.environment_url}`);
-                return;
-              }
-              if (status?.state === "failure" || status?.state === "error") {
-                core.setFailed(
-                  `Vercel preview deployment for ${sha.slice(0, 7)} (${environment}) ` +
-                    `reported "${status.state}", so there is nothing to run E2E against. ` +
-                    `Vercel says: "${status.description || "(no description)"}". ` +
-                    `Deployment: ${status.log_url || status.target_url || "(none)"}`,
-                );
-                return;
-              }
-              core.info(
-                deployment
-                  ? `Deployment ${deployment.id}: ${status?.state ?? "no status yet"}; waiting…`
-                  : `No "${environment}" deployment for ${sha.slice(0, 7)} yet; waiting…`,
-              );
-              await new Promise((r) => setTimeout(r, 5000));
-            }
-            core.setFailed(
-              `Timed out after 10 min waiting for a "${environment}" deployment of ${sha.slice(0, 7)}.`,
-            );
       - name: Wait for Vercel preview
         id: vercel
         if: steps.changes.outputs.app == 'true'
-        uses: patrickedqvist/wait-for-vercel-preview@v1.3.3
+        # Reads every status of the PR head's Vercel deployment (see the script
+        # for the status semantics): fails at once on failure/error, waits out
+        # a cancel-then-rebuild, and outputs the URL of the successful build.
+        # Replaces patrickedqvist/wait-for-vercel-preview, which read only the
+        # newest status, so a failed build hung until its 10-min timeout and an
+        # `inactive` one either hung or (allow_inactive) gave a cancelled URL.
+        uses: actions/github-script@v7
         with:
-          vercel_protection_bypass_header: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          environment: ${{ env.VERCEL_PREVIEW_ENVIRONMENT }}
-          max_timeout: 600 # 10 min — bump if your builds are longer
-          check_interval: 5
+          script: |
+            const { waitForVercelPreview } = require("./scripts/wait-for-vercel-preview.cjs");
+            await waitForVercelPreview({
+              github, context, core,
+              environment: process.env.VERCEL_PREVIEW_ENVIRONMENT,
+              sha: context.payload.pull_request.head.sha,
+            });
       - name: Run Playwright
         if: steps.changes.outputs.app == 'true'
         run: npx playwright test
