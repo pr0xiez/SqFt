@@ -113,9 +113,10 @@ test.describe
         estimateId,
         { amount: 20 }
       );
-      await ctx.request.post(`/api/invoices/${unpaidId}/send`, {
+      const sendRes = await ctx.request.post(`/api/invoices/${unpaidId}/send`, {
         data: { to: "customer@example.com", subject: "Invoice #2" },
       });
+      expect(sendRes.status()).toBe(200);
       const unpaidToken = await getInvoicePublicToken(ctx.request, unpaidId);
 
       const voidRes = await ctx.request.post(`/api/invoices/${unpaidId}/void`);
