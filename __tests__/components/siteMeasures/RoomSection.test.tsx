@@ -76,15 +76,15 @@ describe("RoomSection", () => {
     fireEvent.click(screen.getByText("+ Add Room"));
 
     expect(screen.queryByText(/No rooms yet/)).toBeNull();
-    const nameInput = screen.getByPlaceholderText(
-      "Room name"
-    ) as HTMLInputElement;
-    expect(nameInput.value).toBe("New Room");
+    // A new room starts unnamed, on the picker's placeholder.
+    const picker = screen.getByLabelText("Room name") as HTMLSelectElement;
+    expect(picker.value).toBe("");
+    expect(screen.queryByLabelText("Custom room name")).toBeNull();
 
     expect(onSave).toHaveBeenCalledTimes(1);
     const saved = onSave.mock.calls[0][0];
     expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({ type: "room", name: "New Room" });
+    expect(saved[0]).toMatchObject({ type: "room", name: "" });
   });
 
   it("edits width/length: derived sqft and gross-area total update on commit", () => {
@@ -120,16 +120,71 @@ describe("RoomSection", () => {
     expect(lastRoom?.segments?.[0]?.l).toBe(0.5);
   });
 
-  it("edits the room name and persists it via onSave", () => {
+  it("picks a common room name from the dropdown and persists it", () => {
     const { onSave } = renderSection([room({ name: "Living Room" })]);
-    const nameInput = screen.getByPlaceholderText(
-      "Room name"
-    ) as HTMLInputElement;
-    fireEvent.change(nameInput, { target: { value: "Master Bedroom" } });
+    const picker = screen.getByLabelText("Room name") as HTMLSelectElement;
+    expect(picker.value).toBe("Living Room");
 
-    expect(nameInput.value).toBe("Master Bedroom");
+    fireEvent.change(picker, { target: { value: "Master Bedroom" } });
+
+    expect(picker.value).toBe("Master Bedroom");
     const lastCall = onSave.mock.calls.at(-1)?.[0];
     expect(lastCall?.[0]).toMatchObject({ name: "Master Bedroom" });
+  });
+
+  it("lists Custom as the first option", () => {
+    renderSection([room({ name: "Kitchen" })]);
+    const picker = screen.getByLabelText("Room name") as HTMLSelectElement;
+    expect(picker.options[0].textContent).toBe("Custom…");
+  });
+
+  it("choosing Custom reveals a focused text input that edits the name", () => {
+    const { onSave } = renderSection([room({ name: "Kitchen" })]);
+    const picker = screen.getByLabelText("Room name") as HTMLSelectElement;
+    fireEvent.change(picker, { target: { value: "__custom__" } });
+
+    // The current name carries over so it can be tweaked.
+    const custom = screen.getByLabelText(
+      "Custom room name"
+    ) as HTMLInputElement;
+    expect(custom.value).toBe("Kitchen");
+    expect(document.activeElement).toBe(custom);
+
+    fireEvent.change(custom, { target: { value: "Upstairs Kitchen" } });
+    expect(picker.value).toBe("__custom__");
+    const lastCall = onSave.mock.calls.at(-1)?.[0];
+    expect(lastCall?.[0]).toMatchObject({ name: "Upstairs Kitchen" });
+  });
+
+  it("keeps the custom input up while the custom name is empty or a preset", () => {
+    renderSection([room({ name: "Kitchen" })]);
+    const picker = screen.getByLabelText("Room name") as HTMLSelectElement;
+    fireEvent.change(picker, { target: { value: "__custom__" } });
+    const custom = screen.getByLabelText("Custom room name");
+
+    fireEvent.change(custom, { target: { value: "" } });
+    expect(screen.queryByLabelText("Custom room name")).not.toBeNull();
+    fireEvent.change(custom, { target: { value: "Den" } });
+    expect(screen.queryByLabelText("Custom room name")).not.toBeNull();
+    expect(picker.value).toBe("__custom__");
+  });
+
+  it("picking a preset after Custom hides the text input", () => {
+    renderSection([room({ name: "Sewing Room" })]);
+    const picker = screen.getByLabelText("Room name") as HTMLSelectElement;
+    fireEvent.change(picker, { target: { value: "Office" } });
+    expect(picker.value).toBe("Office");
+    expect(screen.queryByLabelText("Custom room name")).toBeNull();
+  });
+
+  it("shows a saved name outside the presets as Custom with its text", () => {
+    renderSection([room({ name: "Sewing Room" })]);
+    const picker = screen.getByLabelText("Room name") as HTMLSelectElement;
+    expect(picker.value).toBe("__custom__");
+    const custom = screen.getByLabelText(
+      "Custom room name"
+    ) as HTMLInputElement;
+    expect(custom.value).toBe("Sewing Room");
   });
 
   it("edits the room note and persists it via onSave", () => {
@@ -167,13 +222,10 @@ describe("RoomSection", () => {
     expect(lastCall?.[0]).toMatchObject({ name: "Kitchen" });
   });
 
-  it("focuses the name input when a room is added", () => {
+  it("focuses the room-name picker when a room is added", () => {
     renderSection([]);
     fireEvent.click(screen.getByText("+ Add Room"));
-    const nameInput = screen.getByPlaceholderText(
-      "Room name"
-    ) as HTMLInputElement;
-    expect(document.activeElement).toBe(nameInput);
+    expect(document.activeElement).toBe(screen.getByLabelText("Room name"));
   });
 
   it("adds a dimension box and sums it into the room total", () => {
