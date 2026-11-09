@@ -42,8 +42,9 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
             <p className="text-[14px] text-[var(--muted)] max-w-[60ch]">
               Push customers, sent invoices, and payments into your QuickBooks
               company. Included, no extra fee. SqFt stays the source of truth;
-              changes in QuickBooks never change SqFt records. Linked customers
-              receive updates when you save them here.
+              changes in QuickBooks never change SqFt records. Sent invoices,
+              payments, and voids sync right away. Customer edits sync in an
+              automatic sync that runs once a day.
             </p>
           ) : (
             <p className="text-[14px] text-[var(--muted)]">
@@ -138,6 +139,18 @@ export function QuickBooksCard({ status }: { status: QboStatus }) {
             </dd>
           </div>
         </dl>
+      ) : null}
+
+      {connection !== null && !needsReauth ? (
+        <div className="mt-5 pt-5 border-t border-[var(--line)] max-w-[60ch]">
+          <h3 className="text-[14px] font-[600]">Automatic sync</h3>
+          <p className="mt-1 text-[13.5px] text-[var(--ink-2)]">
+            Sent invoices, payments, and voids go to QuickBooks right away.
+            Customer edits and retries of anything that didn't go through wait
+            for the automatic sync, which runs once a day. Opening this page
+            also runs a sync. Anything marked Failed needs you to retry it.
+          </p>
+        </div>
       ) : null}
 
       {connection !== null ? (

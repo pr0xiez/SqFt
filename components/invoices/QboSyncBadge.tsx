@@ -86,7 +86,10 @@ export function QboSyncBadge({
 
   if (qboSync.state === "pending") {
     return (
-      <Tag icon={ArrowsClockwiseIcon} title="Waiting to sync to QuickBooks">
+      <Tag
+        icon={ArrowsClockwiseIcon}
+        title="Waiting to sync to QuickBooks. If it doesn't finish now, the daily automatic sync will pick it up"
+      >
         QuickBooks · syncing…
       </Tag>
     );
