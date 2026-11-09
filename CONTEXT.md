@@ -547,9 +547,13 @@ its reliability invariants are pinned one-to-one by tests in
    Both Stripe payment paths (webhook
    + checkout confirm) also kick an `after()` run like the manual paths.
 4. Sync executes via `after()` attempts (latency) + the cron sweeper
-   `GET /api/qbo/sync/run` (guarantee; `CRON_SECRET` bearer, every 5 min in
-   `vercel.json`, most-overdue org first, `maxDuration` pinned) +
-   opportunistic sweeps on the status endpoint. Tasks are **lease-claimed**
+   `GET /api/qbo/sync/run` (guarantee; `CRON_SECRET` bearer, **daily** in
+   `vercel.json` because Vercel Hobby rejects anything more frequent,
+   most-overdue org first, `maxDuration` pinned, up to 25 tasks per org) +
+   opportunistic sweeps on the status endpoint. Customer edits have no
+   `after()` kick, so they and backed-off retries wait for the next run;
+   `QuickBooksCard` tells admins this, so update its copy if the schedule
+   changes. Tasks are **lease-claimed**
    (`claimDue` advances `nextAttemptAt` atomically) so racing runners can't
    double-run one task, and the terminal writes (`markDone`/`markFailed`)
    are **fenced on the claim identity** — a task re-enqueued while a run is

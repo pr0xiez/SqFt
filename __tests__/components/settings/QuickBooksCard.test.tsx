@@ -6,6 +6,7 @@ import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QuickBooksCard } from "@/components/settings/QuickBooksCard";
 import type { QboStatus } from "@/lib/hooks/useQbo";
+import vercelConfig from "@/vercel.json";
 
 function wrap(ui: React.ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -90,6 +91,43 @@ describe("QuickBooksCard", () => {
       screen.getByRole("button", { name: "Disconnect" })
     ).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("explains the daily automatic sync before and after connecting", () => {
+    const { unmount } = render(wrap(<QuickBooksCard status={status()} />));
+    expect(
+      screen.getByText(/automatic sync that runs once a day/)
+    ).toBeInTheDocument();
+    unmount();
+
+    render(
+      wrap(
+        <QuickBooksCard
+          status={status({
+            connection: {
+              status: "active",
+              companyName: "Mock Flooring Co",
+              realmId: "mock-realm-1",
+              connectedAt: "2026-07-01T00:00:00.000Z",
+              lastSyncedAt: null,
+            },
+            health,
+          })}
+        />
+      )
+    );
+    expect(
+      screen.getByRole("heading", { name: "Automatic sync" })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/which runs once a day/)).toBeInTheDocument();
+  });
+
+  it("the cron schedule matches the once-a-day copy", () => {
+    const schedule = vercelConfig.crons.find(
+      (c) => c.path === "/api/qbo/sync/run"
+    )?.schedule;
+    // minute hour * * *: fixed minute and hour means one run per day.
+    expect(schedule).toMatch(/^\d+ \d+ \* \* \*$/);
   });
 
   it("disconnected: reconnect banner, held-syncs copy, no disconnect button", () => {
